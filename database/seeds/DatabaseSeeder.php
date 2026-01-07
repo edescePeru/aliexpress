@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
         | PASO 2: Usuario Administrador
         |--------------------------------------------------------------------------
         */
+        $this->call(RoleSeeder::class);
         $this->call(AdminUserSeeder::class);
 
         /*

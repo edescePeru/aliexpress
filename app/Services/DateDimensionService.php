@@ -11,17 +11,21 @@ class DateDimensionService
     public function populate($force = false)
     {
         if (!$force && DateDimension::exists()) {
-            return; // ya existe data, no rehacer
+            return;
         }
 
         if ($force) {
-            DateDimension::truncate(); // MySQL OK y sin FK
+            DateDimension::truncate();
         }
 
         $dataToInsert = [];
         $dates = CarbonPeriod::create('2024-01-01', '2040-12-31');
 
         foreach ($dates as $date) {
+
+            // Opcional: asegurar timezone/locale consistentes
+            $date = $date->copy()->timezone('America/Lima')->locale('es');
+
             $quarterDetails = $this->getQuarterDetails($date);
 
             $dataToInsert[] = [
@@ -31,7 +35,10 @@ class DateDimensionService
                 'year' => $date->year,
                 'day_name' => $date->dayName,
                 'day_suffix' => $this->getDaySuffix($date->day),
+
+                // OJO: dayOfWeek de Carbon es 0..6 (domingo=0)
                 'day_of_week' => $date->dayOfWeek,
+
                 'day_of_year' => $date->dayOfYear,
                 'is_weekend' => (int) $date->isWeekend(),
                 'week' => $date->week,
@@ -42,12 +49,18 @@ class DateDimensionService
                 'month_name_year' => ucfirst(substr($date->monthName, 0, 3)).'-'.$date->year,
                 'quarter' => $quarterDetails['value'],
                 'quarter_name' => $quarterDetails['name'],
+
+                // ✅ NUEVOS CAMPOS ISO
+                'iso_year' => $date->isoWeekYear,
+                'iso_week' => $date->isoWeek,
+                'iso_day_of_week' => $date->dayOfWeekIso, // 1..7 (lunes..domingo)
+
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
 
-        foreach (collect($dataToInsert)->chunk(500) as $chunk) { // MySQL puede ser 500 o 1000
+        foreach (collect($dataToInsert)->chunk(500) as $chunk) {
             DateDimension::insert($chunk->toArray());
         }
     }

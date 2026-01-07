@@ -19,14 +19,14 @@ class UserSeeder extends Seeder
             'image' => '1.jpg',
         ]);
 
-        $userAl = User::create([
+        /*$userAl = User::create([
             'name' => 'Almacén',
             'email' => 'almacen@sermeind.com',
             'password' => bcrypt('$ermeind2021'),
             'image' => '2.jpg',
-        ]);
+        ]);*/
 
         $userA->assignRole('admin');
-        $userAl->assignRole('almacen');
+        //$userAl->assignRole('almacen');
     }
 }

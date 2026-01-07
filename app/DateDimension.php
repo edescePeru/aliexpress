@@ -50,6 +50,9 @@ class DateDimension extends Model
         'month_name_year',
         'quarter',
         'quarter_name',
+        'iso_year',
+        'iso_week',
+        'iso_day_of_week'
     ];
 
     /**
