@@ -164,7 +164,7 @@ class QuoteSaleController extends Controller
         $customers = Customer::all();
         $defaultConsumable = '(*)';
         $defaultElectric = '(e)';
-        $consumables = Material::with('unitMeasure')->where('category_id', 2)->whereConsumable('description',$defaultConsumable)->orderBy('full_name', 'asc')->get();
+        $consumables = Material::with('unitMeasure')->orderBy('full_name', 'asc')->get();
         $electrics = Material::with('unitMeasure')->where('category_id', 2)->whereElectric('description',$defaultElectric)->orderBy('full_name', 'asc')->get();
         $workforces = Workforce::with('unitMeasure')->get();
         $maxId = Quote::max('id')+1;
@@ -174,9 +174,6 @@ class QuoteSaleController extends Controller
         $utility = PorcentageQuote::where('name', 'utility')->first();
         $rent = PorcentageQuote::where('name', 'rent')->first();
         $letter = PorcentageQuote::where('name', 'letter')->first();
-
-        $materials = Material::with('unitMeasure','typeScrap')
-            /*->where('enable_status', 1)*/->get();
 
         //dd($array);
 

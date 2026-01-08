@@ -167,12 +167,6 @@
                 <!-- /.card -->
             </div>
         </div>
-        {{--<div class="row">
-            <div class="col-md-4 offset-md-4 col-sm-4 offset-sm-4">
-                <button type="button" id="btn-addEquipment" class="btn btn-block bg-gradient-primary">Nuevo equipo <i class="fas fa-plus-circle"></i></button>
-                <br>
-            </div>
-        </div>--}}
 
         <div class="row" id="body-equipment">
             <div class="col-md-12">
@@ -187,13 +181,11 @@
                             <a class="btn btn-warning btn-sm" data-saveEquipment="" style="display:none" data-toggle="tooltip" title="Guardar cambios">
                                 <i class="fas fa-check-square"></i> Guardar cambios
                             </a>
-                            {{--<a class="btn btn-danger btn-sm" data-deleteEquipment="" style="display:none" data-toggle="tooltip" title="Quitar">
-                                <i class="fas fa-check-square"></i> Eliminar cotización
-                            </a>--}}
+
                             <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <button type="button" class="btn btn-tool" data-card-widget="remove"><i class="fas fa-times"></i></button>
+                            {{--<button type="button" class="btn btn-tool" data-card-widget="remove"><i class="fas fa-times"></i></button>--}}
                         </div>
                     </div>
                     <div class="card-body">
@@ -210,29 +202,21 @@
                             </div>
                         </div>
 
-                        <div class="card card-warning collapsed-card">
+                        <div class="card card-warning">
                             <div class="card-header">
                                 <h3 class="card-title">PRODUCTOS</h3>
 
                                 <div class="card-tools">
-                                    <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-plus"></i>
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
                                     </button>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-8">
+                                    <div class="col-md-10">
                                         <div class="form-group">
                                             <label>Seleccionar producto <span class="right badge badge-danger">(*)</span></label>
                                             <select class="form-control consumable_search" data-consumable style="width:100%" name="consumable_search"></select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="form-group">
-                                            <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
-                                            <input type="number" data-cantidad class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                                ">
                                         </div>
                                     </div>
                                     <div class="col-md-2">
@@ -243,52 +227,241 @@
                                 <hr>
                                 <div data-bodyConsumable>
                                     <div class="row">
-                                        <div class="col-md-5">
-                                            <div class="form-group">
-                                                <strong>Descripción</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <strong>Unidad</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <strong>Cantidad</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <strong>V/U</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <strong>P/U</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <strong>IMPORTE</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <strong>Acción</strong>
-                                            </div>
-                                        </div>
+                                        <div class="col-md-4"><strong>Descripción</strong></div>
+                                        <div class="col-md-1"><strong>Present.</strong></div>
+                                        <div class="col-md-1"><strong>Unidad</strong></div>
+                                        <div class="col-md-1"><strong>Cantidad</strong></div>
+                                        <div class="col-md-1"><strong>V/U</strong></div>
+                                        <div class="col-md-1"><strong>P/U</strong></div>
+                                        <div class="col-md-2"><strong>Importe</strong></div>
+                                        <div class="col-md-1"><strong>Acción</strong></div>
                                     </div>
 
                                 </div>
                             </div>
                         </div>
 
+                        <div class="card card-cyan ">
+                            <div class="card-header">
+                                <h3 class="card-title">SERVICIOS ADICIONALES</h3>
+
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="material_search">Descripción <span class="right badge badge-danger">(*)</span></label>
+                                            <input type="text" id="material_search" onkeyup="mayus(this);" class="form-control">
+
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label >Unidad <span class="right badge badge-danger">(*)</span></label>
+                                            <select class="form-control select2 unitMeasure" style="width: 100%;">
+                                                <option></option>
+                                                @foreach( $unitMeasures as $unitMeasure )
+                                                    <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
+                                            <input type="number" id="quantity" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                                ">
+                                        </div>
+                                    </div>
+                                    @can('showPrices_quote')
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label for="price">Precio C/IGV <span class="right badge badge-danger">(*)</span></label>
+                                                <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                                ">
+                                            </div>
+                                        </div>
+                                    @endcan
+                                    <div class="col-md-2">
+                                        <label for="btn-add"> &nbsp; </label>
+                                        <button type="button" data-addService class="btn btn-block btn-outline-primary">Agregar <i class="fas fa-arrow-circle-right"></i></button>
+                                    </div>
+
+                                </div>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <strong>Descripción</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Unidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <strong>Cantidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>V/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>P/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <strong>Importe</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Acción</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div data-bodyService>
+
+                                    @foreach( $workforces as $workforce )
+                                        <div class="row" data-serviceRow>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $workforce->description }}" data-serviceDescription>
+                                                    <input type="hidden" data-serviceId value="{{ $workforce->id }}">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <div class="form-group">
+                                                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $workforce->unitMeasure->name }}" data-serviceUnit readonly>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm" placeholder="0.00" data-serviceQuantity min="0" value="1.00" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                                ">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number" value="{{ $workforce->unit_price }}" class="form-control form-control-sm" data-serviceVU readonly
+                                                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number" value="{{ $workforce->unit_price }}" class="form-control form-control-sm" data-servicePU placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                                " @cannot('showPrices_quote') style="display: none" @endcannot >
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm" placeholder="0.00" data-serviceImporte value="{{ $workforce->unit_price }}" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                                " readonly @cannot('showPrices_quote') style="display: none" @endcannot>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <button type="button" data-deleteService class="btn btn-block btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                         <!-- /.card -->
+
+                        <div class="card card-purple">
+                            <div class="card-header">
+                                <h3 class="card-title">DESCUENTO GLOBAL</h3>
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card-body" id="discountSection"
+                                 data-discount_type="amount"
+                                 data-discount_input_mode="without_igv"
+                                 data-discount_value="0">
+
+                                <div class="row">
+                                    <!-- Tipo -->
+                                    <div class="col-md-3">
+                                        <label>Tipo</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_type" id="discount_type_amount" value="amount" checked>
+                                                <label for="discount_type_amount">Monto (S/)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_type" id="discount_type_percent" value="percent">
+                                                <label for="discount_type_percent">Porcentaje (%)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Valor -->
+                                    <div class="col-md-3">
+                                        <label>Valor</label>
+                                        <input type="number" class="form-control"
+                                               id="discount_value" min="0" step="0.01" value="0">
+                                        <small class="text-muted" id="discount_value_hint">Ingrese monto en soles.</small>
+                                    </div>
+
+                                    <!-- Modo -->
+                                    <div class="col-md-4">
+                                        <label>Modo de ingreso</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_input_mode" id="discount_mode_without" value="without_igv" checked>
+                                                <label for="discount_mode_without">SIN IGV (base)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_input_mode" id="discount_mode_with" value="with_igv">
+                                                <label for="discount_mode_with">CON IGV (del total)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Acciones -->
+                                    <div class="col-md-2">
+                                        <label>&nbsp;</label>
+                                        <button type="button" class="btn btn-outline-secondary btn-block" id="btn-clear-discount">
+                                            Limpiar
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-warning mt-2 mb-0" style="font-size: 12px;">
+                                    El descuento se aplicará recién al confirmar/guardar. En facturación, el descuento afecta la base imponible (SIN IGV).
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
                     <!-- /.card-body -->
                 </div>
                 <!-- /.card -->
+
+
             </div>
         </div>
 
@@ -323,26 +496,6 @@
                     </table>
                 </div>
 
-                {{--<div class="table-responsive">
-                    <table class="table">
-                        <tr>
-                            <th style="width:50%">Total S/IGV: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="subtotal">0.00</span></td>
-                        </tr>
-                        <tr>
-                            <th>Total C/IGV: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total">0.00</span></td>
-                        </tr>
-                        <tr>
-                            <th style="width:50%">Total+Utilidad S/IGV: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="subtotal_utility">0.00</span></td>
-                        </tr>
-                        <tr>
-                            <th style="width:50%">Total+Utilidad C/IGV: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_utility">0.00</span></td>
-                        </tr>
-                    </table>
-                </div>--}}
             </div>
             <!-- /.col -->
         </div>
@@ -478,58 +631,128 @@
     </div>
 
     <template id="template-consumable">
-        <div class="row">
-            {{-- Descripcion --}}
-            <div class="col-md-5">
+        <div class="row" data-consumableRow>
+
+            {{-- Descripción --}}
+            <div class="col-md-4">
                 <div class="form-group">
-                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-consumableDescription readonly>
+                    <input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
+
+                    {{-- se leen por attr() --}}
                     <input type="hidden" data-consumableId>
                     <input type="hidden" data-descuento>
                     <input type="hidden" data-type_promotion>
+
+                    {{-- presentación --}}
+                    <input type="hidden" data-presentation_id>
+                    <input type="hidden" data-units_per_pack>
+                    <input type="hidden" data-units_equivalent>
                 </div>
             </div>
+
+            {{-- Presentación --}}
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-presentation_text readonly>
+                </div>
+            </div>
+
             {{-- Unidad --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <div class="form-group">
-                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-consumableUnit readonly>
-                    </div>
+                    <input type="text" class="form-control form-control-sm" data-consumableUnit readonly>
                 </div>
             </div>
-            {{-- Cantidad --}}
+
+            {{-- Cantidad (packs o unidades) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" oninput="calculateTotalC(this);" data-consumableQuantity step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            ">
+                    <input type="number" class="form-control form-control-sm"
+                           min="0" step="0.01" data-consumableQuantity
+                           oninput="calculateTotalC(this);">
                 </div>
             </div>
-            {{-- Valor Unitario --}}
+
+            {{-- V/U (sin IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableValor step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableValor readonly>
                 </div>
             </div>
-            {{-- Precio Unitario --}}
+
+            {{-- P/U (con IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumablePrice step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
                 </div>
             </div>
+
             {{-- Importe --}}
             <div class="col-md-2">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableImporte step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableImporte readonly>
                 </div>
             </div>
+
             <div class="col-md-1">
-                <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
+                <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+        </div>
+    </template>
+
+    <template id="template-service">
+        <div class="row" data-serviceRow>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-serviceDescription>
+                    <input type="hidden" data-serviceId>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-serviceUnit readonly>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" step="0.01" data-serviceQuantity>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" data-serviceVU readonly
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" step="0.01" data-servicePU
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" data-serviceImporte readonly
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <button type="button" data-deleteService class="btn btn-block btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </div>
     </template>
@@ -600,6 +823,54 @@
                 <div class="modal-footer">
                     <button type="button" id="btn-submit-customer" class="btn btn-outline-success">Guardar</button>
                     <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="modalQuantityConsumable" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h4 class="modal-title">Ingrese cantidad / presentaciones</h4>
+                </div>
+
+                <input type="hidden" id="c_quantity_productId">
+
+                <div class="modal-body">
+
+                    <div class="form-group row">
+                        <div class="col-md-6">
+                            <label for="c_quantity_total">Cantidad (Unidad)</label>
+                            <input type="number" min="0" step="0.01" class="form-control" id="c_quantity_total" value="0">
+                            <small class="text-muted">Esto agrega en unidad usando el precio base del producto.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Stock disponible (unidades)</label>
+                            <input type="text" class="form-control" id="c_quantity_stock_show" readonly>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-2">
+                        <strong>Presentaciones</strong>
+                        <div class="text-muted" style="font-size: 12px;">
+                            Ingresa cuántos “paquetes” quieres agregar.
+                        </div>
+                    </div>
+
+                    <div id="c_presentationsArea">
+                        <div class="text-muted">Cargando presentaciones...</div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-notAddConsumable">Cancelar</button>
+                    <button type="button" id="btn-add_consumable_modal" class="btn btn-success">Agregar</button>
                 </div>
 
             </div>

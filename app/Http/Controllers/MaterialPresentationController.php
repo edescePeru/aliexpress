@@ -31,7 +31,7 @@ class MaterialPresentationController extends Controller
         ]);
 
         // (Opcional) evitar duplicados exactos por cantidad
-        $exists = MaterialPresentation::where('material_id', $material->id)
+        /*$exists = MaterialPresentation::where('material_id', $material->id)
             ->where('quantity', $data['quantity'])
             ->exists();
 
@@ -39,7 +39,7 @@ class MaterialPresentationController extends Controller
             return response()->json([
                 'message' => 'Ya existe una presentación con esa cantidad.'
             ], 422);
-        }
+        }*/
 
         $item = MaterialPresentation::create([
             'material_id' => $material->id,

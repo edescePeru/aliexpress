@@ -13,33 +13,10 @@ class WorkforceSeeder extends Seeder
      */
     public function run()
     {
+        UnitMeasure::create(['name' => 'UNIDAD', 'description' => 'UNIDAD']);
+
         Workforce::create([
-            'description' => 'HERRAMIENTAS',
-            'unit_measure_id' => 1,
-            'unit_price' => 0
-        ]);
-        Workforce::create([
-            'description' => 'SEGURO',
-            'unit_measure_id' => 15,
-            'unit_price' => 0
-        ]);
-        Workforce::create([
-            'description' => 'EPP',
-            'unit_measure_id' => 1,
-            'unit_price' => 0
-        ]);
-        Workforce::create([
-            'description' => 'FLETE',
-            'unit_measure_id' => 1,
-            'unit_price' => 0
-        ]);
-        Workforce::create([
-            'description' => 'TRANSPORTE PARA RECOGER MATERIALES',
-            'unit_measure_id' => 1,
-            'unit_price' => 0
-        ]);
-        Workforce::create([
-            'description' => 'TRANSPORTE PARA ENVÍO A PLANTA',
+            'description' => 'DESPACHO A AGENCIA',
             'unit_measure_id' => 1,
             'unit_price' => 0
         ]);
