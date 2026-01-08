@@ -63,7 +63,7 @@ class MaterialPresentationController extends Controller
         ]);
 
         // (Opcional) evitar duplicados por cantidad dentro del mismo material
-        $dup = MaterialPresentation::where('material_id', $presentation->material_id)
+        /*$dup = MaterialPresentation::where('material_id', $presentation->material_id)
             ->where('quantity', $data['quantity'])
             ->where('id', '!=', $presentation->id)
             ->exists();
@@ -72,7 +72,7 @@ class MaterialPresentationController extends Controller
             return response()->json([
                 'message' => 'Otra presentación ya tiene esa cantidad.'
             ], 422);
-        }
+        }*/
 
         $presentation->update($data);
 
