@@ -31,7 +31,11 @@ class UpdateExamplerRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('examplers', 'name')->ignore($this->get('exampler_id')),
+                Rule::unique('examplers', 'name')
+                    ->where(function ($q) {
+                        $q->where('brand_id', $this->input('brand_id'));
+                    })
+                    ->ignore($this->input('exampler_id'), 'id'),
             ],
             'comment' => 'nullable|string|max:255',
             'brand_id' => 'required|exists:brands,id'

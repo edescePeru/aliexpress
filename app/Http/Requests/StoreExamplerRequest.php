@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreExamplerRequest extends FormRequest
 {
@@ -25,7 +26,16 @@ class StoreExamplerRequest extends FormRequest
     {
         return [
             /*'name' => 'required|string|max:255',*/
-            'name' => 'required|string|max:255|unique:examplers,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('examplers', 'name')
+                    ->where(function ($q) {
+                        $q->where('brand_id', $this->input('brand_id'));
+                    })
+                    ->ignore($this->input('exampler_id')),
+            ],
             'comment' => 'nullable|string|max:255',
             'brand_id' => 'required|exists:brands,id'
         ];
