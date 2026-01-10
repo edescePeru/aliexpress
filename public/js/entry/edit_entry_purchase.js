@@ -116,17 +116,36 @@ $(document).ready(function () {
 
         } else {
             switch($material.tipo_venta_id) {
+
                 case 1:
-                    $('#date_vence').prop('readonly', false);
-                    $('#date_vence').prop('disabled', false);
+                    // SIN ITEMS
+                    // If con perecible o no perecible
+                    if ( $material.perecible == 'n' )
+                    {
+                        $('#date_vence').prop('readonly', true);
+                        $('#date_vence').prop('disabled', true);
+                    } else {
+                        $('#date_vence').prop('readonly', false);
+                        $('#date_vence').prop('disabled', false);
+                    }
+                    $("#almacen").typeahead('val',$locations[0]).trigger('change');
                     $('#almacen').prop('readonly', false);
                     $('#almacen').prop('disabled', false);
                     $('#btn-grouped2').bootstrapSwitch('state', false, true);
                     $('#btn-grouped2').bootstrapSwitch('disabled', true);
                     break;
                 case 2:
-                    $('#date_vence').prop('readonly', false);
-                    $('#date_vence').prop('disabled', false);
+                    // AL PESO
+                    // If con perecible o no perecible
+                    if ( $material.perecible == 'n' )
+                    {
+                        $('#date_vence').prop('readonly', true);
+                        $('#date_vence').prop('disabled', true);
+                    } else {
+                        $('#date_vence').prop('readonly', false);
+                        $('#date_vence').prop('disabled', false);
+                    }
+                    $("#almacen").typeahead('val',$locations[0]).trigger('change');
                     $('#almacen').prop('readonly', false);
                     $('#almacen').prop('disabled', false);
                     $('#btn-grouped2').bootstrapSwitch('state', false, true);
@@ -134,11 +153,18 @@ $(document).ready(function () {
                     break;
                 case 3:
                     // ITEMEABLE
-                    $('#date_vence').prop('readonly', true);
-                    $('#date_vence').prop('disabled', true);
+                    if ( $material.perecible == 'n' )
+                    {
+                        $('#date_vence').prop('readonly', true);
+                        $('#date_vence').prop('disabled', true);
+                    } else {
+                        $('#date_vence').prop('readonly', false);
+                        $('#date_vence').prop('disabled', false);
+                    }
                     $('#almacen').prop('readonly', true);
                     $('#almacen').prop('disabled', true);
                     $('#btn-grouped2').bootstrapSwitch('disabled', false);
+                    $("#almacen").typeahead('val',$locations[0]).trigger('change');
                     break;
 
             }
