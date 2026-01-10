@@ -205,12 +205,6 @@
                         <h3 class="card-title">COTIZACIÓN</h3>
 
                         <div class="card-tools">
-                            <a data-confirm="{{ $equipment->id }}" class="btn btn-primary btn-sm" style="display:none" data-toggle="tooltip" title="Confirmar" >
-                                <i class="fas fa-check-square"></i> Confirmar productos
-                            </a>
-                            <a class="btn btn-primary btn-sm" data-quote="{{ $quote->id }}" data-idEquipment="{{ $equipment->id }}" data-toggle="tooltip" title="Guardar cambios">
-                                <i class="fas fa-check-square"></i> Guardar cambios
-                            </a>
                             <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
                             </button>
                         </div>
@@ -221,7 +215,7 @@
                             <input type="hidden" data-rentequipment="" value="{{ $equipment->rent }}">
                             <input type="hidden" data-letterequipment="" value="{{ $equipment->letter }}">
                             <input type="hidden" name="" id="igv" value="{{ $igv }}">
-                            <div class="col-md-12">
+                            <div class="col-md-12" style="display: none">
                                 <label for="description">Detalles de cotización <span class="right badge badge-danger">(*)</span></label>
                                 <textarea class="textarea_edit" data-detailequipment placeholder="Place some text here"
                                           style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;">{{ $equipment->detail }}</textarea>
@@ -239,18 +233,10 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-8">
+                                    <div class="col-md-10">
                                         <div class="form-group">
                                             <label>Seleccionar producto <span class="right badge badge-danger">(*)</span></label>
                                             <select class="form-control consumable_search" data-consumable style="width:100%" name="consumable_search"></select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="form-group">
-                                            <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
-                                            <input type="number" data-cantidad class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                                this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                                ">
                                         </div>
                                     </div>
                                     <div class="col-md-2">
@@ -352,7 +338,7 @@
                                                         <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
 
                                                         {{-- se leen por attr() --}}
-                                                        <input type="hidden" data-consumableId="{{ $consumable->material_id }}">
+                                                        <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
                                                         <input type="hidden" data-descuento="{{ $consumable->discount }}">
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
 
@@ -684,20 +670,25 @@
                                     </div>
                                 </div>
 
-                                <div class="alert alert-warning mt-2 mb-0" style="font-size: 12px;">
-                                    El descuento se aplicará recién al confirmar/guardar. En facturación, el descuento afecta la base imponible (SIN IGV).
-                                </div>
+                            </div>
+                        </div>
 
+                        <div class="row">
+                            <div class="col-md-9">
+                                <div class="alert alert-warning mt-2 mb-0" id="alert_edit" style="display: none">
+                                    Se han detectado cambios, no olvide guardar los productos.
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary btn-block" id="btn-saveProducts" data-quote="{{ $quote->id }}" data-idEquipment="{{ $equipment->id }}">Guardar cambios en productos</button>
                             </div>
                         </div>
                     </div>
                     <!-- /.card-body -->
+
                 </div>
-                <!-- /.card -->
             </div>
             @endforeach
-        </div>
-        <div class="row" id="body-equipment">
         </div>
 
         @can('showPrices_quote')
@@ -746,7 +737,7 @@
                     <input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
 
                     {{-- se leen por attr() --}}
-                    <input type="hidden" data-consumableId>
+                    <input type="hidden" data-consumableid>
                     <input type="hidden" data-descuento>
                     <input type="hidden" data-type_promotion>
 
@@ -872,6 +863,54 @@
             </div>
         </div>
     </template>
+
+    <div id="modalQuantityConsumable" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h4 class="modal-title">Ingrese cantidad / presentaciones</h4>
+                </div>
+
+                <input type="hidden" id="c_quantity_productId">
+
+                <div class="modal-body">
+
+                    <div class="form-group row">
+                        <div class="col-md-6">
+                            <label for="c_quantity_total">Cantidad (Unidad)</label>
+                            <input type="number" min="0" step="0.01" class="form-control" id="c_quantity_total" value="0">
+                            <small class="text-muted">Esto agrega en unidad usando el precio base del producto.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Stock disponible (unidades)</label>
+                            <input type="text" class="form-control" id="c_quantity_stock_show" readonly>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-2">
+                        <strong>Presentaciones</strong>
+                        <div class="text-muted" style="font-size: 12px;">
+                            Ingresa cuántos “paquetes” quieres agregar.
+                        </div>
+                    </div>
+
+                    <div id="c_presentationsArea">
+                        <div class="text-muted">Cargando presentaciones...</div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-notAddConsumable">Cancelar</button>
+                    <button type="button" id="btn-add_consumable_modal" class="btn btn-success">Agregar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 
     <div id="modalChangePercentages" class="modal fade" tabindex="-1">
         <div class="modal-dialog modal-lg">

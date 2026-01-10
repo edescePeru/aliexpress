@@ -83,7 +83,7 @@
                                     <select id="unit_measure" name="unit_measure" class="form-control select2" style="width: 83%;">
                                         <option></option>
                                         @foreach($unitMeasures as $unitMeasure)
-                                            <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->description }}</option>
+                                            <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
                                         @endforeach
                                     </select>
                                     <div class="input-group-append">
