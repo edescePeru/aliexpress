@@ -42,6 +42,9 @@ class Quote extends Model
         'observations',
         'state_decimals',
         'descuento',
+        'discount_type',
+        'discount_input_mode',
+        'discount_input_value',
         'gravada',
         'igv_total',
         'total_importe'

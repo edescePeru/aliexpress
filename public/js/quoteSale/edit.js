@@ -208,6 +208,79 @@ $(document).ready(function () {
             }
         });
     });
+
+    // Cuando cambia cantidad
+    $(document).on('input', '[data-serviceQuantity]', function () {
+        const row = $(this).closest('[data-serviceRow]');
+        calculateServiceRow(row);
+        markEquipDirty(this);
+    });
+
+    // Cuando cambia P/U
+    $(document).on('input', '[data-servicePU]', function () {
+        const row = $(this).closest('[data-serviceRow]');
+        calculateServiceRow(row);
+        markEquipDirty(this);
+    });
+
+    $(document).on('click', '[data-addService]', addService);
+
+    $(document).on('click', '[data-deleteService]', function () {
+        markEquipDirty(this);
+        $(this).closest('[data-serviceRow]').remove();
+    });
+
+    // Cuando cambia Tipo (monto/percent)
+    $(document).on('change', 'input[name="discount_type"]', function () {
+        const type = $(this).val(); // amount | percent
+        $('#discountSection').attr('data-discount_type', type);
+
+        if (type === 'percent') {
+            $('#discount_value').attr('step', '0.01');
+            $('#discount_value_hint').text('Ingrese porcentaje (0 a 100).');
+        } else {
+            $('#discount_value').attr('step', '0.01');
+            $('#discount_value_hint').text('Ingrese monto en soles.');
+        }
+    });
+
+    // Cuando cambia Modo (con/sin igv)
+    $(document).on('change', 'input[name="discount_input_mode"]', function () {
+        const mode = $(this).val(); // with_igv | without_igv
+        $('#discountSection').attr('data-discount_input_mode', mode);
+    });
+
+    // Cuando cambia valor
+    $(document).on('input', '#discount_value', function () {
+        let val = parseFloat($(this).val() || 0);
+        if (isNaN(val) || val < 0) val = 0;
+        $('#discountSection').attr('data-discount_value', val.toFixed(2));
+    });
+
+    // Limpiar
+    $('#btn-clear-discount').on('click', function () {
+        $('#discount_type_amount').prop('checked', true).trigger('change');
+        $('#discount_mode_without').prop('checked', true).trigger('change');
+        $('#discount_value').val(0).trigger('input');
+    });
+
+    $(document).on('change', '[data-serviceBillable]', function () {
+        markEquipDirty(this);
+    });
+
+    $(document).on('change input', '#discountSection input, #discount_value', function () {
+        // Si tu descuento no está dentro del card, busca un card “activo”
+        // O marca todos los cards si aplica globalmente:
+        $('[data-equip]').each(function(){ markEquipDirty($(this)); });
+    });
+
+    $('#modalQuantityConsumable').on('hidden.bs.modal', function () {
+        // ✅ asegurar que nada dentro conserve foco
+        document.activeElement && document.activeElement.blur && document.activeElement.blur();
+
+        // poner foco en algo fuera
+        $('#material_search').focus();
+    });
 });
 
 var $formCreate;
@@ -374,146 +447,335 @@ var substringMatcher = function(strs) {
     };
 };
 
+function addService() {
+    const $card = $(this).closest('.card-body');
+    const desc = $card.find('#material_search').val().trim();
+    const unitId = $card.find('.unitMeasure').val();
+    const unitText = $card.find('.unitMeasure option:selected').text().trim();
+    const qty = parseFloat($card.find('#quantity').val() || 0);
+
+    if (!desc) {
+        toastr.error('Debe ingresar una descripción', 'Error');
+        return;
+    }
+    if (!unitId) {
+        toastr.error('Debe seleccionar una unidad', 'Error');
+        return;
+    }
+    if (!qty || qty <= 0) {
+        toastr.error('Debe ingresar una cantidad', 'Error');
+        return;
+    }
+
+    // Precio (con IGV)
+    let pu = 0;
+    const $priceInput = $card.find('#price');
+    if ($priceInput.length) {
+        pu = parseFloat($priceInput.val() || 0);
+        if (!pu || pu <= 0) {
+            toastr.error('Debe ingresar un precio válido', 'Error');
+            return;
+        }
+    } else {
+        // si no puede ver precios, igual lo dejamos en 0, y se ocultan campos por @cannot
+        pu = 0;
+    }
+
+    // render
+    const $render = $card.find('[data-bodyService]');
+    const clone = activateTemplate('#template-service');
+
+    // Set values
+    clone.querySelector('[data-serviceDescription]').value = desc;
+    clone.querySelector('[data-serviceId]').value = ''; // nuevo, aún no existe en BD
+    clone.querySelector('[data-serviceUnit]').value = unitText;
+    clone.querySelector('[data-serviceQuantity]').value = qty.toFixed(2);
+    clone.querySelector('[data-servicePU]').value = pu.toFixed(2);
+
+    $render.append(clone);
+
+    // recalcular para setear V/U e Importe
+    const $lastRow = $render.find('[data-serviceRow]').last();
+
+    const uid = 'billable_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+    $lastRow.find('[data-billable-id]').attr('id', uid);
+    $lastRow.find('[data-billable-label]').attr('for', uid);
+    $lastRow.find('[data-serviceBillable]').prop('checked', true);
+    calculateServiceRow($lastRow);
+
+    // limpiar inputs superiores
+    $card.find('#material_search').val('');
+    $card.find('#quantity').val(0);
+    if ($priceInput.length) $priceInput.val(0);
+    $card.find('.unitMeasure').val(null).trigger('change');
+}
+
+function calculateServiceRow(row) {
+    const $row = $(row);
+
+    let qty = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
+    if (isNaN(qty) || qty < 0) qty = 0;
+
+    let pu = parseFloat($row.find('[data-servicePU]').val() || 0); // con IGV
+    if (isNaN(pu) || pu < 0) pu = 0;
+
+    const igvPct = (typeof $igv !== 'undefined' && $igv !== null) ? parseFloat($igv) : 18;
+    const igvFactor = 1 + (igvPct / 100);
+
+    // V/U (sin IGV)
+    const vu = (igvFactor > 0) ? (pu / igvFactor) : 0;
+
+    // Importe (con IGV)
+    const importe = qty * pu;
+
+    $row.find('[data-serviceVU]').val(vu.toFixed(2));
+    $row.find('[data-serviceImporte]').val(importe.toFixed(2));
+}
+
+function readConsumablesFromDom($card) {
+    let rows = $card.find('[data-consumableRow]');
+    // Si en edit no tienes data-consumableRow, usa el contenedor que tengas
+    if (rows.length === 0) {
+        rows = $card.find('[data-consumableDescription]').closest('.row');
+    }
+
+    const arr = [];
+    let sumImporte = 0;
+    let sumPromoDiscount = 0;
+
+    rows.each(function () {
+        const $row = $(this);
+
+        const description = ($row.find('[data-consumableDescription]').val() || '').trim();
+        if (!description) return;
+
+        // material_id: robusto (attr o value)
+        const materialId =
+            $row.find('[data-consumableId]').attr('data-consumableid') ||
+            $row.find('[data-consumableId]').val() ||
+            null;
+
+        const unit = ($row.find('[data-consumableUnit]').val() || '').trim();
+
+        const qtyVisible = parseFloat($row.find('[data-consumableQuantity]').val() || 0); // packs o unidades
+        const valor = parseFloat($row.find('[data-consumableValor]').val() || 0);
+        const price = parseFloat($row.find('[data-consumablePrice]').val() || 0);
+        const importe = parseFloat($row.find('[data-consumableImporte]').val() || 0);
+
+        const discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
+        const typePromo = $row.find('[data-type_promotion]').attr('data-type_promotion') || null;
+
+        // Presentación
+        const presentationId = $row.find('[data-presentation_id]').attr('data-presentation_id') || null;
+        const unitsPerPack = parseFloat($row.find('[data-units_per_pack]').attr('data-units_per_pack') || 0);
+        const unitsEquivalent = parseFloat($row.find('[data-units_equivalent]').attr('data-units_equivalent') || 0);
+
+        arr.push({
+            id: materialId,
+            description,
+            unit,
+            quantity: qtyVisible,                // visible (packs o unidades)
+            units_equivalent: unitsEquivalent || qtyVisible, // real
+            valor,
+            price,
+            importe,
+            discount,
+            type_promo: typePromo,
+            presentation_id: presentationId,
+            units_per_pack: unitsPerPack || null
+        });
+
+        sumImporte += round2(importe);
+        sumPromoDiscount += round2(discount);
+    });
+
+    return { array: arr, sum_importe: round2(sumImporte), sum_promos: round2(sumPromoDiscount) };
+}
+
+function readServicesFromDom(container) {
+    const services = container.find('[data-serviceRow]');
+
+    const arr = [];
+    let sumAll = 0;
+    let sumBillable = 0;
+
+    services.each(function() {
+        const $row = $(this);
+
+        const desc = ($row.find('[data-serviceDescription]').val() || '').trim();
+        if (!desc) return;
+
+        const unit = ($row.find('[data-serviceUnit]').val() || '').trim();
+        const qty  = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
+        const vu   = parseFloat($row.find('[data-serviceVU]').val() || 0); // sin IGV
+        const pu   = parseFloat($row.find('[data-servicePU]').val() || 0); // con IGV
+        const imp  = parseFloat($row.find('[data-serviceImporte]').val() || 0);
+
+        const billable = $row.find('[data-serviceBillable]').is(':checked') ? 1 : 0;
+
+        arr.push({
+            description: desc,
+            unit: unit,
+            quantity: qty,
+            valor: vu,
+            price: pu,
+            importe: imp,
+            billable: billable
+        });
+
+        // ✅ Cotización: suma todo
+        sumAll += round2(imp);
+
+        // ✅ Facturación (más adelante): suma solo facturables
+        if (billable === 1) {
+            sumBillable += round2(imp);
+        }
+    });
+
+    return {
+        array: arr,
+        sum_all: round2(sumAll),
+        sum_billable: round2(sumBillable)
+    };
+}
+
+function computeGlobalDiscountBase(subtotalWithIgv, igvPct) {
+    const $d = $('#discountSection');
+    if ($d.length === 0) {
+        return { base: 0, debug: 'no_section' };
+    }
+
+    const type = ($d.attr('data-discount_type') || 'amount');          // amount | percent
+    const mode = ($d.attr('data-discount_input_mode') || 'without_igv'); // with_igv | without_igv
+    const value = parseFloat($d.attr('data-discount_value') || 0);
+
+    if (!value || value <= 0) return { base: 0, debug: 'value_zero' };
+
+    const factor = 1 + (igvPct / 100);
+
+    // Base sin IGV del subtotal (si todo es gravado)
+    const baseSubtotal = subtotalWithIgv / factor;
+
+    let discountBase = 0;
+
+    if (type === 'amount') {
+        // Monto: puede venir sin IGV o con IGV
+        discountBase = (mode === 'with_igv') ? (value / factor) : value;
+    } else {
+        // Porcentaje: puede venir calculado sobre base o sobre total
+        const pct = value / 100;
+        if (mode === 'with_igv') {
+            discountBase = (subtotalWithIgv * pct) / factor;
+        } else {
+            discountBase = baseSubtotal * pct;
+        }
+    }
+
+    // No permitir descuento mayor a la base
+    if (discountBase > baseSubtotal) discountBase = baseSubtotal;
+
+    return { base: round2(discountBase), debug: { type, mode, value } };
+}
+
 function fillEquipments() {
-    //$('#body-summary').html('');
+    $equipments = [];
 
-    $('[data-confirm]').each(function(){
-        if($(this).data('confirm')!=='')
-        {
-            var button = $(this);
-            var idEquipment = $(this).data('confirm');
-            var quantity = 1;
+    let subtotalWithIgvAll = 0;       // suma (productos + servicios) con IGV de todos los equipos
+    let promosDiscountAll = 0;        // promos (si las tienes)
+    let servicesAll = 0;              // servicios sum_all de todos los equipos
 
-            var utility = button.parent().parent().next().children().children().val();
-            var rent    = button.parent().parent().next().children().children().next().val();
-            var letter  = button.parent().parent().next().children().children().next().next().val();
+    const quote_id = $('#quote_id').val();
 
-            var detail      = button.parent().parent().next().children().children().next().next().next().children().next().val();
+    $('[data-confirm]').each(function () {
 
-            var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
+        if ($(this).data('confirm') === '') return;
 
-            console.log(consumables);
+        const button = $(this);
+        const idEquipment = button.data('confirm');
 
-            var consumablesDescription = [];
-            var consumablesIds = [];
-            var consumablesUnit = [];
-            var consumablesQuantity = [];
-            var consumablesValor = [];
-            var consumablesPrice = [];
-            var consumablesImporte = [];
-            var consumablesDiscount = [];
-            var consumablesTypePromos = [];
+        // Card del equipo
+        const $card = button.closest('[data-equip]');
 
-            var descuento_nuevo = 0;
+        // 0) Datos generales (mantengo tu forma de obtenerlos)
+        const quantity = 1;
+        const utility = button.parent().parent().next().children().children().val();
+        const rent    = button.parent().parent().next().children().children().next().val();
+        const letter  = button.parent().parent().next().children().children().next().next().val();
+        const detail  = button.parent().parent().next().children().children().next().next().next().children().next().val();
 
-            consumables.each(function(e){
-                $(this).find('[data-consumableDescription]').each(function(){
-                    consumablesDescription.push($(this).val());
-                });
-                $(this).find('[data-consumableId]').each(function(){
-                    consumablesIds.push($(this).attr('data-consumableid'));
-                });
-                $(this).find('[data-descuento]').each(function(){
-                    consumablesDiscount.push($(this).attr('data-descuento'));
-                    console.log(parseFloat($(this).attr('data-descuento')));
-                    descuento_nuevo = descuento_nuevo + parseFloat($(this).attr('data-descuento'));
-                });
-                $(this).find('[data-type_promotion]').each(function(){
-                    consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                });
-                $(this).find('[data-consumableUnit]').each(function(){
-                    consumablesUnit.push($(this).val());
-                });
-                $(this).find('[data-consumableQuantity]').each(function(){
-                    consumablesQuantity.push($(this).val());
-                });
-                $(this).find('[data-consumableValor]').each(function(){
-                    consumablesValor.push($(this).val());
-                });
-                $(this).find('[data-consumablePrice]').each(function(){
-                    consumablesPrice.push($(this).val());
-                });
-                $(this).find('[data-consumableImporte]').each(function(){
-                    consumablesImporte.push($(this).val());
-                });
-            });
+        // 1) Consumables (DOM)
+        const cRead = readConsumablesFromDom($card);
+        const consumablesArray = cRead.array;
 
-            $descuento = descuento_nuevo;
+        // productos subtotal (con IGV) - promos por item
+        let subtotalConsumables = round2(cRead.sum_importe - cRead.sum_promos);
 
-            var consumablesArray = [];
-
-            for (let i = 0; i < consumablesDescription.length; i++) {
-                consumablesArray.push({'id':consumablesIds[i], 'description':consumablesDescription[i], 'unit':consumablesUnit[i], 'quantity':consumablesQuantity[i], 'valor': consumablesValor[i], 'price': consumablesPrice[i], 'importe': consumablesImporte[i], 'discount': consumablesDiscount[i], 'type_promo': consumablesTypePromos[i]});
-            }
-
-            console.log(consumablesArray);
-
-            /*var totalEquipment = 0;
-            var gravadaEquipment = 0;
-            var totalEquipmentU = 0;
-            var totalEquipmentL = 0;
-            var totalEquipmentR = 0;
-            var totalEquipmentUtility = 0;
-            var totalDias = 0;
-
-            for (let i = 0; i < consumablesImporte.length; i++) {
-                totalEquipment = parseFloat(totalEquipment) + parseFloat(consumablesImporte[i]);
-                gravadaEquipment = parseFloat(gravadaEquipment) + (parseFloat(consumablesQuantity[i])*parseFloat(consumablesValor[i]));
-            }
-
-            totalEquipment = parseFloat((totalEquipment * quantity)).toFixed(2);
-
-            console.log(totalEquipment);
-
-            totalEquipmentU = totalEquipment*((utility/100)+1);
-            totalEquipmentL = totalEquipmentU*((letter/100)+1);
-            totalEquipmentR = totalEquipmentL*((rent/100)+1);
-            totalEquipmentUtility = totalEquipmentR.toFixed(2);
-
-            $total = parseFloat($total) + parseFloat(totalEquipment);
-            $totalUtility = parseFloat($totalUtility) + parseFloat(totalEquipmentUtility);
-
-            var igv = parseFloat(gravadaEquipment-$descuento)*parseFloat($igv/100);
-
-            $('#descuento').html(parseFloat($descuento).toFixed(2));
-            $('#gravada').html(parseFloat(gravadaEquipment-$descuento).toFixed(2));
-            $('#igv_total').html(parseFloat(igv).toFixed(2));
-            $('#total_importe').html(parseFloat(gravadaEquipment-$descuento+igv).toFixed(2));*/
-            var total = 0;
-
-            for (let i = 0; i < consumablesImporte.length; i++) {
-                let importe = round2(parseFloat(consumablesImporte[i]) || 0);
-                total += importe;
-            }
-
-            // Restar descuentos
-            total = round2(total - $descuento);
-
-            // ===============================================
-            // 2. Calcular GRAVADA e IGV a partir del TOTAL
-            // ===============================================
-            var gravada = round2(total / (1 + ($igv / 100)));
-            var igv = round2(total - gravada);
-
-            // ===============================================
-            // 3. Mostrar en pantalla
-            // ===============================================
-            $('#descuento').html(round2($descuento).toFixed(2));
-            $('#gravada').html(gravada.toFixed(2));
-            $('#igv_total').html(igv.toFixed(2));
-            $('#total_importe').html(total.toFixed(2));
-
-            var quote_id = $('#quote_id').val();
-
-            button.next().attr('data-saveEquipment', $equipments.length);
-            button.next().next().attr('data-deleteEquipment', $equipments.length);
-            $equipments.push({'id':$equipments.length, 'quote': quote_id, 'equipment': idEquipment, 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':total, 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias': []});
-
-            $items = [];
+        // 2) Servicios (DOM)
+        const servicesContainer = $card.find('[data-bodyService]');
+        let servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+        if (servicesContainer.length > 0) {
+            servicesRead = readServicesFromDom(servicesContainer);
         }
 
+        const servicesArray = servicesRead.array;
+        const servicesSumAll = servicesRead.sum_all; // ✅ cotización suma todo
+
+        // subtotal equipo con IGV
+        const subtotalWithIgvEquipment = round2(subtotalConsumables + servicesSumAll);
+
+        // acumular para total general
+        subtotalWithIgvAll += subtotalWithIgvEquipment;
+
+        promosDiscountAll += cRead.sum_promos;
+        servicesAll += servicesSumAll;
+
+        // 3) Armar equipment en memoria
+        // OJO: aquí guardamos total con IGV del equipo (sin aplicar descuento global aquí)
+        // el descuento global es a nivel quote (no por fila)
+        const equipmentIndex = $equipments.length;
+
+        button.next().attr('data-saveEquipment', equipmentIndex);
+        button.next().next().attr('data-deleteEquipment', equipmentIndex);
+
+        $equipments.push({
+            id: equipmentIndex,
+            quote: quote_id,
+            equipment: idEquipment,
+            quantity: quantity,
+            utility: utility,
+            rent: rent,
+            letter: letter,
+            total: subtotalWithIgvEquipment,  // total del equipo con IGV antes de descuento global
+            description: "",
+            detail: detail,
+            materials: [],
+            consumables: consumablesArray,
+            electrics: [],
+            workforces: servicesArray,
+            tornos: [],
+            dias: []
+        });
     });
-    //renderTemplateSummary($equipments);
+
+    // 4) Totales generales de la cotización (aplicar descuento global sobre BASE sin IGV)
+    const igvPct = parseFloat($igv || 18);
+
+    const globalDiscount = computeGlobalDiscountBase(subtotalWithIgvAll, igvPct);
+    const discountBase = globalDiscount.base;
+
+    const baseSubtotal = round2(subtotalWithIgvAll / (1 + (igvPct / 100)));
+    let baseFinal = round2(baseSubtotal - discountBase);
+    if (baseFinal < 0) baseFinal = 0;
+
+    const igvFinal = round2(baseFinal * (igvPct / 100));
+    const totalFinal = round2(baseFinal + igvFinal);
+
+    // 5) Pintar totales
+    $('#descuento').html(discountBase.toFixed(2));
+    $('#gravada').html(baseFinal.toFixed(2));
+    $('#igv_total').html(igvFinal.toFixed(2));
+    $('#total_importe').html(totalFinal.toFixed(2));
+
     $("#element_loader").LoadingOverlay("hide", true);
 }
 
@@ -728,475 +990,144 @@ function deleteEquipment() {
 }
 
 function saveEquipment() {
-    console.log($total);
-    if($(this).data('idequipment')==='')
-    {
-        var button = $(this);
-        $.confirm({
-            icon: 'fas fa-smile',
-            theme: 'modern',
-            closeIcon: true,
-            animation: 'zoom',
-            type: 'orange',
-            title: 'Guardar cambios',
-            content: '¿Está seguro de guardar los cambios en esta cotización?',
-            buttons: {
-                confirm: {
-                    text: 'CONFIRMAR',
-                    action: function (e) {
-                        var modifiedEquipment = [];
-                        var equipmentId = parseInt(button.data('saveequipment'));
-                        var idEquipment = button.attr('data-idequipment');
-                        var idQuote = button.attr('data-quote');
-                        console.log(equipmentId);
-                        var equipmentDeleted = $equipments.find(equipment => equipment.id === equipmentId);
-                        console.log(equipmentDeleted);
-
-                        $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
-
-                        /*var totalEquipmentU = 0;
-                        var totalEquipmentL = 0;
-                        var totalEquipmentR = 0;
-                        var totalEquipmentUtility = 0;*/
-
-
-                        // TODO: Capturar los materiales y recorrerlos y agregar al anterior
-                        // TODO: En data-delete (material) debe estar el equipo tambien
-                        //$total = parseFloat($total) - parseFloat(equipmentDeleted.total);
-                        /*totalEquipmentU = equipmentDeleted.total*((equipmentDeleted.utility/100)+1);
-                        totalEquipmentL = totalEquipmentU*((equipmentDeleted.letter/100)+1);
-                        totalEquipmentR = totalEquipmentL*((equipmentDeleted.rent/100)+1);
-                        totalEquipmentUtility = totalEquipmentR.toFixed(2);
-
-                        $total = parseFloat($total) - parseFloat(equipmentDeleted.total);
-                        $totalUtility = parseFloat($totalUtility) - parseFloat(totalEquipmentUtility);
-
-                        $('#subtotal').html('USD '+ ($total/1.18).toFixed(2));
-                        $('#total').html('USD '+$total.toFixed(2));
-                        $('#subtotal_utility').html('USD '+ ($totalUtility/1.18).toFixed(2));
-                        $('#total_utility').html('USD '+$totalUtility.toFixed(2));*/
-
-                        //TODO: Otra vez guardamos el equipo
-
-                        var quantity = 1;
-
-                        var utility = button.parent().parent().next().children().children().val();
-                        var rent    = button.parent().parent().next().children().children().next().val();
-                        var letter  = button.parent().parent().next().children().children().next().next().val();
-
-                        var detail      = button.parent().parent().next().children().children().next().next().next().children().next().val();
-
-                        var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
-
-                        var consumablesDescription = [];
-                        var consumablesIds = [];
-                        var consumablesUnit = [];
-                        var consumablesQuantity = [];
-                        var consumablesValor = [];
-                        var consumablesPrice = [];
-                        var consumablesImporte = [];
-                        var consumablesDiscount = [];
-                        var consumablesTypePromos = [];
-
-                        var descuento_nuevo = 0;
-
-                        consumables.each(function(e){
-                            $(this).find('[data-consumableDescription]').each(function(){
-                                console.log($(this).val());
-                                consumablesDescription.push($(this).val());
-                            });
-                            $(this).find('[data-consumableId]').each(function(){
-                                consumablesIds.push($(this).attr('data-consumableid'));
-                            });
-                            $(this).find('[data-descuento]').each(function(){
-                                consumablesDiscount.push($(this).attr('data-descuento'));
-                                descuento_nuevo = descuento_nuevo + parseFloat($(this).attr('data-descuento'));
-                            });
-                            $(this).find('[data-type_promotion]').each(function(){
-                                consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                            });
-                            $(this).find('[data-consumableUnit]').each(function(){
-                                consumablesUnit.push($(this).val());
-                            });
-                            $(this).find('[data-consumableQuantity]').each(function(){
-                                consumablesQuantity.push($(this).val());
-                            });
-                            $(this).find('[data-consumableValor]').each(function(){
-                                consumablesValor.push($(this).val());
-                            });
-                            $(this).find('[data-consumablePrice]').each(function(){
-                                consumablesPrice.push($(this).val());
-                            });
-                            $(this).find('[data-consumableImporte]').each(function(){
-                                consumablesImporte.push($(this).val());
-                            });
-                        });
-
-                        $descuento = descuento_nuevo;
-
-                        var consumablesArray = [];
-
-                        for (let i = 0; i < consumablesDescription.length; i++) {
-                            consumablesArray.push({'id':consumablesIds[i], 'description':consumablesDescription[i], 'unit':consumablesUnit[i], 'quantity':consumablesQuantity[i], 'valor': consumablesValor[i], 'price': consumablesPrice[i], 'importe': consumablesImporte[i], 'discount': consumablesDiscount[i], 'type_promo': consumablesTypePromos[i]});
-                        }
-
-                        console.log(consumablesArray);
-
-                        /*var totalEquipment = 0;
-                        var gravadaEquipment = 0;
-                        var totalEquipmentU = 0;
-                        var totalEquipmentL = 0;
-                        var totalEquipmentR = 0;
-                        var totalEquipmentUtility = 0;
-                        var totalDias = 0;
-
-                        for (let i = 0; i < consumablesImporte.length; i++) {
-                            totalEquipment = parseFloat(totalEquipment) + parseFloat(consumablesImporte[i]);
-                            gravadaEquipment = parseFloat(gravadaEquipment) + (parseFloat(consumablesQuantity[i])*parseFloat(consumablesValor[i]));
-                        }
-
-                        totalEquipment = parseFloat((totalEquipment * quantity)).toFixed(2);
-
-                        console.log(totalEquipment);
-
-                        totalEquipmentU = totalEquipment*((utility/100)+1);
-                        totalEquipmentL = totalEquipmentU*((letter/100)+1);
-                        totalEquipmentR = totalEquipmentL*((rent/100)+1);
-                        totalEquipmentUtility = totalEquipmentR.toFixed(2);
-
-                        $total = parseFloat($total) + parseFloat(totalEquipment);
-                        $totalUtility = parseFloat($totalUtility) + parseFloat(totalEquipmentUtility);
-
-                        var igv = parseFloat(gravadaEquipment-$descuento)*parseFloat($igv/100);
-
-                        $('#descuento').html(parseFloat($descuento).toFixed(2));
-                        $('#gravada').html(parseFloat(gravadaEquipment-$descuento).toFixed(2));
-                        $('#igv_total').html(parseFloat(igv).toFixed(2));
-                        $('#total_importe').html(parseFloat(gravadaEquipment-$descuento+igv).toFixed(2));*/
-
-                        var total = 0;
-
-                        for (let i = 0; i < consumablesImporte.length; i++) {
-                            let importe = round2(parseFloat(consumablesImporte[i]) || 0);
-                            total += importe;
-                        }
-
-                        // Restar descuentos
-                        total = round2(total - $descuento);
-
-                        // ===============================================
-                        // 2. Calcular GRAVADA e IGV a partir del TOTAL
-                        // ===============================================
-                        var gravada = round2(total / (1 + ($igv / 100)));
-                        var igv = round2(total - gravada);
-
-                        // ===============================================
-                        // 3. Mostrar en pantalla
-                        // ===============================================
-                        $('#descuento').html(round2($descuento).toFixed(2));
-                        $('#gravada').html(gravada.toFixed(2));
-                        $('#igv_total').html(igv.toFixed(2));
-                        $('#total_importe').html(total.toFixed(2));
-
-                        button.attr('data-saveEquipment', $equipments.length);
-                        button.next().attr('data-deleteEquipment', $equipments.length);
-                        $equipments.push({'id':equipmentId, 'quote':'', 'equipment':'', 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':total, 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias':[]});
-                        //console.log(modifiedEquipment);
-
-                        var card = button.parent().parent().parent();
-                        card.removeClass('card-gray-dark');
-                        card.addClass('card-success');
-                        $items = [];
-                        $.alert("Productos guardados!");
-
-                    },
-                },
-                cancel: {
-                    text: 'CANCELAR',
-                    action: function (e) {
-                        $.alert("Modificaión cancelada.");
-                    },
-                },
-            },
-        });
-    } else {
-        var button2 = $(this);
-        $.confirm({
-            icon: 'fas fa-smile',
-            theme: 'modern',
-            closeIcon: true,
-            animation: 'zoom',
-            type: 'orange',
-            title: 'Guardar cambios',
-            content: '¿Está seguro de guardar los cambios en estos productos?',
-            buttons: {
-                confirm: {
-                    text: 'CONFIRMAR',
-                    action: function (e) {
-                        $("#element_loader").LoadingOverlay("show", {
-                            background  : "rgba(61, 215, 239, 0.4)"
-                        });
-                        var modifiedEquipment = [];
-                        console.log("button2");
-                        console.log(button2);
-                        var equipmentId = parseInt(button2.attr('data-saveequipment')); // pos in array js
-                        console.log("equipmentIdbutton2");
-                        console.log(equipmentId);
-                        var idEquipment = button2.attr('data-idequipment'); // id del equipo en BD
-                        var idQuote = button2.attr('data-quote');
-                        var equipmentDeleted = $equipments.find(equipment => equipment.id === equipmentId);
-                        console.log("equipmentDeleted");
-                        console.log(equipmentDeleted);
-                        $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
-                        console.log("equipments");
-                        console.log($equipments);
-                        // TODO: Capturar los materiales y recorrerlos y agregar al anterior
-                        // TODO: En data-delete (material) debe estar el equipo tambien
-                        //TODO: Otra vez guardamos el equipo
-
-                        var quantity = 1;
-
-                        var utility = button2.parent().parent().next().children().children().val();
-                        var rent    = button2.parent().parent().next().children().children().next().val();
-                        var letter  = button2.parent().parent().next().children().children().next().next().val();
-
-                        var detail      = button2.parent().parent().next().children().children().next().next().next().children().next().val();
-
-                        var consumables = button2.parent().parent().next().children().next().children().next().children().next().next();
-
-                        var consumablesDescription = [];
-                        var consumablesIds = [];
-                        var consumablesUnit = [];
-                        var consumablesQuantity = [];
-                        var consumablesValor = [];
-                        var consumablesPrice = [];
-                        var consumablesImporte = [];
-                        var consumablesDiscount = [];
-                        var consumablesTypePromos = [];
-
-                        var descuento_nuevo = 0;
-
-                        consumables.each(function(e){
-                            $(this).find('[data-consumableDescription]').each(function(){
-                                console.log($(this).val());
-                                consumablesDescription.push($(this).val());
-                            });
-                            $(this).find('[data-consumableId]').each(function(){
-                                consumablesIds.push($(this).attr('data-consumableid'));
-                            });
-                            $(this).find('[data-descuento]').each(function(){
-                                consumablesDiscount.push($(this).attr('data-descuento'));
-                                descuento_nuevo = descuento_nuevo + parseFloat($(this).attr('data-descuento'));
-                            });
-                            $(this).find('[data-type_promotion]').each(function(){
-                                consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                            });
-                            $(this).find('[data-consumableUnit]').each(function(){
-                                consumablesUnit.push($(this).val());
-                            });
-                            $(this).find('[data-consumableQuantity]').each(function(){
-                                consumablesQuantity.push($(this).val());
-                            });
-                            $(this).find('[data-consumableValor]').each(function(){
-                                consumablesValor.push($(this).val());
-                            });
-                            $(this).find('[data-consumablePrice]').each(function(){
-                                consumablesPrice.push($(this).val());
-                            });
-                            $(this).find('[data-consumableImporte]').each(function(){
-                                consumablesImporte.push($(this).val());
-                            });
-                        });
-
-                        $descuento = descuento_nuevo;
-                        console.log("equipments");
-                        console.log($descuento);
-
-                        var consumablesArray = [];
-
-                        for (let i = 0; i < consumablesDescription.length; i++) {
-                            consumablesArray.push({'id':consumablesIds[i], 'description':consumablesDescription[i], 'unit':consumablesUnit[i], 'quantity':consumablesQuantity[i], 'valor': consumablesValor[i], 'price': consumablesPrice[i], 'importe': consumablesImporte[i], 'discount': consumablesDiscount[i], 'type_promo': consumablesTypePromos[i]});
-                        }
-
-                        console.log("consumablesArray");
-                        console.log(consumablesArray);
-
-                        /*var totalEquipment = 0;
-                        var gravadaEquipment = 0;
-                        var totalEquipmentU = 0;
-                        var totalEquipmentL = 0;
-                        var totalEquipmentR = 0;
-                        var totalEquipmentUtility = 0;
-                        var totalDias = 0;
-
-                        for (let i = 0; i < consumablesImporte.length; i++) {
-                            totalEquipment = parseFloat(totalEquipment) + parseFloat(consumablesImporte[i]);
-                            gravadaEquipment = parseFloat(gravadaEquipment) + (parseFloat(consumablesQuantity[i])*parseFloat(consumablesValor[i]));
-                        }
-
-                        totalEquipment = parseFloat((totalEquipment * quantity)).toFixed(2);
-
-                        console.log(totalEquipment);
-
-                        totalEquipmentU = totalEquipment*((utility/100)+1);
-                        totalEquipmentL = totalEquipmentU*((letter/100)+1);
-                        totalEquipmentR = totalEquipmentL*((rent/100)+1);
-                        totalEquipmentUtility = totalEquipmentR.toFixed(2);
-
-                        $total = parseFloat($total) + parseFloat(totalEquipment);
-                        $totalUtility = parseFloat($totalUtility) + parseFloat(totalEquipmentUtility);
-
-
-                        var igv = parseFloat((gravadaEquipment-$descuento)*($igv/100));
-
-                        console.log("igv");
-                        console.log(igv);
-
-                        console.log("descuento");
-                        console.log($descuento);
-
-                        console.log("gravadaEquipment-$descuento+igv");
-                        console.log(parseFloat(gravadaEquipment-$descuento+igv).toFixed(2));
-
-                        $('#descuento').html(parseFloat($descuento).toFixed(2));
-                        $('#gravada').html(parseFloat(gravadaEquipment-$descuento).toFixed(2));
-                        $('#igv_total').html(parseFloat(igv).toFixed(2));
-                        $('#total_importe').html(parseFloat(gravadaEquipment-$descuento+igv).toFixed(2));*/
-
-                        var total = 0;
-
-                        for (let i = 0; i < consumablesImporte.length; i++) {
-                            let importe = round2(parseFloat(consumablesImporte[i]) || 0);
-                            total += importe;
-                        }
-
-                        // Restar descuentos
-                        total = round2(total - $descuento);
-
-                        // ===============================================
-                        // 2. Calcular GRAVADA e IGV a partir del TOTAL
-                        // ===============================================
-                        var gravada = round2(total / (1 + ($igv / 100)));
-                        var igv = round2(total - gravada);
-
-                        // ===============================================
-                        // 3. Mostrar en pantalla
-                        // ===============================================
-                        $('#descuento').html(round2($descuento).toFixed(2));
-                        $('#gravada').html(gravada.toFixed(2));
-                        $('#igv_total').html(igv.toFixed(2));
-                        $('#total_importe').html(total.toFixed(2));
-
-                        button2.attr('data-saveEquipment', equipmentDeleted.id);
-                        button2.next().attr('data-deleteEquipment', equipmentDeleted.id);
-                        modifiedEquipment.push({'id':equipmentDeleted.id, 'quote':idQuote, 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':total, 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias':[]});
-                        //console.log(modifiedEquipment);
-                        $items = [];
-                        var equipos = JSON.stringify(modifiedEquipment);
-
-                        console.log("modifiedEquipment");
-                        console.log(modifiedEquipment);
-
-                        let descuento = $("#descuento").html();
-                        let gravada_2 = $("#gravada").html();
-                        let igv_total = $("#igv_total").html();
-                        let total_importe = $("#total_importe").html();
-
-                        console.log("total_importe");
-                        console.log(total_importe);
+    var button = $(this);
+
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'orange',
+        title: 'Guardar cambios',
+        content: '¿Está seguro de guardar los cambios en estos productos?',
+        buttons: {
+            confirm: {
+                text: 'CONFIRMAR',
+                action: function () {
+                    $("#element_loader").LoadingOverlay("show", { background: "rgba(61, 215, 239, 0.4)" });
+
+                    try {
+                        const $card = button.closest('[data-equip]');
+                        const idEquipment = button.attr('data-idequipment'); // id en BD
+                        const idQuote = button.attr('data-quote');
+
+                        // 1) Leer consumables + servicios del DOM
+                        const cRead = readConsumablesFromDom($card);
+                        const consumablesArray = cRead.array;
+
+                        const servicesContainer = $card.find('[data-bodyService]');
+                        let servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                        if (servicesContainer.length) servicesRead = readServicesFromDom(servicesContainer);
+
+                        const workforcesArray = servicesRead.array;
+
+                        // 2) Subtotal con IGV (productos + servicios) para aplicar descuento global
+                        let subtotalConsumables = round2(cRead.sum_importe - cRead.sum_promos);
+                        let subtotalWithIgv = round2(subtotalConsumables + servicesRead.sum_all);
+
+                        // 3) Descuento global (sobre base SIN IGV)
+                        const igvPct = parseFloat(window.$igv || 18);
+                        const globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, igvPct);
+                        const discountBase = globalDiscount.base;
+
+                        const baseSubtotal = round2(subtotalWithIgv / (1 + (igvPct / 100)));
+                        let baseFinal = round2(baseSubtotal - discountBase);
+                        if (baseFinal < 0) baseFinal = 0;
+
+                        const igvFinal = round2(baseFinal * (igvPct / 100));
+                        const totalFinal = round2(baseFinal + igvFinal);
+
+                        // 4) Pintar totales
+                        $('#descuento').html(discountBase.toFixed(2));
+                        $('#gravada').html(baseFinal.toFixed(2));
+                        $('#igv_total').html(igvFinal.toFixed(2));
+                        $('#total_importe').html(totalFinal.toFixed(2));
+
+                        // 5) Armar payload (backend espera equipment: [ {...} ])
+                        const utility = button.parent().parent().next().children().children().val();
+                        const rent    = button.parent().parent().next().children().children().next().val();
+                        const letter  = button.parent().parent().next().children().children().next().next().val();
+                        const detail  = button.parent().parent().next().children().children().next().next().next().children().next().val();
+
+                        const equipmentPayload = [{
+                            id: 0,
+                            quote: idQuote,
+                            equipment: idEquipment,
+                            quantity: 1,
+                            utility: utility,
+                            rent: rent,
+                            letter: letter,
+                            total: totalFinal,
+                            description: "",
+                            detail: detail,
+                            materials: [],
+                            consumables: consumablesArray,
+                            electrics: [],
+                            workforces: workforcesArray,
+                            tornos: [],
+                            dias: []
+                        }];
+
+                        // 6) Metadata de descuento (para persistir y rehidratar en edit)
+                        const $d = $('#discountSection');
+                        const discount_type = ($d.attr('data-discount_type') || $('input[name="discount_type"]:checked').val() || 'amount');
+                        const discount_input_mode = ($d.attr('data-discount_input_mode') || $('input[name="discount_input_mode"]:checked').val() || 'without_igv');
+                        const discount_input_value = ($d.attr('data-discount_value') || $('#discount_value').val() || '0');
 
                         $.ajax({
-                            url: '/dashboard/update/equipment/'+idEquipment+'/quote/sale/'+idQuote,
+                            url: '/dashboard/update/equipment/' + idEquipment + '/quote/sale/' + idQuote,
                             method: 'POST',
                             data: JSON.stringify({
-                                equipment: modifiedEquipment,
-                                descuento: descuento,
-                                gravada: gravada_2,
-                                igv_total: igv_total,
-                                total_importe: total_importe
+                                equipment: equipmentPayload,
+                                descuento: discountBase.toFixed(2),
+                                gravada: baseFinal.toFixed(2),
+                                igv_total: igvFinal.toFixed(2),
+                                total_importe: totalFinal.toFixed(2),
+
+                                discount_type: discount_type,
+                                discount_input_mode: discount_input_mode,
+                                discount_input_value: discount_input_value
                             }),
-                            headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-                            processData:false,
-                            contentType:'application/json; charset=utf-8',
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                            processData: false,
+                            contentType: 'application/json; charset=utf-8',
                             success: function (data) {
-                                console.log(data);
-                                var equipment = data.equipment;
-                                var quote = data.quote;
-                                /*button2.parent().prev().html('EQUIPO: '+description);*/
-                                button2.attr('data-quote', quote.id);
-                                button2.attr('data-idequipment', equipment.id);
-                                button2.next().attr('data-quote', quote.id);
-                                button2.next().attr('data-idequipment', equipment.id);
-                                $equipments.push({'id':equipmentDeleted.id, 'quote':quote.id, 'equipment':equipment.id, 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':parseFloat(gravada_2-$descuento+igv).toFixed(2), 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias':[]});
+                                // Marcar card como limpio
+                                if (typeof markEquipClean === 'function') markEquipClean($card);
 
-                                $.alert(data.message);
-
-                            },
-                            error: function (data) {
-                                if( data.responseJSON.message && !data.responseJSON.errors )
-                                {
-                                    toastr.error(data.responseJSON.message, 'Error',
-                                        {
-                                            "closeButton": true,
-                                            "debug": false,
-                                            "newestOnTop": false,
-                                            "progressBar": true,
-                                            "positionClass": "toast-top-right",
-                                            "preventDuplicates": false,
-                                            "onclick": null,
-                                            "showDuration": "300",
-                                            "hideDuration": "1000",
-                                            "timeOut": "2000",
-                                            "extendedTimeOut": "1000",
-                                            "showEasing": "swing",
-                                            "hideEasing": "linear",
-                                            "showMethod": "fadeIn",
-                                            "hideMethod": "fadeOut"
-                                        });
+                                // Rehidratar ids si cambian
+                                if (data.quote) {
+                                    button.attr('data-quote', data.quote.id);
+                                    button.next().attr('data-quote', data.quote.id);
                                 }
-                                for ( var property in data.responseJSON.errors ) {
-                                    toastr.error(data.responseJSON.errors[property], 'Error',
-                                        {
-                                            "closeButton": true,
-                                            "debug": false,
-                                            "newestOnTop": false,
-                                            "progressBar": true,
-                                            "positionClass": "toast-top-right",
-                                            "preventDuplicates": false,
-                                            "onclick": null,
-                                            "showDuration": "300",
-                                            "hideDuration": "1000",
-                                            "timeOut": "2000",
-                                            "extendedTimeOut": "1000",
-                                            "showEasing": "swing",
-                                            "hideEasing": "linear",
-                                            "showMethod": "fadeIn",
-                                            "hideMethod": "fadeOut"
-                                        });
+                                if (data.equipment) {
+                                    button.attr('data-idequipment', data.equipment.id);
+                                    button.next().attr('data-idequipment', data.equipment.id);
                                 }
 
-
+                                $.alert(data.message || 'Equipo guardado con éxito.');
                             },
+                            error: function (xhr) {
+                                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error al guardar.';
+                                toastr.error(msg, 'Error');
+                            },
+                            complete: function () {
+                                $("#element_loader").LoadingOverlay("hide", true);
+                            }
                         });
-                        //$.alert("Equipo guardado!");
-                        var card = button2.parent().parent().parent();
-                        card.removeClass('card-gray-dark');
-                        card.addClass('card-success');
+
+                    } catch (err) {
                         $("#element_loader").LoadingOverlay("hide", true);
-                        console.log($total);
-                    },
-                },
-                cancel: {
-                    text: 'CANCELAR',
-                    action: function (e) {
-                        $.alert("Modificación cancelada.");
-                    },
-                },
+                        toastr.error(err.message || 'Error inesperado', 'Error');
+                    }
+                }
             },
-        });
-    }
-
-
+            cancel: {
+                text: 'CANCELAR',
+                action: function () {}
+            }
+        }
+    });
 }
 
 function deleteConsumable() {

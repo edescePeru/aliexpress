@@ -195,7 +195,7 @@
                             <input type="hidden" name="" data-letterEquipment value="{{ $letter->value }}">
                             <input type="hidden" name="" data-letterEquipment id="igv" value="{{ $igv }}">
 
-                            <div class="col-md-12">
+                            <div class="col-md-12" style="display: none">
                                 <label for="description">Detalles de la cotización</label>
                                 <textarea class="textarea_edit" data-detailequipment placeholder="Place some text here"
                                           style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;"></textarea>
@@ -306,7 +306,7 @@
                                             <strong>Unidad</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-1">
                                         <div class="form-group">
                                             <strong>Cantidad</strong>
                                         </div>
@@ -326,6 +326,13 @@
                                             <strong>Importe</strong>
                                         </div>
                                     </div>
+
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Facturar</strong>
+                                        </div>
+                                    </div>
+
                                     <div class="col-md-1">
                                         <div class="form-group">
                                             <strong>Acción</strong>
@@ -349,7 +356,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-md-1">
                                                 <div class="form-group">
                                                     <input type="number" class="form-control form-control-sm" placeholder="0.00" data-serviceQuantity min="0" value="1.00" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                                 this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
@@ -376,6 +383,19 @@
                                                 " readonly @cannot('showPrices_quote') style="display: none" @endcannot>
                                                 </div>
                                             </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group text-center">
+                                                    <div class="icheck-primary d-inline">
+                                                        <input type="checkbox"
+                                                               id="billable_{{ $loop->index }}"
+                                                               data-serviceBillable
+                                                                {{ (isset($workforce->billable) ? $workforce->billable : true) ? 'checked' : '' }}>
+                                                        <label for="billable_{{ $loop->index }}"></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div class="col-md-1">
                                                 <button type="button" data-deleteService class="btn btn-block btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
                                             </div>
@@ -718,7 +738,7 @@
                 </div>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" step="0.01" data-serviceQuantity>
@@ -746,6 +766,15 @@
                     <input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" data-serviceImporte readonly
                            @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group text-center">
+                    <div class="icheck-primary d-inline">
+                        <input type="checkbox" data-serviceBillable data-billable-id>
+                        <label data-billable-label></label>
+                    </div>
                 </div>
             </div>
 

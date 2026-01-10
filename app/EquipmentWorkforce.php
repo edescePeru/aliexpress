@@ -12,7 +12,8 @@ class EquipmentWorkforce extends Model
         'price',
         'quantity',
         'total',
-        'unit'
+        'unit',
+        'billable'
     ];
 
     public function equipment(){

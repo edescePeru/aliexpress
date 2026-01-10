@@ -231,17 +231,20 @@ $(document).ready(function () {
     $(document).on('input', '[data-serviceQuantity]', function () {
         const row = $(this).closest('[data-serviceRow]');
         calculateServiceRow(row);
+        markEquipDirty(this);
     });
 
     // Cuando cambia P/U
     $(document).on('input', '[data-servicePU]', function () {
         const row = $(this).closest('[data-serviceRow]');
         calculateServiceRow(row);
+        markEquipDirty(this);
     });
 
     $(document).on('click', '[data-addService]', addService);
 
     $(document).on('click', '[data-deleteService]', function () {
+        markEquipDirty(this);
         $(this).closest('[data-serviceRow]').remove();
     });
 
@@ -279,6 +282,23 @@ $(document).ready(function () {
         $('#discount_value').val(0).trigger('input');
     });
 
+    $(document).on('change', '[data-serviceBillable]', function () {
+        markEquipDirty(this);
+    });
+
+    $(document).on('change input', '#discountSection input, #discount_value', function () {
+        // Si tu descuento no está dentro del card, busca un card “activo”
+        // O marca todos los cards si aplica globalmente:
+        $('[data-equip]').each(function(){ markEquipDirty($(this)); });
+    });
+
+    $('#modalQuantityConsumable').on('hidden.bs.modal', function () {
+        // ✅ asegurar que nada dentro conserve foco
+        document.activeElement && document.activeElement.blur && document.activeElement.blur();
+
+        // poner foco en algo fuera
+        $('#material_search').focus();
+    });
 });
 
 var $formCreate;
@@ -466,6 +486,11 @@ function addService() {
 
     // recalcular para setear V/U e Importe
     const $lastRow = $render.find('[data-serviceRow]').last();
+
+    const uid = 'billable_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+    $lastRow.find('[data-billable-id]').attr('id', uid);
+    $lastRow.find('[data-billable-label]').attr('for', uid);
+    $lastRow.find('[data-serviceBillable]').prop('checked', true);
     calculateServiceRow($lastRow);
 
     // limpiar inputs superiores
@@ -781,14 +806,15 @@ function saveEquipment() {
                     // ===========================
                     var card = button.closest('.card');
                     var servicesContainer = card.find('[data-bodyService]');
-                    var servicesRead = { array: [], sum: 0 };
 
+                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
                     if (servicesContainer.length > 0) {
                         servicesRead = readServicesFromDom(servicesContainer);
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSum = servicesRead.sum;
+                    var servicesSumAll = servicesRead.sum_all; // ✅ sumar SIEMPRE en cotización
+                    // var servicesSumBillable = servicesRead.sum_billable; // se usará al facturar
 
                     // ===========================
                     // 4) SUBTOTAL con IGV (antes de descuento global)
@@ -802,7 +828,7 @@ function saveEquipment() {
                     subtotalConsumables = round2(subtotalConsumables - round2(descuentoPromos));
 
                     // subtotal general (productos + servicios) con IGV
-                    var subtotalWithIgv = round2(subtotalConsumables + servicesSum);
+                    var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
 
                     // ===========================
                     // 5) DESCUENTO GLOBAL (sobre base SIN IGV)
@@ -849,7 +875,7 @@ function saveEquipment() {
                         consumables: consumablesArray,
                         electrics: [],
 
-                        // servicios
+                        // servicios (incluye billable, pero se suma igual en la cotización)
                         workforces: servicesArray,
 
                         // meta descuento global (opcional)
@@ -863,8 +889,8 @@ function saveEquipment() {
                     });
 
                     // UI
-                    card.removeClass('card-gray-dark').addClass('card-success');
-
+                    //card.removeClass('card-gray-dark').addClass('card-success');
+                    markEquipClean(card);
                     $items = [];
                     $.alert("Productos guardados!");
                 }
@@ -881,10 +907,12 @@ function saveEquipment() {
 
 function deleteConsumable() {
     //console.log($(this).parent().parent().parent());
-    var card = $(this).parent().parent().parent().parent().parent().parent().parent();
+    /*var card = $(this).parent().parent().parent().parent().parent().parent().parent();
     card.removeClass('card-success');
     card.addClass('card-gray-dark');
-    $(this).parent().parent().remove();
+    $(this).parent().parent().remove();*/
+    markEquipDirty(this);
+    $(this).closest('[data-consumableRow]').remove();
 }
 
 /*function addConsumable() {
@@ -1263,7 +1291,7 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
         $(clone).find('[data-packs]').attr('data-packs', packs);
         $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', pres.unitsPerPack);
         $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', unitsEquivalent);
-
+        markEquipDirty(render);
         render.append(clone);
         return;
     }
@@ -1290,6 +1318,8 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
     $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', "");
     $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', qtyVisible);
 
+    console.log(render);
+    markEquipDirty(render);
     render.append(clone);
 }
 
@@ -1388,26 +1418,25 @@ function computeGlobalDiscountBase(subtotalWithIgv, igvPct) {
 
 //Función auxiliar 2: obtener servicios adicionales del DOM
 function readServicesFromDom(container) {
-    // container debe ser el contenedor que tiene las filas de servicios
-    const services = container.find('[data-serviceRow], .row').filter(function() {
-        // detecta filas de servicio por presence de data-serviceDescription
-        return $(this).find('[data-serviceDescription]').length > 0;
-    });
+    const services = container.find('[data-serviceRow]');
 
     const arr = [];
-    let sumImporte = 0;
+    let sumAll = 0;
+    let sumBillable = 0;
 
     services.each(function() {
         const $row = $(this);
 
         const desc = ($row.find('[data-serviceDescription]').val() || '').trim();
+        if (!desc) return;
+
         const unit = ($row.find('[data-serviceUnit]').val() || '').trim();
         const qty  = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
         const vu   = parseFloat($row.find('[data-serviceVU]').val() || 0); // sin IGV
         const pu   = parseFloat($row.find('[data-servicePU]').val() || 0); // con IGV
         const imp  = parseFloat($row.find('[data-serviceImporte]').val() || 0);
 
-        if (!desc) return; // fila vacía
+        const billable = $row.find('[data-serviceBillable]').is(':checked') ? 1 : 0;
 
         arr.push({
             description: desc,
@@ -1415,13 +1444,24 @@ function readServicesFromDom(container) {
             quantity: qty,
             valor: vu,
             price: pu,
-            importe: imp
+            importe: imp,
+            billable: billable
         });
 
-        sumImporte += round2(imp);
+        // ✅ Cotización: suma todo
+        sumAll += round2(imp);
+
+        // ✅ Facturación (más adelante): suma solo facturables
+        if (billable === 1) {
+            sumBillable += round2(imp);
+        }
     });
 
-    return { array: arr, sum: round2(sumImporte) };
+    return {
+        array: arr,
+        sum_all: round2(sumAll),
+        sum_billable: round2(sumBillable)
+    };
 }
 
 function confirmEquipment() {
@@ -1444,8 +1484,8 @@ function confirmEquipment() {
                     // UI: bloquear botón confirmar
                     // ===========================
                     button.hide();
-                    button.next().show();      // botón guardar
-                    button.next().next().show(); // botón eliminar (según tu layout)
+                    button.next().show();        // botón guardar
+                    button.next().next().show(); // botón eliminar
 
                     var quantity = 1;
 
@@ -1455,7 +1495,6 @@ function confirmEquipment() {
                     var utility = button.parent().parent().next().children().children().val();
                     var rent    = button.parent().parent().next().children().children().next().val();
                     var letter  = button.parent().parent().next().children().children().next().next().val();
-
                     var detail  = button.parent().parent().next().children().children().next().next().next().children().next().val();
 
                     // ===========================
@@ -1466,17 +1505,16 @@ function confirmEquipment() {
                     var consumablesDescription = [];
                     var consumablesIds = [];
                     var consumablesUnit = [];
-                    var consumablesQuantity = []; // OJO: para presentación es PACKS (visible)
+                    var consumablesQuantity = []; // visible: packs o unidades
                     var consumablesValor = [];
-                    var consumablesPrice = [];    // P/U con IGV (pack o unitario)
+                    var consumablesPrice = [];    // P/U con IGV
                     var consumablesImporte = [];
                     var consumablesDiscount = [];
                     var consumablesTypePromos = [];
 
-                    // Presentaciones
                     var consumablesPresentationId = [];
                     var consumablesUnitsPerPack = [];
-                    var consumablesUnitsEquivalent = []; // unidades reales (packs*units_per_pack o qty unit)
+                    var consumablesUnitsEquivalent = [];
 
                     var descuentoPromos = 0;
 
@@ -1485,7 +1523,6 @@ function confirmEquipment() {
                             consumablesDescription.push($(this).val());
                         });
 
-                        // IMPORTANTÍSIMO: esto lo guardas como attr('data-consumableid') en render
                         $(this).find('[data-consumableId]').each(function(){
                             consumablesIds.push($(this).attr('data-consumableid'));
                         });
@@ -1504,7 +1541,6 @@ function confirmEquipment() {
                             consumablesUnit.push($(this).val());
                         });
 
-                        // Cantidad visible
                         $(this).find('[data-consumableQuantity]').each(function(){
                             consumablesQuantity.push($(this).val());
                         });
@@ -1521,7 +1557,6 @@ function confirmEquipment() {
                             consumablesImporte.push($(this).val());
                         });
 
-                        // presentación meta
                         $(this).find('[data-presentation_id]').each(function(){
                             consumablesPresentationId.push($(this).attr('data-presentation_id') || null);
                         });
@@ -1535,26 +1570,19 @@ function confirmEquipment() {
                         });
                     });
 
-                    // Armamos array final de consumables (para guardar en $equipments)
                     var consumablesArray = [];
                     for (let i = 0; i < consumablesDescription.length; i++) {
                         consumablesArray.push({
                             id: consumablesIds[i],
                             description: consumablesDescription[i],
                             unit: consumablesUnit[i],
-
-                            // quantity visible: packs o unidades
-                            quantity: consumablesQuantity[i],
-
-                            // quantity real: unidades equivalentes (para backend si lo necesitas)
-                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
-
+                            quantity: consumablesQuantity[i], // visible
+                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i], // real
                             valor: consumablesValor[i],
                             price: consumablesPrice[i],
                             importe: consumablesImporte[i],
                             discount: consumablesDiscount[i],
                             type_promo: consumablesTypePromos[i],
-
                             presentation_id: consumablesPresentationId[i] || null,
                             units_per_pack: consumablesUnitsPerPack[i] || null
                         });
@@ -1563,58 +1591,46 @@ function confirmEquipment() {
                     // ===========================
                     // 2) SERVICIOS ADICIONALES
                     // ===========================
-                    // Busca el contenedor dentro del mismo card (ajusta si tu DOM es diferente)
                     var card = button.closest('.card');
                     var servicesContainer = card.find('[data-bodyService]');
-                    var servicesRead = { array: [], sum: 0 };
 
+                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
                     if (servicesContainer.length > 0) {
                         servicesRead = readServicesFromDom(servicesContainer);
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSum = servicesRead.sum;
+                    var servicesSumAll = servicesRead.sum_all; // ✅ sumar SIEMPRE en cotización
 
                     // ===========================
                     // 3) SUBTOTAL con IGV (antes de descuento global)
                     // ===========================
-                    // Sumatoria de importes de consumables
                     var subtotalConsumables = 0;
                     for (let i = 0; i < consumablesImporte.length; i++) {
                         subtotalConsumables += round2(parseFloat(consumablesImporte[i]) || 0);
                     }
 
-                    // Aplicar descuentos de promociones (tu lógica actual)
                     subtotalConsumables = round2(subtotalConsumables - round2(descuentoPromos));
 
-                    // subtotal general (productos + servicios) con IGV
-                    var subtotalWithIgv = round2(subtotalConsumables + servicesSum);
+                    // ✅ subtotal general (productos + servicios) con IGV
+                    var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
 
                     // ===========================
-                    // 4) DESCUENTO GLOBAL (SIEMPRE se aplica sobre BASE sin IGV)
+                    // 4) DESCUENTO GLOBAL (sobre base SIN IGV)
                     // ===========================
-                    // Calcula descuento global en BASE sin IGV usando el subtotal con IGV
                     var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
-                    var discountBase = globalDiscount.base; // ✅ este es el descuento legal (sin IGV)
+                    var discountBase = globalDiscount.base;
 
-                    // Base sin IGV del subtotal
                     var baseSubtotal = round2(subtotalWithIgv / (1 + ($igv / 100)));
-
-                    // Base final después del descuento global
                     var baseFinal = round2(baseSubtotal - discountBase);
                     if (baseFinal < 0) baseFinal = 0;
 
-                    // IGV final
                     var igvFinal = round2(baseFinal * ($igv / 100));
-
-                    // Total final con IGV
                     var totalFinal = round2(baseFinal + igvFinal);
 
                     // ===========================
-                    // 5) Mostrar Totales (lo que verá el usuario)
+                    // 5) Mostrar Totales
                     // ===========================
-                    // Nota: descuentoPromos es otra cosa (promos por ítem).
-                    // Aquí mostramos el descuento global SIN IGV porque es el que facturación entiende.
                     $('#descuento').html(discountBase.toFixed(2));
                     $('#gravada').html(baseFinal.toFixed(2));
                     $('#igv_total').html(igvFinal.toFixed(2));
@@ -1631,36 +1647,25 @@ function confirmEquipment() {
                         utility: utility,
                         rent: rent,
                         letter: letter,
-
-                        // ✅ total final con IGV (ya con descuento global)
                         total: totalFinal,
-
                         description: "",
                         detail: detail,
-
                         materials: [],
                         consumables: consumablesArray,
                         electrics: [],
-
-                        // ✅ servicios adicionales
-                        workforces: servicesArray,
-
-                        // ✅ meta del descuento global para backend (opcional)
+                        workforces: servicesArray, // incluye billable
                         discount_global: {
                             base: discountBase,
                             meta: globalDiscount.debug
                         },
-
                         tornos: [],
                         dias: []
                     });
 
-                    // UI card ok
+                    // UI
                     card.removeClass('card-gray-dark').addClass('card-success');
 
-                    // Limpieza (según tu lógica)
                     $items = [];
-
                     $.alert("Productos confirmados!");
                 }
             },
@@ -1846,6 +1851,42 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
+function getEquipCardFromElement(el) {
+    // Busca el card más cercano que representa el equipo
+    return $(el).closest('[data-equip]');
+}
+
+function markEquipDirty(elOrCard) {
+    const $card = (elOrCard instanceof jQuery) ? elOrCard : getEquipCardFromElement(elOrCard);
+
+    if ($card.length === 0) return;
+
+    // Si ya está "dirty" no hace nada
+    if ($card.attr('data-dirty') === '1') return;
+
+    $card.attr('data-dirty', '1');
+
+    // Cambia color: success -> dark
+    $card.removeClass('card-success').addClass('card-gray-dark');
+
+    // (Opcional) si quieres mostrar un badge "Pendiente"
+    // $card.find('[data-pending-badge]').removeClass('d-none');
+}
+
+function markEquipClean(elOrCard) {
+    const $card = (elOrCard instanceof jQuery) ? elOrCard : getEquipCardFromElement(elOrCard);
+
+    if ($card.length === 0) return;
+
+    $card.attr('data-dirty', '0');
+
+    // dark -> success
+    $card.removeClass('card-gray-dark').addClass('card-success');
+
+    // (Opcional) ocultar badge
+    // $card.find('[data-pending-badge]').addClass('d-none');
+}
+
 function calculateMargen(e) {
     var margen = e.value;
 
@@ -1967,6 +2008,7 @@ function calculateTotalC(input) {
 
     // (opcional) si tu total general se recalcula aquí, llama tu función:
     // recalcTotalsQuote();
+    markEquipDirty(input);
 }
 
 function calculateTotalE(e) {
@@ -2112,6 +2154,10 @@ function storeQuote() {
     form.append('gravada', gravada);
     form.append('igv_total', igv_total);
     form.append('total_importe', total_importe);
+
+    const $d = $('#discountSection');
+
+    form.append('discount_input_value', $d.attr('data-discount_value') || '0');
 
     $.ajax({
         url: createUrl,

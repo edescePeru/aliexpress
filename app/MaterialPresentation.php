@@ -29,4 +29,9 @@ class MaterialPresentation extends Model
     {
         return $this->belongsTo(Material::class);
     }
+
+    public function consumibles()
+    {
+        return $this->hasMany(EquipmentConsumable::class);
+    }
 }

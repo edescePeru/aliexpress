@@ -687,6 +687,8 @@ function generateNameProduct() {
     let genero = $('#genero option:selected').text();
     let talla = $('#talla option:selected').text();
 
+    let subcategoria = $('#subcategory option:selected').text();
+
     // Inicializar un arreglo con la descripción
     let partes = [$('#description').val().trim()];
 
@@ -695,19 +697,12 @@ function generateNameProduct() {
     if (modelo !== 'Ninguno' && modelo !== '') partes.push(modelo);
     if (genero !== 'Ninguno' && genero !== '') partes.push(genero);
     if (talla !== 'Ninguno' && talla !== '') partes.push(talla);
+    if (subcategoria !== 'Ninguno' && subcategoria !== '') partes.push(subcategoria);
 
     // Unir las partes con un espacio y asignarlo al campo de nombre
     let name = partes.join(' ');
     $('#name').val(name);
-    /*$('#name').val(name);
-    if (category.trim() === 'CONSUMIBLES' && (subcategory.trim() === 'MIXTO' || subcategory.trim() === 'NORMAL'))
-    {
-        let name = $('#description').val() + type + subtype + warrant + quality + ' '+measure;
-        $('#name').val(name);
-    } else {
-        let name2 = $('#description').val() + subcategory + type + subtype + warrant + quality + ' '+measure;
-        $('#name').val(name2);
-    }*/
+
 }
 
 function showTemplateSpecification() {

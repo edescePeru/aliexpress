@@ -16,7 +16,16 @@ class EquipmentConsumable extends Model
         'availability',
         'state',
         'discount',
-        'type_promo'
+        'type_promo',
+        'material_presentation_id',
+        'packs',
+        'units_per_pack',
+    ];
+
+    protected $casts = [
+        'material_presentation_id' => 'integer',
+        'packs' => 'integer',
+        'units_per_pack' => 'integer',
     ];
 
     public function equipment(){
@@ -25,5 +34,9 @@ class EquipmentConsumable extends Model
 
     public function material(){
         return $this->belongsTo('App\Material');
+    }
+
+    public function presentation(){
+        return $this->belongsTo(MaterialPresentation::class, 'material_presentation_id');
     }
 }
