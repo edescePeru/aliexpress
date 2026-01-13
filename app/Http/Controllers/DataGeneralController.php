@@ -33,6 +33,8 @@ class DataGeneralController extends Controller
         'send_notification_store_email',
         'send_notification_store_telegram',
         'telefono',
+        'email',
+        'web'
     ];
 
     public function index()

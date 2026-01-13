@@ -500,174 +500,6 @@ function addService() {
     $card.find('.unitMeasure').val(null).trigger('change');
 }
 
-/*function saveEquipment() {
-    var button = $(this);
-    console.log(button);
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'orange',
-        title: 'Guardar cambios',
-        content: '¿Está seguro de guardar los cambios en los productos?',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function (e) {
-
-                    var equipmentId = parseInt(button.data('saveequipment'));
-                    console.log(equipmentId);
-
-                    $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
-                    var quantity = 1;
-
-                    var utility = button.parent().parent().next().children().children().val();
-                    var rent    = button.parent().parent().next().children().children().next().val();
-                    var letter  = button.parent().parent().next().children().children().next().next().val();
-
-                    var detail      = button.parent().parent().next().children().children().next().next().next().children().next().val();
-
-                    var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
-
-                    var consumablesDescription = [];
-                    var consumablesIds = [];
-                    var consumablesUnit = [];
-                    var consumablesQuantity = [];
-                    var consumablesValor = [];
-                    var consumablesPrice = [];
-                    var consumablesImporte = [];
-                    var consumablesDiscount = [];
-                    var consumablesTypePromos = [];
-
-                    var consumablesPresentationId = [];
-                    var consumablesPacks = [];
-                    var consumablesUnitsPerPack = [];
-                    var consumablesUnitsEquivalent = [];
-
-                    var descuento_nuevo = 0;
-
-                    consumables.each(function(e){
-                        $(this).find('[data-consumableDescription]').each(function(){
-                            console.log($(this).val());
-                            consumablesDescription.push($(this).val());
-                        });
-                        $(this).find('[data-consumableId]').each(function(){
-                            consumablesIds.push($(this).attr('data-consumableid'));
-                        });
-                        $(this).find('[data-descuento]').each(function(){
-                            consumablesDiscount.push($(this).attr('data-descuento'));
-                            descuento_nuevo = descuento_nuevo + parseFloat($(this).attr('data-descuento'));
-                        });
-                        $(this).find('[data-type_promotion]').each(function(){
-                            consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                        });
-                        $(this).find('[data-consumableUnit]').each(function(){
-                            consumablesUnit.push($(this).val());
-                        });
-                        $(this).find('[data-consumableQuantity]').each(function(){
-                            consumablesQuantity.push($(this).val());
-                        });
-                        $(this).find('[data-consumableValor]').each(function(){
-                            consumablesValor.push($(this).val());
-                        });
-                        $(this).find('[data-consumablePrice]').each(function(){
-                            consumablesPrice.push($(this).val());
-                        });
-                        $(this).find('[data-consumableImporte]').each(function(){
-                            consumablesImporte.push($(this).val());
-                        });
-                        $(this).find('[data-presentation_id]').each(function(){
-                            consumablesPresentationId.push($(this).attr('data-presentation_id'));
-                        });
-                        $(this).find('[data-packs]').each(function(){
-                            consumablesPacks.push($(this).attr('data-packs'));
-                        });
-                        $(this).find('[data-units_per_pack]').each(function(){
-                            consumablesUnitsPerPack.push($(this).attr('data-units_per_pack'));
-                        });
-                        $(this).find('[data-units_equivalent]').each(function(){
-                            consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent'));
-                        });
-                    });
-
-                    $descuento = descuento_nuevo;
-                    var consumablesArray = [];
-
-                    for (let i = 0; i < consumablesDescription.length; i++) {
-                        consumablesArray.push({
-                            'id': consumablesIds[i],
-                            'description': consumablesDescription[i],
-                            'unit': consumablesUnit[i],
-                            'quantity': consumablesQuantity[i],
-                            'valor': consumablesValor[i],
-                            'price': consumablesPrice[i],
-                            'importe': consumablesImporte[i],
-                            'discount': consumablesDiscount[i],
-                            'type_promo': consumablesTypePromos[i],
-
-                            // ✅ nuevos
-                            'presentation_id': consumablesPresentationId[i] || null,
-                            'packs': consumablesPacks[i] || null,
-                            'units_per_pack': consumablesUnitsPerPack[i] || null,
-                            'units_equivalent': consumablesUnitsEquivalent[i] || consumablesQuantity[i],
-                        });
-                    }
-
-                    console.log(consumablesArray);
-
-                    // ===============================================
-                    // 1. Calcular el TOTAL real (sumatoria de importes)
-                    // ===============================================
-                    var total = 0;
-
-                    for (let i = 0; i < consumablesImporte.length; i++) {
-                        let importe = round2(parseFloat(consumablesImporte[i]) || 0);
-                        total += importe;
-                    }
-
-                    // Restar descuentos
-                    total = round2(total - $descuento);
-
-                    // ===============================================
-                    // 2. Calcular GRAVADA e IGV a partir del TOTAL
-                    // ===============================================
-                    var gravada = round2(total / (1 + ($igv / 100)));
-                    var igv = round2(total - gravada);
-
-                    // ===============================================
-                    // 3. Mostrar en pantalla
-                    // ===============================================
-                    $('#descuento').html(round2($descuento).toFixed(2));
-                    $('#gravada').html(gravada.toFixed(2));
-                    $('#igv_total').html(igv.toFixed(2));
-                    $('#total_importe').html(total.toFixed(2));
-
-
-                    button.attr('data-saveEquipment', $equipments.length);
-                    button.next().attr('data-deleteEquipment', $equipments.length);
-                    $equipments.push({'id':equipmentId, 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':total, 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias':[]});
-
-                    var card = button.parent().parent().parent();
-                    card.removeClass('card-gray-dark');
-                    card.addClass('card-success');
-
-                    $items = [];
-
-                    $.alert("Productos guardados!");
-
-                },
-            },
-            cancel: {
-                text: 'CANCELAR',
-                action: function (e) {
-                    $.alert("Modificación cancelada.");
-                },
-            },
-        },
-    });
-
-}*/
 function saveEquipment() {
     var button = $(this);
 
@@ -821,14 +653,16 @@ function saveEquipment() {
                     // ===========================
                     var subtotalConsumables = 0;
                     for (let i = 0; i < consumablesImporte.length; i++) {
-                        subtotalConsumables += round2(parseFloat(consumablesImporte[i]) || 0);
+                        //subtotalConsumables += round2(parseFloat(consumablesImporte[i]) || 0);
+                        subtotalConsumables += (parseFloat(consumablesImporte[i]) || 0);
                     }
 
                     // aplicar descuentos de promos (por item)
                     subtotalConsumables = round2(subtotalConsumables - round2(descuentoPromos));
 
                     // subtotal general (productos + servicios) con IGV
-                    var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
+                    //var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
+                    var subtotalWithIgv = moneyRound(subtotalConsumables + servicesSumAll);
 
                     // ===========================
                     // 5) DESCUENTO GLOBAL (sobre base SIN IGV)
@@ -905,6 +739,33 @@ function saveEquipment() {
     });
 }
 
+function computeDiscountWithIgv(subtotalWithIgv, igvPct) {
+    const $d = $('#discountSection');
+    const type = ($d.attr('data-discount_type') || 'amount'); // amount | percent
+    const mode = ($d.attr('data-discount_input_mode') || 'without_igv'); // with_igv | without_igv
+    const value = parseFloat($d.attr('data-discount_value') || 0);
+
+    if (!value || value <= 0) return 0;
+
+    const factor = 1 + (igvPct / 100);
+
+    let discountWithIgv = 0;
+
+    if (type === 'amount') {
+        discountWithIgv = (mode === 'with_igv') ? value : moneyRound(value * factor);
+    } else {
+        const pct = value / 100;
+        discountWithIgv = (mode === 'with_igv')
+            ? moneyRound(subtotalWithIgv * pct)
+            : moneyRound((subtotalWithIgv / factor) * pct * factor);
+    }
+
+    // No pasar el subtotal
+    if (discountWithIgv > subtotalWithIgv) discountWithIgv = subtotalWithIgv;
+
+    return moneyRound(discountWithIgv);
+}
+
 function deleteConsumable() {
     //console.log($(this).parent().parent().parent());
     /*var card = $(this).parent().parent().parent().parent().parent().parent().parent();
@@ -915,140 +776,6 @@ function deleteConsumable() {
     $(this).closest('[data-consumableRow]').remove();
 }
 
-/*function addConsumable() {
-    if ( $.inArray('showPrices_quote', $permissions) !== -1 ) {
-        var consumableID = $(this).parent().parent().find('[data-consumable]').val();
-
-        var inputQuantity = $(this).parent().parent().find('[data-cantidad]');
-
-        var cantidad = inputQuantity.val();
-
-        if ( consumableID === '' || consumableID === null )
-        {
-            toastr.error('Debe seleccionar un consumible', 'Error',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            return;
-        }
-
-        var render = $(this).parent().parent().next().next();
-
-        var consumable = $consumables.find( mat=>mat.id === parseInt(consumableID) );
-
-        var consumables = $(this).parent().parent().next().next().children();
-
-        consumables.each(function(e){
-            var id = $(this).children().children().children().next().val();
-            if (parseInt(consumable.id) === parseInt(id)) {
-                inputQuantity.val(0);
-                $(".consumable_search").empty().trigger('change');
-                toastr.error('Este material ya esta seleccionado', 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-                e.stopPropagation();
-                return false ;
-            }
-        });
-        inputQuantity.val(0);
-        $(".consumable_search").empty().trigger('change');
-
-    } else {
-        var consumableID2 = $(this).parent().parent().find('[data-consumable]').val();
-
-        var inputQuantity2 = $(this).parent().parent().find('[data-cantidad]');
-        var cantidad2 = inputQuantity2.val();
-
-        if ( consumableID2 === '' || consumableID2 === null )
-        {
-            toastr.error('Debe seleccionar un consumible', 'Error',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            return;
-        }
-
-        var render2 = $(this).parent().parent().next().next();
-
-        var consumable2 = $consumables.find( mat=>mat.id === parseInt(consumableID2) );
-        var consumables2 = $(this).parent().parent().next().next().children();
-
-        consumables2.each(function(e){
-            var id = $(this).children().children().children().next().val();
-            if (parseInt(consumable2.id) === parseInt(id)) {
-                inputQuantity2.val(0);
-                $(".consumable_search").empty().trigger('change');
-                toastr.error('Este material ya esta seleccionado', 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-                e.stopPropagation();
-                return false ;
-            }
-        });
-        inputQuantity2.val(0);
-        $(".consumable_search").empty().trigger('change');
-
-    }
-
-}*/
 function addConsumable() {
 
     var consumableID = $(this).parent().parent().find('[data-consumable]').val();
@@ -1223,36 +950,6 @@ function renderTemplateConsumableWithFixedPrice(render, consumable, quantity, fi
     render.append(clone);
 }
 
-/*function renderTemplateConsumable(render, consumable, quantity, discountOrPrice, type_promo,isPrice = false) {
-    var card = render.closest('[data-equip]');
-    card.removeClass('card-success').addClass('card-gray-dark');
-
-    var clone = activateTemplate('#template-consumable');
-
-    let precioBase = isPrice ? parseFloat(discountOrPrice) : parseFloat(consumable.list_price);
-    let valorUnitario = precioBase / ((100 + parseFloat($igv)) / 100);
-    let importeTotal = precioBase * parseFloat(quantity);
-
-    if (consumable.enable_status == 0) {
-        clone.querySelector("[data-consumableDescription]").setAttribute('style', "color:purple;");
-    } else if (consumable.stock_current == 0) {
-        clone.querySelector("[data-consumableDescription]").setAttribute('style', "color:red;");
-    } else if (consumable.state_update_price == 1) {
-        clone.querySelector("[data-consumableDescription]").setAttribute('style', "color:blue;");
-    }
-
-    clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-    clone.querySelector("[data-consumableId]").setAttribute('data-consumableId', consumable.id);
-    clone.querySelector("[data-descuento]").setAttribute('data-descuento', isPrice ? "0.00" : parseFloat(discountOrPrice).toFixed(2));
-    clone.querySelector("[data-type_promotion]").setAttribute('data-type_promotion', type_promo);
-    clone.querySelector("[data-consumableUnit]").setAttribute('value', consumable.unit_measure.description);
-    clone.querySelector("[data-consumableQuantity]").setAttribute('value', parseFloat(quantity).toFixed(2));
-    clone.querySelector("[data-consumableValor]").setAttribute('value', valorUnitario.toFixed(2));
-    clone.querySelector("[data-consumablePrice]").setAttribute('value', precioBase.toFixed(2));
-    clone.querySelector("[data-consumableImporte]").setAttribute('value', importeTotal.toFixed(2));
-
-    render.append(clone);
-}*/
 function renderTemplateConsumable(render, consumable, quantity, discountOrPrice, type_promo, isPrice = false, pres = null) {
 
     var clone = activateTemplate('#template-consumable');
@@ -1393,18 +1090,21 @@ function computeGlobalDiscountBase(subtotalWithIgv, igvPct) {
     const factor = 1 + (igvPct / 100);
 
     // Base sin IGV del subtotal (si todo es gravado)
-    const baseSubtotal = subtotalWithIgv / factor;
+    //const baseSubtotal = subtotalWithIgv / factor;
+    const baseSubtotal = divTrunc2(subtotalWithIgv, factor);
 
     let discountBase = 0;
 
     if (type === 'amount') {
         // Monto: puede venir sin IGV o con IGV
-        discountBase = (mode === 'with_igv') ? (value / factor) : value;
+        //discountBase = (mode === 'with_igv') ? (value / factor) : value;
+        discountBase = (mode === 'with_igv') ? divTrunc2(value, factor) : value;
     } else {
         // Porcentaje: puede venir calculado sobre base o sobre total
         const pct = value / 100;
         if (mode === 'with_igv') {
-            discountBase = (subtotalWithIgv * pct) / factor;
+            //discountBase = (subtotalWithIgv * pct) / factor;
+            discountBase = divTrunc2(subtotalWithIgv * pct, factor);
         } else {
             discountBase = baseSubtotal * pct;
         }
@@ -1413,7 +1113,8 @@ function computeGlobalDiscountBase(subtotalWithIgv, igvPct) {
     // No permitir descuento mayor a la base
     if (discountBase > baseSubtotal) discountBase = baseSubtotal;
 
-    return { base: round2(discountBase), debug: { type, mode, value } };
+    //return { base: round2(discountBase), debug: { type, mode, value } };
+    return { base: moneyTrunc(discountBase), debug: { type, mode, value } };
 }
 
 //Función auxiliar 2: obtener servicios adicionales del DOM
@@ -1618,7 +1319,7 @@ function confirmEquipment() {
                     // ===========================
                     // 4) DESCUENTO GLOBAL (sobre base SIN IGV)
                     // ===========================
-                    var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
+                    /*var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
                     var discountBase = globalDiscount.base;
 
                     var baseSubtotal = round2(subtotalWithIgv / (1 + ($igv / 100)));
@@ -1626,12 +1327,35 @@ function confirmEquipment() {
                     if (baseFinal < 0) baseFinal = 0;
 
                     var igvFinal = round2(baseFinal * ($igv / 100));
-                    var totalFinal = round2(baseFinal + igvFinal);
+                    var totalFinal = round2(baseFinal + igvFinal);*/
+                    var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
+                    var discountBase = globalDiscount.base;
+
+                    const igvPct = parseFloat($igv) || 18;
+                    const factor = 1 + (igvPct / 100);
+
+                    const discountWithIgv = computeDiscountWithIgv(subtotalWithIgv, igvPct);
+                    // ✅ base sin IGV TRUNCADA
+                    var baseSubtotal = divTrunc2(subtotalWithIgv, factor);
+                    var totalFinal = moneyRound(subtotalWithIgv - discountWithIgv);
+                    // ✅ base final (TRUNC)
+                    //var baseFinal = moneyTrunc(baseSubtotal - discountBase);
+                    var baseFinal = divTrunc2(totalFinal, factor);
+                    if (baseFinal < 0) baseFinal = 0;
+
+                    // ✅ IGV y total (round normal al final)
+                    //var igvFinal = moneyRound(baseFinal * (igvPct / 100));
+                    const igvFinal = moneyRound(totalFinal - baseFinal);
+                    //var totalFinal = moneyRound(baseFinal + igvFinal);
 
                     // ===========================
                     // 5) Mostrar Totales
                     // ===========================
-                    $('#descuento').html(discountBase.toFixed(2));
+                    /*$('#descuento').html(discountBase.toFixed(2));
+                    $('#gravada').html(baseFinal.toFixed(2));
+                    $('#igv_total').html(igvFinal.toFixed(2));
+                    $('#total_importe').html(totalFinal.toFixed(2));*/
+                    $('#descuento').html(moneyRound(discountWithIgv / factor).toFixed(2)); // si tu UI “descuento” es en base
                     $('#gravada').html(baseFinal.toFixed(2));
                     $('#igv_total').html(igvFinal.toFixed(2));
                     $('#total_importe').html(totalFinal.toFixed(2));
@@ -1680,167 +1404,24 @@ function confirmEquipment() {
     });
 }
 
-/*function confirmEquipment() {
-    var button = $(this);
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'green',
-        title: 'Confirmar Productos',
-        content: 'Debe confirmar para almacenar los productos en memoria',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function (e) {
-                    // Quitamos el boton
-                    button.hide();
+// Redondeo clásico a 2 decimales (solo para mostrar o cierre final)
+function moneyRound(n) {
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 
-                    button.next().show();
-                    button.next().next().show();
+// ✅ TRUNCAR a 2 decimales (lo que te evita el +0.01)
+function moneyTrunc(n) {
+    n = Number(n) || 0;
+    return (n >= 0)
+        ? Math.floor(n * 100) / 100
+        : Math.ceil(n * 100) / 100; // por si hubiera negativos
+}
 
-                    var quantity = 1;
-
-                    // TODO: Obtencion de los porcentages
-                    var utility = button.parent().parent().next().children().children().val();
-                    var rent    = button.parent().parent().next().children().children().next().val();
-                    var letter  = button.parent().parent().next().children().children().next().next().val();
-
-                    var detail      = button.parent().parent().next().children().children().next().next().next().children().next().val();
-
-                    var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
-
-                    var consumablesDescription = [];
-                    var consumablesIds = [];
-                    var consumablesUnit = [];
-                    var consumablesQuantity = [];
-                    var consumablesValor = [];
-                    var consumablesPrice = [];
-                    var consumablesImporte = [];
-                    var consumablesDiscount = [];
-                    var consumablesTypePromos = [];
-
-                    var consumablesPresentationId = [];
-                    var consumablesPacks = [];
-                    var consumablesUnitsPerPack = [];
-
-                    var descuento_nuevo = 0;
-
-                    consumables.each(function(e){
-                        $(this).find('[data-consumableDescription]').each(function(){
-                            consumablesDescription.push($(this).val());
-                        });
-                        $(this).find('[data-consumableId]').each(function(){
-                            consumablesIds.push($(this).attr('data-consumableid'));
-                        });
-                        $(this).find('[data-descuento]').each(function(){
-                            consumablesDiscount.push($(this).attr('data-descuento'));
-                            descuento_nuevo = descuento_nuevo + parseFloat($(this).attr('data-descuento'));
-                        });
-                        $(this).find('[data-type_promotion]').each(function(){
-                            consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                        });
-                        $(this).find('[data-consumableUnit]').each(function(){
-                            consumablesUnit.push($(this).val());
-                        });
-                        $(this).find('[data-consumableQuantity]').each(function(){
-                            consumablesQuantity.push($(this).val());
-                        });
-                        $(this).find('[data-consumableValor]').each(function(){
-                            consumablesValor.push($(this).val());
-                        });
-                        $(this).find('[data-consumablePrice]').each(function(){
-                            consumablesPrice.push($(this).val());
-                        });
-                        $(this).find('[data-consumableImporte]').each(function(){
-                            consumablesImporte.push($(this).val());
-                        });
-                        $(this).find('[data-presentation_id]').each(function(){
-                            consumablesPresentationId.push($(this).attr('data-presentation_id'));
-                        });
-                        $(this).find('[data-packs]').each(function(){
-                            consumablesPacks.push($(this).attr('data-packs'));
-                        });
-                        $(this).find('[data-units_per_pack]').each(function(){
-                            consumablesUnitsPerPack.push($(this).attr('data-units_per_pack'));
-                        });
-                    });
-
-                    $descuento = descuento_nuevo;
-
-                    var consumablesArray = [];
-
-                    for (let i = 0; i < consumablesDescription.length; i++) {
-                        consumablesArray.push({
-                            'id': consumablesIds[i],
-                            'description': consumablesDescription[i],
-                            'unit': consumablesUnit[i],
-                            'quantity': consumablesQuantity[i],
-                            'valor': consumablesValor[i],
-                            'price': consumablesPrice[i],
-                            'importe': consumablesImporte[i],
-                            'discount': consumablesDiscount[i],
-                            'type_promo': consumablesTypePromos[i],
-
-                            // ✅ nuevos
-                            'presentation_id': consumablesPresentationId[i] || null,
-                            'packs': consumablesPacks[i] || null,
-                            'units_per_pack': consumablesUnitsPerPack[i] || null
-                        });
-                    }
-
-                    console.log(consumablesArray);
-
-                    // ===============================================
-                    // 1. Calcular el TOTAL real (sumatoria de importes)
-                    // ===============================================
-                    var total = 0;
-
-                    for (let i = 0; i < consumablesImporte.length; i++) {
-                        let importe = round2(parseFloat(consumablesImporte[i]) || 0);
-                        total += importe;
-                    }
-
-                    // Restar descuentos
-                    total = round2(total - $descuento);
-
-                    // ===============================================
-                    // 2. Calcular GRAVADA e IGV a partir del TOTAL
-                    // ===============================================
-                    var gravada = round2(total / (1 + ($igv / 100)));
-                    var igv = round2(total - gravada);
-
-                    // ===============================================
-                    // 3. Mostrar en pantalla
-                    // ===============================================
-                    $('#descuento').html(round2($descuento).toFixed(2));
-                    $('#gravada').html(gravada.toFixed(2));
-                    $('#igv_total').html(igv.toFixed(2));
-                    $('#total_importe').html(total.toFixed(2));
-
-                    button.next().attr('data-saveEquipment', $equipments.length);
-                    $equipments.push({'id':$equipments.length, 'quantity':quantity, 'utility':utility, 'rent':rent, 'letter':letter, 'total':total, 'description':"", 'detail':detail, 'materials': [], 'consumables':consumablesArray, 'electrics':[], 'workforces':[], 'tornos':[], 'dias':[]});
-                    var card = button.parent().parent().parent();
-                    card.removeClass('card-gray-dark');
-                    card.addClass('card-success');
-
-                    $items = [];
-                    $.alert("Productos confirmado!");
-
-                },
-            },
-            cancel: {
-                text: 'CANCELAR',
-                action: function (e) {
-                    $equipmentStatus = false;
-                    $.alert("Confirmación cancelada.");
-                },
-            },
-        },
-    });
-
-}*/
+// Dividir y truncar a 2 decimales (para convertir con IGV -> sin IGV)
+function divTrunc2(a, b) {
+    if (!b) return 0;
+    return moneyTrunc((Number(a) || 0) / (Number(b) || 1));
+}
 
 // Función para redondear a 2 decimales
 function round2(num) {
@@ -2237,112 +1818,6 @@ function storeQuote() {
         },
     });
 }
-
-/*function renderTemplateConsumable(render, consumable, quantity, discount) {
-
-    console.log("renderTemplateConsumable");
-    console.log("consumable");
-    console.log(consumable);
-    console.log("quantity");
-    console.log(quantity);
-
-    var card = render.parent().parent().parent().parent();
-    card.removeClass('card-success');
-    card.addClass('card-gray-dark');
-    if ( $.inArray('showPrices_quote', $permissions) !== -1 ) {
-        var clone = activateTemplate('#template-consumable');
-        //console.log(consumable.stock_current );
-
-        if ( consumable.enable_status == 0 )
-        {
-            clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-            clone.querySelector("[data-consumableDescription]").setAttribute("style", "color:purple;");
-
-        } else {
-            if ( consumable.stock_current == 0 )
-            {
-                clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                clone.querySelector("[data-consumableDescription]").setAttribute("style", "color:red;");
-            } else {
-                if ( consumable.state_update_price == 1 )
-                {
-                    clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                    clone.querySelector("[data-consumableDescription]").setAttribute("style", "color:blue;");
-                } else {
-                    clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                }
-
-            }
-        }
-
-        let precioBase = parseFloat(consumable.list_price);
-        console.log("igv");
-        console.log($igv);
-        let valorUnitario = precioBase/((100+parseFloat($igv))/100);
-        //let precioUnitario = precioBase;
-        let importeTotal = precioBase * parseFloat(quantity);
-
-        clone.querySelector("[data-consumableId]").setAttribute('data-consumableId', consumable.id);
-        clone.querySelector("[data-descuento]").setAttribute('data-descuento', (parseFloat(discount)).toFixed(2));
-        clone.querySelector("[data-consumableUnit]").setAttribute('value', consumable.unit_measure.description);
-        clone.querySelector("[data-consumableQuantity]").setAttribute('value', (parseFloat(quantity)).toFixed(2));
-
-        clone.querySelector("[data-consumableValor]").setAttribute('value', (parseFloat(valorUnitario).toFixed(2)));
-        clone.querySelector("[data-consumablePrice]").setAttribute('value', (parseFloat(precioBase).toFixed(2)));
-        clone.querySelector("[data-consumableImporte]").setAttribute('value', (parseFloat(importeTotal).toFixed(2)));
-
-        render.append(clone);
-    } else {
-        var clone2 = activateTemplate('#template-consumable');
-        //console.log(consumable.stock_current );
-
-        if ( consumable.enable_status == 0 )
-        {
-            clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-            clone2.querySelector("[data-consumableDescription]").setAttribute("style", "color:purple;");
-
-        } else {
-            if ( consumable.stock_current == 0 )
-            {
-                clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                clone2.querySelector("[data-consumableDescription]").setAttribute("style", "color:red;");
-            } else {
-                if ( consumable.state_update_price == 1 )
-                {
-                    clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                    clone2.querySelector("[data-consumableDescription]").setAttribute("style", "color:blue;");
-                } else {
-                    clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-                }
-
-                //clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-            }
-        }
-
-        let precioBase = parseFloat(consumable.list_price);
-        let valorUnitario = precioBase/((100+parseFloat($igv))/100);
-        //let precioUnitario = precioBase;
-        let importeTotal = precioBase * parseFloat(quantity);
-
-        clone2.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-        clone2.querySelector("[data-consumableId]").setAttribute('data-consumableId', consumable.id);
-        clone2.querySelector("[data-descuento]").setAttribute('data-descuento', (parseFloat(discount)).toFixed(2));
-        clone2.querySelector("[data-consumableUnit]").setAttribute('value', consumable.unit_measure.description);
-        clone2.querySelector("[data-consumableQuantity]").setAttribute('value', (parseFloat(quantity)).toFixed(2));
-
-        clone2.querySelector("[data-consumableValor]").setAttribute('value', (parseFloat(valorUnitario).toFixed(2)));
-        clone2.querySelector("[data-consumablePrice]").setAttribute('value', (parseFloat(precioBase).toFixed(2)));
-        clone2.querySelector("[data-consumableImporte]").setAttribute('value', (parseFloat(importeTotal).toFixed(2)));
-        clone2.querySelector("[data-consumableValor]").setAttribute("style","display:none;");
-        clone2.querySelector("[data-consumablePrice]").setAttribute("style","display:none;");
-        clone2.querySelector("[data-consumableImporte]").setAttribute("style","display:none;");
-
-        clone2.querySelector("[data-deleteConsumable]").setAttribute('data-deleteConsumable', consumable.id);
-        render.append(clone2);
-    }
-
-
-}*/
 
 function activateTemplate(id) {
     var t = document.querySelector(id);

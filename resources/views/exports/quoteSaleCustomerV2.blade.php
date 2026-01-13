@@ -61,17 +61,16 @@
         <td class="no-border" style="width:60%; vertical-align:top; padding-right:10px;">
             <img src="{{ asset('/landing/img/logo_pdf.png') }}" style="max-height:60px; margin-bottom:5px;">
 
-            <div class="title-empresa">SERVICIOS METAL MECÁNICOS INDUSTRIALES S.A.C.</div>
-            <div class="empresa-linea">Predio el Horcón - Sector el Horcón U.C 02972 - F-Moche</div>
-            <div class="empresa-linea">La Libertad - Perú</div>
-            <div class="empresa-linea">Teléfono: +51 959 332 205</div>
-            <div class="empresa-linea">Email: servicios@sermeind.com.pe</div>
-            <div class="empresa-linea">Web: www.sermeind.com.pe</div>
+            <div class="title-empresa">{{ $nombreEmpresa }}</div>
+            <div class="empresa-linea">{{ $direccionEmpresa }}</div>
+            <div class="empresa-linea">{{ $telefonoEmpresa }}</div>
+            <div class="empresa-linea">{{ $emailEmpresa }}</div>
+            <div class="empresa-linea">{{ $webEmpresa }}</div>
         </td>
 
         <td class="no-border" style="width:40%; vertical-align:top;">
             <div class="doc-box">
-                <div class="doc-ruc">RUC 20540001384</div>
+                <div class="doc-ruc">RUC {{ $rucEmpresa }}</div>
                 <div class="doc-tipo">COTIZACIÓN</div>
                 <div class="doc-serie-num">{{ $quote->code }}</div>
             </div>
@@ -97,7 +96,7 @@
                 $userQuote = isset($quote->users[0]) ? $quote->users[0]->user : null;
             @endphp
 
-            <div><span class="label">DOC.:</span><span class="texto">{{ $customer->document ?? '—' }}</span></div>
+            <div><span class="label">DOC.:</span><span class="texto">{{ $customer->RUC ?? '—' }}</span></div>
             <div><span class="label">RAZÓN SOCIAL:</span><span class="texto">{{ $customer->business_name ?? 'Consumidor Final' }}</span></div>
             <div><span class="label">CONTACTO:</span><span class="texto">{{ $contact->name ?? '—' }}</span></div>
             <div><span class="label">DIRECCIÓN:</span><span class="texto">{{ $customer->address ?? '—' }}</span></div>
@@ -110,7 +109,7 @@
             <div><span class="label">FECHA EMISIÓN:</span><span class="texto">{{ \Carbon\Carbon::parse($quote->date_quote)->format('d/m/Y') }}</span></div>
             <div><span class="label">VÁLIDO HASTA:</span><span class="texto">{{ \Carbon\Carbon::parse($quote->date_validate)->format('d/m/Y') }}</span></div>
             <div><span class="label">MONEDA:</span><span class="texto">{{ $quote->currency_invoice === 'USD' ? 'DÓLARES' : 'SOLES' }}</span></div>
-            <div><span class="label">COTIZADO POR:</span><span class="texto">{{ $userQuote->name ?? '—' }}</span></div>
+            <div><span class="label">COTIZADO POR:</span><span class="texto">{{ strtoupper($userQuote->name) ?? '—' }}</span></div>
         </td>
     </tr>
 </table>
@@ -146,9 +145,34 @@
 
             <tr>
                 <td class="text-center">{{ number_format($cantidad, 0) }}</td>
-                <td class="text-center">NIU</td>
+                <td class="text-center">{{ $consumable->material->unitMeasure->name ?? '' }}</td>
                 <td class="text-center">{{ $consumable->material->codigo ?? '' }}</td>
                 <td style="text-align:left;">{{ $consumable->material->full_name }}</td>
+
+                @if($quote->state_decimals)
+                    <td class="text-right">{{ number_format($vunit, 0) }}</td>
+                    <td class="text-right">{{ number_format($punit, 0) }}</td>
+                    <td class="text-right">{{ number_format($importe, 0) }}.00</td>
+                @else
+                    <td class="text-right">{{ number_format($vunit, 2) }}</td>
+                    <td class="text-right">{{ number_format($punit, 2) }}</td>
+                    <td class="text-right">{{ number_format($importe, 2) }}</td>
+                @endif
+            </tr>
+        @endforeach
+        @foreach($equipment->workforces as $workforce)
+            @php
+                $cantidad  = $equipment->quantity;
+                $vunit     = $workforce->price/(1+($igv/100));
+                $punit     = $workforce->price;
+                $importe   = $workforce->total;
+            @endphp
+
+            <tr>
+                <td class="text-center">{{ number_format($cantidad, 0) }}</td>
+                <td class="text-center">{{ $workforce->unit ?? '' }}</td>
+                <td class="text-center">{{ '' }}</td>
+                <td style="text-align:left;">{{ $workforce->description }}</td>
 
                 @if($quote->state_decimals)
                     <td class="text-right">{{ number_format($vunit, 0) }}</td>
@@ -228,7 +252,7 @@
     </div>
 </div>
 
-<div style="margin-top:8px;">
+{{--<div style="margin-top:8px;">
     <strong>DETALLES:</strong>
     <div style="font-size:10px;">
         @foreach($quote->equipments as $eq)
@@ -237,11 +261,11 @@
             @endif
         @endforeach
     </div>
-</div>
+</div>--}}
 
 {{-- FOOTER --}}
 <div class="footer">
-    Representación impresa de la COTIZACIÓN – Predio el Horcón, Sector el Horcón, Moche
+    Representación impresa de la COTIZACIÓN – {{ $direccionEmpresa }}
 </div>
 
 {{-- ============================= --}}
@@ -259,7 +283,7 @@
             </td>
             <td class="no-border" style="width:40%;">
                 <div class="doc-box">
-                    <div class="doc-ruc">RUC 20540001384</div>
+                    <div class="doc-ruc">RUC {{ $rucEmpresa }}</div>
                     <div class="doc-tipo">COTIZACIÓN</div>
                     <div class="doc-serie-num">{{ $quote->code }}</div>
                 </div>
