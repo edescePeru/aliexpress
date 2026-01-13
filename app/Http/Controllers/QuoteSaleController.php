@@ -3043,7 +3043,10 @@ class QuoteSaleController extends Controller
         $quote = Quote::with('customer')
             ->with('deadline')
             ->with(['equipments' => function ($query) {
-                $query->with(['consumables.material']);
+                $query->with([
+                    'consumables.material',
+                    'workforces' // ✅ nuevo
+                ]);
             }])->findOrFail($id);
 
         // Si quieres formatear la fecha:

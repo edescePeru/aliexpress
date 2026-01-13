@@ -161,7 +161,7 @@
                                 <label for="description">Código de cotización </label>
                                 <input type="text" id="codeQuote" readonly value="" onkeyup="mayus(this);" name="code_quote" class="form-control form-control-sm">
                             </div>
-                            @hasanyrole('logistic|admin|principal|quote_single')
+
                             <div class="col-md-4">
                                 <label for="date_quote">Fecha de cotización </label>
                                 <input type="text" class="form-control form-control-sm" id="date_quote" name="date_quote" readonly>
@@ -170,15 +170,13 @@
                                 <label for="date_validate">Válido hasta </label>
                                 <input type="text" class="form-control form-control-sm" id="date_validate" name="date_validate" readonly>
                             </div>
-                            @endhasanyrole
 
-                            @hasanyrole('logistic|admin|principal|quote_single')
                             <div class="col-md-4">
                                 <label for="paymentQuote">Forma de pago </label>
                                 <input type="text" id="paymentQuote" name="payment_deadline" class="form-control form-control-sm" readonly>
 
                             </div>
-                            @endhasanyrole
+
                             <div class="col-md-4">
                                 <label for="description">Tiempo de entrega </label>
                                 <div class="input-group input-group-sm mb-3">
@@ -224,7 +222,7 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row" style="display: none">
 
                             <div class="col-md-12">
                                 <label for="description">Detalles de la cotización</label>
@@ -245,9 +243,14 @@
                             <div class="card-body">
                                 <div data-bodyConsumable>
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-5">
                                             <div class="form-group">
                                                 <strong>Descripción</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <div class="form-group">
+                                                <strong>Present.</strong>
                                             </div>
                                         </div>
                                         <div class="col-md-1">
@@ -282,6 +285,136 @@
                             </div>
                         </div>
 
+                        <div class="card card-cyan ">
+                            <div class="card-header">
+                                <h3 class="card-title">SERVICIOS ADICIONALES</h3>
+
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <div class="form-group">
+                                            <strong>Descripción</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Unidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Cantidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>V/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>P/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <strong>Importe</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Facturar</strong>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div data-bodyService>
+
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /.card -->
+
+                        <div class="card card-purple">
+                            <div class="card-header">
+                                <h3 class="card-title">DESCUENTO GLOBAL</h3>
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card-body" id="discountSection"
+                                 data-discount_type=""
+                                 data-discount_input_mode=""
+                                 data-discount_value="">
+
+                                <div class="row">
+                                    <!-- Tipo -->
+                                    <div class="col-md-3">
+                                        <label>Tipo</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_type"
+                                                       id="discount_type_amount"
+                                                       value="amount"
+                                                        >
+                                                <label for="discount_type_amount">Monto (S/)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_type"
+                                                       id="discount_type_percent"
+                                                       value="percent"
+                                                        >
+                                                <label for="discount_type_percent">Porcentaje (%)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Valor -->
+                                    <div class="col-md-3">
+                                        <label>Valor</label>
+                                        <input type="number"
+                                               class="form-control"
+                                               id="discount_value"
+                                               min="0"
+                                               step="0.01"
+                                               value="">
+                                    </div>
+
+                                    <!-- Modo -->
+                                    <div class="col-md-4">
+                                        <label>Modo de ingreso</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_input_mode"
+                                                       id="discount_mode_without"
+                                                       value="without_igv"
+                                                        >
+                                                <label for="discount_mode_without">SIN IGV (base)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_input_mode"
+                                                       id="discount_mode_with"
+                                                       value="with_igv"
+                                                        >
+                                                <label for="discount_mode_with">CON IGV (del total)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </div>
                         <!-- /.card -->
                     </div>
                     <!-- /.card-body -->
@@ -335,56 +468,127 @@
     </form>
 
     <template id="template-consumable">
-        <div class="row" data-consumable-row>
-            {{-- Descripcion --}}
-            <div class="col-md-6">
+        <div class="row" data-consumableRow>
+
+            {{-- Descripción --}}
+            <div class="col-md-5">
                 <div class="form-group">
-                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-consumableDescription readonly>
-                    <input type="hidden" data-consumableId>
+                    <input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
+
+                    {{-- se leen por attr() --}}
+                    <input type="hidden" data-consumableid>
                     <input type="hidden" data-descuento>
                     <input type="hidden" data-type_promotion>
+
+                    {{-- presentación --}}
+                    <input type="hidden" data-presentation_id>
+                    <input type="hidden" data-units_per_pack>
+                    <input type="hidden" data-units_equivalent>
                 </div>
             </div>
+
+            {{-- Presentación --}}
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-presentation_text readonly>
+                </div>
+            </div>
+
             {{-- Unidad --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <div class="form-group">
-                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-consumableUnit readonly>
-                    </div>
+                    <input type="text" class="form-control form-control-sm" data-consumableUnit readonly>
                 </div>
             </div>
-            {{-- Cantidad --}}
+
+            {{-- Cantidad (packs o unidades) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" readonly class="form-control form-control-sm" placeholder="0.00" min="0" oninput="calculateTotalC(this);" data-consumableQuantity step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            ">
+                    <input type="number" class="form-control form-control-sm"
+                           min="0" step="0.01" data-consumableQuantity
+                           oninput="calculateTotalC(this);">
                 </div>
             </div>
-            {{-- Valor Unitario --}}
+
+            {{-- V/U (sin IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableValor step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableValor readonly>
                 </div>
             </div>
-            {{-- Precio Unitario --}}
+
+            {{-- P/U (con IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumablePrice step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
                 </div>
             </div>
+
             {{-- Importe --}}
             <div class="col-md-2">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableImporte step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableImporte readonly>
                 </div>
             </div>
+
+        </div>
+    </template>
+
+    <template id="template-service">
+        <div class="row" data-serviceRow>
+            <div class="col-md-5">
+                <div class="form-group">
+                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-serviceDescription>
+                    <input type="hidden" data-serviceId>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-serviceUnit readonly>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" step="0.01" data-serviceQuantity>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" data-serviceVU readonly
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" step="0.01" data-servicePU
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm"
+                           placeholder="0.00" min="0" data-serviceImporte readonly
+                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group text-center">
+                    <div class="icheck-primary d-inline">
+                        <input type="checkbox" data-serviceBillable data-billable-id>
+                        <label data-billable-label></label>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </template>
 

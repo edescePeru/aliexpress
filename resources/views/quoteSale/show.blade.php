@@ -18,6 +18,7 @@
 
 @section('styles-plugins')
 
+    <link rel="stylesheet" href="{{ asset('admin/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 
 @endsection
 
@@ -67,7 +68,6 @@
             El color gris indica que el material no ha sufrido modificaciones. <br>
             El color <strong style="color: blue;">AZUL</strong> indica que el producto ha sido actualizado el precio. <br>
             El color <strong style="color: red;">ROJO</strong> indica que no hay stock en el almacén. <br>
-            El color <strong style="color: purple;">MORADO</strong> indica que el producto ha sido recotizado y esta inhabilitado tratar de quitarlo y poner otro producto igual o parecido. <br>
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -189,12 +189,17 @@
                             <div class="card-body">
                                 <div data-bodyConsumable>
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-5">
                                             <div class="form-group">
                                                 <strong>Descripción</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-md-1">
+                                            <div class="form-group">
+                                                <strong>Present.</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
                                             <div class="form-group">
                                                 <strong>Unidad</strong>
                                             </div>
@@ -214,7 +219,7 @@
                                                 <strong>P/U</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <strong>IMPORTE</strong>
                                             </div>
@@ -225,7 +230,7 @@
                                         @foreach( $equipment->consumables as $consumable )
                                             <div class="row">
                                                 {{-- Descripcion --}}
-                                                <div class="col-md-6">
+                                                <div class="col-md-5">
                                                     <div class="form-group">
                                                         <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
                                                         <input type="hidden" data-consumableId="{{ $consumable->material_id }}">
@@ -233,8 +238,15 @@
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
                                                     </div>
                                                 </div>
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <div class="form-group">
+                                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ ($consumable->material_presentation_id == null) ? 'Unidad': $consumable->units_per_pack.' Und' }}" data-consumableUnit readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 {{-- Unidad --}}
-                                                <div class="col-md-2">
+                                                <div class="col-md-1">
                                                     <div class="form-group">
                                                         <div class="form-group">
                                                             <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->unitMeasure->description }}" data-consumableUnit readonly>
@@ -244,9 +256,7 @@
                                                 {{-- Cantidad --}}
                                                 <div class="col-md-1">
                                                     <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" oninput="calculateTotalC(this);" data-consumableQuantity  onblur="
-                                                    this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                                    " value="{{ $consumable->quantity }}">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" oninput="calculateTotalC(this);" data-consumableQuantity value="{{ ($consumable->material_presentation_id == null) ? $consumable->quantity: $consumable->packs }}" readonly>
                                                     </div>
                                                 </div>
                                                 {{-- Valor Unitario --}}
@@ -266,7 +276,7 @@
                                                     </div>
                                                 </div>
                                                 {{-- Importe --}}
-                                                <div class="col-md-1">
+                                                <div class="col-md-2">
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableImporte step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                                     this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
@@ -280,7 +290,7 @@
                                         @foreach( $equipment->consumables as $consumable )
                                             <div class="row">
                                                 {{-- Descripcion --}}
-                                                <div class="col-md-6">
+                                                <div class="col-md-5">
                                                     <div class="form-group">
                                                         <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} data-consumableDescription readonly>
                                                         <input type="hidden" data-consumableId="{{ $consumable->material_id }}">
@@ -288,8 +298,15 @@
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
                                                     </div>
                                                 </div>
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <div class="form-group">
+                                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ ($consumable->material_presentation_id == null) ? 'Unidad': $consumable->units_per_pack.' Und' }}" data-consumableUnit readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 {{-- Unidad --}}
-                                                <div class="col-md-2">
+                                                <div class="col-md-1">
                                                     <div class="form-group">
                                                         <div class="form-group">
                                                             <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->unitMeasure->description }}" data-consumableUnit readonly>
@@ -301,7 +318,7 @@
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" data-consumableQuantity oninput="calculateTotalC(this);" onblur="
                                                     this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                                    " value="{{ $consumable->quantity }}">
+                                                    " value="{{ ($consumable->material_presentation_id == null) ? $consumable->quantity: $consumable->packs }}">
                                                     </div>
                                                 </div>
                                                 {{-- Valor Unitario --}}
@@ -334,6 +351,207 @@
                                     @endcan
 
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="card card-cyan ">
+                            <div class="card-header">
+                                <h3 class="card-title">SERVICIOS ADICIONALES</h3>
+
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <div class="form-group">
+                                            <strong>Descripción</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Unidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Cantidad</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>V/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>P/U</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <strong>Importe</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-1">
+                                        <div class="form-group">
+                                            <strong>Facturar</strong>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div data-bodyService>
+
+                                    @foreach($equipment->workforces as $workforce)
+                                        @php
+                                            $qty = (float) $workforce->quantity;
+                                            $pu  = (float) $workforce->price; // P/U con IGV
+                                            $vu  = $pu / (1 + ($igv/100));     // V/U sin IGV
+                                            $imp = (float) $workforce->total;
+
+                                            $qtyFmt = rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.');
+                                        @endphp
+
+                                        <div class="row" data-serviceRow>
+                                            <div class="col-md-5">
+                                                <div class="form-group">
+                                                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm"
+                                                           value="{{ $workforce->description }}" data-serviceDescription readonly>
+                                                    <input type="hidden" data-serviceId value="{{ $workforce->id }}">
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="text" class="form-control form-control-sm"
+                                                           value="{{ $workforce->unit }}" data-serviceUnit readonly>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm"
+                                                           data-serviceQuantity min="0" step="0.01"
+                                                           value="{{ $qtyFmt }}" readonly>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm"
+                                                           data-serviceVU value="{{ round($vu,2) }}" readonly
+                                                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm"
+                                                           data-servicePU value="{{ round($pu,2) }}" min="0" step="0.01" readonly
+                                                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <input type="number" class="form-control form-control-sm"
+                                                           data-serviceImporte value="{{ round($imp,2) }}" readonly
+                                                           @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <div class="form-group text-center">
+                                                    <div class="icheck-primary d-inline">
+                                                        <input type="checkbox"
+                                                               id="billable_{{ $equipment->id }}_{{ $workforce->id }}"
+                                                               data-serviceBillable
+                                                                {{ ($workforce->billable ?? true) ? 'checked' : '' }} readonly>
+                                                        <label for="billable_{{ $equipment->id }}_{{ $workforce->id }}"></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card card-purple">
+                            <div class="card-header">
+                                <h3 class="card-title">DESCUENTO GLOBAL</h3>
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card-body" id="discountSection"
+                                 data-discount_type="{{ $quote->discount_type ?? 'amount' }}"
+                                 data-discount_input_mode="{{ $quote->discount_input_mode ?? 'without_igv' }}"
+                                 data-discount_value="{{ $quote->discount_input_value ?? 0 }}">
+
+                                <div class="row">
+                                    <!-- Tipo -->
+                                    <div class="col-md-3">
+                                        <label>Tipo</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_type"
+                                                       id="discount_type_amount"
+                                                       value="amount"
+                                                        {{ ($quote->discount_type ?? 'amount') === 'amount' ? 'checked' : '' }} readonly>
+                                                <label for="discount_type_amount">Monto (S/)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_type"
+                                                       id="discount_type_percent"
+                                                       value="percent"
+                                                        {{ ($quote->discount_type ?? '') === 'percent' ? 'checked' : '' }} readonly>
+                                                <label for="discount_type_percent">Porcentaje (%)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Valor -->
+                                    <div class="col-md-3">
+                                        <label>Valor</label>
+                                        <input type="number"
+                                               class="form-control"
+                                               id="discount_value"
+                                               min="0"
+                                               step="0.01"
+                                               value="{{ $quote->discount_input_value ?? 0 }}" readonly>
+                                    </div>
+
+                                    <!-- Modo -->
+                                    <div class="col-md-4">
+                                        <label>Modo de ingreso</label>
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="radio" name="discount_input_mode"
+                                                       id="discount_mode_without"
+                                                       value="without_igv"
+                                                        {{ ($quote->discount_input_mode ?? 'without_igv') === 'without_igv' ? 'checked' : '' }} readonly>
+                                                <label for="discount_mode_without">SIN IGV (base)</label>
+                                            </div>
+                                            <div class="icheck-primary d-inline ml-3">
+                                                <input type="radio" name="discount_input_mode"
+                                                       id="discount_mode_with"
+                                                       value="with_igv"
+                                                        {{ ($quote->discount_input_mode ?? '') === 'with_igv' ? 'checked' : '' }} readonly>
+                                                <label for="discount_mode_with">CON IGV (del total)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
                             </div>
                         </div>
 
@@ -593,7 +811,7 @@
 
 @section('plugins')
     <!-- Select2 -->
-
+    <script src="{{ asset('admin/plugins/bootstrap-switch/js/bootstrap-switch.min.js') }}"></script>
 @endsection
 
 @section('scripts')

@@ -92,7 +92,7 @@ $(document).ready(function () {
                 // 🔹 Limpiamos antes de cargar productos
                 // Antes: $('[data-bodyConsumable]').html('');
                 $('[data-bodyConsumable]').find('[data-consumable-row]').remove();
-
+                $('[data-bodyService]').find('[data-serviceRow]').remove();
                 // 🔹 Iteramos los consumables
                 quote.equipments.forEach(function(equipment) {
 
@@ -111,14 +111,55 @@ $(document).ready(function () {
                             $(clone).find('[data-descuento]').val(consumable.discount);
                             $(clone).find('[data-type_promotion]').val(consumable.type_promo);
 
+                            $(clone).find('[data-presentation_text]').val((consumable.material_presentation_id == null) ? 'Unidad': consumable.units_per_pack+' Und');
+
                             $(clone).find('[data-consumableUnit]').val(consumable.material.name_unit);
-                            $(clone).find('[data-consumableQuantity]').val(consumable.quantity);
+                            //$(clone).find('[data-consumableQuantity]').val(consumable.quantity);
+                            $(clone).find('[data-consumableQuantity]').val((consumable.material_presentation_id == null) ? consumable.quantity: consumable.packs);
+
                             $(clone).find('[data-consumableValor]').val(consumable.valor_unitario);
                             $(clone).find('[data-consumablePrice]').val(consumable.price);
                             $(clone).find('[data-consumableImporte]').val(consumable.total);
 
                             // Insertamos en el body
                             $('[data-bodyConsumable]').append(clone);
+                        });
+                    }
+
+                    // Limpiar servicios antes (si solo hay 1 equipo, basta una vez fuera del foreach)
+                    $('[data-bodyService]').find('[data-serviceRow]').remove();
+
+                    if (equipment.workforces && equipment.workforces.length > 0) {
+                        equipment.workforces.forEach(function(wf) {
+
+                            let templateS = document.querySelector('#template-service');
+                            let cloneS = templateS.content.cloneNode(true);
+
+                            // Valores
+                            $(cloneS).find('[data-serviceDescription]').val(wf.description).prop('readonly', true);
+                            $(cloneS).find('[data-serviceUnit]').val(wf.unit).prop('readonly', true);
+                            $(cloneS).find('[data-serviceQuantity]').val(parseFloat(wf.quantity).toFixed(2)).prop('readonly', true);
+
+                            // V/U sin igv (si no viene, lo calculas)
+                            let igv = 18; // o toma de tu hidden
+                            let pu = parseFloat(wf.price || 0);
+                            let vu = (pu / (1 + (igv/100)));
+                            $(cloneS).find('[data-serviceVU]').val(vu.toFixed(2)).prop('readonly', true);
+                            $(cloneS).find('[data-servicePU]').val(pu.toFixed(2)).prop('readonly', true);
+                            $(cloneS).find('[data-serviceImporte]').val(parseFloat(wf.total || 0).toFixed(2)).prop('readonly', true);
+
+                            // Billable: como no quieres editar, mejor mostrar SI/NO
+                            // Opción 1 (rápida): deshabilitar checkbox
+                            let $chk = $(cloneS).find('[data-serviceBillable]');
+                            $chk.prop('checked', wf.billable == 1).prop('disabled', true);
+
+                            // ids para label (iCheck)
+                            const uid = 'billable_view_' + wf.id;
+                            $(cloneS).find('[data-billable-id]').attr('id', uid);
+                            $(cloneS).find('[data-billable-label]').attr('for', uid);
+
+                            // Insertar
+                            $('[data-bodyService]').append(cloneS);
                         });
                     }
                 });
@@ -130,6 +171,34 @@ $(document).ready(function () {
                 $('#codigoBusqueda').val('');
                 $('#nombreBusqueda').val('');
                 $('#resultadosCotizacion').html('');
+
+                // Setear data attrs
+                $('#discountSection').attr('data-discount_type', quote.discount_type || 'amount');
+                $('#discountSection').attr('data-discount_input_mode', quote.discount_input_mode || 'without_igv');
+                $('#discountSection').attr('data-discount_value', (quote.discount_input_value ?? 0));
+
+                // Radios (bloqueados)
+                $('input[name="discount_type"]').prop('checked', false);
+                if ((quote.discount_type || 'amount') === 'percent') {
+                    $('#discount_type_percent').prop('checked', true);
+                } else {
+                    $('#discount_type_amount').prop('checked', true);
+                }
+
+                $('input[name="discount_input_mode"]').prop('checked', false);
+                if ((quote.discount_input_mode || 'without_igv') === 'with_igv') {
+                    $('#discount_mode_with').prop('checked', true);
+                } else {
+                    $('#discount_mode_without').prop('checked', true);
+                }
+
+                // Valor
+                $('#discount_value').val(quote.discount_input_value ?? 0);
+
+                // Bloquear inputs del descuento (solo vista)
+                $('input[name="discount_type"]').prop('disabled', true);
+                $('input[name="discount_input_mode"]').prop('disabled', true);
+                $('#discount_value').prop('readonly', true);
 
                 // ✅ Al final del success
                 $('#btn-submit').prop('disabled', false);
