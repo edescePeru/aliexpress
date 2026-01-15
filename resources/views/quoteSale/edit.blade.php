@@ -380,14 +380,14 @@
                                                 {{-- Valor Unitario --}}
                                                 <div class="col-md-1">
                                                     <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumableValor value="{{ round(($consumable->total/($consumable->packs ?? $consumable->quantity))/(1+($igv/100)), 2) }}" style="display: none" readonly>
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumableValor data-consumable_valor_real="{{ $consumable->valor_unitario }}" value="{{ round($consumable->valor_unitario, 2) }}" style="display: none" readonly>
                                                     </div>
                                                 </div>
 
                                                 {{-- Precio Unitario --}}
                                                 <div class="col-md-1">
                                                     <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumablePrice value="{{ round($consumable->total/($consumable->packs ?? $consumable->quantity), 2) }}" style="display: none" readonly>
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumablePrice data-consumable_price_real="{{ $consumable->price }}" value="{{ round($consumable->price, 2) }}" style="display: none" readonly>
                                                     </div>
                                                 </div>
 
@@ -705,19 +705,19 @@
                         <table class="table">
                             <tr>
                                 <th style="width:50%">DESCUENTO (-): </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" class="align-right">{{ round($quote->descuento, 2) }}</span></td>
+                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" data-descuento_real="{{ $quote->descuento }}" class="align-right">{{ round($quote->descuento, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">GRAVADA: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" class="align-right">{{ round($quote->gravada, 2) }}</span></td>
+                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" data-gravada_real="{{ $quote->gravada }}" class="align-right">{{ round($quote->gravada, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">IGV {{ $igv }}%: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" class="align-right">{{ round($quote->igv_total, 2) }}</span></td>
+                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" data-igv_total_real="{{ $quote->igv_total }}" class="align-right">{{ round($quote->igv_total, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">TOTAL: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" class="align-right">{{ round($quote->total_importe, 2) }}</span></td>
+                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" data-total_importe_real="{{ $quote->total_importe }}" class="align-right">{{ round($quote->total_importe, 2) }}</span></td>
                             </tr>
                         </table>
                     </div>
@@ -774,14 +774,14 @@
             {{-- V/U (sin IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumableValor readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableValor data-consumable_valor_real readonly>
                 </div>
             </div>
 
             {{-- P/U (con IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumablePrice data-consumable_price_real readonly>
                 </div>
             </div>
 

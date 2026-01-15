@@ -506,7 +506,7 @@
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm"
                            min="0" step="0.01" data-consumableQuantity
-                           oninput="calculateTotalC(this);">
+                           oninput="calculateTotalC(this);" readonly>
                 </div>
             </div>
 

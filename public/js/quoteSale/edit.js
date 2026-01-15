@@ -226,12 +226,15 @@ function renderTemplateConsumable(render, consumable, qtyVisible, pricePU, disco
     clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
     clone.querySelector("[data-consumableQuantity]").value = parseFloat(qtyVisible).toFixed(2);
     clone.querySelector("[data-consumablePrice]").value = parseFloat(pricePU).toFixed(2);
+    $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePU.toFixed(10));
 
     // V/U e importe inicial
     const igvPct = parseFloat($igv || 18);
     const igvFactor = 1 + (igvPct / 100);
 
     clone.querySelector("[data-consumableValor]").value = (parseFloat(pricePU) / igvFactor).toFixed(2);
+    $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', (parseFloat(pricePU) / igvFactor).toFixed(10));
+
     clone.querySelector("[data-consumableImporte]").value = (parseFloat(qtyVisible) * parseFloat(pricePU)).toFixed(2);
 
     // data attrs
@@ -411,6 +414,12 @@ function recalcQuoteTotalsFromDom() {
     $('#gravada').html(totals.baseFinal.toFixed(2));
     $('#igv_total').html(totals.igvFinal.toFixed(2));
     $('#total_importe').html(totals.totalFinal.toFixed(2));
+
+    $('#descuento').attr('data-descuento_real', totals.discountBase);
+    $('#gravada').attr('data-gravada_real', totals.baseFinal);
+    $('#igv_total').attr('data-igv_total_real', totals.igvFinal);
+    $('#total_importe').attr('data-total_importe_real', totals.totalFinal);
+
 }
 
 /* =========================
@@ -532,7 +541,7 @@ function fillEquipments() {
         dias: []
     });
 
-    recalcQuoteTotalsFromDom();
+    //recalcQuoteTotalsFromDom();
     setClean();
     $("#element_loader").LoadingOverlay("hide", true);
 }
@@ -757,12 +766,15 @@ $(document).ready(function () {
 /* =========================
    Save (Edit) - FIX 0.01
    ========================= */
+const getFactor = (igvPct) => 1 + ((Number(igvPct) || 0) / 100);
+const round10 = (n) => Math.round((Number(n) || 0) * 1e10) / 1e10;
+
 function saveEquipmentEdit() {
+
     const $btn = $('#btn-saveProducts');
 
-    // Mejor por attr (como ya lo hiciste)
     const idEquipment2 = $btn.attr('data-idEquipment');
-    const quoteId2 = $btn.attr('data-quote');
+    const quoteId2     = $btn.attr('data-quote');
 
     $.confirm({
         icon: 'fas fa-smile',
@@ -779,65 +791,224 @@ function saveEquipmentEdit() {
 
                     $("#element_loader").LoadingOverlay("show", { background: "rgba(61, 215, 239, 0.4)" });
 
+                    // ===========================
+                    // 0) Card principal (1 equipo)
+                    // ===========================
                     const $card = $('[data-equip]').first();
 
-                    // 1) Leer DOM
-                    const cRead = readConsumablesFromDom($card);
-                    const sRead = readServicesFromDom($card.find('[data-bodyService]'));
+                    // ===========================
+                    // 1) Datos generales del equipo
+                    // ===========================
+                    const utility = $card.find('[data-utilityequipment]').val() || 0;
+                    const rent    = $card.find('[data-rentequipment]').val() || 0;
+                    const letter  = $card.find('[data-letterequipment]').val() || 0;
+                    const detail  = $card.find('[data-detailequipment]').val() || "";
 
-                    // 2) Subtotal con IGV (productos - promos + servicios)
-                    const subtotalConsumables = moneyRound((cRead.sum_importe || 0) - (cRead.sum_promos || 0));
-                    const subtotalWithIgv = moneyRound(subtotalConsumables + (sRead.sum_all || 0));
+                    // ===========================
+                    // 2) CONSUMABLES (productos) - igual que create.js
+                    // ===========================
+                    // Ajusta este selector si en edit cambia la estructura:
+                    const consumables = $card.find('[data-bodyConsumables], [data-bodyConsumable], [data-consumablesContainer]').first().length
+                        ? $card.find('[data-bodyConsumables], [data-bodyConsumable], [data-consumablesContainer]').first()
+                        : $card; // fallback: busca en todo el card
 
-                    // 3) Totales FIX
-                    const totals = computeTotals(subtotalWithIgv);
+                    const consumablesDescription = [];
+                    const consumablesIds = [];
+                    const consumablesUnit = [];
 
-                    // 4) Pintar totales
-                    $('#descuento').html(totals.discountBase.toFixed(2)); // descuento base (sin igv)
-                    $('#gravada').html(totals.baseFinal.toFixed(2));
-                    $('#igv_total').html(totals.igvFinal.toFixed(2));
-                    $('#total_importe').html(totals.totalFinal.toFixed(2));
+                    const consumablesQuantity = []; // packs o unidades (según presentación)
+                    const consumablesValor = [];
+                    const consumablesValorReal = [];
+                    const consumablesPrice = [];
+                    const consumablesPriceReal = [];
+                    const consumablesImporte = [];
 
-                    // 5) Leer meta descuento (para rehidratar edit)
+                    const consumablesDiscount = []; // compat (promos por item)
+                    const consumablesTypePromos = [];
+
+                    const consumablesPresentationId = [];
+                    const consumablesUnitsPerPack = [];
+                    const consumablesUnitsEquivalent = [];
+
+                    let descuentoPromos = 0;
+
+                    // OJO: en create tenías un wrapper "consumables.each(...)" con sub-find.
+                    // En edit, normalmente ya están en el card, por eso hacemos un find directo.
+                    $card.find('[data-consumableDescription]').each(function(){ consumablesDescription.push($(this).val()); });
+                    $card.find('[data-consumableId]').each(function(){ consumablesIds.push($(this).attr('data-consumableid')); });
+
+                    $card.find('[data-descuento]').each(function(){
+                        const d = parseFloat($(this).attr('data-descuento') || 0);
+                        consumablesDiscount.push(d);
+                        descuentoPromos += d;
+                    });
+
+                    $card.find('[data-type_promotion]').each(function(){ consumablesTypePromos.push($(this).attr('data-type_promotion')); });
+                    $card.find('[data-consumableUnit]').each(function(){ consumablesUnit.push($(this).val()); });
+                    $card.find('[data-consumableQuantity]').each(function(){ consumablesQuantity.push($(this).val()); });
+
+                    $card.find('[data-consumableValor]').each(function(){ consumablesValor.push($(this).val()); });
+                    $card.find('[data-consumable_valor_real]').each(function(){ consumablesValorReal.push($(this).attr('data-consumable_valor_real')); });
+
+                    $card.find('[data-consumablePrice]').each(function(){ consumablesPrice.push($(this).val()); });
+                    $card.find('[data-consumable_price_real]').each(function(){ consumablesPriceReal.push($(this).attr('data-consumable_price_real')); });
+
+                    $card.find('[data-consumableImporte]').each(function(){ consumablesImporte.push($(this).val()); });
+
+                    $card.find('[data-presentation_id]').each(function(){ consumablesPresentationId.push($(this).attr('data-presentation_id') || null); });
+                    $card.find('[data-units_per_pack]').each(function(){ consumablesUnitsPerPack.push($(this).attr('data-units_per_pack') || null); });
+                    $card.find('[data-units_equivalent]').each(function(){ consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent') || null); });
+
+                    // Armamos array final de consumables (incluye reales)
+                    const consumablesArray = [];
+                    for (let i = 0; i < consumablesDescription.length; i++) {
+                        consumablesArray.push({
+                            id: consumablesIds[i],
+                            description: consumablesDescription[i],
+                            unit: consumablesUnit[i],
+
+                            // ✅ packs o unidades según presentación (SUNAT)
+                            quantity: consumablesQuantity[i],
+
+                            // solo para inventario
+                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
+
+                            valor: consumablesValor[i],
+                            valorReal: consumablesValorReal[i],
+                            price: consumablesPrice[i],
+                            priceReal: consumablesPriceReal[i],
+                            importe: consumablesImporte[i],
+
+                            discount: consumablesDiscount[i] || 0,
+                            type_promo: consumablesTypePromos[i] || null,
+                            presentation_id: consumablesPresentationId[i] || null,
+                            units_per_pack: consumablesUnitsPerPack[i] || null
+                        });
+                    }
+
+                    // ===========================
+                    // 3) SERVICIOS ADICIONALES
+                    // ===========================
+                    const servicesContainer = $card.find('[data-bodyService]');
+                    let servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                    if (servicesContainer.length > 0) {
+                        servicesRead = readServicesFromDom(servicesContainer);
+                    }
+
+                    const servicesArray = servicesRead.array;
+                    const servicesSumAll = servicesRead.sum_all; // con IGV
+
+                    // ===========================
+                    // 4) Totales con 10 dec (reales)
+                    // ===========================
+                    const igvPct = parseFloat($igv) || 18;
+                    const factor = getFactor(igvPct);
+
+                    // productos con IGV: quantity * priceReal (priceReal es pack/unidad según corresponda)
+                    let subtotalConsumablesWithIgvReal = 0;
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        const qty = Number(consumablesArray[i].quantity) || 0;
+                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + round10(qty * priceReal));
+                    }
+
+                    // promos por ítem (si ya no usan, será 0)
+                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
+                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
+
+                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
+
+                    // descuento global con IGV (tu función)
+                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+
+                    // total final con IGV
+                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
+                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
+
+                    // base + igv
+                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
+                    if (baseFinalReal < 0) baseFinalReal = 0;
+
+                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
+
+                    // descuento en base (sin igv) para guardar y UI
+                    const discountBaseReal = round10(discountWithIgvReal / factor);
+
+                    // ===========================
+                    // 5) UI (2 dec) + data reales
+                    // ===========================
+                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
+                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
+                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
+                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
+
+                    $('#descuento').attr('data-descuento_real', discountBaseReal);
+                    $('#gravada').attr('data-gravada_real', baseFinalReal);
+                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
+                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
+
+                    // ===========================
+                    // 6) Meta descuento (igual que tenías)
+                    // ===========================
                     const $d = $('#discountSection');
                     const discount_type = $d.attr('data-discount_type') || $('input[name="discount_type"]:checked').val() || 'amount';
                     const discount_input_mode = $d.attr('data-discount_input_mode') || $('input[name="discount_input_mode"]:checked').val() || 'without_igv';
                     const discount_input_value = $d.attr('data-discount_value') || $('#discount_value').val() || '0';
 
-                    // 6) Payload equipo (1 item)
+                    const discountGlobalMeta = {
+                        subtotal_with_igv: subtotalWithIgvReal,
+                        discount_with_igv: discountWithIgvReal,
+                        discount_base: discountBaseReal,
+                        igv_pct: igvPct,
+                        factor: factor
+                    };
+
+                    // ===========================
+                    // 7) Payload equipo (1 item) - con reales
+                    // ===========================
                     const equipmentPayload = [{
                         id: 0,
                         quote: quoteId2,
                         equipment: idEquipment2,
                         quantity: 1,
-                        utility: $card.find('[data-utilityequipment]').val() || 0,
-                        rent: $card.find('[data-rentequipment]').val() || 0,
-                        letter: $card.find('[data-letterequipment]').val() || 0,
-                        total: totals.totalFinal,
+                        utility: utility,
+                        rent: rent,
+                        letter: letter,
+
+                        // ✅ real con IGV
+                        total: totalFinalWithIgvReal,
+
                         description: "",
-                        detail: $card.find('[data-detailequipment]').val() || "",
+                        detail: detail,
                         materials: [],
-                        consumables: cRead.array,
+                        consumables: consumablesArray,
                         electrics: [],
-                        workforces: sRead.array,
+                        workforces: servicesArray,
+                        discount_global: {
+                            base: discountBaseReal,
+                            meta: discountGlobalMeta
+                        },
                         tornos: [],
                         dias: []
                     }];
 
-                    // 7) Enviar al backend
+                    // ===========================
+                    // 8) Enviar al backend (reales a 10 dec)
+                    // ===========================
                     $.ajax({
                         url: '/dashboard/update/equipment/' + idEquipment2 + '/quote/sale/' + quoteId2,
                         method: 'POST',
                         data: JSON.stringify({
                             equipment: equipmentPayload,
 
-                            // totales quote (sin errores de 0.01)
-                            descuento: totals.discountBase.toFixed(2),
-                            gravada: totals.baseFinal.toFixed(2),
-                            igv_total: totals.igvFinal.toFixed(2),
-                            total_importe: totals.totalFinal.toFixed(2),
+                            // ✅ Totales quote en REAL (10 dec)
+                            descuento: discountBaseReal,
+                            gravada: baseFinalReal,
+                            igv_total: igvFinalReal,
+                            total_importe: totalFinalWithIgvReal,
 
-                            // meta descuento
+                            // meta descuento (por si lo rehidratas en edit)
                             discount_type: discount_type,
                             discount_input_mode: discount_input_mode,
                             discount_input_value: discount_input_value
@@ -846,7 +1017,8 @@ function saveEquipmentEdit() {
                         processData: false,
                         contentType: 'application/json; charset=utf-8',
                         success: function (data) {
-                            setClean();
+                            // si tienes funciones de "clean state" para edit
+                            if (typeof setClean === 'function') setClean();
                             $.alert(data.message || 'Equipo guardado con éxito.');
                         },
                         error: function (xhr) {

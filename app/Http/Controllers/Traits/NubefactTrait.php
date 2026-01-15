@@ -25,6 +25,8 @@ trait NubefactTrait
                 throw new \Exception("Cantidad inválida en detalle {$item->id}");
             }
 
+            $qty = (string) ( ($item->material_presentation_id == null) ? (float)$item->quantity: (float)$item->packs);
+
             // ✅ TOTAL DE LÍNEA (con IGV) desde tu BD, no recalcular con price*qty
             $totalLine = number_format((float)$item->total, 2, '.', ''); // "115.00"
 
@@ -40,10 +42,12 @@ trait NubefactTrait
             // ✅ igv = total - subtotal (2 decimales)
             $igv = bcsub($totalLine, $subtotal, 2);
 
+            $present = (string) ( ($item->material_presentation_id == null) ? $item->quantity: $item->units_per_pack.'und');
+
             return [
                 "unidad_de_medida" => "NIU",
-                "codigo" => (string) $item->material_id,
-                "descripcion" => $item->material ? $item->material->full_name : ('Material ' . $item->material_id),
+                "codigo" => "",
+                "descripcion" => $item->material ? "(".$present.") ".$item->material->full_name : ("(".$present.") ".'Material ' . $item->material_id),
                 "cantidad" => (float) $qty,
 
                 // Nubefact usa estos para recalcular/mostrar:
@@ -70,15 +74,19 @@ trait NubefactTrait
         }
 
         // TRUNC a 2 decimales (esto es lo que te cuadra con 148.305 -> 148.30)
-        $total_gravada = $this->trunc2($totalGravadaRaw);
+        //$total_gravada = $this->trunc2($totalGravadaRaw);
+        $total_gravada = $this->round2($totalGravadaRaw);
 
         // base = total_gravada - descuento (ambos a 2 decimales)
         $discount2 = number_format((float)$discount, 2, '.', '');
         $base = bcsub($total_gravada, $discount2, 2);
 
         // IGV y total desde base
-        $total_igv = number_format(((float)$base) * 0.18, 2, '.', '');
-        $total = number_format(((float)$base) + ((float)$total_igv), 2, '.', '');
+        //$total_igv = number_format(((float)$base) * 0.18, 2, '.', '');
+        //$total = number_format(((float)$base) + ((float)$total_igv), 2, '.', '');
+        $igvRaw = bcmul($base, '0.18', 6);
+        $total_igv = $this->round2($igvRaw);
+        $total = bcadd($base, $total_igv, 2);
 
         return [
                 "operacion" => "generar_comprobante",
@@ -123,6 +131,11 @@ trait NubefactTrait
         return $int . '.' . $dec;
     }
 
+    private function round2($value): string
+    {
+        return number_format(round((float)$value, 2, PHP_ROUND_HALF_UP), 2, '.', '');
+    }
+
     private function generarComprobanteNubefactParaVenta(Sale $order): array
     {
         if (!$order->type_document) {
@@ -155,5 +168,50 @@ trait NubefactTrait
         }
 
         return $result;
+    }
+
+    private function persistNubefactFilesAndUpdateSale(Sale $order, array $result): void
+    {
+        $filename = 'ORD' . $order->id;
+
+        $pdfFilename = $filename . '.pdf';
+        $xmlFilename = $filename . '.xml';
+        $cdrFilename = $filename . '.zip';
+
+        // Crear carpetas si no existen
+        foreach (['pdfs', 'xmls', 'cdrs'] as $folder) {
+            if (!file_exists(public_path("comprobantes/$folder"))) {
+                mkdir(public_path("comprobantes/$folder"), 0777, true);
+            }
+        }
+
+        // Descargar archivos desde Nubefact
+        if (!empty($result['enlace_del_pdf'])) {
+            $pdfContent = Http::get($result['enlace_del_pdf'])->body();
+            file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
+        }
+
+        if (!empty($result['enlace_del_xml'])) {
+            $xmlContent = Http::get($result['enlace_del_xml'])->body();
+            file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
+        }
+
+        if (!empty($result['enlace_del_cdr'])) {
+            $cdrContent = Http::get($result['enlace_del_cdr'])->body();
+            file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
+        }
+
+        // Actualizar la venta con los nombres de archivo y estado SUNAT
+        $order->update([
+            'serie_sunat'   => $result['serie'] ?? null,
+            'numero'        => $result['numero'] ?? null,
+            'sunat_ticket'  => $result['sunat_ticket'] ?? null,
+            'sunat_status'  => $result['sunat_description'] ?? 'Enviado',
+            'sunat_message' => $result['sunat_note'] ?? '',
+            'xml_path'      => file_exists(public_path('comprobantes/xmls/' . $xmlFilename)) ? $xmlFilename : null,
+            'cdr_path'      => file_exists(public_path('comprobantes/cdrs/' . $cdrFilename)) ? $cdrFilename : null,
+            'pdf_path'      => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
+            'fecha_emision' => now()->toDateString(),
+        ]);
     }
 }

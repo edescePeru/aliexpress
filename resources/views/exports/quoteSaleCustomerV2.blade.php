@@ -137,17 +137,20 @@
     @foreach($quote->equipments as $equipment)
         @foreach($equipment->consumables as $consumable)
             @php
-                $cantidad  = $equipment->quantity;
-                $vunit     = $consumable->valor_unitario;
-                $punit     = $consumable->price;
+                $cantidad  = ($consumable->material_presentation_id == null) ? (float)$consumable->quantity: (float)$consumable->packs;
+                $vunit     = round(($consumable->total/($consumable->packs ?? $consumable->quantity))/(1+($igv/100)), 2);
+                $punit     = round($consumable->total/($consumable->packs ?? $consumable->quantity), 2);
                 $importe   = $consumable->total;
+
+                $present = (string) ( ($consumable->material_presentation_id == null) ? $consumable->quantity: $consumable->units_per_pack.'UND');
+
             @endphp
 
             <tr>
                 <td class="text-center">{{ number_format($cantidad, 0) }}</td>
                 <td class="text-center">{{ $consumable->material->unitMeasure->name ?? '' }}</td>
                 <td class="text-center">{{ $consumable->material->codigo ?? '' }}</td>
-                <td style="text-align:left;">{{ $consumable->material->full_name }}</td>
+                <td style="text-align:left;">{{ "(".$present.") ".$consumable->material->full_name }}</td>
 
                 @if($quote->state_decimals)
                     <td class="text-right">{{ number_format($vunit, 0) }}</td>

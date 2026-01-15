@@ -7,6 +7,7 @@ use App\CashMovement;
 use App\CashRegister;
 use App\Category;
 use App\DataGeneral;
+use App\Http\Controllers\Traits\NubefactTrait;
 use App\Item;
 use App\Mail\StockLowNotificationMail;
 use App\MaterialPresentation;
@@ -30,9 +31,12 @@ use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade as PDF;
+use Illuminate\Support\Facades\Http;
 
 class PuntoVentaController extends Controller
 {
+    use NubefactTrait;
+
     public function index()
     {
         $categories = Category::all();
@@ -196,7 +200,7 @@ class PuntoVentaController extends Controller
         return ['data' => $arrayDiscount];
     }
 
-    public function store(Request $request)
+    public function storeO(Request $request)
     {
         $begin = microtime(true);
         $workerDefault = Worker::where('user_id', Auth::user()->id)->first();
@@ -624,6 +628,453 @@ class PuntoVentaController extends Controller
             'url_print' => route('puntoVenta.print', $sale->id)
         ], 200);
 
+    }
+
+    public function store(Request $request)
+    {
+        $begin = microtime(true);
+        $workerDefault = Worker::where('user_id', Auth::user()->id)->first();
+        $workerId = $request->input('worker_id');
+
+        DB::beginTransaction();
+        try {
+
+            $items = json_decode($request->get('items'));
+
+            // ======= (TU CÓDIGO SIN CAMBIOS) Validar stock =======
+            foreach ($items as $item) {
+                $materialId = (int) $item->productId;
+
+                $material = Material::find($materialId);
+                if (!$material) {
+                    throw new \Exception("Material con ID {$materialId} no encontrado.");
+                }
+
+                $currentQuantityStore = (float) $material->stock_current;
+                $presentationId = $item->presentationId ?? null;
+
+                if (!empty($presentationId)) {
+                    $packs = (int) ($item->productQuantity ?? 0);
+                    if ($packs < 1) {
+                        throw new \Exception("Cantidad de paquetes inválida para el producto '{$material->description}'.");
+                    }
+
+                    $presentation = MaterialPresentation::where('id', $presentationId)
+                        ->where('material_id', $materialId)
+                        ->where('active', 1)
+                        ->first();
+
+                    if (!$presentation) {
+                        throw new \Exception("La presentación seleccionada no es válida o no pertenece al material '{$material->description}'.");
+                    }
+
+                    $unitsPerPack = (int) $presentation->quantity;
+                    if ($unitsPerPack < 1) {
+                        throw new \Exception("La presentación tiene cantidad inválida para el material '{$material->description}'.");
+                    }
+
+                    $units = $packs * $unitsPerPack;
+                } else {
+                    $units = (float) ($item->productQuantity ?? 0);
+                    if ($units <= 0) {
+                        throw new \Exception("Cantidad inválida para el producto '{$material->description}'.");
+                    }
+                }
+
+                if ($currentQuantityStore < $units) {
+                    throw new \Exception(
+                        "Stock insuficiente para el producto '{$material->description}'. " .
+                        "Disponible: {$material->stock_current}, requerido: {$units}"
+                    );
+                }
+            }
+
+            // ======= (TU CÓDIGO SIN CAMBIOS) Datos de factura/boleta =======
+            $type_document = null;
+            $numero_documento_cliente = null;
+            $nombre_cliente = null;
+            $direccion_cliente = null;
+            $tipo_documento_cliente = null;
+            $email_cliente = null;
+
+            if ($request->invoice_type === 'boleta') {
+                $type_document = '03';
+                $numero_documento_cliente = $request->dni;
+                $nombre_cliente = $request->name;
+                $direccion_cliente = $request->address;
+                $tipo_documento_cliente = '1';
+                $email_cliente = $request->email_invoice_boleta;
+            } elseif ($request->invoice_type === 'factura') {
+                $type_document = '01';
+                $numero_documento_cliente = $request->ruc;
+                $nombre_cliente = $request->razon_social;
+                $direccion_cliente = $request->direccion_fiscal;
+                $tipo_documento_cliente = '6';
+                $email_cliente = $request->email_invoice_factura;
+            }
+
+            $sale = Sale::create([
+                'date_sale' => Carbon::now(),
+                'serie' => $this->generateRandomString(),
+                'worker_id' => null,
+                'caja' => null,
+                'currency' => 'PEN',
+                'op_exonerada' => $request->get('total_exonerada'),
+                'op_inafecta' => 0,
+                'op_gravada' => $request->get('total_gravada'),
+                'igv' => $request->get('total_igv'),
+                'total_descuentos' => $request->get('total_descuentos'),
+                'importe_total' => $request->get('total_importe'),
+                'vuelto' => $request->get('total_vuelto'),
+                'tipo_pago_id' => $request->get('tipo_pago'),
+
+                'type_document' => $type_document,
+                'numero_documento_cliente' => $numero_documento_cliente,
+                'tipo_documento_cliente' => $tipo_documento_cliente,
+                'nombre_cliente' => $nombre_cliente,
+                'direccion_cliente' => $direccion_cliente,
+                'email_cliente' => $email_cliente,
+
+                'serie_sunat' => null,
+                'numero' => null,
+                'sunat_ticket' => null,
+                'sunat_status' => null,
+                'sunat_message' => null,
+                'xml_path' => null,
+                'cdr_path' => null,
+                'pdf_path' => null,
+                'fecha_emision' => null,
+            ]);
+
+            if ($workerId) {
+                $sale->worker_id = $workerId;
+                $sale->caja = $workerId;
+                $sale->save();
+            } else {
+                $sale->worker_id = $workerDefault->id;
+                $sale->caja = $workerDefault->id;
+                $sale->save();
+            }
+
+            // ✅ Output único
+            $output = Output::create([
+                'execution_order'  => "VENTA DE POS",
+                'request_date'     => $sale->date_sale ?? Carbon::now(),
+                'requesting_user'  => Auth::id(),
+                'responsible_user' => Auth::id(),
+                'state'            => 'confirmed',
+                'indicator'        => 'or',
+            ]);
+
+            // ======= (TU CÓDIGO SIN CAMBIOS) SaleDetails / OutputDetails / Stock =======
+            for ($i = 0; $i < sizeof($items); $i++) {
+
+                $presentationId = $items[$i]->presentationId ?? null;
+                $packs = null;
+                $unitsPerPack = null;
+
+                if (!empty($presentationId)) {
+                    $packs = (int) ($items[$i]->productQuantity ?? 0);
+                    if ($packs < 1) {
+                        throw new \Exception("Cantidad de paquetes inválida para el producto ID {$items[$i]->productId}.");
+                    }
+
+                    $presentation = MaterialPresentation::where('id', $presentationId)
+                        ->where('material_id', $items[$i]->productId)
+                        ->where('active', 1)
+                        ->first();
+
+                    if (!$presentation) {
+                        throw new \Exception("La presentación seleccionada no es válida o no pertenece al material ID {$items[$i]->productId}.");
+                    }
+
+                    $unitsPerPack = (int) $presentation->quantity;
+                    if ($unitsPerPack < 1) {
+                        throw new \Exception("La presentación tiene cantidad inválida.");
+                    }
+
+                    $unitsEquivalent = $packs * $unitsPerPack;
+                } else {
+                    $unitsEquivalent = (float) ($items[$i]->productQuantity ?? 0);
+                    if ($unitsEquivalent <= 0) {
+                        throw new \Exception("Cantidad inválida para el producto ID {$items[$i]->productId}.");
+                    }
+                }
+
+                $unitPrice = $items[$i]->productTotal / $unitsEquivalent;
+
+                SaleDetail::create([
+                    'sale_id'        => $sale->id,
+                    'material_id'    => $items[$i]->productId,
+                    'material_presentation_id' => $presentationId,
+                    'price'          => $unitPrice,
+                    'quantity'       => $unitsEquivalent,
+                    'packs'          => $packs,
+                    'units_per_pack' => $unitsPerPack,
+                    'percentage_tax' => $items[$i]->productTax,
+                    'total'          => $items[$i]->productTotal,
+                    'discount'       => $items[$i]->productDiscount,
+                ]);
+
+                $material = Material::findOrFail($items[$i]->productId);
+                $cantidadVendida = (float) $unitsEquivalent;
+
+                if ((int) $material->tipo_venta_id === 3) {
+
+                    if (floor($cantidadVendida) != $cantidadVendida) {
+                        throw new \Exception("Cantidad decimal no soportada para material itemeable: {$material->full_name}");
+                    }
+
+                    $cantidadVendidaInt = (int) $cantidadVendida;
+
+                    $itemsDisponibles = Item::where('material_id', $material->id)
+                        ->whereIn('state_item', ['entered', 'scrapped'])
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->take($cantidadVendidaInt)
+                        ->get();
+
+                    if ($itemsDisponibles->count() < $cantidadVendidaInt) {
+                        throw new \Exception(
+                            "Stock insuficiente del material {$material->full_name}. " .
+                            "Requiere {$cantidadVendidaInt} y hay {$itemsDisponibles->count()}."
+                        );
+                    }
+
+                    foreach ($itemsDisponibles as $itemObj) {
+
+                        OutputDetail::create([
+                            'output_id'   => $output->id,
+                            'item_id'     => $itemObj->id,
+                            'material_id' => $material->id,
+                            'quote_id'    => $sale->quote_id ?? null,
+                            'custom'      => 0,
+                            'percentage'  => 1,
+                            'price'       => $unitPrice,
+                            'length'      => $itemObj->length,
+                            'width'       => $itemObj->width,
+                        ]);
+
+                        $itemObj->state_item = 'exited';
+                        $itemObj->save();
+                    }
+
+                    $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendidaInt);
+                    $material->save();
+
+                } else {
+
+                    OutputDetail::create([
+                        'output_id'   => $output->id,
+                        'item_id'     => null,
+                        'material_id' => $material->id,
+                        'quote_id'    => $sale->quote_id ?? null,
+                        'custom'      => 0,
+                        'percentage'  => $cantidadVendida,
+                        'price'       => (float) $items[$i]->productPrice,
+                        'length'      => null,
+                        'width'       => null,
+                    ]);
+
+                    $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendida);
+                    $material->save();
+                }
+            }
+
+            // ======= (TU CÓDIGO SIN CAMBIOS) Caja / Vuelto / Notificación / Audit =======
+            // Agregar movimientos a la caja
+            $paymentType = $request->get('tipo_pago');
+            $vuelto = $request->get('total_vuelto');
+            $typeVuelto = $request->get('type_vuelto');
+
+            // Mapear tipo de pago a los nombres de las cajas
+            $paymentTypeMap = [
+                1 => 'yape',
+                2 => 'plin',
+                3 => 'bancario',
+                4 => 'efectivo'
+            ];
+
+            // Obtener la caja del tipo de pago
+            $cashRegister = CashRegister::where('type', $paymentTypeMap[$paymentType])
+                ->where('user_id', Auth::user()->id)
+                ->where('status', 1) // Caja abierta
+                ->latest()
+                ->first();
+
+            if (!isset($cashRegister)) {
+                return response()->json(['message' => 'No hay caja abierta para este tipo de pago.'], 422);
+            }
+            if ( $paymentType != 3 ) {
+                // Crear el movimiento de ingreso (venta)
+                CashMovement::create([
+                    'cash_register_id' => $cashRegister->id,
+                    'type' => 'sale', // Tipo de movimiento: venta
+                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
+                    'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
+                    'sale_id' => $sale->id
+                ]);
+
+                // Actualizar el saldo actual y el total de ventas en la caja
+                $cashRegister->current_balance += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
+                $cashRegister->total_sales += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
+                $cashRegister->save();
+            } else {
+                // Crear el movimiento de ingreso (venta)
+                CashMovement::create([
+                    'cash_register_id' => $cashRegister->id,
+                    'type' => 'sale', // Tipo de movimiento: venta
+                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
+                    'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
+                    'regularize' => 0,
+                    'sale_id' => $sale->id
+                ]);
+            }
+
+
+            // Registrar el vuelto como egreso si el tipo de pago es efectivo y hay vuelto
+            if ($vuelto && $paymentType == 4) {
+                // Mapear el type_vuelto (la caja desde donde se dará el vuelto)
+                $typeVueltoMap = [
+                    'efectivo' => 'efectivo',
+                    'yape' => 'yape',
+                    'plin' => 'plin',
+                    'bancario' => 'bancario'
+                ];
+
+                // Obtener la caja para el vuelto
+                $vueltoCashRegister = CashRegister::where('type', $typeVueltoMap[$typeVuelto])
+                    ->where('user_id', Auth::user()->id)
+                    ->where('status', 1) // Caja abierta
+                    ->latest()
+                    ->first();
+
+                if (!isset($vueltoCashRegister)) {
+                    return response()->json(['message' => 'No hay caja abierta para dar el vuelto.'], 422);
+                }
+
+                // Crear el movimiento de egreso (vuelto)
+                CashMovement::create([
+                    'cash_register_id' => $vueltoCashRegister->id,
+                    'type' => 'expense', // Tipo de movimiento: egreso
+                    'amount' => $vuelto,
+                    'description' => 'Vuelto entregado de la venta',
+                    'sale_id' => $sale->id
+                ]);
+
+                // Actualizar el saldo de la caja del vuelto
+                $vueltoCashRegister->current_balance -= $vuelto;
+                $vueltoCashRegister->total_expenses += $vuelto;
+                $vueltoCashRegister->save();
+            }
+
+            // Crear notificacion
+            $notification = Notification::create([
+                'content' => 'Venta creada por '.Auth::user()->name,
+                'reason_for_creation' => 'create_quote',
+                'user_id' => Auth::user()->id,
+                'url_go' => route('puntoVenta.index')
+            ]);
+
+            // Roles adecuados para recibir esta notificación admin, logistica
+            $users = User::role(['admin', 'owner' , 'principal'])->get();
+            foreach ( $users as $user )
+            {
+                if ( $user->id != Auth::user()->id )
+                {
+                    foreach ( $user->roles as $role )
+                    {
+                        NotificationUser::create([
+                            'notification_id' => $notification->id,
+                            'role_id' => $role->id,
+                            'user_id' => $user->id,
+                            'read' => false,
+                            'date_read' => null,
+                            'date_delete' => null
+                        ]);
+                    }
+                }
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Guardar venta',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            // ===========================
+            // ✅ NUBEFACT (FUERA DE TRANSACCIÓN)
+            // ===========================
+            $nubefactResult = null;
+
+            // Si no eligieron boleta/factura, no intentamos nubefact
+            if (in_array($sale->type_document, ['01', '03'])) {
+                try {
+                    $sale->loadMissing(['details.material']);
+
+                    $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
+                    $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
+
+                } catch (\Throwable $e) {
+                    // No tumbamos la venta: solo registramos el error
+                    $sale->update([
+                        'sunat_status'  => 'Error',
+                        'sunat_message' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Por defecto: ticket interno
+            $urlPrint = route('puntoVenta.print', $sale->id);
+            $printType = 'ticket';
+
+            // Si es boleta/factura, preferimos PDF SUNAT (si existe)
+            if (in_array($sale->type_document, ['01', '03'])) {
+
+                // Caso A: tenemos link directo de nubefact en la respuesta
+                if (!empty($nubefactResult['enlace_del_pdf'])) {
+                    $urlPrint = $nubefactResult['enlace_del_pdf'];
+                }
+
+                // Caso B (recomendado): usar el PDF guardado localmente (si existe)
+                if (!empty($sale->pdf_path)) {
+                    // Prioridad 1: PDF guardado localmente
+                    if (!empty($sale->pdf_path)) {
+                        $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+                        if (file_exists($localPath)) {
+                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                            $printType = 'sunat_pdf';
+                        }
+                    }
+                    // Prioridad 2: enlace directo de Nubefact
+                    elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
+                        $printType = 'sunat_pdf';
+                    }
+                }
+            }
+
+            return response()->json([
+                'message' => 'Venta guardada con éxito.' . ($nubefactResult ? ' Comprobante generado.' : ''),
+                'sale_id' => $sale->id,
+                'nubefact' => $nubefactResult,
+                'url_print' => $urlPrint,
+                'print_type' => $printType,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'trace'   => collect($e->getTrace())->take(8),
+            ], 422);
+        }
     }
 
     public function manageNotifications(Material $material)

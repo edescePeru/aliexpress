@@ -539,6 +539,9 @@ class QuoteSaleController extends Controller
         $begin = microtime(true);
         $validated = $request->validated();
 
+        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
+        $currency = $dataCurrency->valueText;
+
         DB::beginTransaction();
         try {
 
@@ -567,16 +570,21 @@ class QuoteSaleController extends Controller
                 'payment_deadline_id' => $request->get('payment_deadline'),
 
                 'state' => 'created',
+                'currency_invoice' => $currency,
 
                 // Totales (front)
-                'descuento' => $request->get('descuento'),
+                //'descuento' => $request->get('descuento'),
+                'descuento' => $request->get('descuentoReal'),
                 'discount_type' => $request->get('discount_type'),                 // amount|percent|null
                 'discount_input_mode' => $request->get('discount_input_mode'),     // with_igv|without_igv|null
                 'discount_input_value' => $request->get('discount_input_value'),   // decimal|null
 
-                'gravada' => $request->get('gravada'),
+                /*'gravada' => $request->get('gravada'),
                 'igv_total' => $request->get('igv_total'),
-                'total_importe' => $request->get('total_importe'),
+                'total_importe' => $request->get('total_importe'),*/
+                'gravada' => $request->get('gravadaReal'),
+                'igv_total' => $request->get('igvReal'),
+                'total_importe' => $request->get('totalReal'),
             ]);
 
             // Código
@@ -644,22 +652,45 @@ class QuoteSaleController extends Controller
                 }
 
                 // CONSUMABLES (con presentaciones)
+                // Recomendado para precisión decimal (si tienes bcmath)
+                @bcscale(10);
+
+                $totalConsumable = '0';
+
                 for ($k = 0; $k < sizeof($consumables); $k++) {
 
-                    $materialId = (int)($consumables[$k]->id ?? 0);
+                    $c = $consumables[$k];
+
+                    $materialId = (int)($c->id ?? 0);
                     $material = Material::find($materialId);
 
                     if (!$material) {
                         throw new \Exception("El material con ID {$materialId} no existe.");
                     }
 
-                    // Front:
-                    // - unitario => quantity = unidades
-                    // - presentación => quantity = packs
-                    $frontQty = (float)($consumables[$k]->quantity ?? 0);
+                    // ============================
+                    // 1) Inputs del front (reales)
+                    // ============================
+                    // quantity: packs si hay presentación, unidades si no hay presentación
+                    $frontQty = (float)($c->quantity ?? 0);
+                    if ($frontQty <= 0) {
+                        throw new \Exception("Cantidad inválida para material {$material->full_name}.");
+                    }
 
-                    $presentationId = $consumables[$k]->presentation_id ?? null;
+                    $presentationId = $c->presentation_id ?? null;
 
+                    // ✅ Estos 3 son los que mandas y NO debemos recalcular:
+                    $valorUnitarioReal = (string)($c->valorReal ?? $c->valor ?? '0'); // sin IGV (pack o unidad)
+                    $priceReal         = (string)($c->priceReal ?? $c->price ?? '0'); // con IGV (pack o unidad)
+                    $importeReal       = (string)($c->importe ?? '0');                // total con IGV (ya calculado)
+
+                    if ((float)$valorUnitarioReal < 0 || (float)$priceReal < 0 || (float)$importeReal < 0) {
+                        throw new \Exception("Valores inválidos (precio/valor/total) para {$material->full_name}.");
+                    }
+
+                    // ============================
+                    // 2) Presentación SOLO para stock (unidades equivalentes)
+                    // ============================
                     $packs = null;
                     $unitsPerPack = null;
 
@@ -684,67 +715,66 @@ class QuoteSaleController extends Controller
                             throw new \Exception("La presentación tiene cantidad inválida para {$material->full_name}.");
                         }
 
-                        // UNIDADES EQUIVALENTES
                         $requestedUnits = (float)($packs * $unitsPerPack);
 
-                        // total con IGV (packs * precio_pack)
-                        $importe = (float)($consumables[$k]->importe ?? 0);
-
-                        // precio unitario con IGV
-                        $unitPriceIgv = ($requestedUnits > 0) ? ($importe / $requestedUnits) : 0;
-                        $unitPriceNoIgv = ($igvFactor > 0) ? ($unitPriceIgv / $igvFactor) : 0;
-
                     } else {
-
                         // Unitario: units_equivalent debe ser unidades (si no viene, usa frontQty)
-                        $requestedUnits = (float)($consumables[$k]->units_equivalent ?? $frontQty);
+                        $requestedUnits = (float)($c->units_equivalent ?? $frontQty);
+
                         if ($requestedUnits <= 0) {
                             throw new \Exception("Cantidad inválida para material {$material->full_name}.");
                         }
-
-                        // unitario: front manda P/U con IGV y V/U sin IGV
-                        $unitPriceIgv = (float)($consumables[$k]->price ?? 0);
-                        $unitPriceNoIgv = (float)($consumables[$k]->valor ?? 0);
-
-                        // total con IGV
-                        $importe = (float)($consumables[$k]->importe ?? ($requestedUnits * $unitPriceIgv));
                     }
 
-                    // Stock disponible (ya reservado por otras cotizaciones)
+                    // ============================
+                    // 3) Stock disponible
+                    // ============================
                     $available = (float)$material->stock_current - (float)$material->stock_reserved;
+
                     if ($requestedUnits > $available) {
-                        throw new \Exception("El material {$material->full_name} no cuenta con stock suficiente. Requerido: {$requestedUnits}. Disponible: {$available}.");
+                        throw new \Exception(
+                            "El material {$material->full_name} no cuenta con stock suficiente. " .
+                            "Requerido: {$requestedUnits}. Disponible: {$available}."
+                        );
                     }
 
                     $availability = ($requestedUnits > (float)$material->stock_current) ? 'Agotado' : 'Completo';
-                    $state = ($requestedUnits > (float)$material->stock_current) ? 'Falta comprar' : 'En compra';
+                    $state        = ($requestedUnits > (float)$material->stock_current) ? 'Falta comprar' : 'En compra';
 
+                    // ============================
+                    // 4) Guardar consumable (decimales reales)
+                    // ============================
                     $equipmentConsumable = EquipmentConsumable::create([
                         'availability' => $availability,
                         'state' => $state,
                         'equipment_id' => $equipment->id,
                         'material_id' => $materialId,
 
-                        // Guardamos en unidades equivalentes (base del stock)
-                        'quantity' => (float)$requestedUnits,
+                        // ✅ SIEMPRE stock en unidades equivalentes
+                        'quantity' => $requestedUnits,
 
-                        // Unit price con IGV y sin IGV
-                        'price' => (float)$unitPriceIgv,
-                        'valor_unitario' => (float)$unitPriceNoIgv,
+                        // ✅ Guardar EXACTO lo real que viene del front (decimal 20,10)
+                        'price' => $priceReal,                    // con IGV (pack o unidad)
+                        'valor_unitario' => $valorUnitarioReal,   // sin IGV (pack o unidad)
+                        'total' => $importeReal,                  // total con IGV (ya calculado)
 
-                        'discount' => (float)($consumables[$k]->discount ?? 0),
-                        'total' => (float)$importe,
-                        'type_promo' => $consumables[$k]->type_promo ?? null,
+                        'discount' => (string)($c->discount ?? '0'),
+                        'type_promo' => $c->type_promo ?? null,
 
-                        // Presentaciones
                         'material_presentation_id' => $presentationId,
                         'packs' => $packs,
                         'units_per_pack' => $unitsPerPack,
                     ]);
 
-                    $totalConsumable += $equipmentConsumable->total;
+                    // ============================
+                    // 5) Total consumables con precisión
+                    // ============================
+                    // Ideal: sumar el mismo string que guardas (importeReal)
+                    $totalConsumable = bcadd($totalConsumable, $importeReal, 10);
 
-                    // Reserva por cotización (unidades equivalentes)
+                    // ============================
+                    // 6) Reservas (unidades equivalentes)
+                    // ============================
                     $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
                         ->where('material_id', $materialId)
                         ->lockForUpdate()
@@ -761,12 +791,14 @@ class QuoteSaleController extends Controller
                         ]);
                     }
 
-                    // Stock reservado
                     $material->stock_reserved += $requestedUnits;
                     $material->save();
 
-                    // Promo limit (usa unidades equivalentes)
-                    if (($consumables[$k]->type_promo ?? null) === "limit") {
+                    // ============================
+                    // 7) Promo limit (valida y registra uso) - usa unidades equivalentes
+                    // ============================
+                    if (($c->type_promo ?? null) === "limit") {
+
                         $promotion = PromotionLimit::where('material_id', $materialId)
                             ->whereDate('start_date', '<=', now())
                             ->whereDate('end_date', '>=', now())
@@ -775,26 +807,35 @@ class QuoteSaleController extends Controller
                         if ($promotion) {
                             $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
 
-                            if ($promotion->applies_to == 'worker') {
+                            if ($promotion->applies_to === 'worker') {
                                 $query->where('user_id', auth()->id());
                             }
 
                             $usage = $query->first();
 
+                            // ✅ Validar antes de sumar
+                            $alreadyUsed = $usage ? (float)$usage->used_quantity : 0.0;
+                            $remaining = (float)$promotion->limit_quantity - $alreadyUsed;
+
+                            if ($remaining < $requestedUnits) {
+                                throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
+                            }
+
                             if (!$usage) {
-                                $usage = PromotionUsage::create([
+                                PromotionUsage::create([
                                     'promotion_limit_id' => $promotion->id,
-                                    'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                    'used_quantity' => (float)$requestedUnits,
+                                    'user_id' => $promotion->applies_to === 'worker' ? auth()->id() : null,
+                                    'used_quantity' => $requestedUnits,
                                     'equipment_id' => $equipment->id,
                                     'equipment_consumable_id' => $equipmentConsumable->id,
                                     'quote_id' => $equipment->quote_id,
                                 ]);
-                            }
-
-                            $remaining = $promotion->limit_quantity - $usage->used_quantity;
-                            if ($remaining < $requestedUnits) {
-                                throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
+                            } else {
+                                $usage->used_quantity += $requestedUnits;
+                                $usage->equipment_id = $equipment->id;
+                                $usage->equipment_consumable_id = $equipmentConsumable->id;
+                                $usage->quote_id = $equipment->quote_id;
+                                $usage->save();
                             }
                         }
                     }
@@ -2751,20 +2792,22 @@ class QuoteSaleController extends Controller
 
             /**
              * 1) Guardar totales de Quote + metadata del descuento
-             * (estos valores vienen del front ya recalculados correctamente)
+             * AHORA vienen del front como:
+             * - descuento, gravada, igv_total, total_importe (reales 10 dec)
              */
-            $quote->descuento = $request->get('descuento');
-            $quote->gravada = $request->get('gravada');
-            $quote->igv_total = $request->get('igv_total');
-            $quote->total_importe = $request->get('total_importe');
+            $quote->descuento      = (string)($request->input('descuento', '0'));
+            $quote->gravada        = (string)($request->input('gravada', '0'));
+            $quote->igv_total      = (string)($request->input('igv_total', '0'));
+            $quote->total_importe  = (string)($request->input('total_importe', '0'));
 
-            $quote->discount_type = $request->get('discount_type');                 // amount|percent
-            $quote->discount_input_mode = $request->get('discount_input_mode');     // with_igv|without_igv
-            $quote->discount_input_value = $request->get('discount_input_value');   // numeric
+            $quote->discount_type       = $request->input('discount_type');        // amount|percent
+            $quote->discount_input_mode = $request->input('discount_input_mode');  // with_igv|without_igv
+            $quote->discount_input_value= $request->input('discount_input_value'); // numeric
             $quote->save();
 
             /**
-             * 2) Eliminar consumables antiguos y devolver reservas (quantity = unidades equivalentes)
+             * 2) Eliminar consumables antiguos y devolver reservas
+             * quantity en BD = unidades equivalentes (stock)
              */
             foreach ($equipment_quote->consumables as $consumable) {
 
@@ -2777,18 +2820,16 @@ class QuoteSaleController extends Controller
                         ->first();
 
                     if ($reservation) {
-                        $reservation->quantity -= (float) $consumable->quantity; // unidades equivalentes
-
+                        $reservation->quantity -= (float)$consumable->quantity;
                         if ($reservation->quantity <= 0) $reservation->delete();
                         else $reservation->save();
                     }
 
-                    $material->stock_reserved -= (float) $consumable->quantity; // unidades equivalentes
+                    $material->stock_reserved -= (float)$consumable->quantity;
                     if ($material->stock_reserved < 0) $material->stock_reserved = 0;
                     $material->save();
                 }
 
-                // Ya no usamos promociones
                 $consumable->delete();
             }
 
@@ -2812,56 +2853,52 @@ class QuoteSaleController extends Controller
              * 4) Actualizar equipo principal
              */
             $equipment_quote->description = $equip['description'] ?? '';
-            $equipment_quote->detail = $equip['detail'] ?? '';
-            $equipment_quote->quantity = $equip['quantity'] ?? 1;
-            $equipment_quote->utility = $equip['utility'] ?? 0;
-            $equipment_quote->rent = $equip['rent'] ?? 0;
-            $equipment_quote->letter = $equip['letter'] ?? 0;
-            $equipment_quote->total = $equip['total'] ?? 0;
+            $equipment_quote->detail      = $equip['detail'] ?? '';
+            $equipment_quote->quantity    = $equip['quantity'] ?? 1;
+            $equipment_quote->utility     = $equip['utility'] ?? 0;
+            $equipment_quote->rent        = $equip['rent'] ?? 0;
+            $equipment_quote->letter      = $equip['letter'] ?? 0;
+
+            // total del equipo con IGV (real 10 dec)
+            $equipment_quote->total       = (string)($equip['total'] ?? '0');
             $equipment_quote->save();
 
             /**
-             * 5) Re-crear consumables con presentaciones
-             * - presentation_id => material_presentation_id
-             * - quantity => packs (UI) si hay presentación
-             * - units_equivalent => unidades equivalentes si es unitario
-             * - en BD: quantity SIEMPRE se guarda como unidades equivalentes
+             * 5) Re-crear consumables
+             * - En BD: quantity SIEMPRE unidades equivalentes (stock)
+             * - price / valor_unitario / total: VIENEN DEL FRONT EN REAL (10 dec)
              */
             $consumables = $equip['consumables'] ?? [];
 
-            $igvPct = 18.0; // si tu IGV es configurable, reemplaza
-            $igvFactor = 1 + ($igvPct / 100);
+            // Para sumar con precisión si lo necesitas
+            @bcscale(10);
 
             foreach ($consumables as $c) {
 
-                $materialId = (int) ($c['id'] ?? 0);
+                $materialId = (int)($c['id'] ?? 0);
                 $material = Material::lockForUpdate()->find($materialId);
 
                 if (!$material) {
                     throw new \Exception("El material con ID {$materialId} no existe.");
                 }
 
+                // --- presentación solo para stock/reserva ---
                 $presentationId = $c['presentation_id'] ?? null;
                 $packs = null;
                 $unitsPerPack = null;
 
-                // unidades equivalentes a reservar
+                // units equivalentes a reservar
                 $requestedUnits = 0;
-
-                // precios
-                $unitPriceIgv = 0;
-                $unitPriceNoIgv = 0;
-                $importe = 0;
 
                 if (!empty($presentationId)) {
 
                     // En UI quantity = packs
-                    $packs = (int) ($c['quantity'] ?? 0);
+                    $packs = (int)($c['quantity'] ?? 0);
                     if ($packs < 1) {
                         throw new \Exception("Packs inválidos para {$material->full_name}.");
                     }
 
-                    // Validar presentación real y traer units_per_pack desde BD
+                    // Validar presentación real
                     $presentation = MaterialPresentation::where('id', $presentationId)
                         ->where('material_id', $materialId)
                         ->where('active', 1)
@@ -2871,46 +2908,42 @@ class QuoteSaleController extends Controller
                         throw new \Exception("Presentación inválida para {$material->full_name}.");
                     }
 
-                    $unitsPerPack = (int) $presentation->quantity;
+                    $unitsPerPack = (int)$presentation->quantity;
                     if ($unitsPerPack < 1) {
                         throw new \Exception("Units_per_pack inválido para {$material->full_name}.");
                     }
 
-                    $requestedUnits = (float) ($packs * $unitsPerPack);
-
-                    // el front manda importe con IGV del pack: packs * precioPack
-                    $importe = (float) ($c['importe'] ?? 0);
-
-                    // calculamos precio unitario con IGV
-                    $unitPriceIgv = ($requestedUnits > 0) ? ($importe / $requestedUnits) : 0;
-                    $unitPriceNoIgv = ($igvFactor > 0) ? ($unitPriceIgv / $igvFactor) : 0;
+                    $requestedUnits = (float)($packs * $unitsPerPack);
 
                 } else {
 
-                    // Unitario: units_equivalent debe ser unidades
-                    $requestedUnits = (float) ($c['units_equivalent'] ?? ($c['quantity'] ?? 0));
+                    // Unitario: units_equivalent debe ser unidades (si no viene, usa quantity)
+                    $requestedUnits = (float)($c['units_equivalent'] ?? ($c['quantity'] ?? 0));
                     if ($requestedUnits <= 0) {
                         throw new \Exception("Cantidad inválida para {$material->full_name}.");
                     }
+                }
 
-                    // unitario: front manda price (con IGV) y valor (sin IGV)
-                    $unitPriceIgv = (float) ($c['price'] ?? 0);
-                    $unitPriceNoIgv = (float) ($c['valor'] ?? 0);
+                // --- Dinero (NO recalcular): guardar lo real del front ---
+                $valorUnitarioReal = (string)($c['valorReal'] ?? $c['valor'] ?? '0'); // sin IGV
+                $priceReal         = (string)($c['priceReal'] ?? $c['price'] ?? '0'); // con IGV
+                $importeReal       = (string)($c['importe'] ?? '0');                  // total con IGV
 
-                    $importe = (float) ($c['importe'] ?? ($requestedUnits * $unitPriceIgv));
+                if ((float)$valorUnitarioReal < 0 || (float)$priceReal < 0 || (float)$importeReal < 0) {
+                    throw new \Exception("Valores inválidos (precio/valor/total) para {$material->full_name}.");
                 }
 
                 // validar stock disponible (considera reservas)
-                $available = (float) $material->stock_current - (float) $material->stock_reserved;
+                $available = (float)$material->stock_current - (float)$material->stock_reserved;
                 if ($requestedUnits > $available) {
                     throw new \Exception("Stock insuficiente para {$material->full_name}. Requerido: {$requestedUnits}. Disponible: {$available}.");
                 }
 
                 $availability = ($requestedUnits > (float)$material->stock_current) ? 'Agotado' : 'Completo';
-                $state = ($requestedUnits > (float)$material->stock_current) ? 'Falta comprar' : 'En compra';
+                $state        = ($requestedUnits > (float)$material->stock_current) ? 'Falta comprar' : 'En compra';
 
                 // crear consumable (BD guarda unidades equivalentes)
-                EquipmentConsumable::create([
+                $equipmentConsumable = EquipmentConsumable::create([
                     'equipment_id' => $equipment_quote->id,
                     'material_id' => $materialId,
 
@@ -2918,14 +2951,16 @@ class QuoteSaleController extends Controller
                     'packs' => $packs,
                     'units_per_pack' => $unitsPerPack,
 
-                    'quantity' => (float) $requestedUnits,
+                    // ✅ stock (unidades equivalentes)
+                    'quantity' => (float)$requestedUnits,
 
-                    'price' => (float) $unitPriceIgv,
-                    'valor_unitario' => (float) $unitPriceNoIgv,
+                    // ✅ dinero real (decimal 20,10)
+                    'price' => $priceReal,
+                    'valor_unitario' => $valorUnitarioReal,
+                    'total' => $importeReal,
 
-                    'discount' => (float) ($c['discount'] ?? 0),
-                    'total' => (float) $importe,
-                    'type_promo' => $c['type_promo'] ?? null, // si ya no se usa, puedes dejar null
+                    'discount' => (string)($c['discount'] ?? '0'),
+                    'type_promo' => $c['type_promo'] ?? null,
                     'availability' => $availability,
                     'state' => $state,
                 ]);
@@ -2953,7 +2988,8 @@ class QuoteSaleController extends Controller
             }
 
             /**
-             * 6) Re-crear workforces con billable (NO filtrar totals)
+             * 6) Re-crear workforces
+             * (si tus workforces también tienen reales, aplícalo igual)
              */
             $workforces = $equip['workforces'] ?? [];
 
@@ -2961,9 +2997,9 @@ class QuoteSaleController extends Controller
                 EquipmentWorkforce::create([
                     'equipment_id' => $equipment_quote->id,
                     'description' => $w['description'] ?? '',
-                    'price' => (float) ($w['price'] ?? 0),          // P/U con IGV
-                    'quantity' => (float) ($w['quantity'] ?? 0),
-                    'total' => (float) ($w['importe'] ?? 0),        // importe con IGV
+                    'price' => (string)($w['price'] ?? '0'),        // con IGV
+                    'quantity' => (float)($w['quantity'] ?? 0),
+                    'total' => (string)($w['importe'] ?? '0'),      // con IGV
                     'unit' => $w['unit'] ?? '',
                     'billable' => isset($w['billable']) ? (int)$w['billable'] : 1,
                 ]);
@@ -3406,13 +3442,16 @@ class QuoteSaleController extends Controller
                 foreach ($equipment->consumables as $consumable) {
 
                     SaleDetail::create([
-                        'sale_id' => $sale->id,
-                        'material_id' => $consumable->material_id,
-                        'price' => $consumable->price,
-                        'quantity' => $consumable->quantity,
-                        'percentage_tax' => 18,
-                        'total' => $consumable->total,
-                        'discount' => $consumable->discount,
+                        'sale_id'                   => $sale->id,
+                        'material_id'               => $consumable->material_id,
+                        'material_presentation_id'  => $consumable->material_presentation_id,
+                        'price'                     => $consumable->price,
+                        'quantity'                  => $consumable->quantity,
+                        'packs'                     => $consumable->packs,           // ✅ si hay presentación
+                        'units_per_pack'            => $consumable->units_per_pack,    // ✅ si hay presentación
+                        'percentage_tax'            => 18,
+                        'total'                     => $consumable->total,
+                        'discount'                  => $consumable->discount,
                     ]);
 
                     $material = $consumable->material;

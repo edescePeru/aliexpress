@@ -891,7 +891,16 @@ function guardarVenta() {
                                 $("#btn-pay").hide();
                                 $("#btn-newSale").show();
                                 $("#btn-printDocument").show();
-                                $("#btn-printDocument").attr("href", data.url_print);
+                                //$("#btn-printDocument").attr("href", data.url_print);
+                                $("#btn-printDocument")
+                                    .attr("href", data.url_print)
+                                    .attr("target", "_blank");
+
+                                if (data.print_type === 'sunat_pdf') {
+                                    $("#btn-printDocument").text('Ver comprobante SUNAT');
+                                } else {
+                                    $("#btn-printDocument").text('Imprimir ticket');
+                                }
                             }, 2000);
                         },
                         error: function (data) {

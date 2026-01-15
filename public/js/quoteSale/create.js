@@ -542,11 +542,15 @@ function saveEquipment() {
                     var consumablesDescription = [];
                     var consumablesIds = [];
                     var consumablesUnit = [];
-                    var consumablesQuantity = []; // visible: packs o unidades
+
+                    var consumablesQuantity = []; // visible
                     var consumablesValor = [];
-                    var consumablesPrice = [];    // P/U con IGV (pack o unitario)
+                    var consumablesValorReal = [];
+                    var consumablesPrice = [];
+                    var consumablesPriceReal = [];
                     var consumablesImporte = [];
-                    var consumablesDiscount = [];
+
+                    var consumablesDiscount = []; // compatibilidad
                     var consumablesTypePromos = [];
 
                     var consumablesPresentationId = [];
@@ -586,15 +590,22 @@ function saveEquipment() {
                             consumablesValor.push($(this).val());
                         });
 
+                        $(this).find('[data-consumable_valor_real]').each(function(){
+                            consumablesValorReal.push($(this).attr('data-consumable_valor_real'));
+                        });
+
                         $(this).find('[data-consumablePrice]').each(function(){
                             consumablesPrice.push($(this).val());
+                        });
+
+                        $(this).find('[data-consumable_price_real]').each(function(){
+                            consumablesPriceReal.push($(this).attr('data-consumable_price_real'));
                         });
 
                         $(this).find('[data-consumableImporte]').each(function(){
                             consumablesImporte.push($(this).val());
                         });
 
-                        // Presentación meta
                         $(this).find('[data-presentation_id]').each(function(){
                             consumablesPresentationId.push($(this).attr('data-presentation_id') || null);
                         });
@@ -608,7 +619,7 @@ function saveEquipment() {
                         });
                     });
 
-                    // Armamos array final de consumables
+                    // Armamos array final de consumables (incluye reales)
                     var consumablesArray = [];
                     for (let i = 0; i < consumablesDescription.length; i++) {
                         consumablesArray.push({
@@ -616,18 +627,20 @@ function saveEquipment() {
                             description: consumablesDescription[i],
                             unit: consumablesUnit[i],
 
-                            // visible
+                            // ✅ quantity = packs si hay presentación, unidades si no hay presentación
                             quantity: consumablesQuantity[i],
 
-                            // real (unidades equivalentes)
+                            // solo para inventario
                             units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
 
                             valor: consumablesValor[i],
+                            valorReal: consumablesValorReal[i],
                             price: consumablesPrice[i],
+                            priceReal: consumablesPriceReal[i],
                             importe: consumablesImporte[i],
+
                             discount: consumablesDiscount[i],
                             type_promo: consumablesTypePromos[i],
-
                             presentation_id: consumablesPresentationId[i] || null,
                             units_per_pack: consumablesUnitsPerPack[i] || null
                         });
@@ -645,52 +658,67 @@ function saveEquipment() {
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all; // ✅ sumar SIEMPRE en cotización
-                    // var servicesSumBillable = servicesRead.sum_billable; // se usará al facturar
+                    var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
 
                     // ===========================
-                    // 4) SUBTOTAL con IGV (antes de descuento global)
+                    // 4) Totales (misma lógica que confirmEquipment)
                     // ===========================
-                    var subtotalConsumables = 0;
-                    for (let i = 0; i < consumablesImporte.length; i++) {
-                        //subtotalConsumables += round2(parseFloat(consumablesImporte[i]) || 0);
-                        subtotalConsumables += (parseFloat(consumablesImporte[i]) || 0);
+                    const igvPct = parseFloat($igv) || 18;
+                    const factor = getFactor(igvPct);
+
+                    let subtotalConsumablesWithIgvReal = 0;
+
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        const qty = Number(consumablesArray[i].quantity) || 0;
+                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+
+                        const lineWithIgvReal = round10(qty * priceReal);
+                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
                     }
 
-                    // aplicar descuentos de promos (por item)
-                    subtotalConsumables = round2(subtotalConsumables - round2(descuentoPromos));
+                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
+                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
 
-                    // subtotal general (productos + servicios) con IGV
-                    //var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
-                    var subtotalWithIgv = moneyRound(subtotalConsumables + servicesSumAll);
+                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
 
-                    // ===========================
-                    // 5) DESCUENTO GLOBAL (sobre base SIN IGV)
-                    // ===========================
-                    var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
-                    var discountBase = globalDiscount.base;
+                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
 
-                    var baseSubtotal = round2(subtotalWithIgv / (1 + ($igv / 100)));
-                    var baseFinal = round2(baseSubtotal - discountBase);
-                    if (baseFinal < 0) baseFinal = 0;
+                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
+                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
 
-                    var igvFinal = round2(baseFinal * ($igv / 100));
-                    var totalFinal = round2(baseFinal + igvFinal);
+                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
+                    if (baseFinalReal < 0) baseFinalReal = 0;
+
+                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
+                    const discountBaseReal = round10(discountWithIgvReal / factor);
 
                     // ===========================
-                    // 6) Mostrar Totales
+                    // 5) UI (2 decimales) + data reales
                     // ===========================
-                    $('#descuento').html(discountBase.toFixed(2));
-                    $('#gravada').html(baseFinal.toFixed(2));
-                    $('#igv_total').html(igvFinal.toFixed(2));
-                    $('#total_importe').html(totalFinal.toFixed(2));
+                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
+                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
+                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
+                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
+
+                    $('#descuento').attr('data-descuento_real', discountBaseReal);
+                    $('#gravada').attr('data-gravada_real', baseFinalReal);
+                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
+                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
 
                     // ===========================
-                    // 7) Guardar en memoria ($equipments)
+                    // 6) Guardar en memoria ($equipments)
                     // ===========================
-                    // Mantener el mismo equipmentId (NO cambies a length)
                     button.attr('data-saveEquipment', equipmentId);
                     button.next().attr('data-deleteEquipment', equipmentId);
+
+                    const discountGlobalMeta = {
+                        subtotal_with_igv: subtotalWithIgvReal,
+                        discount_with_igv: discountWithIgvReal,
+                        discount_base: discountBaseReal,
+                        igv_pct: igvPct,
+                        factor: factor
+                    };
 
                     $equipments.push({
                         id: equipmentId,
@@ -699,8 +727,7 @@ function saveEquipment() {
                         rent: rent,
                         letter: letter,
 
-                        // total final con descuento global
-                        total: totalFinal,
+                        total: totalFinalWithIgvReal, // ✅ real con IGV
 
                         description: "",
                         detail: detail,
@@ -708,14 +735,11 @@ function saveEquipment() {
                         materials: [],
                         consumables: consumablesArray,
                         electrics: [],
-
-                        // servicios (incluye billable, pero se suma igual en la cotización)
                         workforces: servicesArray,
 
-                        // meta descuento global (opcional)
                         discount_global: {
-                            base: discountBase,
-                            meta: globalDiscount.debug
+                            base: discountBaseReal,
+                            meta: discountGlobalMeta
                         },
 
                         tornos: [],
@@ -723,7 +747,6 @@ function saveEquipment() {
                     });
 
                     // UI
-                    //card.removeClass('card-gray-dark').addClass('card-success');
                     markEquipClean(card);
                     $items = [];
                     $.alert("Productos guardados!");
@@ -967,10 +990,12 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
         clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
         clone.querySelector("[data-consumableQuantity]").value = packs.toFixed(2); // ✅ muestra packs
         clone.querySelector("[data-consumablePrice]").value = pricePack.toFixed(2); // ✅ precio pack
+        $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePack.toFixed(10));
 
         // V/U (valor unitario) si lo quieres mostrar como valor unitario del pack sin IGV:
         let valorUnitario = pricePack / ((100 + parseFloat($igv)) / 100);
         clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
+        $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', valorUnitario.toFixed(10));
 
         // importe = packs * pricePack
         let importeTotal = pricePack * packs;
@@ -1002,7 +1027,11 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
     clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
     clone.querySelector("[data-consumableQuantity]").value = qtyVisible.toFixed(2);
     clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
+    $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', valorUnitario.toFixed(10));
+
     clone.querySelector("[data-consumablePrice]").value = precioUnitario.toFixed(2);
+    $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', precioUnitario.toFixed(10));
+
     clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
 
     $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.id);
@@ -1165,6 +1194,12 @@ function readServicesFromDom(container) {
     };
 }
 
+const round10 = (n) => Math.round((Number(n) || 0) * 1e10) / 1e10;
+const moneyRound = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// factor IGV: 1.18 (o el que toque)
+const getFactor = (igvPct) => 1 + ((Number(igvPct) || 0) / 100);
+
 function confirmEquipment() {
     var button = $(this);
 
@@ -1206,11 +1241,15 @@ function confirmEquipment() {
                     var consumablesDescription = [];
                     var consumablesIds = [];
                     var consumablesUnit = [];
+
                     var consumablesQuantity = []; // visible: packs o unidades
                     var consumablesValor = [];
-                    var consumablesPrice = [];    // P/U con IGV
+                    var consumablesValorReal = [];
+                    var consumablesPrice = [];    // P/U con IGV (pack o unitario)
+                    var consumablesPriceReal = [];
                     var consumablesImporte = [];
-                    var consumablesDiscount = [];
+
+                    var consumablesDiscount = []; // compatibilidad (promos por item)
                     var consumablesTypePromos = [];
 
                     var consumablesPresentationId = [];
@@ -1250,8 +1289,16 @@ function confirmEquipment() {
                             consumablesValor.push($(this).val());
                         });
 
+                        $(this).find('[data-consumable_valor_real]').each(function(){
+                            consumablesValorReal.push($(this).attr('data-consumable_valor_real'));
+                        });
+
                         $(this).find('[data-consumablePrice]').each(function(){
                             consumablesPrice.push($(this).val());
+                        });
+
+                        $(this).find('[data-consumable_price_real]').each(function(){
+                            consumablesPriceReal.push($(this).attr('data-consumable_price_real'));
                         });
 
                         $(this).find('[data-consumableImporte]').each(function(){
@@ -1277,11 +1324,19 @@ function confirmEquipment() {
                             id: consumablesIds[i],
                             description: consumablesDescription[i],
                             unit: consumablesUnit[i],
-                            quantity: consumablesQuantity[i], // visible
-                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i], // real
+
+                            // ✅ quantity = packs si hay presentación, unidades si no hay presentación
+                            quantity: consumablesQuantity[i],
+
+                            // solo para inventario (NO para SUNAT)
+                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
+
                             valor: consumablesValor[i],
+                            valorReal: consumablesValorReal[i], // ✅ por pack o por unidad según corresponda
                             price: consumablesPrice[i],
+                            priceReal: consumablesPriceReal[i], // ✅ por pack o por unidad según corresponda
                             importe: consumablesImporte[i],
+
                             discount: consumablesDiscount[i],
                             type_promo: consumablesTypePromos[i],
                             presentation_id: consumablesPresentationId[i] || null,
@@ -1301,69 +1356,74 @@ function confirmEquipment() {
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all; // ✅ sumar SIEMPRE en cotización
+                    var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
+
+                    const igvPct = parseFloat($igv) || 18;
+                    const factor = getFactor(igvPct);
 
                     // ===========================
                     // 3) SUBTOTAL con IGV (antes de descuento global)
                     // ===========================
-                    var subtotalConsumables = 0;
-                    for (let i = 0; i < consumablesImporte.length; i++) {
-                        subtotalConsumables += round2(parseFloat(consumablesImporte[i]) || 0);
+                    // ✅ Para SUNAT: usar quantity (packs/unidades) * priceReal (pack/unidad)
+                    let subtotalConsumablesWithIgvReal = 0;
+
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        const qty = Number(consumablesArray[i].quantity) || 0;
+                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+
+                        const lineWithIgvReal = round10(qty * priceReal);
+                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
                     }
 
-                    subtotalConsumables = round2(subtotalConsumables - round2(descuentoPromos));
+                    // promos (si existen)
+                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
+                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
 
-                    // ✅ subtotal general (productos + servicios) con IGV
-                    var subtotalWithIgv = round2(subtotalConsumables + servicesSumAll);
-
-                    // ===========================
-                    // 4) DESCUENTO GLOBAL (sobre base SIN IGV)
-                    // ===========================
-                    /*var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
-                    var discountBase = globalDiscount.base;
-
-                    var baseSubtotal = round2(subtotalWithIgv / (1 + ($igv / 100)));
-                    var baseFinal = round2(baseSubtotal - discountBase);
-                    if (baseFinal < 0) baseFinal = 0;
-
-                    var igvFinal = round2(baseFinal * ($igv / 100));
-                    var totalFinal = round2(baseFinal + igvFinal);*/
-                    var globalDiscount = computeGlobalDiscountBase(subtotalWithIgv, parseFloat($igv));
-                    var discountBase = globalDiscount.base;
-
-                    const igvPct = parseFloat($igv) || 18;
-                    const factor = 1 + (igvPct / 100);
-
-                    const discountWithIgv = computeDiscountWithIgv(subtotalWithIgv, igvPct);
-                    // ✅ base sin IGV TRUNCADA
-                    var baseSubtotal = divTrunc2(subtotalWithIgv, factor);
-                    var totalFinal = moneyRound(subtotalWithIgv - discountWithIgv);
-                    // ✅ base final (TRUNC)
-                    //var baseFinal = moneyTrunc(baseSubtotal - discountBase);
-                    var baseFinal = divTrunc2(totalFinal, factor);
-                    if (baseFinal < 0) baseFinal = 0;
-
-                    // ✅ IGV y total (round normal al final)
-                    //var igvFinal = moneyRound(baseFinal * (igvPct / 100));
-                    const igvFinal = moneyRound(totalFinal - baseFinal);
-                    //var totalFinal = moneyRound(baseFinal + igvFinal);
+                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
 
                     // ===========================
-                    // 5) Mostrar Totales
+                    // 4) DESCUENTO GLOBAL (tu función devuelve con IGV)
                     // ===========================
-                    /*$('#descuento').html(discountBase.toFixed(2));
-                    $('#gravada').html(baseFinal.toFixed(2));
-                    $('#igv_total').html(igvFinal.toFixed(2));
-                    $('#total_importe').html(totalFinal.toFixed(2));*/
-                    $('#descuento').html(moneyRound(discountWithIgv / factor).toFixed(2)); // si tu UI “descuento” es en base
-                    $('#gravada').html(baseFinal.toFixed(2));
-                    $('#igv_total').html(igvFinal.toFixed(2));
-                    $('#total_importe').html(totalFinal.toFixed(2));
+                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+
+                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
+                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
 
                     // ===========================
-                    // 6) Guardar en memoria ($equipments)
+                    // 5) BASE, IGV (SIN TRUNCAR)
+                    // ===========================
+                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
+                    if (baseFinalReal < 0) baseFinalReal = 0;
+
+                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
+                    const discountBaseReal = round10(discountWithIgvReal / factor);
+
+                    // ===========================
+                    // 6) UI (2 decimales) + data reales
+                    // ===========================
+                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
+                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
+                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
+                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
+
+                    $('#descuento').attr('data-descuento_real', discountBaseReal);
+                    $('#gravada').attr('data-gravada_real', baseFinalReal);
+                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
+                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
+
+                    // ===========================
+                    // 7) Guardar en memoria ($equipments)
                     // ===========================
                     button.next().attr('data-saveEquipment', $equipments.length);
+
+                    const discountGlobalMeta = {
+                        subtotal_with_igv: subtotalWithIgvReal,
+                        discount_with_igv: discountWithIgvReal,
+                        discount_base: discountBaseReal,
+                        igv_pct: igvPct,
+                        factor: factor
+                    };
 
                     $equipments.push({
                         id: $equipments.length,
@@ -1371,16 +1431,16 @@ function confirmEquipment() {
                         utility: utility,
                         rent: rent,
                         letter: letter,
-                        total: totalFinal,
+                        total: totalFinalWithIgvReal,
                         description: "",
                         detail: detail,
                         materials: [],
                         consumables: consumablesArray,
                         electrics: [],
-                        workforces: servicesArray, // incluye billable
+                        workforces: servicesArray,
                         discount_global: {
-                            base: discountBase,
-                            meta: globalDiscount.debug
+                            base: discountBaseReal,
+                            meta: discountGlobalMeta
                         },
                         tornos: [],
                         dias: []
@@ -1405,9 +1465,9 @@ function confirmEquipment() {
 }
 
 // Redondeo clásico a 2 decimales (solo para mostrar o cierre final)
-function moneyRound(n) {
+/*function moneyRound(n) {
     return Math.round((n + Number.EPSILON) * 100) / 100;
-}
+}*/
 
 // ✅ TRUNCAR a 2 decimales (lo que te evita el +0.01)
 function moneyTrunc(n) {
@@ -1731,10 +1791,20 @@ function storeQuote() {
     let igv_total = $("#igv_total").html();
     let total_importe = $("#total_importe").html();
 
+    let descuentoReal = $('#descuento').attr('data-descuento_real');
+    let gravadaReal = $('#gravada').attr('data-gravada_real');
+    let igvReal = $('#igv_total').attr('data-igv_total_real');
+    let totalReal = $('#total_importe').attr('data-total_importe_real');
+
     form.append('descuento', descuento);
     form.append('gravada', gravada);
     form.append('igv_total', igv_total);
     form.append('total_importe', total_importe);
+
+    form.append('descuentoReal', descuentoReal);
+    form.append('gravadaReal', gravadaReal);
+    form.append('igvReal', igvReal);
+    form.append('totalReal', totalReal);
 
     const $d = $('#discountSection');
 

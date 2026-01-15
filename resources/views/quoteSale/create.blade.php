@@ -499,19 +499,19 @@
                     <table class="table">
                         <tr>
                             <th style="width:50%">DESCUENTO (-): </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" class="align-right">0.00</span></td>
+                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" data-descuento_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">GRAVADA: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" class="align-right">0.00</span></td>
+                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" data-gravada_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">IGV {{ $igv }}%: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" class="align-right">0.00</span></td>
+                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" data-igv_total_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">TOTAL: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" class="align-right">0.00</span></td>
+                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" data-total_importe_real class="align-right">0.00</span></td>
                         </tr>
                     </table>
                 </div>
@@ -696,14 +696,14 @@
             {{-- V/U (sin IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumableValor readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumableValor data-consumable_valor_real readonly>
                 </div>
             </div>
 
             {{-- P/U (con IGV) --}}
             <div class="col-md-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
+                    <input type="number" class="form-control form-control-sm" data-consumablePrice data-consumable_price_real readonly>
                 </div>
             </div>
 
