@@ -276,9 +276,9 @@
         <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fas fa-list-ol"></i></button>
         <button data-anular data-id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
 
-        <button data-facturador data-id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar comprobante">
+        {{--<a href="" data-id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Ver comprobante">
             <img src="{{ asset('images/sale/facturacion_electronica.png') }}" alt="Generar" style="width: 16px; height: 16px;">
-        </button>
+        </a>--}}
     </template>
 
     <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">

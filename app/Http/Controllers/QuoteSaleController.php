@@ -3676,11 +3676,41 @@ class QuoteSaleController extends Controller
                 ]);
             }
 
+            // Por defecto: ticket interno
+            $urlPrint = route('puntoVenta.print', $sale->id);
+            $printType = 'ticket';
+
+            // Si es boleta/factura, preferimos PDF SUNAT (si existe)
+            if (in_array($sale->type_document, ['01', '03'])) {
+
+                // Caso A: tenemos link directo de nubefact en la respuesta
+                if (!empty($nubefactResult['enlace_del_pdf'])) {
+                    $urlPrint = $nubefactResult['enlace_del_pdf'];
+                }
+
+                // Caso B (recomendado): usar el PDF guardado localmente (si existe)
+                if (!empty($sale->pdf_path)) {
+                    // Prioridad 1: PDF guardado localmente
+                    if (!empty($sale->pdf_path)) {
+                        $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+                        if (file_exists($localPath)) {
+                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                            $printType = 'sunat_pdf';
+                        }
+                    }
+                    // Prioridad 2: enlace directo de Nubefact
+                    elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
+                        $printType = 'sunat_pdf';
+                    }
+                }
+            }
             return response()->json([
                 'message' => 'Venta creada con éxito desde cotización' . ($nubefactResult ? ' y comprobante generado.' : ' (sin comprobante).'),
                 'sale_id' => $sale->id,
                 'nubefact' => $nubefactResult,
-                'url_print' => route('puntoVenta.print', $sale->id),
+                'url_print' => $urlPrint,
+                'print_type' => $printType,
             ], 200);
 
         } catch (\Throwable $e) {

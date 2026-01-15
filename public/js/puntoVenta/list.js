@@ -565,7 +565,7 @@ function renderDataTableEmpty() {
 
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
-   /* clone.querySelector("[data-id]").innerHTML = data.id;*/
+
     clone.querySelector("[data-code]").innerHTML = data.code;
     clone.querySelector("[data-date]").innerHTML = data.date;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
@@ -575,30 +575,28 @@ function renderDataTable(data) {
     var botones = clone.querySelector("[data-buttons]");
 
     var cloneBtnActive = activateTemplate('#template-active');
+
     cloneBtnActive.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
 
-    cloneBtnActive.querySelector("[data-print_recibo]").setAttribute("data-id", data.id);
+    const printBtn = cloneBtnActive.querySelector("[data-print_recibo]");
+    printBtn.setAttribute("data-id", data.id);
 
-    let url = document.location.origin + '/dashboard/imprimir/documento/venta/' + data.id;
-    cloneBtnActive.querySelector("[data-print_recibo]").setAttribute("href", url);
+    // ✅ URL viene del backend (pdf o ticket)
+    printBtn.setAttribute("href", data.print_url || "#");
+    printBtn.setAttribute("title", data.print_label || "Ver comprobante");
+
+    if (!data.print_url) {
+        printBtn.classList.add('disabled');
+        printBtn.removeAttribute('target');
+        printBtn.addEventListener('click', function (e) { e.preventDefault(); });
+    } else {
+        // por si acaso
+        printBtn.setAttribute('target', '_blank');
+    }
 
     cloneBtnActive.querySelector("[data-anular]").setAttribute("data-id", data.id);
 
-    const btnFacturador = cloneBtnActive.querySelector("[data-facturador]");
-    if (data.tipo_comprobante !== null) {
-        btnFacturador.setAttribute("data-id", data.id);
-        btnFacturador.setAttribute("data-nombre-cliente", data.nombre_cliente);
-        btnFacturador.setAttribute("data-tipo-documento-cliente", data.tipo_documento_cliente);
-        btnFacturador.setAttribute("data-numero-documento-cliente", data.numero_documento_cliente);
-        btnFacturador.setAttribute("data-direccion-cliente", data.direccion_cliente);
-        btnFacturador.setAttribute("data-email-cliente", data.email_cliente);
-        btnFacturador.setAttribute("data-tipo-comprobante", data.tipo_comprobante);
-    } else {
-        btnFacturador.remove(); // lo quitamos si no hay tipo_comprobante
-    }
-
     botones.append(cloneBtnActive);
-
     $("#body-table").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();

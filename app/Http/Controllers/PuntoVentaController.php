@@ -1292,7 +1292,12 @@ class PuntoVentaController extends Controller
                 $tipo_documento_cliente = 'ruc';
             }
 
-            $totals = $sale->data_totals;
+            $printUrl = route('puntoVenta.print', $sale->id); // ticket por defecto
+
+            if (!empty($sale->pdf_path)) {
+                // PDF local guardado
+                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+            }
 
             array_push($arraySales, [
                 "id" => $sale->id,
@@ -1300,14 +1305,16 @@ class PuntoVentaController extends Controller
                 "date" => ($sale->date_sale != null) ? $sale->formatted_sale_date : "",
                 "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
                 //"total" => $sale->importe_total,
-                "total" => number_format($totals['total_a_pagar'], 2, '.', ''),
+                "total" => number_format($sale->importe_total, 2, '.', ''),
                 "tipo_pago" => ($sale->tipo_pago_id == null) ? 'Sin método de pago':$sale->tipoPago->description ,
                 "nombre_cliente" => $sale->nombre_cliente,
                 "tipo_documento_cliente" => $tipo_documento_cliente,
                 "numero_documento_cliente" => $sale->numero_documento_cliente,
                 "direccion_cliente" => $sale->direccion_cliente,
                 "email_cliente" => $sale->email_cliente,
-                "tipo_comprobante" => $tipo_comprobante
+                "tipo_comprobante" => $tipo_comprobante,
+                "print_url" => $printUrl,
+                "print_label" => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
             ]);
         }
 

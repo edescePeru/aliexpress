@@ -287,6 +287,7 @@ $(document).ready(function () {
         });
 
         // -------- Confirmación --------
+        // Loader dentro del modal.
         $.confirm({
             title: 'Confirmar acción',
             content: '¿Está seguro de generar el ' + typeComprobante + '?',
@@ -296,6 +297,20 @@ $(document).ready(function () {
                     text: 'Sí, generar',
                     btnClass: 'btn-success',
                     action: function () {
+                        // "this" es el dialog de jquery-confirm
+                        const jc = this;
+
+                        // 1) Bloquear botones + mostrar loader en el modal
+                        jc.buttons.confirmar.disable();
+                        jc.buttons.cancelar.disable();
+                        jc.setContent(`
+                          <div style="display:flex;align-items:center;gap:10px">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            <span>Generando ${typeComprobante}…</span>
+                          </div>
+                        `);
+
+                        // 2) Ejecutar request
                         $.ajax({
                             url: '/dashboard/store/sale/from/quote',
                             method: 'POST',
@@ -304,31 +319,73 @@ $(document).ready(function () {
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                             },
                             success: function (res) {
+
+                                // 3) Cerrar modal de confirmación (ya no necesitamos mantenerlo abierto)
+                                jc.close();
+
+                                // 4) Mostrar modal de éxito con botones de impresión/visualización
+                                const urlPrint = res.url_print || null;
+                                const printType = res.print_type || null;
+
                                 $.alert({
                                     title: 'Éxito',
-                                    content: typeComprobante + ' generada correctamente',
+                                    content: `
+                                        ${typeComprobante} generada correctamente.<br>
+                                        ${urlPrint ? '<small>Listo para visualizar.</small>' : '<small>Venta creada, pero no se recibió URL de impresión.</small>'}
+                                      `,
                                     type: 'green',
-                                    buttons: {
-                                        ok: {
-                                            text: 'OK',
-                                            btnClass: 'btn-success',
-                                            action: function () {
-                                                location.reload(); // Recarga la página
-                                            }
+                                    buttons: (function(){
+                                        // Si no viene url_print, solo OK
+                                        if (!urlPrint) {
+                                            return {
+                                                ok: {
+                                                    text: 'OK',
+                                                    btnClass: 'btn-success',
+                                                    action: function () { location.reload(); }
+                                                }
+                                            };
                                         }
-                                    }
+
+                                        // Si viene url_print, damos opciones
+                                        return {
+                                            ver: {
+                                                text: (printType === 'sunat_pdf') ? 'Ver PDF' : 'Ver Ticket',
+                                                btnClass: 'btn-primary',
+                                                action: function () {
+                                                    // abrir en nueva pestaña
+                                                    window.open(urlPrint, '_blank');
+                                                    // opcional: recargar después
+                                                    location.reload();
+                                                }
+                                            },
+                                            ok: {
+                                                text: 'Cerrar',
+                                                btnClass: 'btn-secondary',
+                                                action: function () { location.reload(); }
+                                            }
+                                        };
+                                    })()
                                 });
                             },
                             error: function (err) {
                                 console.error(err);
+
+                                // 5) Restaurar modal y botones
+                                jc.setContent('Ocurrió un error al guardar el comprobante.');
+                                jc.buttons.confirmar.enable();
+                                jc.buttons.cancelar.enable();
+
                                 $.alert({
                                     title: 'Error',
-                                    content: 'Ocurrió un error al guardar el comprobante',
+                                    content: err.responseJSON?.message || 'Ocurrió un error al guardar el comprobante',
                                     type: 'red',
                                     buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
                                 });
                             }
                         });
+
+                        // IMPORTANT: retornar false evita que el modal se cierre automáticamente
+                        return false;
                     }
                 },
                 cancelar: {
