@@ -36,4 +36,9 @@ return [
         'chat_id_document' => env('TELEGRAM_CHAT_ID_DOCUMENT'),
     ],
 
+    'nubefact' => [
+        'token' => env('NUBEFACT_TOKEN'),
+        'url'   => env('NUBEFACT_API_URL'),
+    ],
+
 ];

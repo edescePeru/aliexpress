@@ -144,8 +144,10 @@ trait NubefactTrait
 
         $data = $this->buildNubefactData($order);
 
-        $token = env('NUBEFACT_TOKEN');
-        $url   = env('NUBEFACT_API_URL');
+        /*$token = env('NUBEFACT_TOKEN');
+        $url   = env('NUBEFACT_API_URL');*/
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact en .env (NUBEFACT_TOKEN / NUBEFACT_API_URL).');
