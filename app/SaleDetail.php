@@ -10,6 +10,7 @@ class SaleDetail extends Model
         'sale_id',
         'material_id',
         'material_presentation_id',
+        'valor_unitario',
         'price',
         'quantity',
         'packs',

@@ -3372,6 +3372,8 @@ class QuoteSaleController extends Controller
 
     public function storeFromQuote(Request $request)
     {
+        /*dump($request);
+        dd();*/
         $begin = microtime(true);
 
         $worker = Worker::where('user_id', Auth::user()->id)->first();
@@ -3445,6 +3447,7 @@ class QuoteSaleController extends Controller
                         'sale_id'                   => $sale->id,
                         'material_id'               => $consumable->material_id,
                         'material_presentation_id'  => $consumable->material_presentation_id,
+                        'valor_unitario'            => $consumable->valor_unitario,
                         'price'                     => $consumable->price,
                         'quantity'                  => $consumable->quantity,
                         'packs'                     => $consumable->packs,           // ✅ si hay presentación
@@ -3531,21 +3534,21 @@ class QuoteSaleController extends Controller
                 CashMovement::create([
                     'cash_register_id' => $cashRegister->id,
                     'type' => 'sale', // Tipo de movimiento: venta
-                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
+                    'amount' => $quote->total_importe,
                     'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
                     'sale_id' => $sale->id
                 ]);
 
                 // Actualizar el saldo actual y el total de ventas en la caja
-                $cashRegister->current_balance += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
-                $cashRegister->total_sales += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
+                $cashRegister->current_balance += $quote->total_importe;
+                $cashRegister->total_sales += $quote->total_importe;
                 $cashRegister->save();
             } else {
                 // Crear el movimiento de ingreso (venta)
                 CashMovement::create([
                     'cash_register_id' => $cashRegister->id,
                     'type' => 'sale', // Tipo de movimiento: venta
-                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
+                    'amount' => $quote->total_importe,
                     'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
                     'regularize' => 0,
                     'sale_id' => $sale->id
@@ -3579,18 +3582,22 @@ class QuoteSaleController extends Controller
                 }
 
                 // Crear el movimiento de egreso (vuelto)
-                CashMovement::create([
-                    'cash_register_id' => $vueltoCashRegister->id,
-                    'type' => 'expense', // Tipo de movimiento: egreso
-                    'amount' => $vuelto,
-                    'description' => 'Vuelto entregado de la venta',
-                    'sale_id' => $sale->id
-                ]);
+                if ( $vuelto > 0)
+                {
+                    CashMovement::create([
+                        'cash_register_id' => $vueltoCashRegister->id,
+                        'type' => 'expense', // Tipo de movimiento: egreso
+                        'amount' => $vuelto,
+                        'description' => 'Vuelto entregado de la venta',
+                        'sale_id' => $sale->id
+                    ]);
 
-                // Actualizar el saldo de la caja del vuelto
-                $vueltoCashRegister->current_balance -= $vuelto;
-                $vueltoCashRegister->total_expenses += $vuelto;
-                $vueltoCashRegister->save();
+                    // Actualizar el saldo de la caja del vuelto
+                    $vueltoCashRegister->current_balance -= $vuelto;
+                    $vueltoCashRegister->total_expenses += $vuelto;
+                    $vueltoCashRegister->save();
+                }
+
             }
 
             // Crear notificación
@@ -3627,53 +3634,55 @@ class QuoteSaleController extends Controller
 
             // ✅ 5) Generar comprobante Nubefact (FUERA de la transacción)
             $nubefactResult = null;
-            try {
-                $sale->loadMissing(['details.material']);
-                $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
+            if (in_array($sale->type_document, ['01', '03'])) {
+                try {
+                    $sale->loadMissing(['details.material']);
+                    $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
 
-                // Guardar archivos y actualizar campos (reusamos lógica similar a tu NubefactController)
-                $filename = 'ORD' . $sale->id;
-                $pdfFilename = $filename . '.pdf';
-                $xmlFilename = $filename . '.xml';
-                $cdrFilename = $filename . '.zip';
+                    // Guardar archivos y actualizar campos (reusamos lógica similar a tu NubefactController)
+                    $filename = 'ORD' . $sale->id;
+                    $pdfFilename = $filename . '.pdf';
+                    $xmlFilename = $filename . '.xml';
+                    $cdrFilename = $filename . '.zip';
 
-                foreach (['pdfs', 'xmls', 'cdrs'] as $folder) {
-                    if (!file_exists(public_path("comprobantes/$folder"))) {
-                        mkdir(public_path("comprobantes/$folder"), 0777, true);
+                    foreach (['pdfs', 'xmls', 'cdrs'] as $folder) {
+                        if (!file_exists(public_path("comprobantes/$folder"))) {
+                            mkdir(public_path("comprobantes/$folder"), 0777, true);
+                        }
                     }
-                }
 
-                if (!empty($nubefactResult['enlace_del_pdf'])) {
-                    $pdfContent = Http::get($nubefactResult['enlace_del_pdf'])->body();
-                    file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
-                }
-                if (!empty($nubefactResult['enlace_del_xml'])) {
-                    $xmlContent = Http::get($nubefactResult['enlace_del_xml'])->body();
-                    file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
-                }
-                if (!empty($nubefactResult['enlace_del_cdr'])) {
-                    $cdrContent = Http::get($nubefactResult['enlace_del_cdr'])->body();
-                    file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
-                }
+                    if (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $pdfContent = Http::get($nubefactResult['enlace_del_pdf'])->body();
+                        file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_xml'])) {
+                        $xmlContent = Http::get($nubefactResult['enlace_del_xml'])->body();
+                        file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_cdr'])) {
+                        $cdrContent = Http::get($nubefactResult['enlace_del_cdr'])->body();
+                        file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
+                    }
 
-                $sale->update([
-                    'serie_sunat'   => $nubefactResult['serie'] ?? null,
-                    'numero'        => $nubefactResult['numero'] ?? null,
-                    'sunat_ticket'  => $nubefactResult['sunat_ticket'] ?? null,
-                    'sunat_status'  => $nubefactResult['sunat_description'] ?? 'Enviado',
-                    'sunat_message' => $nubefactResult['sunat_note'] ?? '',
-                    'xml_path'      => file_exists(public_path('comprobantes/xmls/' . $xmlFilename)) ? $xmlFilename : null,
-                    'cdr_path'      => file_exists(public_path('comprobantes/cdrs/' . $cdrFilename)) ? $cdrFilename : null,
-                    'pdf_path'      => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
-                    'fecha_emision' => now()->toDateString(),
-                ]);
+                    $sale->update([
+                        'serie_sunat' => $nubefactResult['serie'] ?? null,
+                        'numero' => $nubefactResult['numero'] ?? null,
+                        'sunat_ticket' => $nubefactResult['sunat_ticket'] ?? null,
+                        'sunat_status' => $nubefactResult['sunat_description'] ?? 'Enviado',
+                        'sunat_message' => $nubefactResult['sunat_note'] ?? '',
+                        'xml_path' => file_exists(public_path('comprobantes/xmls/' . $xmlFilename)) ? $xmlFilename : null,
+                        'cdr_path' => file_exists(public_path('comprobantes/cdrs/' . $cdrFilename)) ? $cdrFilename : null,
+                        'pdf_path' => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
+                        'fecha_emision' => now()->toDateString(),
+                    ]);
 
-            } catch (\Throwable $e) {
-                // Si Nubefact falla, NO tumbamos la venta: devolvemos warning
-                $sale->update([
-                    'sunat_status'  => 'Error',
-                    'sunat_message' => $e->getMessage(),
-                ]);
+                } catch (\Throwable $e) {
+                    // Si Nubefact falla, NO tumbamos la venta: devolvemos warning
+                    $sale->update([
+                        'sunat_status' => 'Error',
+                        'sunat_message' => $e->getMessage(),
+                    ]);
+                }
             }
 
             // Por defecto: ticket interno

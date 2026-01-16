@@ -142,7 +142,7 @@
                 $punit     = round($consumable->total/($consumable->packs ?? $consumable->quantity), 2);
                 $importe   = $consumable->total;
 
-                $present = (string) ( ($consumable->material_presentation_id == null) ? $consumable->quantity: $consumable->units_per_pack.'UND');
+                $present = (string) ( ($consumable->material_presentation_id == null) ? round($consumable->quantity,2): $consumable->units_per_pack.'UND');
 
             @endphp
 

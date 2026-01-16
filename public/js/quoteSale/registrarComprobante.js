@@ -258,10 +258,18 @@ $(document).ready(function () {
             }
         }
 
+        let type_document = null;
+
+        if (typeComprobante === 'Factura') {
+            type_document = '01';
+        } else if (typeComprobante === 'Boleta') {
+            type_document = '03';
+        }
+
         // -------- Construcción del payload --------
         let payload = {
             quote_id: quote_id,
-            type_document: (typeComprobante === 'Factura' ? '01' : '03'), // 01=Factura, 03=Boleta/Ticket
+            type_document: type_document, // 01=Factura, 03=Boleta, null=Ticket
             nombre_cliente: nombre_cliente,
             numero_documento_cliente: numero_documento,
             direccion_cliente: direccion_cliente,

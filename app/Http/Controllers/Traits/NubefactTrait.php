@@ -16,8 +16,6 @@ trait NubefactTrait
         $serie = $isFactura ? 'FFF1' : 'BBB1';
         $tipoCliente = $order->tipo_documento_cliente ?: ($isFactura ? '6' : '1');
 
-        $discount = round((float) $order->total_descuentos, 2);
-
         $items = $order->details->map(function ($item) {
 
             $qty = (string) ((float)$item->quantity);
@@ -28,21 +26,24 @@ trait NubefactTrait
             $qty = (string) ( ($item->material_presentation_id == null) ? (float)$item->quantity: (float)$item->packs);
 
             // ✅ TOTAL DE LÍNEA (con IGV) desde tu BD, no recalcular con price*qty
-            $totalLine = number_format((float)$item->total, 2, '.', ''); // "115.00"
+            //$totalLine = number_format((float)$item->total, 2, '.', ''); // "115.00"
+            $totalLine = $item->total;
 
             // ✅ precio_unitario = total / qty (6 decimales)
-            $precioUnitario = bcdiv($totalLine, $qty, 6); // "38.333333"
+            //$precioUnitario = bcdiv($totalLine, $qty, 10); // "38.333333"
+            $precioUnitario = $item->price;
 
             // ✅ valor_unitario = precio_unitario / 1.18
-            $valorUnitario  = bcdiv($precioUnitario, '1.18', 6);
+            //$valorUnitario  = bcdiv($precioUnitario, '1.18', 10);
+            $valorUnitario = $item->valor_unitario;
 
             // ✅ subtotal = valor_unitario * qty (2 decimales para dinero)
-            $subtotal = bcmul($valorUnitario, $qty, 2); // "97.46" (ej)
+            $subtotal = bcmul($valorUnitario, $qty, 10); // "97.46" (ej)
 
             // ✅ igv = total - subtotal (2 decimales)
-            $igv = bcsub($totalLine, $subtotal, 2);
+            $igv = bcsub($totalLine, $subtotal, 10);
 
-            $present = (string) ( ($item->material_presentation_id == null) ? $item->quantity: $item->units_per_pack.'und');
+            $present = (string) ( ($item->material_presentation_id == null) ? round($item->quantity): $item->units_per_pack.'und');
 
             return [
                 "unidad_de_medida" => "NIU",
@@ -64,30 +65,22 @@ trait NubefactTrait
 
         // Total gravada = suma de subtotales (base imponible)
         // Suma con precisión (usa "subtotal" con 3+ decimales si lo tienes, o calcula raw)
-        $totalGravadaRaw = '0.000';
+        //$totalGravadaRaw = '0.000';
 
-        foreach ($items as $it) {
-            // OJO: aquí conviene sumar una base "cruda" (no redondeada a 2)
-            // Si en items guardas subtotal con 2 decimales, mejor suma usando valor_unitario*cantidad con 3/6
-            $subRaw = number_format((float)$it['valor_unitario'] * (float)$it['cantidad'], 3, '.', ''); // 3 decimales
-            $totalGravadaRaw = bcadd($totalGravadaRaw, $subRaw, 3);
-        }
-
-        // TRUNC a 2 decimales (esto es lo que te cuadra con 148.305 -> 148.30)
-        //$total_gravada = $this->trunc2($totalGravadaRaw);
-        $total_gravada = $this->round2($totalGravadaRaw);
+        /*foreach ($items as $it) {
+            $subRaw = number_format((float)$it['valor_unitario'] * (float)$it['cantidad'], 10, '.', ''); // 3 decimales
+            $totalGravadaRaw = bcadd($totalGravadaRaw, $subRaw, 10);
+        }*/
 
         // base = total_gravada - descuento (ambos a 2 decimales)
-        $discount2 = number_format((float)$discount, 2, '.', '');
-        $base = bcsub($total_gravada, $discount2, 2);
+        $discount = $order->total_descuentos;
+        $total_gravada = $order->op_gravada;
 
-        // IGV y total desde base
-        //$total_igv = number_format(((float)$base) * 0.18, 2, '.', '');
-        //$total = number_format(((float)$base) + ((float)$total_igv), 2, '.', '');
-        $igvRaw = bcmul($base, '0.18', 6);
-        $total_igv = $this->round2($igvRaw);
-        $total = bcadd($base, $total_igv, 2);
+        $base = bcsub($total_gravada, $discount, 10);
 
+        $total_igv = bcmul($base, '0.18', 10);
+
+        $total = bcadd($base, $total_igv, 10);
         return [
                 "operacion" => "generar_comprobante",
                 "tipo_de_comprobante" => $isFactura ? "1" : "2",
@@ -109,8 +102,8 @@ trait NubefactTrait
                 "total_a_pagar" => $total,
             ]
             + ($discount > 0 ? [
-                "descuento_global" => number_format($discount, 2, '.', ''),
-                "total_descuento" => number_format($discount, 2, '.', ''),
+                "descuento_global" => number_format($discount, 10, '.', ''),
+                "total_descuento" => number_format($discount, 10, '.', ''),
             ] : [])
             + [
                 "items" => $items,
@@ -133,7 +126,7 @@ trait NubefactTrait
 
     private function round2($value): string
     {
-        return number_format(round((float)$value, 2, PHP_ROUND_HALF_UP), 2, '.', '');
+        return number_format(round((float)$value, 10, PHP_ROUND_HALF_UP), 10, '.', '');
     }
 
     private function generarComprobanteNubefactParaVenta(Sale $order): array
@@ -143,6 +136,9 @@ trait NubefactTrait
         }
 
         $data = $this->buildNubefactData($order);
+
+        /*dump($data);
+        dd();*/
 
         /*$token = env('NUBEFACT_TOKEN');
         $url   = env('NUBEFACT_API_URL');*/
