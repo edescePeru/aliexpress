@@ -17,5 +17,23 @@ class BankSeeder extends Seeder
             'short_name' => 'BCP',
             'image' => 'bcp.png'
         ]);
+
+        Bank::create([
+            'name' => 'BBVA Continental',
+            'short_name' => 'BBVA CONTINENTAL',
+            'image' => 'bbva.jpg'
+        ]);
+
+        Bank::create([
+            'name' => 'Banco Scotiabank',
+            'short_name' => 'SCOTIABANK',
+            'image' => 'scotiabank.png'
+        ]);
+
+        Bank::create([
+            'name' => 'Banco Interbank',
+            'short_name' => 'INTERBANK',
+            'image' => 'interbank.png'
+        ]);
     }
 }

@@ -9,3 +9,5 @@ php artisan db:seed --class=DataFirstPositionAlmacenSeeder
 php artisan db:seed --class=TipoPagoSeeder
 
 php artisan db:seed --class=MaterialsFromExcelSeeder
+
+php artisan db:seed --class=BankSeeder

@@ -299,7 +299,7 @@
         <div class="row">
             <div class="col-12">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="submit" id="btn-submit" class="btn btn-outline-success float-right">Guardar orden de compra</button>
+                <button type="submit" id="btn-submit" class="btn btn-outline-success float-right">Guardar compra</button>
             </div>
         </div>
         <!-- /.card-footer -->
