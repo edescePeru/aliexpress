@@ -659,7 +659,7 @@ function saveEquipment() {
 
                     var servicesArray = servicesRead.array;
                     var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
-
+                    var servicesSumBillable = servicesRead.servicesSumBillable;
                     // ===========================
                     // 4) Totales (misma lógica que confirmEquipment)
                     // ===========================
@@ -679,7 +679,7 @@ function saveEquipment() {
                     subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
                     if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
 
-                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
                     const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
 
                     const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
@@ -1356,7 +1356,8 @@ function confirmEquipment() {
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
+                    var servicesSumAll = servicesRead.sum_all;
+                    var servicesSumBillable = servicesRead.sum_billable;
 
                     const igvPct = parseFloat($igv) || 18;
                     const factor = getFactor(igvPct);
@@ -1379,7 +1380,7 @@ function confirmEquipment() {
                     subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
                     if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
 
-                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
                     const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
 
                     // ===========================

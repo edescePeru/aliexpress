@@ -231,6 +231,7 @@ class Quote extends Model
         return number_format($subtotal2, 2);
     }
 
+
     public function getSubtotalRentAttribute()
     {
         if ( $this->total_soles != 0 )

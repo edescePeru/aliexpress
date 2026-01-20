@@ -897,7 +897,7 @@ function saveEquipmentEdit() {
 
                     const servicesArray = servicesRead.array;
                     const servicesSumAll = servicesRead.sum_all; // con IGV
-
+                    const servicesSumBillable = servicesRead.servicesSumBillable;
                     // ===========================
                     // 4) Totales con 10 dec (reales)
                     // ===========================
@@ -916,7 +916,7 @@ function saveEquipmentEdit() {
                     subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
                     if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
 
-                    const servicesWithIgvReal = round10(Number(servicesSumAll) || 0);
+                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
                     const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
 
                     // descuento global con IGV (tu función)

@@ -274,8 +274,8 @@
                     <th>Tiempo Entrega</th>
                     <th>Cliente</th>
                     <th>Orden Servicio</th>
-                    <th>Total Sin IGV</th>
-                    <th>Total</th>
+                    <th>Total SUNAT</th>
+                    <th>Total CLIENTE</th>
                     <th>Moneda</th>
                     <th>Estado</th>
                     {{--<th>Fecha Creación</th>--}}
@@ -346,7 +346,7 @@
             <td data-customer></td>
 
             <td data-order></td>
-            <td data-total_igv></td>
+            <td data-total_sunat></td>
             <td data-total></td>
             <td data-currency></td>
             <td data-state></td>
