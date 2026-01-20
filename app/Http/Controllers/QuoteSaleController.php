@@ -37,6 +37,7 @@ use App\ResumenEquipment;
 use App\ResumenQuote;
 use App\Sale;
 use App\SaleDetail;
+use App\Services\InventoryCostService;
 use App\TipoPago;
 use App\UnitMeasure;
 use App\User;
@@ -56,6 +57,14 @@ use Intervention\Image\Facades\Image;
 class QuoteSaleController extends Controller
 {
     use NubefactTrait;
+
+    /** @var InventoryCostService */
+    private $inventoryCostService;
+
+    public function __construct(InventoryCostService $inventoryCostService)
+    {
+        $this->inventoryCostService = $inventoryCostService;
+    }
 
     public function index()
     {
@@ -3372,8 +3381,6 @@ class QuoteSaleController extends Controller
 
     public function storeFromQuote(Request $request)
     {
-        /*dump($request);
-        dd();*/
         $begin = microtime(true);
 
         $worker = Worker::where('user_id', Auth::user()->id)->first();
@@ -3429,6 +3436,22 @@ class QuoteSaleController extends Controller
                 'fecha_emision' => null,
             ]);
 
+            $saleDate = $sale->date_sale instanceof Carbon
+                ? $sale->date_sale
+                : Carbon::parse($sale->date_sale);
+
+            // recolectar materialIds
+            $materialIds = [];
+            foreach ($quote->equipments as $equipment) {
+                foreach ($equipment->consumables as $consumable) {
+                    $materialIds[] = (int)$consumable->material_id;
+                }
+            }
+            $materialIds = array_values(array_unique($materialIds));
+
+            // costo promedio vigente por material hasta la fecha de emisión
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($materialIds, $saleDate);
+
             // 2) Crear Output
             $output = Output::create([
                 'execution_order'   => ($quote->order_execution == "") ? 'VENTA POR COTIZACION' : $quote->order_execution,
@@ -3443,7 +3466,13 @@ class QuoteSaleController extends Controller
             foreach ($quote->equipments as $equipment) {
                 foreach ($equipment->consumables as $consumable) {
 
-                    SaleDetail::create([
+                    $materialId = (int)$consumable->material_id;
+                    $qty = (float)$consumable->quantity; // OJO: confirmaste que quantity siempre es real a descontar
+
+                    $unitCost = (float)($avgCosts[$materialId] ?? 0.0);
+                    $totalCost = $qty * $unitCost;
+
+                    $saleDetail = SaleDetail::create([
                         'sale_id'                   => $sale->id,
                         'material_id'               => $consumable->material_id,
                         'material_presentation_id'  => $consumable->material_presentation_id,
@@ -3455,6 +3484,10 @@ class QuoteSaleController extends Controller
                         'percentage_tax'            => 18,
                         'total'                     => $consumable->total,
                         'discount'                  => $consumable->discount,
+
+                        // ✅ snapshot de costos para utilidad histórica
+                        'unit_cost'                 => $unitCost,
+                        'total_cost'                => $totalCost,
                     ]);
 
                     $material = $consumable->material;
@@ -3488,22 +3521,52 @@ class QuoteSaleController extends Controller
 
                         foreach ($items as $item) {
                             OutputDetail::create([
-                                'output_id'    => $output->id,
-                                'item_id'      => $item->id,
-                                'material_id'  => $materialId,
-                                'quote_id'     => $quote->id,
-                                'custom'       => 0,
-                                'percentage'   => 1,
-                                'price'        => $item->price,
-                                'length'       => $item->length,
-                                'width'        => $item->width,
-                                'equipment_id' => $equipment->id ?? null,
-                                'activo'       => null,
+                                'output_id'      => $output->id,
+                                'sale_detail_id' => $saleDetail->id, // ✅ enlace a la línea de venta
+                                'item_id'        => $item->id,
+                                'material_id'    => $materialId,
+                                'quote_id'       => $quote->id,
+                                'custom'         => 0,
+                                'percentage'     => 1,
+                                'price'          => $item->price,
+                                'length'         => $item->length,
+                                'width'          => $item->width,
+                                'equipment_id'   => $equipment->id ?? null,
+                                'activo'         => null,
+                                // ✅ costo promedio aplicado (misma base)
+                                'unit_cost'      => $unitCost,
+                                'total_cost'     => $unitCost,
                             ]);
 
                             $item->state_item = 'exited';
                             $item->save();
                         }
+                    }
+
+                    if ($material && (int)$material->tipo_venta_id !== 3) {
+                        // ✅ NO ITEMEABLE: 1 OutputDetail por línea, con item_id NULL
+                        OutputDetail::create([
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => $saleDetail->id,
+                            'item_id'        => null,
+                            'material_id'    => $materialId,
+                            'quote_id'       => $quote->id,
+                            'custom'         => 0,
+
+                            // tu VIEW usa percentage como "cantidad real"
+                            'percentage'     => $qty,
+
+                            // opcional, si tu tabla los necesita
+                            'price'          => $consumable->price,
+                            'length'         => null,
+                            'width'          => null,
+                            'equipment_id'   => $equipment->id ?? null,
+                            'activo'         => null,
+
+                            // (Opcional pero recomendado para auditoría)
+                            'unit_cost'      => $unitCost,
+                            'total_cost'     => $totalCost,
+                        ]);
                     }
                 }
             }

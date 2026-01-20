@@ -17,7 +17,10 @@ class OutputDetail extends Model
         'equipment_id',
         'quote_id',
         'custom',
-        'activo'
+        'activo',
+        'sale_detail_id',
+        'unit_cost',
+        'total_cost',
     ];
 
     public function output()

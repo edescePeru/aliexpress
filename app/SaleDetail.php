@@ -17,7 +17,9 @@ class SaleDetail extends Model
         'units_per_pack',
         'percentage_tax',
         'total',
-        'discount'
+        'discount',
+        'unit_cost',
+        'total_cost',
     ];
 
     public function sale()
