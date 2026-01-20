@@ -19,6 +19,12 @@ var $currentConsumable = null;
 /* =========================
    Helpers dinero (FIX 0.01)
    ========================= */
+
+function mayus(e) {
+    e.value = e.value.toUpperCase();
+}
+
+
 function moneyRound(n) {
     return Math.round((parseFloat(n || 0) + Number.EPSILON) * 100) / 100;
 }
