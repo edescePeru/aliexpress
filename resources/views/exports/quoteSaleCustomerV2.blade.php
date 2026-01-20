@@ -163,8 +163,16 @@
                 @endif
             </tr>
         @endforeach
+        @php
+            $total_workforce  = 0;
+        @endphp
         @foreach($equipment->workforces as $workforce)
             @php
+                if ( $workforce->billable == false )
+                {
+                    $total_workforce = $total_workforce + $workforce->total;
+                }
+
                 $cantidad  = $equipment->quantity;
                 $vunit     = $workforce->price/(1+($igv/100));
                 $punit     = $workforce->price;
@@ -197,7 +205,7 @@
 {{-- ============================= --}}
 
 <table class="totales-table">
-    <tr>
+    {{--<tr>
         <td class="text-right">DESCUENTO (-)</td>
         <td class="text-right">
             {{ $quote->currency_invoice }}
@@ -219,14 +227,14 @@
             {{ $quote->currency_invoice }}
             {{ number_format($quote->igv_total, $quote->state_decimals ? 0 : 2) }}
         </td>
-    </tr>
+    </tr>--}}
 
     <tr>
         <td class="text-right"><strong>TOTAL</strong></td>
-        <td class="text-right">
-            <strong>
+        <td style="text-align: right">
+            <strong style="text-align: right">
                 {{ $quote->currency_invoice }}
-                {{ number_format($quote->total_importe, $quote->state_decimals ? 0 : 2) }}
+                {{ number_format($quote->total_importe + $total_workforce, $quote->state_decimals ? 0 : 2) }}
             </strong>
         </td>
     </tr>
