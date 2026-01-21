@@ -14,6 +14,7 @@ use App\MaterialPresentation;
 use App\Output;
 use App\OutputDetail;
 use App\PorcentageQuote;
+use App\Services\InventoryCostService;
 use Illuminate\Support\Facades\Mail;
 use App\Material;
 use App\MaterialDiscountQuantity;
@@ -36,6 +37,14 @@ use Illuminate\Support\Facades\Http;
 class PuntoVentaController extends Controller
 {
     use NubefactTrait;
+
+    /** @var InventoryCostService */
+    private $inventoryCostService;
+
+    public function __construct(InventoryCostService $inventoryCostService)
+    {
+        $this->inventoryCostService = $inventoryCostService;
+    }
 
     public function index()
     {
@@ -347,6 +356,22 @@ class PuntoVentaController extends Controller
                 'indicator'        => 'or',
             ]);
 
+            // ===========================
+            // ✅ COSTOS PROMEDIO (KARDEX) HASTA FECHA DE VENTA
+            // ===========================
+            $saleDate = $sale->date_sale instanceof Carbon
+                ? $sale->date_sale
+                : Carbon::parse($sale->date_sale);
+
+            $materialIds = [];
+            foreach ($items as $it) {
+                $materialIds[] = (int) $it->productId;
+            }
+            $materialIds = array_values(array_unique($materialIds));
+
+            // costo promedio vigente por material (hasta la fecha de emisión)
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($materialIds, $saleDate);
+
             for ($i = 0; $i < sizeof($items); $i++) {
 
                 $presentationId = $items[$i]->presentationId ?? null;
@@ -387,18 +412,54 @@ class PuntoVentaController extends Controller
                 // ==========================================
                 // 1. Crear SaleDetail (NO CAMBIA)
                 // ==========================================
-                $unitPrice = $items[$i]->productTotal / $unitsEquivalent;
+                $presentationId = $items[$i]->presentationId ?? null;
+                $materialId = (int) $items[$i]->productId;
+
+                // cantidad real (stock)
+                $qtyReal = (float) $unitsEquivalent;
+
+                // cantidad SUNAT (packs si hay presentación, si no qtyReal)
+                $qtyForSunat = (!empty($presentationId))
+                    ? (float) ($items[$i]->productQuantity ?? 0)   // packs
+                    : (float) $qtyReal;                             // unidades reales
+
+                if ($qtyForSunat <= 0) {
+                    throw new \Exception("Cantidad inválida (qtyForSunat) para producto ID {$materialId}.");
+                }
+
+                // total línea con IGV (según tu aclaración)
+                $totalLine = (float) $items[$i]->productTotal;
+
+                // precio_unitario con IGV (Nubefact: precio_unitario)
+                $precioUnitario = $totalLine / $qtyForSunat;
+
+                // valor_unitario sin IGV (Nubefact: valor_unitario)
+                $valorUnitario  = $precioUnitario / 1.18;
+
+                // costo promedio vigente (Kardex)
+                $unitCost  = (float) ($avgCosts[$materialId] ?? 0.0);
+                $totalCost = $qtyReal * $unitCost;
+
                 $saleDetail = SaleDetail::create([
                     'sale_id'        => $sale->id,
                     'material_id'    => $items[$i]->productId,
                     'material_presentation_id' => $presentationId,
-                    'price'          => $unitPrice,
-                    'quantity'       => $unitsEquivalent, // ✅ unidades reales vendidas
-                    'packs'          => $packs,           // ✅ si hay presentación
-                    'units_per_pack' => $unitsPerPack,    // ✅ si hay presentación
+                    // ✅ requerido por NubefactTrait
+                    'valor_unitario' => $valorUnitario,
+                    'price'          => $precioUnitario,   // con IGV por qty SUNAT
+
+                    // ✅ stock real
+                    'quantity'       => $qtyReal,
+                    'packs'          => $packs,
+                    'units_per_pack' => $unitsPerPack,
+
                     'percentage_tax' => $items[$i]->productTax,
-                    'total'          => $items[$i]->productTotal,
+                    'total'          => $totalLine,        // ✅ con IGV (productTotal)
                     'discount'       => $items[$i]->productDiscount,
+
+                    // ✅ costos para utilidad
+                    'unit_cost'      => $unitCost,
+                    'total_cost'     => $totalCost,
                 ]);
 
                 $material = Material::findOrFail($items[$i]->productId);
@@ -437,14 +498,19 @@ class PuntoVentaController extends Controller
 
                         OutputDetail::create([
                             'output_id'   => $output->id,
+                            'sale_detail_id' => $saleDetail->id,  // ✅ NUEVO
                             'item_id'     => $item->id,
                             'material_id' => $material->id,
                             'quote_id'    => $sale->quote_id ?? null,
                             'custom'      => 0,
                             'percentage'  => 1, // 1 item = 1 unidad
-                            'price'       => $unitPrice,
+                            'price'       => $precioUnitario,
                             'length'      => $item->length,
                             'width'       => $item->width,
+
+                            // ✅ NUEVO: costo aplicado (auditoría)
+                            'unit_cost'      => $unitCost,
+                            'total_cost'     => $unitCost,
                         ]);
 
                         // Marcar item como salido
@@ -470,14 +536,20 @@ class PuntoVentaController extends Controller
                     // Creamos UN SOLO OutputDetail con la cantidad en percentage
                     OutputDetail::create([
                         'output_id'   => $output->id,
+                        'sale_detail_id' => $saleDetail->id, // ✅ NUEVO
                         'item_id'     => null,
                         'material_id' => $material->id,
                         'quote_id'    => $sale->quote_id ?? null,
                         'custom'      => 0,
                         'percentage'  => $cantidadVendida, // 👈 AQUÍ VA LA CANTIDAD
-                        'price'       => (float) $items[$i]->productPrice,
+                        //'price'       => (float) $items[$i]->productPrice,
+                        'price'       => $precioUnitario,
                         'length'      => null,
                         'width'       => null,
+
+                        // ✅ NUEVO: costo aplicado
+                        'unit_cost'      => $unitCost,
+                        'total_cost'     => $totalCost,
                     ]);
 
                     // Descontar stock directo del material
@@ -766,7 +838,23 @@ class PuntoVentaController extends Controller
                 'indicator'        => 'or',
             ]);
 
-            // ======= (TU CÓDIGO SIN CAMBIOS) SaleDetails / OutputDetails / Stock =======
+            // ===========================
+            // ✅ COSTOS PROMEDIO (KARDEX) HASTA FECHA DE VENTA
+            // ===========================
+            $saleDate = $sale->date_sale instanceof Carbon
+                ? $sale->date_sale
+                : Carbon::parse($sale->date_sale);
+
+            $materialIds = [];
+            foreach ($items as $it) {
+                $materialIds[] = (int) $it->productId;
+            }
+            $materialIds = array_values(array_unique($materialIds));
+
+            // costo promedio vigente por material (hasta la fecha de emisión)
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($materialIds, $saleDate);
+
+            // ======= (TU CÓDIGO + ADICIONES) SaleDetails / OutputDetails / Stock =======
             for ($i = 0; $i < sizeof($items); $i++) {
 
                 $presentationId = $items[$i]->presentationId ?? null;
@@ -793,7 +881,7 @@ class PuntoVentaController extends Controller
                         throw new \Exception("La presentación tiene cantidad inválida.");
                     }
 
-                    $unitsEquivalent = $packs * $unitsPerPack;
+                    $unitsEquivalent = $packs * $unitsPerPack; // ✅ unidades reales vendidas
                 } else {
                     $unitsEquivalent = (float) ($items[$i]->productQuantity ?? 0);
                     if ($unitsEquivalent <= 0) {
@@ -801,23 +889,61 @@ class PuntoVentaController extends Controller
                     }
                 }
 
-                $unitPrice = $items[$i]->productTotal / $unitsEquivalent;
+                // ===========================
+                // ✅ AJUSTE PARA NUBEFACT (precio_unitario / valor_unitario)
+                //   - totalLine: productTotal (incluye IGV, según tu aclaración)
+                //   - qty SUNAT: packs si hay presentación; si no, unitsEquivalent
+                // ===========================
+                $materialId = (int) $items[$i]->productId;
+                $qtyReal = (float) $unitsEquivalent;
 
-                SaleDetail::create([
+                $qtyForSunat = (!empty($presentationId))
+                    ? (float) ($packs ?? 0)   // packs
+                    : (float) $qtyReal;       // unidades
+
+                if ($qtyForSunat <= 0) {
+                    throw new \Exception("Cantidad inválida (qtyForSunat) para producto ID {$materialId}.");
+                }
+
+                $totalLine = (float) $items[$i]->productTotal; // ✅ total con IGV
+                $precioUnitario = $totalLine / $qtyForSunat;   // ✅ con IGV por qty SUNAT
+                $valorUnitario  = $precioUnitario / 1.18;      // ✅ sin IGV
+
+                // (Tu variable anterior) unitPrice por unidad real (si la necesitas para algo interno)
+                $unitPriceReal = $totalLine / $qtyReal;
+
+                // ===========================
+                // ✅ COSTO PROMEDIO (KARDEX) snapshot
+                // ===========================
+                $unitCost  = (float) ($avgCosts[$materialId] ?? 0.0);
+                $totalCost = $qtyReal * $unitCost;
+
+                // ✅ Guardar SaleDetail con valor_unitario + costos
+                $saleDetail = SaleDetail::create([
                     'sale_id'        => $sale->id,
-                    'material_id'    => $items[$i]->productId,
+                    'material_id'    => $materialId,
                     'material_presentation_id' => $presentationId,
-                    'price'          => $unitPrice,
-                    'quantity'       => $unitsEquivalent,
+
+                    // ✅ requerido por NubefactTrait
+                    'valor_unitario' => $valorUnitario,
+                    'price'          => $precioUnitario,   // precio_unitario con IGV (por qty SUNAT)
+
+                    // ✅ stock real
+                    'quantity'       => $qtyReal,
                     'packs'          => $packs,
                     'units_per_pack' => $unitsPerPack,
+
                     'percentage_tax' => $items[$i]->productTax,
-                    'total'          => $items[$i]->productTotal,
+                    'total'          => $totalLine,        // total con IGV
                     'discount'       => $items[$i]->productDiscount,
+
+                    // ✅ snapshot costos para utilidad histórica
+                    'unit_cost'      => $unitCost,
+                    'total_cost'     => $totalCost,
                 ]);
 
-                $material = Material::findOrFail($items[$i]->productId);
-                $cantidadVendida = (float) $unitsEquivalent;
+                $material = Material::findOrFail($materialId);
+                $cantidadVendida = (float) $qtyReal;
 
                 if ((int) $material->tipo_venta_id === 3) {
 
@@ -844,38 +970,50 @@ class PuntoVentaController extends Controller
                     foreach ($itemsDisponibles as $itemObj) {
 
                         OutputDetail::create([
-                            'output_id'   => $output->id,
-                            'item_id'     => $itemObj->id,
-                            'material_id' => $material->id,
-                            'quote_id'    => $sale->quote_id ?? null,
-                            'custom'      => 0,
-                            'percentage'  => 1,
-                            'price'       => $unitPrice,
-                            'length'      => $itemObj->length,
-                            'width'       => $itemObj->width,
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => $saleDetail->id, // ✅ NUEVO
+                            'item_id'        => $itemObj->id,
+                            'material_id'    => $material->id,
+                            'quote_id'       => $sale->quote_id ?? null,
+                            'custom'         => 0,
+                            'percentage'     => 1,
+                            'price'          => $precioUnitario, // ✅ consistente con Nubefact (por qty SUNAT)
+                            'length'         => $itemObj->length,
+                            'width'          => $itemObj->width,
+
+                            // ✅ NUEVO: costo aplicado (auditoría)
+                            'unit_cost'      => $unitCost,
+                            'total_cost'     => $unitCost,
                         ]);
 
                         $itemObj->state_item = 'exited';
                         $itemObj->save();
                     }
 
+                    $material->unit_price = $unitCost;
                     $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendidaInt);
                     $material->save();
 
                 } else {
 
                     OutputDetail::create([
-                        'output_id'   => $output->id,
-                        'item_id'     => null,
-                        'material_id' => $material->id,
-                        'quote_id'    => $sale->quote_id ?? null,
-                        'custom'      => 0,
-                        'percentage'  => $cantidadVendida,
-                        'price'       => (float) $items[$i]->productPrice,
-                        'length'      => null,
-                        'width'       => null,
+                        'output_id'      => $output->id,
+                        'sale_detail_id' => $saleDetail->id, // ✅ NUEVO
+                        'item_id'        => null,
+                        'material_id'    => $material->id,
+                        'quote_id'       => $sale->quote_id ?? null,
+                        'custom'         => 0,
+                        'percentage'     => $cantidadVendida,
+                        'price'          => $precioUnitario, // ✅ consistente con Nubefact
+                        'length'         => null,
+                        'width'          => null,
+
+                        // ✅ NUEVO: costo aplicado
+                        'unit_cost'      => $unitCost,
+                        'total_cost'     => $totalCost,
                     ]);
 
+                    $material->unit_price = $unitCost;
                     $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendida);
                     $material->save();
                 }
@@ -930,7 +1068,6 @@ class PuntoVentaController extends Controller
                     'sale_id' => $sale->id
                 ]);
             }
-
 
             // Registrar el vuelto como egreso si el tipo de pago es efectivo y hay vuelto
             if ($vuelto && $paymentType == 4) {
