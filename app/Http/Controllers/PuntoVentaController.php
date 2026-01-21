@@ -1184,8 +1184,48 @@ class PuntoVentaController extends Controller
         $ruc = $dataRuc->valueText;
         $address = $dataAddress->valueText;
 
+        // Cuenta1
+        $dataTitleCuenta1Empresa = DataGeneral::where('name', 'title_cuenta_1')->first();
+        $titleCuenta1Empresa = $dataTitleCuenta1Empresa->valueText;
+        $dataNroCuenta1Empresa = DataGeneral::where('name', 'nro_cuenta_1')->first();
+        $nroCuenta1Empresa = $dataNroCuenta1Empresa->valueText;
+        $dataCciCuenta1Empresa = DataGeneral::where('name', 'cci_cuenta_1')->first();
+        $cciCuenta1Empresa = $dataCciCuenta1Empresa->valueText;
+        $dataImgCuenta1Empresa = DataGeneral::where('name', 'img_cuenta_1')->first();
+        $imgCuenta1Empresa = $dataImgCuenta1Empresa->valueText;
+        $dataOwnerCuenta1Empresa = DataGeneral::where('name', 'owner_cuenta_1')->first();
+        $ownerCuenta1Empresa = $dataOwnerCuenta1Empresa->valueText;
 
-        $view = view('exports.salePdf', compact('sale', 'nameEmpresa', 'ruc', 'address'));
+        // Cuenta2
+        $dataTitleCuenta2Empresa = DataGeneral::where('name', 'title_cuenta_2')->first();
+        $titleCuenta2Empresa = $dataTitleCuenta2Empresa->valueText;
+        $dataNroCuenta2Empresa = DataGeneral::where('name', 'nro_cuenta_2')->first();
+        $nroCuenta2Empresa = $dataNroCuenta2Empresa->valueText;
+        $dataCciCuenta2Empresa = DataGeneral::where('name', 'cci_cuenta_2')->first();
+        $cciCuenta2Empresa = $dataCciCuenta2Empresa->valueText;
+        $dataImgCuenta2Empresa = DataGeneral::where('name', 'img_cuenta_2')->first();
+        $imgCuenta2Empresa = $dataImgCuenta2Empresa->valueText;
+        $dataOwnerCuenta2Empresa = DataGeneral::where('name', 'owner_cuenta_2')->first();
+        $ownerCuenta2Empresa = $dataOwnerCuenta2Empresa->valueText;
+
+        $tieneCuentas = false;
+        if ( $nroCuenta2Empresa != "" || $nroCuenta1Empresa != "" )
+        {
+            $tieneCuentas = true;
+        }
+
+
+        /*$view = view('exports.salePdf', compact('titleCuenta1Empresa',
+            'nroCuenta1Empresa',
+            'cciCuenta1Empresa',
+            'imgCuenta1Empresa',
+            'ownerCuenta1Empresa',
+            'titleCuenta2Empresa',
+            'nroCuenta2Empresa',
+            'cciCuenta2Empresa',
+            'imgCuenta2Empresa',
+            'ownerCuenta2Empresa',
+            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address'));*/
 
         //$pdf = PDF::loadHTML($view);
         // Configurar el tamaño de la página a un tamaño personalizado para el ticket
@@ -1207,7 +1247,17 @@ class PuntoVentaController extends Controller
             ],
         ]);*/
 
-        $pdf = Pdf::loadView('exports.salePdf2', compact('sale', 'nameEmpresa', 'ruc', 'address'))
+        $pdf = Pdf::loadView('exports.salePdf2', compact('titleCuenta1Empresa',
+            'nroCuenta1Empresa',
+            'cciCuenta1Empresa',
+            'imgCuenta1Empresa',
+            'ownerCuenta1Empresa',
+            'titleCuenta2Empresa',
+            'nroCuenta2Empresa',
+            'cciCuenta2Empresa',
+            'imgCuenta2Empresa',
+            'ownerCuenta2Empresa',
+            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address'))
             ->setPaper([0, 0, 226.8, 900], 'portrait');
 
 

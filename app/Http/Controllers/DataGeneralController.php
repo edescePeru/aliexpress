@@ -39,10 +39,16 @@ class DataGeneralController extends Controller
         'logotipo_bn',
         'versiculo',
         'cita_biblica',
+        'title_cuenta_1',
         'nro_cuenta_1',
         'cci_cuenta_1',
+        'img_cuenta_1',
+        'owner_cuenta_1',
+        'title_cuenta_2',
         'nro_cuenta_2',
-        'cci_cuenta_2'
+        'cci_cuenta_2',
+        'img_cuenta_2',
+        'owner_cuenta_2',
     ];
 
     public function index()

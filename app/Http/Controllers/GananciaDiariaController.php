@@ -133,12 +133,37 @@ class GananciaDiariaController extends Controller
                 $total_utility += $netLine - ($unitPrice * $qty);
             }
 
+            $tipo_comprobante = null;
+            if ($sale->type_document == '01')
+            {
+                $tipo_comprobante = 'factura';
+            } elseif ( $sale->type_document == '03' ) {
+                $tipo_comprobante = 'boleta';
+            }
+
+            $tipo_documento_cliente = null;
+            if ($sale->tipo_documento_cliente == 1)
+            {
+                $tipo_documento_cliente = 'dni';
+            } elseif ( $sale->tipo_documento_cliente == 6 ) {
+                $tipo_documento_cliente = 'ruc';
+            }
+
+            $printUrl = route('puntoVenta.print', $sale->id); // ticket por defecto
+
+            if (!empty($sale->pdf_path)) {
+                // PDF local guardado
+                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+            }
+
             $array[] = [
                 "id"            => $sale->id,
+                "print_url"     => $printUrl,
                 "date_resumen"  => $sale->created_at->format('d/m/Y'),
                 "quantity_sale" => $quantity_sale,
                 "total_sale"    => round($total_sale, 2),
                 "total_utility" => round($total_utility, 2),
+                "print_label" => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
             ];
         }
 
@@ -217,6 +242,17 @@ class GananciaDiariaController extends Controller
 
         return view('ganancia.indexDetail', compact( 'permissions', 'ganancia'));
 
+    }
+
+    public function indexDetailTrabajador($sale)
+    {
+        $user = Auth::user();
+
+        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
+        $sale = Sale::find($sale);
+
+        return view('ganancia.indexDetailTrabajador', compact( 'permissions', 'sale'));
     }
 
     public function getDataGananciaDetails(Request $request, $pageNumber = 1)

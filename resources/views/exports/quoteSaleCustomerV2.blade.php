@@ -47,6 +47,78 @@
         }
 
         .page-break { page-break-after: always; }
+
+        .bank-wrap{
+            width:100%;
+            border-collapse:collapse;
+            font-family: DejaVu Sans, sans-serif;
+            font-size:12px;
+            color:#111;
+        }
+        .bank-wrap td{
+            vertical-align:top;
+            padding:0;
+            border:none;
+        }
+
+        .bank-card{
+            width:100%;
+            border-collapse:collapse;
+            border:none;
+        }
+        .bank-card td{
+            border:none;
+            padding:0;
+            vertical-align:middle;
+        }
+
+        .bank-card tr{
+            vertical-align:middle;   /* la fila define el centro */
+        }
+
+        /* LOGO */
+        .logo-cell{
+            width:52px;
+            padding-right:10px;
+            vertical-align:middle;   /* 🔥 centra el logo */
+        }
+
+        .logo-cell img{
+            width:50px;
+            display:block;
+        }
+
+        /* TEXTO */
+        .info-cell{
+            vertical-align:top;      /* el texto sigue alineado arriba */
+        }
+
+        .bank-title{
+            font-weight:bold;
+            margin:0 0 2px 0;
+        }
+        .bank-line{
+            margin:0;
+            line-height:1.3;
+        }
+        .bank-owner{
+            margin-top:4px;
+            font-weight:bold;
+            text-transform:uppercase;
+        }
+
+        .verse-cell{
+            text-align:right;
+            vertical-align:bottom;
+            color:#2b6cb0;
+            font-size:11px;
+            font-style:italic;
+            padding-top:6px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -59,7 +131,7 @@
 <table class="no-border">
     <tr class="no-border">
         <td class="no-border" style="width:60%; vertical-align:top; padding-right:10px;">
-            <img src="{{ asset('/landing/img/logo_pdf.png') }}" style="max-height:60px; margin-bottom:5px;">
+            <img src="{{ asset('/images/logo/'.$logotipoEmpresa) }}" style="max-height:60px; margin-bottom:5px;">
 
             <div class="title-empresa">{{ $nombreEmpresa }}</div>
             <div class="empresa-linea">{{ $direccionEmpresa }}</div>
@@ -149,7 +221,7 @@
             <tr>
                 <td class="text-center">{{ number_format($cantidad, 0) }}</td>
                 <td class="text-center">{{ $consumable->material->unitMeasure->name ?? '' }}</td>
-                <td class="text-center">{{ $consumable->material->codigo ?? '' }}</td>
+                <td class="text-center">{{ $consumable->material->code ?? '' }}</td>
                 <td style="text-align:left;">{{ "(".$present.") ".$consumable->material->full_name }}</td>
 
                 @if($quote->state_decimals)
@@ -198,6 +270,7 @@
         @endforeach
     @endforeach
     </tbody>
+
 </table>
 
 {{-- ============================= --}}
@@ -262,6 +335,79 @@
         {!! nl2br(e(trim(strip_tags($quote->observations)))) !!}
     </div>
 </div>
+
+@if ( $tieneCuentas )
+<div style="margin-top:8px;">
+    <strong >CUENTAS BANCARIAS:</strong>
+    <table class="bank-wrap" style="margin-top:8px;">
+        <colgroup>
+            <col style="width:30%;">
+            <col style="width:70%;">
+        </colgroup>
+
+        <tr>
+            <!-- COLUMNA 30% -->
+            <td>
+                <table class="bank-card">
+                    <colgroup>
+                        <col style="width:52px;">
+                        <col>
+                    </colgroup>
+                    <tr>
+                        <td class="logo-cell">
+                            <img src="{{ public_path('images/logo/'.$imgCuenta1Empresa) }}">
+                        </td>
+                        <td class="info-cell">
+                            <p class="bank-title">{{ $titleCuenta1Empresa }}</p>
+                            <p class="bank-line"><strong>Nro.:</strong> {{ $nroCuenta1Empresa }}</p>
+
+                            @if(!empty($cciCuenta1Empresa))
+                                <p class="bank-line"><strong>CCI:</strong> {{ $cciCuenta1Empresa }}</p>
+                            @endif
+
+                            <p class="bank-owner">{{ $ownerCuenta1Empresa }}</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+
+            <!-- COLUMNA 70% -->
+            <td>
+                <table class="bank-card">
+                    <colgroup>
+                        <col style="width:52px;">
+                        <col>
+                    </colgroup>
+                    <tr>
+                        <td class="logo-cell">
+                            <img src="{{ public_path('images/logo/'.$imgCuenta2Empresa) }}">
+                        </td>
+                        <td class="info-cell">
+                            <p class="bank-title">{{ $titleCuenta2Empresa }}</p>
+                            <p class="bank-line"><strong>Nro.:</strong> {{ $nroCuenta2Empresa }}</p>
+
+                            @if(!empty($cciCuenta2Empresa))
+                                <p class="bank-line"><strong>CCI:</strong> {{ $cciCuenta2Empresa }}</p>
+                            @endif
+
+                            <p class="bank-owner">{{ $ownerCuenta2Empresa }}</p>
+
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="1"></td>
+            <td class="verse-cell">
+                {{ $versiculoEmpresa }}<br>
+                <strong>{{ $citaBiblicaEmpresa }}</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+@endif
 
 {{--<div style="margin-top:8px;">
     <strong>DETALLES:</strong>

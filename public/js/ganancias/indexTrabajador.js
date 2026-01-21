@@ -215,8 +215,23 @@ function renderDataTable(data) {
 
     var cloneBtn = activateTemplate('#template-button');
 
-    let url = document.location.origin + '/dashboard/listado/ganancia/detalles/' + data.id;
-    cloneBtn.querySelector("[data-ver_detalles]").setAttribute("href", url);
+    /*let url = document.location.origin + '/dashboard/listado/ganancia/detalles/' + data.id;
+    cloneBtn.querySelector("[data-ver_detalles]").setAttribute("href", url);*/
+    const printBtn = cloneBtn.querySelector("[data-ver_detalles]");
+    printBtn.setAttribute("data-id", data.id);
+
+    // ✅ URL viene del backend (pdf o ticket)
+    printBtn.setAttribute("href", data.print_url || "#");
+    printBtn.setAttribute("title", data.print_label || "Ver comprobante");
+
+    if (!data.print_url) {
+        printBtn.classList.add('disabled');
+        printBtn.removeAttribute('target');
+        printBtn.addEventListener('click', function (e) { e.preventDefault(); });
+    } else {
+        // por si acaso
+        printBtn.setAttribute('target', '_blank');
+    }
 
     botones.append(cloneBtn);
 

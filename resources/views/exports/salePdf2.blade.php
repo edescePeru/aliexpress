@@ -49,6 +49,19 @@
 </head>
 <body>
 <div class="ticket">
+    <div style="text-align:center;">
+        <img
+                src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('images/logo/logotipoBN.png'))) }}"
+                alt="Logo de Tienda"
+                style="display:block; margin:0 auto;"
+        >
+    </div>
+    <p class="centered header" style="text-align: center">{{ $nameEmpresa }}<br>
+        R.U.C.: {{ $ruc }}<br>
+        TICKET DE VENTA</p>
+    <p class="centered address bold text-sm" style="text-align: center">{{ $address }}</p>
+    <div class="line"></div>
+
     <p><b>Fecha:</b> {{ now()->format('d/m/Y H:i') }}</p>
 
     <div class="line"></div>
@@ -111,6 +124,49 @@
 
     <p class="bold right">Pago con: S/. {{ number_format($sale->importe_total+$sale->vuelto, 2) }}</p>
     <p class="bold right">Vuelto: S/. {{ number_format($sale->vuelto, 2) }}</p>
+
+    <div class="line"></div>
+    <table style="width:100%; border-collapse:collapse;">
+        <colgroup>
+            <col style="width:50%;">
+            <col style="width:50%;">
+        </colgroup>
+        <tr>
+            <!-- COLUMNA 1 -->
+            <td style="vertical-align:top; padding-right:10px;">
+                <p style="font-size:12px; font-weight:bold; margin:0 0 4px 0;">
+                    {{ $titleCuenta1Empresa }}
+                </p>
+
+                <p style="margin:0;">
+                    <b>Nro.:</b> {{ $nroCuenta1Empresa }}
+                </p>
+
+                @if(!empty($cciCuenta1Empresa))
+                    <p style="margin:0;">
+                        <b>CCI:</b> {{ $cciCuenta1Empresa }}
+                    </p>
+                @endif
+            </td>
+
+            <!-- COLUMNA 2 -->
+            <td style="vertical-align:top; padding-left:10px;">
+                <p style="font-size:12px; font-weight:bold; margin:0 0 4px 0;">
+                    {{ $titleCuenta2Empresa }}
+                </p>
+
+                <p style="margin:0;">
+                    <b>Nro.:</b> {{ $nroCuenta2Empresa }}
+                </p>
+
+                @if(!empty($cciCuenta2Empresa))
+                    <p style="margin:0;">
+                        <b>CCI:</b> {{ $cciCuenta2Empresa }}
+                    </p>
+                @endif
+            </td>
+        </tr>
+    </table>
 
     <div class="line2"></div>
 

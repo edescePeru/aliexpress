@@ -4124,10 +4124,60 @@ class QuoteSaleController extends Controller
         $webEmpresa = $dataWebEmpresa->valueText;
         $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
         $rucEmpresa = $dataRucEmpresa->valueText;
-        /*$dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;*/
+        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
+        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
 
-        $view = view('exports.quoteSaleCustomerV2', compact('rucEmpresa','webEmpresa','emailEmpresa','telefonoEmpresa','direccionEmpresa','nombreEmpresa', 'quote', 'images', 'igv', 'montoEnLetras'));
+        $dataVersiculoEmpresa = DataGeneral::where('name', 'versiculo')->first();
+        $versiculoEmpresa = $dataVersiculoEmpresa->valueText;
+        $dataCitaBiblicaEmpresa = DataGeneral::where('name', 'cita_biblica')->first();
+        $citaBiblicaEmpresa = $dataCitaBiblicaEmpresa->valueText;
+
+        // Cuenta1
+        $dataTitleCuenta1Empresa = DataGeneral::where('name', 'title_cuenta_1')->first();
+        $titleCuenta1Empresa = $dataTitleCuenta1Empresa->valueText;
+        $dataNroCuenta1Empresa = DataGeneral::where('name', 'nro_cuenta_1')->first();
+        $nroCuenta1Empresa = $dataNroCuenta1Empresa->valueText;
+        $dataCciCuenta1Empresa = DataGeneral::where('name', 'cci_cuenta_1')->first();
+        $cciCuenta1Empresa = $dataCciCuenta1Empresa->valueText;
+        $dataImgCuenta1Empresa = DataGeneral::where('name', 'img_cuenta_1')->first();
+        $imgCuenta1Empresa = $dataImgCuenta1Empresa->valueText;
+        $dataOwnerCuenta1Empresa = DataGeneral::where('name', 'owner_cuenta_1')->first();
+        $ownerCuenta1Empresa = $dataOwnerCuenta1Empresa->valueText;
+
+        // Cuenta2
+        $dataTitleCuenta2Empresa = DataGeneral::where('name', 'title_cuenta_2')->first();
+        $titleCuenta2Empresa = $dataTitleCuenta2Empresa->valueText;
+        $dataNroCuenta2Empresa = DataGeneral::where('name', 'nro_cuenta_2')->first();
+        $nroCuenta2Empresa = $dataNroCuenta2Empresa->valueText;
+        $dataCciCuenta2Empresa = DataGeneral::where('name', 'cci_cuenta_2')->first();
+        $cciCuenta2Empresa = $dataCciCuenta2Empresa->valueText;
+        $dataImgCuenta2Empresa = DataGeneral::where('name', 'img_cuenta_2')->first();
+        $imgCuenta2Empresa = $dataImgCuenta2Empresa->valueText;
+        $dataOwnerCuenta2Empresa = DataGeneral::where('name', 'owner_cuenta_2')->first();
+        $ownerCuenta2Empresa = $dataOwnerCuenta2Empresa->valueText;
+
+        $tieneCuentas = false;
+        if ( $nroCuenta2Empresa != "" || $nroCuenta1Empresa != "" )
+        {
+            $tieneCuentas = true;
+        }
+
+        $view = view('exports.quoteSaleCustomerV2', compact(
+            'logotipoEmpresa',
+            'versiculoEmpresa',
+            'citaBiblicaEmpresa',
+            'titleCuenta1Empresa',
+            'nroCuenta1Empresa',
+            'cciCuenta1Empresa',
+            'imgCuenta1Empresa',
+            'ownerCuenta1Empresa',
+            'titleCuenta2Empresa',
+            'nroCuenta2Empresa',
+            'cciCuenta2Empresa',
+            'imgCuenta2Empresa',
+            'ownerCuenta2Empresa',
+            'tieneCuentas',
+            'rucEmpresa','webEmpresa','emailEmpresa','telefonoEmpresa','direccionEmpresa','nombreEmpresa', 'quote', 'images', 'igv', 'montoEnLetras'));
 
         $pdf = PDF::loadHTML($view);
 
@@ -4141,17 +4191,17 @@ class QuoteSaleController extends Controller
             unlink($image_path);
         }
 
-        $output = $pdf->output();
+        // = $pdf->output();
 
-        file_put_contents(public_path().'/pdfs/'.$name, $output);
+        //file_put_contents(public_path().'/pdfs/'.$name, $output);
         //file_put_contents('C:/wamp64/www/construction/public/pdfs/'.$name, $output);
         $pdfPrincipal = public_path().'/pdfs/'.$name;
         //$pdfPrincipal = 'C:/wamp64/www/construction/public/pdfs/'.$name;
-        $oMerger = PDFMerger::init();
+        //$oMerger = PDFMerger::init();
 
-        $oMerger->addPDF($pdfPrincipal, 'all');
+        //$oMerger->addPDF($pdfPrincipal, 'all');
 
-        $pdfs = ImagesQuote::where('quote_id', $quote->id)
+        /*$pdfs = ImagesQuote::where('quote_id', $quote->id)
             ->where('type', 'pdf')->get();
 
         foreach ( $pdfs as $pdf )
@@ -4159,13 +4209,13 @@ class QuoteSaleController extends Controller
             $namePdf = public_path().'/images/planos/'.$pdf->image;
             //$namePdf ='C:/wamp64/www/construction/public/images/planos/'.$pdf->image;
             $oMerger->addPDF($namePdf, 'all');
-        }
+        }*/
 
-        $oMerger->merge();
-        $oMerger->setFileName($name);
-        $oMerger->stream();
+        //$oMerger->merge();
+        //$oMerger->setFileName($name);
+        //$oMerger->stream();
 
-        //return $pdf->stream($name);
+        return $pdf->stream($name);
     }
 
     public function show($id)
