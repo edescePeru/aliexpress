@@ -803,7 +803,82 @@ $(document).ready(function () {
             }
         });
     });
+
+    $selectCustomer = $('#customer_id');
+
+    /*$selectCustomer.change(function () {
+        $selectContact.empty();
+        var customer = $selectCustomer.val();
+        $.get("/dashboard/get/contact/" + customer, function (data) {
+            $selectContact.append($("<option>", {
+                value: '',
+                text: 'Seleccione contacto'
+            }));
+            var contact_quote_id = $('#contact_quote_id').val();
+            for (var i = 0; i < data.length; i++) {
+                if (data[i].id === parseInt(contact_quote_id)) {
+                    var newOption = new Option(data[i].contact, data[i].id, false, true);
+                    // Append it to the select
+                    $selectContact.append(newOption).trigger('change');
+
+                } else {
+                    var newOption2 = new Option(data[i].contact, data[i].id, false, false);
+                    // Append it to the select
+                    $selectContact.append(newOption2);
+                }
+            }
+        });
+
+    });*/
+
+    // Abrir modal al dar click en +
+    $("#btn-add-customer").on("click", function() {
+        $("#formCreateCustomer")[0].reset(); // limpiar formulario
+        $("#modalCustomer").modal("show");
+    });
+
+    // Enviar formulario por AJAX
+    $("#btn-submit-customer").on("click", function(e) {
+        e.preventDefault();
+
+        let form = $("#formCreateCustomer");
+        let url = form.data("url");
+        let formData = form.serialize();
+
+        $.ajax({
+            type: "POST",
+            url: url,
+            data: formData,
+            success: function(response) {
+                toastr.success(response.message);
+
+                // Cerrar modal
+                $("#modalCustomer").modal("hide");
+
+                // Obtener el cliente nuevo
+                let customer = response.customer;
+
+                // Crear nueva opción
+                let newOption = new Option(customer.business_name, customer.id, true, true);
+
+                // Agregar al select2 y seleccionarlo
+                $('#customer_id').append(newOption).trigger('change');
+
+                // Limpiar el formulario
+                $("#formCreateCustomer")[0].reset();
+
+            },
+            error: function(xhr) {
+                let errors = xhr.responseJSON?.message || "Error al guardar";
+                toastr.error(errors);
+            }
+        });
+    });
+
 });
+
+var $selectCustomer;
+var $selectContact;
 
 /* =========================
    Save (Edit) - FIX 0.01

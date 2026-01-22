@@ -94,6 +94,8 @@ class CategoryController extends Controller
                 $subcategory->delete();
             }
 
+            $category->delete();
+
             DB::commit();
 
         } catch ( \Throwable $e ) {
