@@ -113,7 +113,7 @@
                                 <label for="description">Código de cotización </label>
                                 <input type="text" id="codeQuote" onkeyup="mayus(this);" name="code_quote" class="form-control form-control-sm" value="{{ $quote->code }}" readonly>
                             </div>
-                            @hasanyrole('logistic|admin|principal|quote_single')
+
                             <div class="col-md-4" id="sandbox-container">
                                 <label for="date_quote">Fecha de cotización </label>
                                 <div class="input-daterange" id="datepicker">
@@ -126,9 +126,7 @@
                                     <input type="text" class="form-control form-control-sm date-range-filter" id="date_validate" name="date_validate" value="{{ date('d/m/Y', strtotime($quote->date_validate)) }}">
                                 </div>
                             </div>
-                            @endhasanyrole
 
-                            @hasanyrole('logistic|admin|principal|quote_single')
                             <div class="col-md-4">
                                 <label for="description">Forma de pago </label>
                                 {{--<input type="text" id="paymentQuote" onkeyup="mayus(this);" name="way_to_pay" class="form-control form-control-sm" value="{{ $quote->way_to_pay }}">--}}
@@ -139,7 +137,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            @endhasanyrole
+
                             <div class="col-md-4">
                                 <label for="timeQuote">Tiempo de entrega </label>
                                 <div class="input-group input-group-sm mb-3">
