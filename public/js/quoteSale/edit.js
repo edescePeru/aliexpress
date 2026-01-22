@@ -413,7 +413,7 @@ function recalcQuoteTotalsFromDom() {
     const servicesRead = readServicesFromDom($card.find('[data-bodyService]'));
 
     const subtotalConsumables = moneyRound((cRead.sum_importe || 0) - (cRead.sum_promos || 0));
-    const subtotalWithIgv = moneyRound(subtotalConsumables + (servicesRead.sum_all || 0));
+    const subtotalWithIgv = moneyRound(subtotalConsumables + (servicesRead.sum_billable || 0));
 
     const totals = computeTotals(subtotalWithIgv);
 
@@ -528,7 +528,7 @@ function fillEquipments() {
     const servicesRead = readServicesFromDom($card.find('[data-bodyService]'));
 
     const subtotalConsumables = moneyRound((cRead.sum_importe || 0) - (cRead.sum_promos || 0));
-    const subtotalWithIgv = moneyRound(subtotalConsumables + (servicesRead.sum_all || 0));
+    const subtotalWithIgv = moneyRound(subtotalConsumables + (servicesRead.sum_billable || 0));
 
     $equipments.push({
         id: 0,
