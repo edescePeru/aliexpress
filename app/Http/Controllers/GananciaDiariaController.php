@@ -33,6 +33,9 @@ class GananciaDiariaController extends Controller
             'id',
             DB::raw("CONCAT(first_name, ' ', last_name) as name")
         )
+            ->whereHas('user', function ($q) {
+                $q->where('id', '!=', 1);
+            })
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
