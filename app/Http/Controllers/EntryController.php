@@ -21,8 +21,11 @@ use App\Notification;
 use App\NotificationUser;
 use App\OrderPurchase;
 use App\OrderPurchaseDetail;
+use App\Output;
+use App\OutputDetail;
 use App\PaymentDeadline;
 use App\Quote;
+use App\Services\InventoryCostService;
 use App\Services\TipoCambioService;
 use App\Supplier;
 use App\SupplierCredit;
@@ -38,10 +41,13 @@ use Barryvdh\DomPDF\Facade as PDF;
 class EntryController extends Controller
 {
     protected $tipoCambioService;
+    /** @var InventoryCostService */
+    private $inventoryCostService;
 
-    public function __construct(TipoCambioService $tipoCambioService)
+    public function __construct(TipoCambioService $tipoCambioService, InventoryCostService $inventoryCostService)
     {
         $this->tipoCambioService = $tipoCambioService;
+        $this->inventoryCostService = $inventoryCostService;
     }
 
     public function indexEntryPurchase()
@@ -961,20 +967,15 @@ class EntryController extends Controller
 
                     if ($entry->currency_invoice === 'PEN') {
 
+                        // Conversión a USD para referencia (se mantiene)
                         $precio1 = round((float)$items[$i]->price, 2) / (float)$entry->currency_compra;
-                        $price1 = ($detail_entry->material->unit_price > $precio1) ? $detail_entry->material->unit_price : $precio1;
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ($materialS->unit_price < $price1) {
-                            $materialS->unit_price = $price1;
-                            $materialS->save();
+                        // ✅ YA NO actualizamos Material->unit_price por "máximo". Solo guardamos el precio del ingreso en el detail_entry.
+                        $detail_entry->unit_price = round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        // ✅ Precio del Item: usar el precio del documento (sin "max")
+                        $priceForItem = round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -985,7 +986,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -1003,7 +1004,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -1015,21 +1016,12 @@ class EntryController extends Controller
 
                     } else {
 
-                        $price = ((float)$detail_entry->material->unit_price > round((float)$items[$i]->price, 2))
-                            ? $detail_entry->material->unit_price
-                            : round((float)$items[$i]->price, 2);
+                        // ✅ YA NO actualizamos Material->unit_price por "máximo". Solo guardamos el precio del ingreso en el detail_entry.
+                        $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ((float)$materialS->unit_price < round((float)$items[$i]->price, 2)) {
-                            $materialS->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $materialS->save();
-
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        // ✅ Precio del Item: usar el precio del documento (sin "max")
+                        $priceForItem = (float)round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -1040,7 +1032,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -1058,7 +1050,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -1073,20 +1065,15 @@ class EntryController extends Controller
 
                     if ($entry->currency_invoice === 'USD') {
 
+                        // Conversión a PEN para referencia (se mantiene)
                         $precio1 = round((float)$items[$i]->price, 2) * (float)$entry->currency_venta;
-                        $price1 = ($detail_entry->material->unit_price > $precio1) ? $detail_entry->material->unit_price : $precio1;
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ($materialS->unit_price < $price1) {
-                            $materialS->unit_price = $price1;
-                            $materialS->save();
+                        // ✅ YA NO actualizamos Material->unit_price por "máximo". Solo guardamos el precio del ingreso en el detail_entry.
+                        $detail_entry->unit_price = round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        // ✅ Precio del Item: usar el precio del documento (sin "max")
+                        $priceForItem = round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -1097,7 +1084,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -1116,7 +1103,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -1128,21 +1115,12 @@ class EntryController extends Controller
 
                     } else {
 
-                        $price = ((float)$detail_entry->material->unit_price > round((float)$items[$i]->price, 2))
-                            ? $detail_entry->material->unit_price
-                            : round((float)$items[$i]->price, 2);
+                        // ✅ YA NO actualizamos Material->unit_price por "máximo". Solo guardamos el precio del ingreso en el detail_entry.
+                        $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ((float)$materialS->unit_price < round((float)$items[$i]->price, 2)) {
-                            $materialS->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $materialS->save();
-
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        // ✅ Precio del Item: usar el precio del documento (sin "max")
+                        $priceForItem = (float)round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -1153,7 +1131,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -1171,7 +1149,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -1188,6 +1166,30 @@ class EntryController extends Controller
             foreach ($totalByDetailEntryId as $detailEntryId => $total) {
                 DetailEntry::where('id', $detailEntryId)->update([
                     'total_detail' => round($total, 2)
+                ]);
+            }
+
+            // ===========================
+            // ✅ ACTUALIZAR materials.unit_price con costo promedio (KARDEX)
+            //    Esto reemplaza por completo la lógica antigua de "guardar el mayor"
+            // ===========================
+            $entryDate = $entry->date_entry instanceof Carbon
+                ? $entry->date_entry
+                : Carbon::parse($entry->date_entry);
+
+            $affectedMaterialIds = array_map('intval', array_keys($grouped));
+            $affectedMaterialIds = array_values(array_unique($affectedMaterialIds));
+
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+
+            foreach ($affectedMaterialIds as $mid) {
+                $avg = (float) ($avgCosts[$mid] ?? 0.0);
+
+                // Si prefieres no setear 0 cuando aún no hay historial, descomenta:
+                // if ($avg <= 0) continue;
+
+                Material::where('id', $mid)->update([
+                    'unit_price' => $avg
                 ]);
             }
 
@@ -1570,79 +1572,198 @@ class EntryController extends Controller
     {
         $begin = microtime(true);
         $entry2 = $entry;
+
         DB::beginTransaction();
         try {
-            if ( $entry->entry_type === 'Por compra' )
-            {
+            if ($entry->entry_type === 'Por compra') {
+
                 $details_entry = $entry->details;
 
-                foreach ( $details_entry as $detail )
-                {
-                    $items = Item::where('detail_entry_id', $detail->id)
+                // ===========================
+                // ✅ Validación: no permitir eliminar si hay items reservados o en salida
+                // ===========================
+                foreach ($details_entry as $detail) {
+                    $itemsBlocking = Item::where('detail_entry_id', $detail->id)
                         ->whereIn('state_item', ['reserved','exited'])
                         ->get();
-                    if (!isset($items))
-                    {
+
+                    if ($itemsBlocking && $itemsBlocking->count() > 0) {
                         return response()->json(['message' => 'Lo sentimos, no se puede eliminar la entrada porque hay items reservados o en salida.'], 422);
                     }
-
                 }
 
                 $order_purchase = OrderPurchase::where('code', $entry->purchase_order)->first();
 
-                foreach ( $details_entry as $detail )
-                {
-                    $material = Material::find($detail->material_id);
-                    $material->stock_current = $material->stock_current - $detail->entered_quantity;
-                    $material->save();
+                // ===========================
+                // ✅ Preparar Output(s) de rollback: uno por detalle (más claro/auditable)
+                //    (si prefieres uno solo para todo el entry, lo ajustamos)
+                // ===========================
+                $now = now();
 
-                    if ( !is_null( $order_purchase ) )
-                    {
-                        // TODO: Modificamos los material orders
+                // Para recalcular costos al final (materiales afectados)
+                $affectedMaterialIds = [];
+
+                foreach ($details_entry as $detail) {
+
+                    $material = Material::find($detail->material_id);
+                    if (!$material) {
+                        throw new \Exception("Material no encontrado: {$detail->material_id}");
+                    }
+
+                    $affectedMaterialIds[] = (int)$material->id;
+
+                    // Output por cada detalle
+                    $output = Output::create([
+                        'execution_order'  => 'SALIDA POR ANULACIÓN DE INGRESO (ENTRY #' . $entry->id . ')',
+                        'request_date'     => $now,
+                        'requesting_user'  => Auth::id(),
+                        'responsible_user' => Auth::id(),
+                        'state'            => 'confirmed',
+                        'indicator'        => 'or',
+                    ]);
+
+                    // Costo promedio vigente ANTES de registrar la salida (auditoría)
+                    $unitCostBefore = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
+
+                    // ===========================
+                    // ✅ Crear OutputDetail(s) y descontar stock
+                    // ===========================
+                    if ((int)$material->tipo_venta_id === 3) {
+                        // ITEMEABLE: 1 output_detail por item físico
+                        $itemsToDelete = Item::where('detail_entry_id', $detail->id)->get();
+
+                        if ($itemsToDelete && $itemsToDelete->count() > 0) {
+                            foreach ($itemsToDelete as $item) {
+
+                                OutputDetail::create([
+                                    'output_id'      => $output->id,
+                                    'sale_detail_id' => null,
+                                    'item_id'        => $item->id,
+                                    'material_id'    => $material->id,
+                                    'quote_id'       => null,
+                                    'custom'         => 0,
+                                    'percentage'     => 1,
+                                    'price'          => $item->price,
+                                    'length'         => $item->length,
+                                    'width'          => $item->width,
+                                    'equipment_id'   => null,
+                                    'activo'         => null,
+
+                                    'unit_cost'      => $unitCostBefore,
+                                    'total_cost'     => $unitCostBefore,
+                                ]);
+
+                                // rollback de stock por item
+                                $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
+                                $material->save();
+
+                                $item->delete();
+                            }
+                        } else {
+                            // fallback: si no hay items, salimos por entered_quantity
+                            $qty = (float)$detail->entered_quantity;
+
+                            OutputDetail::create([
+                                'output_id'      => $output->id,
+                                'sale_detail_id' => null,
+                                'item_id'        => null,
+                                'material_id'    => $material->id,
+                                'quote_id'       => null,
+                                'custom'         => 0,
+                                'percentage'     => $qty,
+                                'price'          => (float)($detail->unit_price ?? $material->unit_price),
+                                'length'         => null,
+                                'width'          => null,
+                                'equipment_id'   => null,
+                                'activo'         => null,
+
+                                'unit_cost'      => $unitCostBefore,
+                                'total_cost'     => $qty * $unitCostBefore,
+                            ]);
+
+                            $material->stock_current = (float)$material->stock_current - $qty;
+                            $material->save();
+                        }
+
+                    } else {
+                        // NO ITEMEABLE: 1 output_detail por cantidad del detalle
+                        $qty = (float)$detail->entered_quantity;
+
+                        OutputDetail::create([
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => null,
+                            'item_id'        => null,
+                            'material_id'    => $material->id,
+                            'quote_id'       => null,
+                            'custom'         => 0,
+                            'percentage'     => $qty,
+                            'price'          => (float)($detail->unit_price ?? $material->unit_price),
+                            'length'         => null,
+                            'width'          => null,
+                            'equipment_id'   => null,
+                            'activo'         => null,
+
+                            'unit_cost'      => $unitCostBefore,
+                            'total_cost'     => $qty * $unitCostBefore,
+                        ]);
+
+                        $material->stock_current = (float)$material->stock_current - $qty;
+                        $material->save();
+                    }
+
+                    // ===========================
+                    // ✅ Tu lógica de OrderPurchase / MaterialOrder (igual, solo sin tocar stock aquí porque ya se tocó arriba)
+                    // ===========================
+                    if (!is_null($order_purchase)) {
                         $order_purchase_detail = OrderPurchaseDetail::where('order_purchase_id', $order_purchase->id)
                             ->where('material_id', $material->id)->first();
 
-                        $material_orders = MaterialOrder::where('order_purchase_detail_id', $order_purchase_detail->id)->get();
-                        if (isset($material_orders))
-                        {
-                            foreach ( $material_orders as $material_order )
-                            {
-                                $material_order->quantity_entered = 0;
-                                $material_order->save();
+                        if ($order_purchase_detail) {
+                            $material_orders = MaterialOrder::where('order_purchase_detail_id', $order_purchase_detail->id)->get();
+                            if ($material_orders && $material_orders->count() > 0) {
+                                foreach ($material_orders as $material_order) {
+                                    $material_order->quantity_entered = 0;
+                                    $material_order->save();
+                                }
                             }
                         }
-
                     }
 
-                    if ( $material->tipo_venta_id == 3 )
-                    {
-                        $items = Item::where('detail_entry_id', $detail->id)->get();
-                        foreach ( $items as $item )
-                        {
-                            $item->delete();
-                        }
-                    }
+                    // eliminar detalle
                     $detail->delete();
                 }
 
-                if ($entry->image !== 'no_image.png')
-                {
+                // ===========================
+                // ✅ Recalcular costo promedio (Kardex) y actualizar materials.unit_price
+                //    (ya incluye todas las salidas creadas arriba)
+                // ===========================
+                $affectedMaterialIds = array_values(array_unique(array_map('intval', $affectedMaterialIds)));
+
+                $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $now);
+
+                foreach ($affectedMaterialIds as $mid) {
+                    $avg = (float) ($avgCosts[$mid] ?? 0.0);
+                    Material::where('id', $mid)->update(['unit_price' => $avg]);
+                }
+
+                // Borrar imagen principal
+                if ($entry->image !== 'no_image.png') {
                     $my_image = public_path().'/images/entries/'.$entry->image;
                     if (@getimagesize($my_image)) {
                         unlink($my_image);
                     }
-
                 }
 
+                // Eliminar crédito outstanding
                 $credit = SupplierCredit::with('deadline')
                     ->where('entry_id', $entry->id)
                     ->where('state_credit', 'outstanding')->first();
 
-                if ( isset($credit) )
-                {
+                if (isset($credit)) {
                     $credit->delete();
                 }
 
+                // Eliminar entry
                 $entry->delete();
             }
 
@@ -1650,77 +1771,63 @@ class EntryController extends Controller
 
             Audit::create([
                 'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Ingreso Almacen',
+                'action' => 'Eliminar Ingreso Almacen (con salida kardex)',
                 'time' => $end
             ]);
+
             DB::commit();
-        } catch ( \Throwable $e ) {
+
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-
-        // TODO: Logica para actualizar
+        // TODO: Logica para actualizar (tu bloque original)
         $orderPurchase = OrderPurchase::where('code', $entry2->purchase_order)->first();
-        if ( !is_null( $order_purchase ) )
-        {
-            $entradas = Entry::where('purchase_order', $orderPurchase->code)
-                ->get();
+        if (!is_null($orderPurchase)) {
 
-            if ( count($entradas) > 0 )
-            {
+            // OJO: aquí tu código original usaba $order_purchase en el if; lo dejamos como estaba,
+            // pero si quieres, conviene uniformizar variable ($orderPurchase vs $order_purchase).
+            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
+
+            if (count($entradas) > 0) {
                 $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
 
-                if (isset($details))
-                {
+                if (isset($details)) {
                     $flag = 1;
-                    foreach ($details as $detail)
-                    {
+                    foreach ($details as $detail) {
                         $material = $detail->material_id;
-                        // TODO: obtener las entradas de esa orden y material
                         $cant_material = 0;
-                        foreach ( $entradas as $entrada )
-                        {
+                        foreach ($entradas as $entrada) {
                             $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
                                 ->where('material_id', $material)->sum('entered_quantity');
                             $cant_material += $entry_details_sum;
                         }
 
-                        if ($cant_material < $detail->quantity)
-                        {
-                            // TODO: Esto significa que esta incompleta
-                            /*$orderPurchase->state = 0;
-                            $orderPurchase->save();*/
+                        if ($cant_material < $detail->quantity) {
                             $flag = 0;
                         }
                     }
-                    if ( $flag == 0 )
-                    {
-                        // TODO: Esto significa que esta incompleta
+                    if ($flag == 0) {
                         $orderPurchase->state = 0;
                         $orderPurchase->save();
                     } else {
-                        // TODO: Esto significa que esta completa
                         $orderPurchase->state = 1;
                         $orderPurchase->save();
                     }
 
                 } else {
-                    // TODO: Esto significa que esta por ingresar
                     $orderPurchase->state = 2;
                     $orderPurchase->save();
                 }
 
             } else {
-                // TODO: Esto significa que esta por ingresar
                 $orderPurchase->state = 2;
                 $orderPurchase->save();
             }
-
         }
 
         return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
-
     }
 
     public function getJsonEntriesPurchase()
@@ -1818,65 +1925,175 @@ class EntryController extends Controller
         return $entries;
     }
 
-    public function destroyDetailOfEntry( $id_detail, $id_entry )
+    public function destroyDetailOfEntry($id_detail, $id_entry)
     {
         $begin = microtime(true);
+
         DB::beginTransaction();
         try {
-            $entry = Entry::find($id_entry);
+            $entry  = Entry::find($id_entry);
             $detail = DetailEntry::find($id_detail);
 
-            $items = Item::where('detail_entry_id', $detail->id)
-                ->whereIn('state_item', ['reserved','exited'])
+            if (!$entry || !$detail) {
+                throw new \Exception("No se encontró el ingreso o el detalle.");
+            }
+
+            $material = Material::find($detail->material_id);
+            if (!$material) {
+                throw new \Exception("Material no encontrado: {$detail->material_id}");
+            }
+
+            // ===========================
+            // ✅ Validación: no permitir eliminar si hay items reservados o en salida
+            // ===========================
+            $itemsBlocking = Item::where('detail_entry_id', $detail->id)
+                ->whereIn('state_item', ['reserved', 'exited'])
                 ->get();
-            if (!isset($items))
-            {
+
+            if ($itemsBlocking && $itemsBlocking->count() > 0) {
                 return response()->json(['message' => 'Lo sentimos, no se puede eliminar porque hay items reservados o en salida.'], 422);
             }
 
-            $items_deleted = Item::where('detail_entry_id', $detail->id)->get();
+            // ===========================
+            // ✅ Preparar Output de rollback (salida por eliminación)
+            // ===========================
+            $now = now();
 
-            if (!isset($items_deleted))
-            {
-                foreach ( $items_deleted as $item )
-                {
-                    $material = Material::find($item->material_id);
-                    $material->stock_current = $material->stock_current - $item->percentage;
+            $output = Output::create([
+                'execution_order'  => 'SALIDA POR ELIMINACIÓN DE INGRESO',
+                'request_date'     => $now,
+                'requesting_user'  => Auth::id(),
+                'responsible_user' => Auth::id(),
+                'state'            => 'confirmed',
+                'indicator'        => 'or',
+            ]);
+
+            // ===========================
+            // ✅ Costo promedio vigente ANTES de registrar esta salida (para auditar unit_cost aplicado)
+            // ===========================
+            $unitCostBefore = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
+
+            // ===========================
+            // ✅ Crear OutputDetail(s) según tipo de material
+            // ===========================
+            if ((int)$material->tipo_venta_id === 3) {
+                // ITEMEABLE: 1 output_detail por item físico
+                $itemsToDelete = Item::where('detail_entry_id', $detail->id)->get();
+
+                // Si no hay items, igual registramos la salida por cantidad del detalle (fallback)
+                if ($itemsToDelete && $itemsToDelete->count() > 0) {
+                    foreach ($itemsToDelete as $item) {
+                        OutputDetail::create([
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => null,
+                            'item_id'        => $item->id,
+                            'material_id'    => $material->id,
+                            'quote_id'       => null,
+                            'custom'         => 0,
+                            'percentage'     => 1,
+                            'price'          => $item->price,
+                            'length'         => $item->length,
+                            'width'          => $item->width,
+                            'equipment_id'   => null,
+                            'activo'         => null,
+
+                            // costo aplicado
+                            'unit_cost'      => $unitCostBefore,
+                            'total_cost'     => $unitCostBefore,
+                        ]);
+
+                        // actualizar stock (rollback) + borrar item
+                        $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
+                        $material->save();
+
+                        $item->delete();
+                    }
+                } else {
+                    // Fallback si por alguna razón no existen items asociados
+                    $qty = (float)$detail->entered_quantity;
+
+                    OutputDetail::create([
+                        'output_id'      => $output->id,
+                        'sale_detail_id' => null,
+                        'item_id'        => null,
+                        'material_id'    => $material->id,
+                        'quote_id'       => null,
+                        'custom'         => 0,
+                        'percentage'     => $qty,
+                        'price'          => (float)($detail->unit_price ?? $material->unit_price),
+                        'length'         => null,
+                        'width'          => null,
+                        'equipment_id'   => null,
+                        'activo'         => null,
+
+                        'unit_cost'      => $unitCostBefore,
+                        'total_cost'     => $qty * $unitCostBefore,
+                    ]);
+
+                    $material->stock_current = (float)$material->stock_current - $qty;
                     $material->save();
-
-                    $item->delete();
                 }
+
             } else {
-                $material = Material::find($detail->material_id);
-                if ( !is_null( $material ) )
-                {
-                    $material->stock_current = $material->stock_current - $detail->entered_quantity;
-                    $material->save();
-                }
+                // NO ITEMEABLE: 1 output_detail por cantidad del detalle
+                $qty = (float)$detail->entered_quantity;
+
+                OutputDetail::create([
+                    'output_id'      => $output->id,
+                    'sale_detail_id' => null,
+                    'item_id'        => null,
+                    'material_id'    => $material->id,
+                    'quote_id'       => null,
+                    'custom'         => 0,
+                    'percentage'     => $qty,
+                    'price'          => (float)($detail->unit_price ?? $material->unit_price),
+                    'length'         => null,
+                    'width'          => null,
+                    'equipment_id'   => null,
+                    'activo'         => null,
+
+                    'unit_cost'      => $unitCostBefore,
+                    'total_cost'     => $qty * $unitCostBefore,
+                ]);
+
+                // actualizar stock (rollback)
+                $material->stock_current = (float)$material->stock_current - $qty;
+                $material->save();
             }
 
+            // ===========================
+            // ✅ Eliminar el detalle del ingreso
+            // ===========================
             $detail->delete();
 
-            // TODO: Modificar el total del credito
+            // TODO: Modificar el total del credito (tu lógica original)
             $credit = SupplierCredit::where('entry_id', $entry->id)->first();
-
-            if( isset($credit) )
-            {
-                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total:null;
-                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total:null;
+            if (isset($credit)) {
+                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
+                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
                 $credit->save();
             }
+
+            // ===========================
+            // ✅ Recalcular costo promedio (Kardex) y actualizar material->unit_price
+            //    (ya incluye esta nueva salida creada arriba)
+            // ===========================
+            $newAvg = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
+
+            $material->unit_price = $newAvg;
+            $material->save();
 
             $end = microtime(true) - $begin;
 
             Audit::create([
                 'user_id' => Auth::user()->id,
-                'action' => 'Eliminar detalle de ingreso',
+                'action' => 'Eliminar detalle de ingreso (con salida kardex)',
                 'time' => $end
             ]);
 
             DB::commit();
-        } catch ( \Throwable $e ) {
+
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -1885,57 +2102,42 @@ class EntryController extends Controller
         $entry = Entry::find($id_entry);
         $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
 
-        if ( !is_null( $orderPurchase ) )
-        {
+        if (!is_null($orderPurchase)) {
             $entradas = Entry::where('purchase_order', $orderPurchase->code)
                 ->get();
 
-            if ( count($entradas) > 0 )
-            {
+            if (count($entradas) > 0) {
                 $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
 
-                if (isset($details))
-                {
+                if (isset($details)) {
                     $flag = 1;
-                    foreach ($details as $detail)
-                    {
-                        $material = $detail->material_id;
-                        // TODO: obtener las entradas de esa orden y material
+                    foreach ($details as $detail) {
+                        $materialId = $detail->material_id;
                         $cant_material = 0;
-                        foreach ( $entradas as $entrada )
-                        {
+                        foreach ($entradas as $entrada) {
                             $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
-                                ->where('material_id', $material)->sum('entered_quantity');
+                                ->where('material_id', $materialId)->sum('entered_quantity');
                             $cant_material += $entry_details_sum;
                         }
 
-                        if ($cant_material < $detail->quantity)
-                        {
-                            // TODO: Esto significa que esta incompleta
-                            /*$orderPurchase->state = 0;
-                            $orderPurchase->save();*/
+                        if ($cant_material < $detail->quantity) {
                             $flag = 0;
                         }
                     }
-                    if ( $flag == 0 )
-                    {
-                        // TODO: Esto significa que esta incompleta
+                    if ($flag == 0) {
                         $orderPurchase->state = 0;
                         $orderPurchase->save();
                     } else {
-                        // TODO: Esto significa que esta completa
                         $orderPurchase->state = 1;
                         $orderPurchase->save();
                     }
 
                 } else {
-                    // TODO: Esto significa que esta por ingresar
                     $orderPurchase->state = 2;
                     $orderPurchase->save();
                 }
 
             } else {
-                // TODO: Esto significa que esta por ingresar
                 $orderPurchase->state = 2;
                 $orderPurchase->save();
             }
@@ -2074,20 +2276,14 @@ class EntryController extends Controller
 
                     if ($entry->currency_invoice === 'PEN') {
 
+                        // Se mantiene por si lo usas para referencia
                         $precio1 = round((float)$items[$i]->price, 2) / (float)$entry->currency_compra;
-                        $price1 = ($detail_entry->material->unit_price > $precio1) ? $detail_entry->material->unit_price : $precio1;
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ($materialS->unit_price < $price1) {
-                            $materialS->unit_price = $price1;
-                            $materialS->save();
+                        // ✅ Ya no actualizamos Material->unit_price por "máximo"
+                        $detail_entry->unit_price = round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        $priceForItem = round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -2098,7 +2294,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -2116,7 +2312,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -2128,21 +2324,11 @@ class EntryController extends Controller
 
                     } else {
 
-                        $price = ((float)$detail_entry->material->unit_price > round((float)$items[$i]->price, 2))
-                            ? $detail_entry->material->unit_price
-                            : round((float)$items[$i]->price, 2);
+                        // ✅ Ya no actualizamos Material->unit_price por "máximo"
+                        $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ((float)$materialS->unit_price < round((float)$items[$i]->price, 2)) {
-                            $materialS->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $materialS->save();
-
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        $priceForItem = (float)round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -2153,7 +2339,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -2171,7 +2357,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -2186,20 +2372,14 @@ class EntryController extends Controller
 
                     if ($entry->currency_invoice === 'USD') {
 
+                        // Se mantiene por si lo usas para referencia
                         $precio1 = round((float)$items[$i]->price, 2) * (float)$entry->currency_venta;
-                        $price1 = ($detail_entry->material->unit_price > $precio1) ? $detail_entry->material->unit_price : $precio1;
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ($materialS->unit_price < $price1) {
-                            $materialS->unit_price = $price1;
-                            $materialS->save();
+                        // ✅ Ya no actualizamos Material->unit_price por "máximo"
+                        $detail_entry->unit_price = round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        $priceForItem = round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -2210,7 +2390,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -2229,7 +2409,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => round((float)$items[$i]->price, 2),
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -2241,21 +2421,11 @@ class EntryController extends Controller
 
                     } else {
 
-                        $price = ((float)$detail_entry->material->unit_price > round((float)$items[$i]->price, 2))
-                            ? $detail_entry->material->unit_price
-                            : round((float)$items[$i]->price, 2);
+                        // ✅ Ya no actualizamos Material->unit_price por "máximo"
+                        $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
+                        $detail_entry->save();
 
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ((float)$materialS->unit_price < round((float)$items[$i]->price, 2)) {
-                            $materialS->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $materialS->save();
-
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        } else {
-                            $detail_entry->unit_price = (float)round((float)$items[$i]->price, 2);
-                            $detail_entry->save();
-                        }
+                        $priceForItem = (float)round((float)$items[$i]->price, 2);
 
                         if (isset($detail_entry->material->typeScrap)) {
                             if ($material->tipo_venta_id == 3) {
@@ -2266,7 +2436,7 @@ class EntryController extends Controller
                                     'length' => (float)$detail_entry->material->typeScrap->length,
                                     'width' => (float)$detail_entry->material->typeScrap->width,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
@@ -2284,7 +2454,7 @@ class EntryController extends Controller
                                     'length' => 0,
                                     'width' => 0,
                                     'weight' => 0,
-                                    'price' => (float)$price,
+                                    'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
                                     'state' => $items[$i]->state,
@@ -2306,11 +2476,33 @@ class EntryController extends Controller
 
             $credit = SupplierCredit::where('entry_id', $entry->id)->first();
 
-            if( isset($credit) )
-            {
-                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total:null;
-                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total:null;
+            if (isset($credit)) {
+                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
+                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
                 $credit->save();
+            }
+
+            // ===========================
+            // ✅ ACTUALIZAR materials.unit_price con costo promedio (KARDEX)
+            // ===========================
+            $entryDate = $entry->date_entry instanceof Carbon
+                ? $entry->date_entry
+                : Carbon::parse($entry->date_entry);
+
+            $affectedMaterialIds = array_map('intval', array_keys($grouped));
+            $affectedMaterialIds = array_values(array_unique($affectedMaterialIds));
+
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+
+            foreach ($affectedMaterialIds as $mid) {
+                $avg = (float) ($avgCosts[$mid] ?? 0.0);
+
+                // Si prefieres no setear 0 cuando aún no hay historial, descomenta:
+                // if ($avg <= 0) continue;
+
+                Material::where('id', $mid)->update([
+                    'unit_price' => $avg
+                ]);
             }
 
             $end = microtime(true) - $begin;
@@ -2321,7 +2513,7 @@ class EntryController extends Controller
                 'time' => $end
             ]);
             DB::commit();
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -2330,57 +2522,42 @@ class EntryController extends Controller
         $entry = Entry::find($id_entry);
         $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
 
-        if ( ! is_null($orderPurchase) )
-        {
-            $entradas = Entry::where('purchase_order', $orderPurchase->code)
-                ->get();
+        if (!is_null($orderPurchase)) {
+            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
 
-            if ( count($entradas) > 0 )
-            {
+            if (count($entradas) > 0) {
                 $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
 
-                if (isset($details))
-                {
+                if (isset($details)) {
                     $flag = 1;
-                    foreach ($details as $detail)
-                    {
+                    foreach ($details as $detail) {
                         $material = $detail->material_id;
                         // TODO: obtener las entradas de esa orden y material
                         $cant_material = 0;
-                        foreach ( $entradas as $entrada )
-                        {
+                        foreach ($entradas as $entrada) {
                             $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
                                 ->where('material_id', $material)->sum('entered_quantity');
                             $cant_material += $entry_details_sum;
                         }
 
-                        if ($cant_material < $detail->quantity)
-                        {
-                            // TODO: Esto significa que esta incompleta
-                            /*$orderPurchase->state = 0;
-                            $orderPurchase->save();*/
+                        if ($cant_material < $detail->quantity) {
                             $flag = 0;
                         }
                     }
-                    if ( $flag == 0 )
-                    {
-                        // TODO: Esto significa que esta incompleta
+                    if ($flag == 0) {
                         $orderPurchase->state = 0;
                         $orderPurchase->save();
                     } else {
-                        // TODO: Esto significa que esta completa
                         $orderPurchase->state = 1;
                         $orderPurchase->save();
                     }
 
                 } else {
-                    // TODO: Esto significa que esta por ingresar
                     $orderPurchase->state = 2;
                     $orderPurchase->save();
                 }
 
             } else {
-                // TODO: Esto significa que esta por ingresar
                 $orderPurchase->state = 2;
                 $orderPurchase->save();
             }
