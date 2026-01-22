@@ -26,7 +26,7 @@ class StoreQuoteRequest extends FormRequest
             'delivery_time' => 'nullable|string',
 
             'customer_id' => 'nullable|exists:customers,id',
-            'contact_id' => 'nullable|exists:contacts,id',
+            'contact_id' => 'nullable|exists:contact_names,id',
             'payment_deadline' => 'nullable|exists:payment_deadlines,id',
 
             // Totales (front)

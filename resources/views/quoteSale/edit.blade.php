@@ -254,20 +254,20 @@
                                         <div class="col-md-2"><strong>Importe</strong></div>
                                         <div class="col-md-1"><strong>Acción</strong></div>
                                     </div>
-                                    @can('showPrices_quote')
+                                    {{--@can('showPrices_quote')
                                         @foreach( $equipment->consumables as $consumable )
-                                            <div class="row">
-                                                {{-- Descripcion --}}
+                                            --}}{{--<div class="row">
+                                                --}}{{----}}{{-- Descripcion --}}{{----}}{{--
                                                 <div class="col-md-4">
                                                     <div class="form-group">
                                                         <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
 
-                                                        {{-- se leen por attr() --}}
+                                                        --}}{{----}}{{-- se leen por attr() --}}{{----}}{{--
                                                         <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
                                                         <input type="hidden" data-descuento="{{ $consumable->discount }}">
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
 
-                                                        {{-- presentación --}}
+                                                        --}}{{----}}{{-- presentación --}}{{----}}{{--
                                                         <input type="hidden" data-presentation_id="{{ $consumable->material_presentation_id }}">
                                                         <input type="hidden" data-units_per_pack="{{ $consumable->units_per_pack }}">
                                                         <input type="hidden" data-units_equivalent="{{ $consumable->quantity }}">
@@ -279,7 +279,7 @@
                                                         ? (($consumable->presentation->label ?? ($consumable->presentation->quantity.' und')))
                                                         : 'Unidad';
                                                 @endphp
-                                                {{-- Presentacion --}}
+                                                --}}{{----}}{{-- Presentacion --}}{{----}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <div class="form-group">
@@ -288,7 +288,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {{-- Unidad --}}
+                                                --}}{{----}}{{-- Unidad --}}{{----}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <div class="form-group">
@@ -296,7 +296,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {{-- Cantidad --}}
+                                                --}}{{----}}{{-- Cantidad --}}{{----}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm"
@@ -304,19 +304,19 @@
                                                                oninput="calculateTotalC(this);">
                                                     </div>
                                                 </div>
-                                                {{-- Valor Unitario --}}
+                                                --}}{{----}}{{-- Valor Unitario --}}{{----}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm" value="{{ round(($consumable->total/($consumable->packs ?? $consumable->quantity))/(1+($igv/100)), 2) }}" data-consumableValor readonly>
                                                     </div>
                                                 </div>
-                                                {{-- Precio Unitario --}}
+                                                --}}{{----}}{{-- Precio Unitario --}}{{----}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm" value="{{ round($consumable->total/($consumable->packs ?? $consumable->quantity), 2) }}" data-consumablePrice readonly>
                                                     </div>
                                                 </div>
-                                                {{-- Importe --}}
+                                                --}}{{----}}{{-- Importe --}}{{----}}{{--
                                                 <div class="col-md-2">
                                                     <div class="form-group">
                                                         <input type="number" class="form-control form-control-sm" value="{{ round($consumable->total, 2) }}" data-consumableImporte readonly>
@@ -325,22 +325,19 @@
                                                 <div class="col-md-1">
                                                     <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
                                                 </div>
-                                            </div>
-                                        @endforeach
-                                    @else
-                                        @foreach( $equipment->consumables as $consumable )
+                                            </div>--}}{{--
                                             <div class="row">
-                                                {{-- Descripcion --}}
+                                                --}}{{-- Descripcion --}}{{--
                                                 <div class="col-md-4">
                                                     <div class="form-group">
                                                         <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
 
-                                                        {{-- se leen por attr() --}}
+                                                        --}}{{-- se leen por attr() --}}{{--
                                                         <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
                                                         <input type="hidden" data-descuento="{{ $consumable->discount }}">
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
 
-                                                        {{-- presentación --}}
+                                                        --}}{{-- presentación --}}{{--
                                                         <input type="hidden" data-presentation_id="{{ $consumable->material_presentation_id }}">
                                                         <input type="hidden" data-units_per_pack="{{ $consumable->units_per_pack }}">
                                                         <input type="hidden" data-units_equivalent="{{ $consumable->quantity }}">
@@ -352,14 +349,14 @@
                                                         ? (($consumable->presentation->label ?? ($consumable->presentation->quantity.' und')))
                                                         : 'Unidad';
                                                 @endphp
-                                                {{-- Presentación --}}
+                                                --}}{{-- Presentación --}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <input type="text" class="form-control form-control-sm" value="{{ $presText }}" data-presentation_text readonly>
                                                     </div>
                                                 </div>
 
-                                                {{-- Unidad --}}
+                                                --}}{{-- Unidad --}}{{--
                                                 <div class="col-md-1">
                                                     <div class="form-group">
                                                         <div class="form-group">
@@ -368,31 +365,31 @@
                                                     </div>
                                                 </div>
 
-                                                {{-- Cantidad --}}
+                                                --}}{{-- Cantidad --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="{{ $consumable->material_presentation_id ? '1' : '0.01' }}" data-consumableQuantity oninput="calculateTotalC(this);" value="{{ $consumable->packs ?? round($consumable->quantity,2) }}">
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Valor Unitario --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumableValor data-consumable_valor_real="{{ $consumable->valor_unitario }}" value="{{ round($consumable->valor_unitario, 2) }}"  readonly>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Precio Unitario --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumablePrice data-consumable_price_real="{{ $consumable->price }}" value="{{ round($consumable->price, 2) }}"  readonly>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Importe --}}{{--
                                                 <div class="col-md-2">
                                                     <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="{{ $consumable->material_presentation_id ? '1' : '0.01' }}" data-consumableQuantity oninput="calculateTotalC(this);" value="{{ $consumable->packs ?? $consumable->quantity }}">
-                                                    </div>
-                                                </div>
-
-                                                {{-- Valor Unitario --}}
-                                                <div class="col-md-1">
-                                                    <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumableValor data-consumable_valor_real="{{ $consumable->valor_unitario }}" value="{{ round($consumable->valor_unitario, 2) }}" style="display: none" readonly>
-                                                    </div>
-                                                </div>
-
-                                                {{-- Precio Unitario --}}
-                                                <div class="col-md-1">
-                                                    <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumablePrice data-consumable_price_real="{{ $consumable->price }}" value="{{ round($consumable->price, 2) }}" style="display: none" readonly>
-                                                    </div>
-                                                </div>
-
-                                                {{-- Importe --}}
-                                                <div class="col-md-1">
-                                                    <div class="form-group">
-                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableTotal step="0.01" value="{{ round($consumable->total, 2) }}" style="display: none" readonly>
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableImporte step="0.01" value="{{ round($consumable->total, 2) }}" readonly>
                                                     </div>
                                                 </div>
 
@@ -401,7 +398,200 @@
                                                 </div>
                                             </div>
                                         @endforeach
-                                    @endcan
+                                    @else
+                                        @foreach( $equipment->consumables as $consumable )
+                                            <div class="row">
+                                                --}}{{-- Descripcion --}}{{--
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
+
+                                                        --}}{{-- se leen por attr() --}}{{--
+                                                        <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
+                                                        <input type="hidden" data-descuento="{{ $consumable->discount }}">
+                                                        <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
+
+                                                        --}}{{-- presentación --}}{{--
+                                                        <input type="hidden" data-presentation_id="{{ $consumable->material_presentation_id }}">
+                                                        <input type="hidden" data-units_per_pack="{{ $consumable->units_per_pack }}">
+                                                        <input type="hidden" data-units_equivalent="{{ $consumable->quantity }}">
+                                                    </div>
+                                                </div>
+
+                                                @php
+                                                    $presText = $consumable->presentation
+                                                        ? (($consumable->presentation->label ?? ($consumable->presentation->quantity.' und')))
+                                                        : 'Unidad';
+                                                @endphp
+                                                --}}{{-- Presentación --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="text" class="form-control form-control-sm" value="{{ $presText }}" data-presentation_text readonly>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Unidad --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <div class="form-group">
+                                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->unitMeasure->description }}" data-consumableUnit readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Cantidad --}}{{--
+                                                <div class="col-md-2">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="{{ $consumable->material_presentation_id ? '1' : '0.01' }}" data-consumableQuantity oninput="calculateTotalC(this);" value="{{ $consumable->packs ?? $consumable->quantity }}">
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Valor Unitario --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumableValor data-consumable_valor_real="{{ $consumable->valor_unitario }}" value="{{ round($consumable->valor_unitario, 2) }}" style="display: none" readonly>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Precio Unitario --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" step="0.01" data-consumablePrice data-consumable_price_real="{{ $consumable->price }}" value="{{ round($consumable->price, 2) }}" style="display: none" readonly>
+                                                    </div>
+                                                </div>
+
+                                                --}}{{-- Importe --}}{{--
+                                                <div class="col-md-1">
+                                                    <div class="form-group">
+                                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-consumableImporte step="0.01" value="{{ round($consumable->total, 2) }}" style="display: none" readonly>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-1">
+                                                    <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endcan--}}
+
+                                    @foreach($equipment->consumables as $consumable)
+                                        @php
+                                            $presText = $consumable->presentation
+                                                ? (($consumable->presentation->label ?? ($consumable->presentation->quantity.' und')))
+                                                : 'Unidad';
+
+                                            // Cantidad visible (packs si hay presentación, sino quantity)
+                                            $qtyView = round($consumable->packs ?? $consumable->quantity, 2);
+
+                                            // Reales (los que tu JS debe usar sí o sí)
+                                            $valorReal  = $consumable->valor_unitario; // sin IGV (real)
+                                            $priceReal  = $consumable->price;          // con IGV (real)
+                                            $importeReal = $consumable->total;         // total (real)
+                                        @endphp
+
+                                        <div class="row" data-consumableRow>
+
+                                            {{-- Descripción --}}
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm"
+                                                           value="{{ $consumable->material->full_description }}"
+                                                           data-consumableDescription
+                                                           {{ ($consumable->material->enable_status == 0) ? 'style=color:purple' : ( ($consumable->material->stock_current == 0) ? 'style=color:red' : ( ($consumable->material->state_update_price == 1) ? 'style=color:blue' : '' ) ) }}
+                                                           readonly>
+
+                                                    {{-- se leen por attr() --}}
+                                                    <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
+                                                    <input type="hidden" data-descuento="{{ $consumable->discount }}">
+                                                    <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
+
+                                                    {{-- presentación --}}
+                                                    <input type="hidden" data-presentation_id="{{ $consumable->material_presentation_id }}">
+                                                    <input type="hidden" data-units_per_pack="{{ $consumable->units_per_pack }}">
+                                                    <input type="hidden" data-units_equivalent="{{ $consumable->quantity }}">
+                                                    <input type="hidden" data-packs="{{ $consumable->packs }}">
+                                                </div>
+                                            </div>
+
+                                            {{-- Presentación --}}
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm"
+                                                           value="{{ $presText }}"
+                                                           data-presentation_text
+                                                           readonly>
+                                                </div>
+                                            </div>
+
+                                            {{-- Unidad --}}
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm"
+                                                           value="{{ $consumable->material->unitMeasure->description }}"
+                                                           data-consumableUnit
+                                                           readonly>
+                                                </div>
+                                            </div>
+
+                                            {{-- Cantidad --}}
+                                            <div class="col-md-1">
+                                                <div class="form-group">
+                                                    <input type="number"
+                                                           class="form-control form-control-sm"
+                                                           min="0"
+                                                           step="{{ $consumable->material_presentation_id ? '1' : '0.01' }}"
+                                                           data-consumableQuantity
+                                                           value="{{ $qtyView }}"
+                                                           oninput="calculateTotalC(this);">
+                                                </div>
+                                            </div>
+
+                                            {{-- Valor Unitario (siempre existe para JS) --}}
+                                            <div class="col-md-1" @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                <div class="form-group">
+                                                    <input type="number"
+                                                           class="form-control form-control-sm"
+                                                           data-consumableValor
+                                                           data-consumable_valor_real="{{ $valorReal }}"
+                                                           value="{{ round($valorReal, 2) }}"
+                                                           readonly>
+                                                </div>
+                                            </div>
+
+                                            {{-- Precio Unitario (siempre existe para JS) --}}
+                                            <div class="col-md-1" @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                <div class="form-group">
+                                                    <input type="number"
+                                                           class="form-control form-control-sm"
+                                                           data-consumablePrice
+                                                           data-consumable_price_real="{{ $priceReal }}"
+                                                           value="{{ round($priceReal, 2) }}"
+                                                           readonly>
+                                                </div>
+                                            </div>
+
+                                            {{-- Importe (siempre existe para JS) --}}
+                                            <div class="col-md-2" @cannot('showPrices_quote') style="display:none" @endcannot>
+                                                <div class="form-group">
+                                                    <input type="number"
+                                                           class="form-control form-control-sm"
+                                                           data-consumableImporte
+                                                           value="{{ round($importeReal, 2) }}"
+                                                           readonly>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-1">
+                                                <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+
+                                        </div>
+                                    @endforeach
 
                                 </div>
                             </div>

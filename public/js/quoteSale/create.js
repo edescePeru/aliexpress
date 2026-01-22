@@ -659,7 +659,7 @@ function saveEquipment() {
 
                     var servicesArray = servicesRead.array;
                     var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
-                    var servicesSumBillable = servicesRead.servicesSumBillable;
+                    var servicesSumBillable = servicesRead.sum_billable;
                     // ===========================
                     // 4) Totales (misma lógica que confirmEquipment)
                     // ===========================

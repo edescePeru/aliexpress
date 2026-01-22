@@ -351,6 +351,8 @@ function readConsumablesFromDom($card) {
             units_per_pack: unitsPerPack || null
         });
 
+        console.log(arr);
+
         // ✅ NO redondear item por item: suma directo y redondea al final
         sumImporte += (parseFloat(importe) || 0);
         sumPromoDiscount += (parseFloat(discount) || 0);
@@ -1003,6 +1005,8 @@ function saveEquipmentEdit() {
                     $card.find('[data-units_per_pack]').each(function(){ consumablesUnitsPerPack.push($(this).attr('data-units_per_pack') || null); });
                     $card.find('[data-units_equivalent]').each(function(){ consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent') || null); });
 
+                    console.log(consumablesPriceReal);
+
                     // Armamos array final de consumables (incluye reales)
                     const consumablesArray = [];
                     for (let i = 0; i < consumablesDescription.length; i++) {
@@ -1030,6 +1034,8 @@ function saveEquipmentEdit() {
                         });
                     }
 
+                    console.log(consumablesArray);
+
                     // ===========================
                     // 3) SERVICIOS ADICIONALES
                     // ===========================
@@ -1041,7 +1047,7 @@ function saveEquipmentEdit() {
 
                     const servicesArray = servicesRead.array;
                     const servicesSumAll = servicesRead.sum_all; // con IGV
-                    const servicesSumBillable = servicesRead.servicesSumBillable;
+                    const servicesSumBillable = servicesRead.sum_billable;
                     // ===========================
                     // 4) Totales con 10 dec (reales)
                     // ===========================
@@ -1055,6 +1061,13 @@ function saveEquipmentEdit() {
                         const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
                         subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + round10(qty * priceReal));
                     }
+
+                    console.log('DEBUG prices', consumablesArray.map(x => ({
+                        desc: x.description,
+                        qty: x.quantity,
+                        price: x.price,
+                        priceReal: x.priceReal
+                    })));
 
                     // promos por ítem (si ya no usan, será 0)
                     subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));

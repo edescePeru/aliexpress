@@ -2802,6 +2802,7 @@ class QuoteSaleController extends Controller
 
     public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote)
     {
+        //dd($request);
         $begin = microtime(true);
 
         $quote = Quote::findOrFail($id_quote);
