@@ -1324,7 +1324,7 @@
                             <span id="quantityKnobEgresos">0</span>
                         </div>
                         <div class="col-4 text-center">
-                            <div class="text-white">Utilidad</div>
+                            <div class="text-white">Neto</div>
                             <span id="quantityKnobUtilidad">0</span>
                         </div>
                     </div>
