@@ -698,6 +698,9 @@ $(document).ready(function () {
 
     $("#element_loader").LoadingOverlay("show", { background: "rgba(61, 215, 239, 0.4)" });
 
+    $selectContact = $('#contact_id');
+    getContacts();
+
     fillEquipments();
 
     // Carga consumables
@@ -806,7 +809,7 @@ $(document).ready(function () {
 
     $selectCustomer = $('#customer_id');
 
-    /*$selectCustomer.change(function () {
+    $selectCustomer.change(function () {
         $selectContact.empty();
         var customer = $selectCustomer.val();
         $.get("/dashboard/get/contact/" + customer, function (data) {
@@ -829,7 +832,7 @@ $(document).ready(function () {
             }
         });
 
-    });*/
+    });
 
     // Abrir modal al dar click en +
     $("#btn-add-customer").on("click", function() {
@@ -879,6 +882,30 @@ $(document).ready(function () {
 
 var $selectCustomer;
 var $selectContact;
+
+function getContacts() {
+    var customer =  $('#customer_quote_id').val();
+    $.get( "/dashboard/get/contact/"+customer, function( data ) {
+        $selectContact.append($("<option>", {
+            value: '',
+            text: ''
+        }));
+        for ( var i=0; i<data.length; i++ )
+        {
+            if (data[i].id === parseInt($('#contact_quote_id').val())) {
+                var newOption = new Option(data[i].contact, data[i].id, false, true);
+                // Append it to the select
+                $selectContact.append(newOption).trigger('change');
+
+            } else {
+                var newOption2 = new Option(data[i].contact, data[i].id, false, false);
+                // Append it to the select
+                $selectContact.append(newOption2);
+            }
+
+        }
+    });
+}
 
 /* =========================
    Save (Edit) - FIX 0.01
