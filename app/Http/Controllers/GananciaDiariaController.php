@@ -192,7 +192,7 @@ class GananciaDiariaController extends Controller
 
     public function getDataGanancias(Request $request, $pageNumber = 1)
     {
-        $perPage = 1;
+        $perPage = 10;
 
         $array = [];
         $pagination = [];
