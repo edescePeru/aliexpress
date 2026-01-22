@@ -767,6 +767,42 @@ $(document).ready(function () {
     });
 
     $(document).on('click', '[data-addConsumable]', addConsumable);
+
+    $(document).on("click", "#btn-guardar_datos_generales", function (e) {
+        e.preventDefault();
+
+        let data = {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            quote_id: $("#quote_id").val(),
+            descriptionQuote: $("#descriptionQuote").val(),
+            codeQuote: $("#codeQuote").val(),
+            date_quote: $("#date_quote").val(),
+            date_validate: $("#date_validate").val(),
+            way_to_pay: $("#paymentQuote").val(), // si lo usas
+            delivery_time: $("#timeQuote").val(),
+            customer_id: $("#customer_id").val(),
+            contact_id: $("#contact_id").val(),
+            payment_deadline: $("#paymentQuote").val(),
+            observations: $("#observations").val(),
+        };
+
+        $.ajax({
+            url: "/dashboard/quotes/update-general",
+            type: "POST",
+            data: data,
+            success: function (response) {
+                toastr.success(response.message);
+
+                // Cambiar card de vuelta a verde
+                $(".card.datos_generales")
+                    .removeClass("card-dark")
+                    .addClass("card-success");
+            },
+            error: function (xhr) {
+                toastr.error(xhr.responseJSON?.message || "Error al guardar cambios.");
+            }
+        });
+    });
 });
 
 /* =========================
