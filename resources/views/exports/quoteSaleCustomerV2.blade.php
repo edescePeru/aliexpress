@@ -131,7 +131,7 @@
 <table class="no-border">
     <tr class="no-border">
         <td class="no-border" style="width:60%; vertical-align:top; padding-right:10px;">
-            <img src="{{ asset('/images/logo/'.$logotipoEmpresa) }}" style="max-height:60px; margin-bottom:5px;">
+            <img src="{{ asset('/images/logo/'.$logotipoEmpresa) }}" style="max-height:90px; margin-bottom:5px;">
 
             <div class="title-empresa">{{ $nombreEmpresa }}</div>
             <div class="empresa-linea">{{ $direccionEmpresa }}</div>
@@ -332,7 +332,7 @@
 <div style="margin-top:8px;">
     <strong>OBSERVACIONES:</strong>
     <div style="margin-top:4px; font-size:10px; line-height:1.3;">
-        {!! nl2br(e(trim(strip_tags($quote->observations)))) !!}
+        {!! strip_tags($quote->observations, '<p><br>') !!}
     </div>
 </div>
 
