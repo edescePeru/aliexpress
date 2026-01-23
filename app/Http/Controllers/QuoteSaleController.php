@@ -2810,6 +2810,28 @@ class QuoteSaleController extends Controller
         DB::beginTransaction();
         try {
 
+            $dateQuote = $request->get('date_quote')
+                ? Carbon::createFromFormat('d/m/Y', $request->get('date_quote'))
+                : null;
+
+            $dateValidate = $request->get('date_validate')
+                ? Carbon::createFromFormat('d/m/Y', $request->get('date_validate'))
+                : null;
+
+            $quote->update([
+                'description_quote'   => $request->get('descriptionQuote'),
+                'code'                => $request->get('codeQuote'),
+                'date_quote'          => $dateQuote,
+                'date_validate'       => $dateValidate,
+                'way_to_pay'          => $request->get('way_to_pay') ?? '',
+                'delivery_time'       => $request->get('delivery_time') ?? '',
+                'customer_id'         => $request->get('customer_id') ?? null,
+                'contact_id'          => $request->get('contact_id') ?? null,
+                'payment_deadline_id' => $request->get('payment_deadline') ?? null,
+                'observations'        => $request->get('observations') ?? '',
+            ]);
+
+
             $equipment_quote = Equipment::where('id', $id_equipment)
                 ->where('quote_id', $quote->id)
                 ->firstOrFail();

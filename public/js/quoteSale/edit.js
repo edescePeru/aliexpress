@@ -1157,6 +1157,19 @@ function saveEquipmentEdit() {
                         url: '/dashboard/update/equipment/' + idEquipment2 + '/quote/sale/' + quoteId2,
                         method: 'POST',
                         data: JSON.stringify({
+
+                            quote_id: $("#quote_id").val(),
+                            descriptionQuote: $("#descriptionQuote").val(),
+                            codeQuote: $("#codeQuote").val(),
+                            date_quote: $("#date_quote").val(),
+                            date_validate: $("#date_validate").val(),
+                            way_to_pay: $("#paymentQuote").val(), // si lo usas
+                            delivery_time: $("#timeQuote").val(),
+                            customer_id: $("#customer_id").val(),
+                            contact_id: $("#contact_id").val(),
+                            payment_deadline: $("#paymentQuote").val(),
+                            observations: $("#observations").val(),
+
                             equipment: equipmentPayload,
 
                             // ✅ Totales quote en REAL (10 dec)

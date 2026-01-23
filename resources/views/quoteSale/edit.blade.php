@@ -92,9 +92,9 @@
                         <input type="hidden" id="customer_quote_id" value="{{ $quote->customer_id }}">
                         <input type="hidden" id="contact_quote_id" value="{{ $quote->contact_id }}">
                         <div class="card-tools">
-                            <a class="btn btn-primary btn-sm" data-quote="{{ $quote->id }}" data-toggle="tooltip" title="Guardar cambios" id="btn-guardar_datos_generales">
+                            {{--<a class="btn btn-primary btn-sm" data-quote="{{ $quote->id }}" data-toggle="tooltip" title="Guardar cambios" id="btn-guardar_datos_generales">
                                 <i class="fas fa-check-square"></i> Guardar cambios generales
-                            </a>
+                            </a>--}}
 
                             <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
                                 <i class="fas fa-minus"></i></button>
@@ -868,7 +868,7 @@
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <button class="btn btn-primary btn-block" id="btn-saveProducts" data-quote="{{ $quote->id }}" data-idEquipment="{{ $equipment->id }}">Guardar cambios en productos</button>
+                                <button class="btn btn-primary btn-block" id="btn-saveProducts" data-quote="{{ $quote->id }}" data-idEquipment="{{ $equipment->id }}">Guardar cambios en la cotización</button>
                             </div>
                         </div>
                     </div>

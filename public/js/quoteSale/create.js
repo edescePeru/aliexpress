@@ -500,7 +500,7 @@ function addService() {
     $card.find('.unitMeasure').val(null).trigger('change');
 }
 
-function saveEquipment() {
+/*function saveEquipment() {
     var button = $(this);
 
     $.confirm({
@@ -748,6 +748,216 @@ function saveEquipment() {
 
                     // UI
                     markEquipClean(card);
+                    $items = [];
+                    $.alert("Productos guardados!");
+                }
+            },
+            cancel: {
+                text: 'CANCELAR',
+                action: function () {
+                    $.alert("Modificación cancelada.");
+                }
+            }
+        }
+    });
+}*/
+function saveEquipment() {
+    var $btn = $(this);
+
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'orange',
+        title: 'Guardar cambios',
+        content: '¿Está seguro de guardar los cambios en los productos?',
+        buttons: {
+            confirm: {
+                text: 'CONFIRMAR',
+                action: function () {
+
+                    // ===========================
+                    // 0) Anclar al CARD del equipo (robusto)
+                    // ===========================
+                    var $card = $btn.closest('[data-equip]');
+
+                    // ===========================
+                    // 1) Identificar equipo existente
+                    // ===========================
+                    var equipmentId = parseInt($btn.data('saveequipment'));
+
+                    // Eliminamos el registro previo del mismo equipo
+                    $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
+
+                    var quantity = 1;
+
+                    // ===========================
+                    // 2) Datos generales del equipo
+                    // ===========================
+                    var utility = $card.find('[data-utilityEquipment]').val() || 0;
+                    var rent    = $card.find('[data-rentEquipment]').val() || 0;
+
+                    // OJO: tienes 2 inputs con data-letterEquipment (uno es igv con id="igv")
+                    // Tomamos el primero como letter real.
+                    var letter  = $card.find('[data-letterEquipment]').first().val() || 0;
+
+                    var detail  = $card.find('[data-detailequipment]').val() || "";
+
+                    // IGV: desde input #igv si existe, sino variable global
+                    const igvPct = parseFloat($card.find('#igv').val() || (typeof $igv !== 'undefined' ? $igv : 18)) || 18;
+                    const factor = getFactor(igvPct);
+
+                    // ===========================
+                    // 3) CONSUMABLES (productos) - leer por fila
+                    // ===========================
+                    var $consContainer = $card.find('[data-bodyConsumable]').first();
+
+                    var consumablesArray = [];
+                    var descuentoPromos = 0;
+
+                    $consContainer.find('[data-consumableRow]').each(function () {
+                        var $row = $(this);
+
+                        var discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
+                        descuentoPromos += discount;
+
+                        var qty = $row.find('[data-consumableQuantity]').val();
+                        var unitsEq = $row.find('[data-units_equivalent]').attr('data-units_equivalent') || qty;
+
+                        consumablesArray.push({
+                            id: $row.find('[data-consumableid]').attr('data-consumableid'),
+                            description: $row.find('[data-consumableDescription]').val() || '',
+                            unit: $row.find('[data-consumableUnit]').val() || '',
+
+                            // ✅ quantity = packs/unidades según presentación
+                            quantity: qty,
+
+                            // solo inventario (NO SUNAT)
+                            units_equivalent: unitsEq,
+
+                            valor: $row.find('[data-consumableValor]').val() || 0,
+                            valorReal: $row.find('[data-consumableValor]').attr('data-consumable_valor_real')
+                                ?? $row.find('[data-consumableValor]').val()
+                                ?? 0,
+
+                            price: $row.find('[data-consumablePrice]').val() || 0,
+                            priceReal: $row.find('[data-consumablePrice]').attr('data-consumable_price_real')
+                                ?? $row.find('[data-consumablePrice]').val()
+                                ?? 0,
+
+                            importe: $row.find('[data-consumableImporte]').val() || 0,
+
+                            discount: discount,
+                            type_promo: $row.find('[data-type_promotion]').attr('data-type_promotion') || null,
+
+                            presentation_id: $row.find('[data-presentation_id]').attr('data-presentation_id') || null,
+                            units_per_pack: $row.find('[data-units_per_pack]').attr('data-units_per_pack') || null
+                        });
+                    });
+
+                    // ===========================
+                    // 4) SERVICIOS ADICIONALES
+                    // ===========================
+                    var servicesContainer = $card.find('[data-bodyService]').first();
+
+                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                    if (servicesContainer.length > 0) {
+                        servicesRead = readServicesFromDom(servicesContainer);
+                    }
+
+                    var servicesArray = servicesRead.array;
+                    var servicesSumAll = servicesRead.sum_all; // con IGV
+                    var servicesSumBillable = servicesRead.sum_billable;
+
+                    // ===========================
+                    // 5) Totales (misma lógica que confirmEquipment)
+                    // ===========================
+                    let subtotalConsumablesWithIgvReal = 0;
+
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        const qty = Number(consumablesArray[i].quantity) || 0;
+                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+
+                        const lineWithIgvReal = round10(qty * priceReal);
+                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
+                    }
+
+                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
+                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
+
+                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
+                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
+
+                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+
+                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
+                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
+
+                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
+                    if (baseFinalReal < 0) baseFinalReal = 0;
+
+                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
+                    const discountBaseReal = round10(discountWithIgvReal / factor);
+
+                    // ===========================
+                    // 6) UI (2 decimales) + data reales
+                    // ===========================
+                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
+                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
+                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
+                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
+
+                    $('#descuento').attr('data-descuento_real', discountBaseReal);
+                    $('#gravada').attr('data-gravada_real', baseFinalReal);
+                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
+                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
+
+                    // ===========================
+                    // 7) Guardar en memoria ($equipments)
+                    // ===========================
+                    // Mantén el id en el botón guardar
+                    $btn.attr('data-saveEquipment', equipmentId);
+
+                    // Si tienes botón eliminar, setéalo dentro del mismo card (SIN next())
+                    $card.find('[data-deleteEquipment]').attr('data-deleteEquipment', equipmentId);
+
+                    const discountGlobalMeta = {
+                        subtotal_with_igv: subtotalWithIgvReal,
+                        discount_with_igv: discountWithIgvReal,
+                        discount_base: discountBaseReal,
+                        igv_pct: igvPct,
+                        factor: factor
+                    };
+
+                    $equipments.push({
+                        id: equipmentId,
+                        quantity: quantity,
+                        utility: utility,
+                        rent: rent,
+                        letter: letter,
+
+                        total: totalFinalWithIgvReal, // real con IGV
+
+                        description: "",
+                        detail: detail,
+
+                        materials: [],
+                        consumables: consumablesArray,
+                        electrics: [],
+                        workforces: servicesArray,
+
+                        discount_global: {
+                            base: discountBaseReal,
+                            meta: discountGlobalMeta
+                        },
+
+                        tornos: [],
+                        dias: []
+                    });
+
+                    // UI
+                    markEquipClean($card);
                     $items = [];
                     $.alert("Productos guardados!");
                 }
@@ -1200,7 +1410,7 @@ const moneyRound = (n) => Math.round((Number(n) || 0) * 100) / 100;
 // factor IGV: 1.18 (o el que toque)
 const getFactor = (igvPct) => 1 + ((Number(igvPct) || 0) / 100);
 
-function confirmEquipment() {
+/*function confirmEquipment() {
     var button = $(this);
 
     $.confirm({
@@ -1449,6 +1659,218 @@ function confirmEquipment() {
 
                     // UI
                     card.removeClass('card-gray-dark').addClass('card-success');
+
+                    $items = [];
+                    $.alert("Productos confirmados!");
+                }
+            },
+            cancel: {
+                text: 'CANCELAR',
+                action: function () {
+                    $equipmentStatus = false;
+                    $.alert("Confirmación cancelada.");
+                }
+            }
+        }
+    });
+}*/
+function confirmEquipment() {
+    var $btn = $(this);
+
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'green',
+        title: 'Confirmar Productos',
+        content: 'Debe confirmar para almacenar los productos en memoria',
+        buttons: {
+            confirm: {
+                text: 'CONFIRMAR',
+                action: function () {
+
+                    // ===========================
+                    // 0) Anclar al CARD del equipo (robusto)
+                    // ===========================
+                    var $card = $btn.closest('[data-equip]');
+
+                    // ===========================
+                    // UI: bloquear/mostrar botones (SIN next())
+                    // ===========================
+                    $card.find('[data-confirm]').hide();
+                    $card.find('[data-saveEquipment]').show();
+                    $card.find('[data-deleteEquipment]').show(); // si existe
+
+                    var quantity = 1;
+
+                    // ===========================
+                    // 1) Datos generales del equipo
+                    // ===========================
+                    var utility = $card.find('[data-utilityEquipment]').val() || 0;
+                    var rent    = $card.find('[data-rentEquipment]').val() || 0;
+
+                    // OJO: tienes 2 inputs con data-letterEquipment (uno es igv con id="igv")
+                    // Tomamos el primero como letter real.
+                    var letter  = $card.find('[data-letterEquipment]').first().val() || 0;
+
+                    var detail  = $card.find('[data-detailequipment]').val() || "";
+
+                    // IGV: desde input #igv si existe, sino variable global
+                    var igvPct = parseFloat($card.find('#igv').val() || (typeof $igv !== 'undefined' ? $igv : 18)) || 18;
+                    var factor = getFactor(igvPct);
+
+                    // ===========================
+                    // 2) CONSUMABLES (productos) - leer por fila
+                    // ===========================
+                    var $consContainer = $card.find('[data-bodyConsumable]').first();
+
+                    var consumablesArray = [];
+                    var descuentoPromos = 0;
+
+                    $consContainer.find('[data-consumableRow]').each(function () {
+                        var $row = $(this);
+
+                        var discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
+                        descuentoPromos += discount;
+
+                        var qty = $row.find('[data-consumableQuantity]').val();
+                        var unitsEq = $row.find('[data-units_equivalent]').attr('data-units_equivalent') || qty;
+
+                        consumablesArray.push({
+                            id: $row.find('[data-consumableid]').attr('data-consumableid'),
+                            description: $row.find('[data-consumableDescription]').val() || '',
+                            unit: $row.find('[data-consumableUnit]').val() || '',
+
+                            // ✅ quantity = packs o unidades según presentación
+                            quantity: qty,
+
+                            // solo para inventario
+                            units_equivalent: unitsEq,
+
+                            valor: $row.find('[data-consumableValor]').val() || 0,
+                            valorReal: $row.find('[data-consumableValor]').attr('data-consumable_valor_real')
+                                ?? $row.find('[data-consumableValor]').val()
+                                ?? 0,
+
+                            price: $row.find('[data-consumablePrice]').val() || 0,
+                            priceReal: $row.find('[data-consumablePrice]').attr('data-consumable_price_real')
+                                ?? $row.find('[data-consumablePrice]').val()
+                                ?? 0,
+
+                            importe: $row.find('[data-consumableImporte]').val() || 0,
+
+                            discount: discount,
+                            type_promo: $row.find('[data-type_promotion]').attr('data-type_promotion') || null,
+
+                            presentation_id: $row.find('[data-presentation_id]').attr('data-presentation_id') || null,
+                            units_per_pack: $row.find('[data-units_per_pack]').attr('data-units_per_pack') || null
+                        });
+                    });
+
+                    // ===========================
+                    // 3) SERVICIOS ADICIONALES
+                    // ===========================
+                    var servicesContainer = $card.find('[data-bodyService]').first();
+
+                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                    if (servicesContainer.length > 0) {
+                        servicesRead = readServicesFromDom(servicesContainer);
+                    }
+
+                    var servicesArray = servicesRead.array;
+                    var servicesSumAll = servicesRead.sum_all;
+                    var servicesSumBillable = servicesRead.sum_billable;
+
+                    // ===========================
+                    // 4) SUBTOTAL con IGV (antes de descuento global)
+                    // ===========================
+                    let subtotalConsumablesWithIgvReal = 0;
+
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        const qty = Number(consumablesArray[i].quantity) || 0;
+
+                        // ✅ Prioriza priceReal; si falta, usa price
+                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+
+                        const lineWithIgvReal = round10(qty * priceReal);
+                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
+                    }
+
+                    // promos (si existen)
+                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
+                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
+
+                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
+                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
+
+                    // ===========================
+                    // 5) DESCUENTO GLOBAL (tu función devuelve con IGV)
+                    // ===========================
+                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+
+                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
+                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
+
+                    // ===========================
+                    // 6) BASE, IGV (SIN TRUNCAR)
+                    // ===========================
+                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
+                    if (baseFinalReal < 0) baseFinalReal = 0;
+
+                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
+                    const discountBaseReal = round10(discountWithIgvReal / factor);
+
+                    // ===========================
+                    // 7) UI (2 decimales) + data reales
+                    // ===========================
+                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
+                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
+                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
+                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
+
+                    $('#descuento').attr('data-descuento_real', discountBaseReal);
+                    $('#gravada').attr('data-gravada_real', baseFinalReal);
+                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
+                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
+
+                    // ===========================
+                    // 8) Guardar en memoria ($equipments)
+                    // ===========================
+                    // Guardamos índice en el botón de guardar dentro del card
+                    $card.find('[data-saveEquipment]').attr('data-saveEquipment', $equipments.length);
+
+                    const discountGlobalMeta = {
+                        subtotal_with_igv: subtotalWithIgvReal,
+                        discount_with_igv: discountWithIgvReal,
+                        discount_base: discountBaseReal,
+                        igv_pct: igvPct,
+                        factor: factor
+                    };
+
+                    $equipments.push({
+                        id: $equipments.length,
+                        quantity: quantity,
+                        utility: utility,
+                        rent: rent,
+                        letter: letter,
+                        total: totalFinalWithIgvReal,
+                        description: "",
+                        detail: detail,
+                        materials: [],
+                        consumables: consumablesArray,
+                        electrics: [],
+                        workforces: servicesArray,
+                        discount_global: {
+                            base: discountBaseReal,
+                            meta: discountGlobalMeta
+                        },
+                        tornos: [],
+                        dias: []
+                    });
+
+                    // UI (colores)
+                    $card.removeClass('card-gray-dark').addClass('card-success');
 
                     $items = [];
                     $.alert("Productos confirmados!");

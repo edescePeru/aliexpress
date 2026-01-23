@@ -175,17 +175,10 @@
                         <h3 class="card-title">COTIZACIÓN</h3>
 
                         <div class="card-tools">
-                            <a data-confirm class="btn btn-primary btn-sm" data-toggle="tooltip" title="Confirmar" style="">
-                                <i class="fas fa-check-square"></i> Confirmar cotización
-                            </a>
-                            <a class="btn btn-warning btn-sm" data-saveEquipment="" style="display:none" data-toggle="tooltip" title="Guardar cambios">
-                                <i class="fas fa-check-square"></i> Guardar cambios
-                            </a>
 
                             <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            {{--<button type="button" class="btn btn-tool" data-card-widget="remove"><i class="fas fa-times"></i></button>--}}
                         </div>
                     </div>
                     <div class="card-body">
@@ -476,6 +469,12 @@
                             </div>
                         </div>
 
+                        <button type="button" data-confirm class="btn btn-outline-primary float-right" title="Confirmar" style="">
+                            <i class="fas fa-check-square"></i> Confirmar cotización
+                        </button>
+                        <button type="button" class="btn btn-outline-warning float-right" data-saveEquipment="" style="display:none" title="Guardar cambios">
+                            <i class="fas fa-check-square"></i> Guardar cambios
+                        </button>
                     </div>
                     <!-- /.card-body -->
                 </div>
