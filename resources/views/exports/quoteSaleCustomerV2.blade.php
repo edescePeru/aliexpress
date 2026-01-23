@@ -332,7 +332,10 @@
 <div style="margin-top:8px;">
     <strong>OBSERVACIONES:</strong>
     <div style="margin-top:4px; font-size:10px; line-height:1.3;">
-        {!! strip_tags($quote->observations, '<p><br>') !!}
+        {!! strip_tags(
+            $quote->observations,
+            '<p><br><ul><ol><li><strong><b><em><i>'
+        ) !!}
     </div>
 </div>
 
