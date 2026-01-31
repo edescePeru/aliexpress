@@ -261,7 +261,7 @@
                     </li>
                     @endcan
 
-                    @can('enable_caja')
+                    {{--@can('enable_caja')
                     <li class="nav-header">CAJA</li>
                     <li class="nav-item has-treeview @yield('openCashRegister')">
                         <a href="#" class="nav-link @yield('activeCashRegister')">
@@ -306,6 +306,33 @@
                             @endcan
                         </ul>
                     </li>
+                    @endcan--}}
+
+                    @can('enable_caja')
+                        <li class="nav-header">CAJA</li>
+
+                        @can('listCashMovementMy_cashBox')
+                        <li class="nav-item">
+                            <a href="{{ route('cashMovement.my.index') }}"
+                               class="nav-link @yield('activeMyCashMovements')">
+                                <i class="nav-icon fas fa-cash-register"></i>
+                                <p>MIS MOVIMIENTOS DE CAJA</p>
+                            </a>
+                        </li>
+                        @endcan
+                    @endcan
+
+                    @can('enableAdmin_caja')
+                        <li class="nav-header">CAJA (ADMIN)</li>
+                        @can('listCashMovementAdmin_cashBox')
+                        <li class="nav-item">
+                            <a href="{{ route('cashMovement.admin.index') }}"
+                               class="nav-link @yield('activeAdminCashMovements')">
+                                <i class="nav-icon fas fa-clipboard-list"></i>
+                                <p>MOVIMIENTOS DE CAJA</p>
+                            </a>
+                        </li>
+                        @endcan
                     @endcan
 
                     @can('enable_gananciaDiaria')
@@ -495,7 +522,29 @@
                                     </a>
                                 </li>
                             @endcan
+
+                            {{-- NUEVO: Cajas --}}
+                            @can('list_cashBox')
+                                <li class="nav-item">
+                                    <a href="{{ route('cashBox.index') }}" class="nav-link @yield('activeCashBox')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Cajas</p>
+                                    </a>
+                                </li>
+                            @endcan
+
+                            {{-- NUEVO: Subtipos --}}
+                            @can('list_cashBoxSubtype')
+                                <li class="nav-item">
+                                    <a href="{{ route('cashBoxSubtype.index') }}" class="nav-link @yield('activeCashBoxSubtype')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Subtipos bancarios</p>
+                                    </a>
+                                </li>
+                            @endcan
+
                         </ul>
+
                     </li>
                     @endcan
                     @canany('list_customer', 'list_contactName', 'list_supplier')

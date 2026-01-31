@@ -11,3 +11,47 @@ php artisan db:seed --class=TipoPagoSeeder
 php artisan db:seed --class=MaterialsFromExcelSeeder
 php artisan db:seed --class=WorkforceSeeder
 php artisan db:seed --class=BankSeeder
+
+php artisan db:seed --class=CashBoxesSeeder
+
+-- Todo lo Efectivo -> CashBox 1
+UPDATE cash_registers
+SET cash_box_id = 1
+WHERE cash_box_id IS NULL
+  AND type = 'efectivo';
+
+-- Todo lo bancario (incluye yape/plin) -> CashBox 2
+UPDATE cash_registers
+SET cash_box_id = 2
+WHERE cash_box_id IS NULL
+  AND type IN ('bancario', 'yape', 'plin', 'pos', 'transfer');
+
+-- Todo lo 'yape','plin','pos','transfer' a bancario
+UPDATE cash_registers
+  SET type = 'bancario'
+  WHERE type IN ('yape','plin','pos','transfer');
+
+-- Todo Ventas por Yape → cash_box_id = 2
+  UPDATE cash_movements cm
+  JOIN cash_registers cr ON cr.id = cm.cash_register_id
+  SET cm.cash_box_subtype_id = 1
+  WHERE cm.type = 'sale'
+    AND cm.cash_box_subtype_id IS NULL
+    AND cr.cash_box_id = 2
+    AND LOWER(cm.description) LIKE '%yape%';
+
+-- Todo Ventas “bancario” → POS (id 3)
+UPDATE cash_movements cm
+JOIN cash_registers cr ON cr.id = cm.cash_register_id
+SET cm.cash_box_subtype_id = 3
+WHERE cm.type = 'sale'
+  AND cm.cash_box_subtype_id IS NULL
+  AND cr.cash_box_id = 2
+  AND LOWER(cm.description) LIKE '%bancario%';
+
+-- Todo Ventas en efectivo → subtype NULL
+UPDATE cash_movements cm
+JOIN cash_registers cr ON cr.id = cm.cash_register_id
+SET cm.cash_box_subtype_id = NULL
+WHERE cm.type = 'sale'
+  AND cr.cash_box_id = 1;

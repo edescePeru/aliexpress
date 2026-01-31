@@ -107,7 +107,10 @@ class RoleController extends Controller
         'caja' => 'CAJA',
         'gananciaDiaria' => 'GANANCIA DIARIA',
         'metas' => 'METAS',
-        'promotions' => 'PROMOCIONES'
+        'promotions' => 'PROMOCIONES',
+
+        'cashBox' => 'CASH BOXES',
+        'cashBoxSubtype' => 'CASH BOXES SUBTIPOS'
     ];
 
     public function index()

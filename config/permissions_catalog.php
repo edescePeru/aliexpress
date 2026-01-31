@@ -456,4 +456,24 @@ return [
     'watch_entryPurchase' => 'Ver detalle de Ent. Compra',
     'watch_orderService' => 'Ver módulo orden de servicios',
     'workingDay_assistance' => 'Mod. Jornadas de Trabajo',
+
+    'enable_cashBox' => 'Habilitar Cajas de Efectivo',
+    'list_cashBox' => 'Listar Cajas de Efectivo',
+    'create_cashBox' => 'Crear Cajas de Efectivo',
+    'edit_cashBox' => 'Editar Cajas de Efectivo',
+    'delete_cashBox' => 'Eliminar Cajas de Efectivo',
+    'disable_cashBox' => 'Deshabilitar Cajas de Efectivo',
+
+    'enable_cashBoxSubtype' => 'Habilitar Subtipos de Cajas',
+    'list_cashBoxSubtype' => 'Listar Subtipos de Cajas',
+    'create_cashBoxSubtype' => 'Crear Subtipos de Cajas',
+    'edit_cashBoxSubtype' => 'Editar Subtipos de Cajas',
+    'delete_cashBoxSubtype' => 'Eliminar Subtipos de Cajas',
+    'disable_cashBoxSubtype' => 'Deshabilitar Subtipos de Cajas',
+
+    'listCashMovementMy_cashBox' => 'Listar mis movimientos de Cajas de efectivo',
+    'listCashMovementAdmin_cashBox' => 'Listar movimientos admin de Cajas de efectivo',
+
+    'enableAdmin_caja' => 'Habilitar Caja Administrador',
+    'regularize_caja' => 'Regularizar movimientos de caja'
 ];

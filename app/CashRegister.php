@@ -17,7 +17,8 @@ class CashRegister extends Model
         'closing_time',
         'type',
         'status',
-        'user_id'
+        'user_id',
+        'cash_box_id'
     ];
 
     protected $dates = ['created_at', 'updated_at'];
@@ -30,5 +31,10 @@ class CashRegister extends Model
     public function movements()
     {
         return $this->hasMany('App\CashMovement');
+    }
+
+    public function cashBox()
+    {
+        return $this->belongsTo(CashBox::class);
     }
 }
