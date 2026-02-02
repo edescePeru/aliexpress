@@ -8,6 +8,7 @@ use App\CashMovement;
 use App\CashRegister;
 use App\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CashBoxController extends Controller
 {
@@ -230,8 +231,10 @@ class CashBoxController extends Controller
         // si ya pasabas subtypes, lo mantienes
         $subtypes  = CashBoxSubtype::where('is_active', 1)->orderBy('position')->orderBy('name')->get();
 
+        $permissions = Auth::user()->getPermissionsViaRoles()->pluck('name')->toArray();
+
         //return view('cashMovement.my_index', compact('cashBoxes', 'subtypes', 'openCashBoxIds'));
-        return view('cashBox.my_index', compact('cashBoxes', 'subtypes', 'openCashBoxIds'));
+        return view('cashBox.my_index', compact('permissions','cashBoxes', 'subtypes', 'openCashBoxIds'));
     }
 
     public function myList(Request $request)
@@ -248,8 +251,9 @@ class CashBoxController extends Controller
         $cashBoxes = CashBox::where('is_active', true)->orderBy('type')->orderBy('name')->get();
         $subtypes  = CashBoxSubtype::orderBy('position')->orderBy('name')->get();
         $users     = User::orderBy('name')->get();
+        $permissions = Auth::user()->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        return view('cashBox.admin_index', compact('cashBoxes', 'subtypes', 'users'));
+        return view('cashBox.admin_index', compact('permissions','cashBoxes', 'subtypes', 'users'));
     }
 
     public function adminList(Request $request)
@@ -288,6 +292,11 @@ class CashBoxController extends Controller
                 'cash_movements.description',
                 'cash_movements.sale_id',
                 'cash_movements.created_at',
+                'cash_movements.sale_id',
+                'cash_movements.observation',
+                'cash_movements.amount_regularize',
+                'cash_movements.commission',
+                'cash_movements.regularize',
 
                 'cash_registers.id as cash_register_id',
                 'cash_registers.user_id as register_user_id',
@@ -356,8 +365,37 @@ class CashBoxController extends Controller
 
         $paginator = $query->paginate($perPage);
 
+        $items = collect($paginator->items())->map(function ($row) {
+            return [
+                'id' => $row->id,
+                'type_raw' => $row->type,                 // ✅ útil para UI
+                'type' => $row->type,
+                'regularize' => (int)$row->regularize,    // ✅ 0/1
+
+                'amount' => $row->amount,
+                'amount_regularize' => $row->amount_regularize,
+                'commission' => $row->commission,
+
+                'description' => $row->description,
+                'observation' => $row->observation,
+
+                'sale_id' => $row->sale_id,
+                'created_at' => $row->created_at->format('d/m/Y h:i A'),
+
+                'cash_box_id' => $row->register_cash_box_id,
+                'cash_box_name' => $row->cash_box_name,
+                'cash_box_type' => $row->cash_box_type,
+                'cash_box_label' => $row->cash_box_name, // ✅ alias
+
+                'subtype_name' => $row->subtype_name,
+                'subtype_code' => $row->subtype_code,
+
+                'user_name' => $row->user_name,
+            ];
+        })->values();
+
         return response()->json([
-            'data' => $paginator->items(),
+            'data' => $items,
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page'    => $paginator->lastPage(),

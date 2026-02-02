@@ -5,7 +5,22 @@
     const $pagination = $('#pagination');
     const $textPagination = $('#textPagination');
 
+    // Permisos
+    let permissions = [];
+    try { permissions = JSON.parse($('#permissions').val() || '[]'); } catch (e) { permissions = []; }
+    const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
+
     let currentPage = 1;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
     function renderPagination(meta) {
         $pagination.html('');
@@ -52,11 +67,79 @@
         $pagination.append(make(Math.min(last, current + 1), '»', false, current === last));
     }
 
-    function formatType(t) {
-        if (t === 'sale') return 'Venta';
-        if (t === 'income') return 'Ingreso';
-        if (t === 'expense') return 'Egreso';
-        return t || '-';
+    function formatTypeLabel(typeRaw, regularize) {
+        if ((regularize === 0 || regularize === '0') && (typeRaw === 'sale' || typeRaw === 'income')) return 'Regularizar';
+        if (typeRaw === 'sale') return 'Venta';
+        if (typeRaw === 'income') return 'Ingreso';
+        if (typeRaw === 'expense') return 'Egreso';
+        return typeRaw || '-';
+    }
+
+    function renderButtons(data) {
+        const wrapper = document.createElement('div');
+
+        const tpl = document.querySelector('#template-button');
+        const cloneBtn2 = tpl.content.cloneNode(true);
+
+        // Print solo si hay sale_id
+        const printBtn = cloneBtn2.querySelector('[data-print_nota]');
+        if (data.sale_id != null) {
+            let url = document.location.origin + '/dashboard/imprimir/documento/venta/' + data.sale_id;
+            printBtn.setAttribute('href', url);
+            printBtn.setAttribute('data-id', data.id);
+        } else {
+            printBtn.style.display = 'none';
+        }
+
+        // Regularizar solo si permitido y pendiente y sale/income
+        const regBtn = cloneBtn2.querySelector('[data-regularizar]');
+        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const typeRaw = data.type_raw || data.type;
+        const canBeRegularized = (typeRaw === 'sale' || typeRaw === 'income');
+
+        if (canRegularize && isPending && canBeRegularized) {
+            regBtn.setAttribute('data-id', data.id);
+        } else {
+            regBtn.style.display = 'none';
+        }
+
+        wrapper.appendChild(cloneBtn2);
+        return wrapper;
+    }
+
+    function renderRow(data) {
+        const row = document.querySelector('#item-table').content.cloneNode(true);
+
+        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const typeRaw = data.type_raw || data.type;
+
+        row.querySelector('[data-id]').textContent = data.id;
+        row.querySelector('[data-user]').textContent = data.user_name || '-';
+        row.querySelector('[data-cashbox]').textContent = data.cash_box_name || '-';
+        row.querySelector('[data-type]').textContent = formatTypeLabel(typeRaw, data.regularize);
+        row.querySelector('[data-subtype]').textContent = data.subtype_name || '-';
+
+        row.querySelector('[data-status]').innerHTML = isPending
+            ? '<span class="badge badge-warning">Pendiente</span>'
+            : '<span class="badge badge-success">Confirmado</span>';
+
+        row.querySelector('[data-date]').textContent = data.created_at || '-';
+        row.querySelector('[data-amount]').textContent = data.amount != null ? data.amount : '0.00';
+        row.querySelector('[data-amount_regularize]').textContent = data.amount_regularize != null ? data.amount_regularize : '-';
+        row.querySelector('[data-commission]').textContent = data.commission != null ? data.commission : '-';
+
+        let desc = data.description || '-';
+        if (data.observation) desc += ' | ' + data.observation;
+        row.querySelector('[data-description]').innerHTML = escapeHtml(desc);
+
+        const btnCell = row.querySelector('[data-buttons]');
+        btnCell.innerHTML = '';
+        btnCell.appendChild(renderButtons(data));
+
+        const tr = row.querySelector('tr');
+        if (tr && isPending) tr.classList.add('regularize-row');
+
+        return row;
     }
 
     function fetchList(page = 1) {
@@ -90,18 +173,9 @@
                     return;
                 }
 
-                items.forEach(it => {
-                    const row = document.querySelector('#item-table').content.cloneNode(true);
-                    row.querySelector('[data-date]').textContent = it.created_at;
-                    row.querySelector('[data-user]').textContent = it.user_name || '-';
-                    row.querySelector('[data-cashbox]').textContent = it.cash_box_name || '-';
-                    row.querySelector('[data-type]').textContent = formatType(it.type);
-                    row.querySelector('[data-subtype]').textContent = it.subtype_name || '-';
-                    row.querySelector('[data-desc]').textContent = it.description || '-';
-                    row.querySelector('[data-amount]').textContent = it.amount;
+                items.forEach(it => $bodyTable.append(renderRow(it)));
 
-                    $bodyTable.append(row);
-                });
+                $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({ selector: '[data-toggle="tooltip"]' });
 
                 renderPagination(meta);
             },
@@ -112,10 +186,12 @@
         });
     }
 
+    // filtros
     $(document).on('click', '#btn-search', function () { fetchList(1); });
     $(document).on('keydown', '#q', function (e) { if (e.key === 'Enter') fetchList(1); });
     $(document).on('change', '#user_id,#cash_box_id,#type,#subtype_id,#date_from,#date_to', function () { fetchList(1); });
 
+    // paginación
     $(document).on('click', '#pagination a.page-link', function (e) {
         e.preventDefault();
         const p = parseInt(this.dataset.page || '1', 10);

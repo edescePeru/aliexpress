@@ -6,6 +6,22 @@
 
 @section('title') Mis Movimientos de Caja @endsection
 
+@section('styles')
+    <style>
+        .income-row {
+            background-color: #d4edda; /* Verde claro */
+        }
+
+        .expense-row {
+            background-color: #f8d7da; /* Rojo claro */
+        }
+
+        .regularize-row {
+            background-color: #f4c3a1; /* Verde claro */
+        }
+    </style>
+@endsection
+
 @section('page-header')
     <h1 class="page-title">Mis Movimientos de Caja</h1>
 @endsection
@@ -53,6 +69,7 @@
 @endsection
 
 @section('content')
+    <input type="hidden" id="permissions" value="{{ json_encode($permissions ?? []) }}">
 
     <form onsubmit="return false;">
         <div class="row">
@@ -116,12 +133,17 @@
         <table class="table table-bordered letraTabla table-hover table-sm mb-2">
             <thead>
             <tr class="normal-title">
+                <th>N°</th>
                 <th>Fecha</th>
-                <th>Caja</th>
+                <th>Caja</th>        <!-- ✅ nueva -->
                 <th>Tipo</th>
                 <th>Subtipo</th>
-                <th>Descripción</th>
+                <th>Estado</th>
                 <th>Monto</th>
+                <th>Abonado</th>
+                <th>Comisión</th>
+                <th>Descripción</th>
+                <th>Acciones</th>
             </tr>
             </thead>
             <tbody id="body-table"></tbody>
@@ -135,19 +157,35 @@
 
     <template id="item-table">
         <tr>
+            <td data-id></td>
             <td data-date></td>
             <td data-cashbox></td>
             <td data-type></td>
             <td data-subtype></td>
-            <td data-desc></td>
+            <td data-status></td>
             <td data-amount class="text-right"></td>
+            <td data-amount_regularize class="text-right"></td>
+            <td data-commission class="text-right"></td>
+            <td data-desc></td>
+            <td data-buttons></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="6" align="center">No se encontraron movimientos</td>
+            <td colspan="10" align="center">No se encontraron movimientos</td>
         </tr>
+    </template>
+
+    <template id="template-button">
+        <a href="" target="_blank" data-print_nota data-id=""
+           class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir">
+            <i class="fas fa-print"></i>
+        </a>
+        <button data-regularizar data-id=""
+                class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Regularizar">
+            <i class="fas fa-check-double"></i>
+        </button>
     </template>
 
 @endsection

@@ -6,7 +6,26 @@
     const $textPagination = $('#textPagination');
     const $numberItems = $('#numberItems');
 
+    // Permisos
+    let permissions = [];
+    try { permissions = JSON.parse($('#permissions').val() || '[]'); } catch (e) { permissions = []; }
+    const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
+
     let currentPage = 1;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function csrf() {
+        return $('meta[name="csrf-token"]').attr('content');
+    }
 
     function renderPagination(meta) {
         $pagination.html('');
@@ -54,11 +73,118 @@
         $pagination.append(make(Math.min(last, current + 1), '»', false, current === last));
     }
 
-    function formatType(t) {
-        if (t === 'sale') return 'Venta';
-        if (t === 'income') return 'Ingreso';
-        if (t === 'expense') return 'Egreso';
-        return t || '-';
+    // ✅ Esta es la función correcta (NO usar formatType)
+    function formatTypeLabel(typeRaw, regularize) {
+        if ((regularize === 0 || regularize === '0') && (typeRaw === 'sale' || typeRaw === 'income')) return 'Regularizar';
+        if (typeRaw === 'sale') return 'Venta';
+        if (typeRaw === 'income') return 'Ingreso';
+        if (typeRaw === 'expense') return 'Egreso';
+        return typeRaw || '-';
+    }
+
+    function renderButtons(data) {
+        const wrapper = document.createElement('div');
+
+        const tpl = document.querySelector('#template-button');
+        const cloneBtn2 = tpl.content.cloneNode(true);
+
+        // Print solo si hay sale_id
+        const printBtn = cloneBtn2.querySelector('[data-print_nota]');
+        if (data.sale_id != null) {
+            let url = document.location.origin + '/dashboard/imprimir/documento/venta/' + data.sale_id;
+            printBtn.setAttribute('href', url);
+            printBtn.setAttribute('data-id', data.id);
+        } else {
+            printBtn.style.display = 'none';
+        }
+
+        // Regularizar solo si:
+        // - permiso
+        // - pendiente
+        // - tipo sale/income
+        const regBtn = cloneBtn2.querySelector('[data-regularizar]');
+        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const typeRaw = data.type_raw || data.type;
+        const canBeRegularized = (typeRaw === 'sale' || typeRaw === 'income');
+
+        if (canRegularize && isPending && canBeRegularized) {
+            regBtn.setAttribute('data-id', data.id);
+        } else {
+            regBtn.style.display = 'none';
+        }
+
+        wrapper.appendChild(cloneBtn2);
+        return wrapper;
+    }
+
+    function setDesc(row, htmlText) {
+        // my_index viejo usaba data-desc; el homologado usa data-description
+        const elDesc = row.querySelector('[data-desc]') || row.querySelector('[data-description]');
+        if (elDesc) elDesc.innerHTML = htmlText;
+    }
+
+    function renderRow(data) {
+        const row = document.querySelector('#item-table').content.cloneNode(true);
+
+        // helpers
+        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const typeRaw = data.type_raw || data.type;
+
+        // ID
+        const elId = row.querySelector('[data-id]');
+        if (elId) elId.textContent = data.id;
+
+        // Caja (si el template lo tiene)
+        const elCashbox = row.querySelector('[data-cashbox]');
+        if (elCashbox) elCashbox.textContent = data.cash_box_label || data.cash_box_name || '-';
+
+        // Tipo label
+        const elType = row.querySelector('[data-type]');
+        if (elType) elType.textContent = formatTypeLabel(typeRaw, data.regularize);
+
+        // Subtipo
+        const elSubtype = row.querySelector('[data-subtype]');
+        if (elSubtype) elSubtype.textContent = data.subtype_name || '-';
+
+        // Estado (badge)
+        const elStatus = row.querySelector('[data-status]');
+        if (elStatus) {
+            elStatus.innerHTML = isPending
+                ? '<span class="badge badge-warning">Pendiente</span>'
+                : '<span class="badge badge-success">Confirmado</span>';
+        }
+
+        // Fecha
+        const elDate = row.querySelector('[data-date]');
+        if (elDate) elDate.textContent = data.created_at || data.date || '-';
+
+        // Montos
+        const elAmount = row.querySelector('[data-amount]');
+        if (elAmount) elAmount.textContent = (data.amount != null ? data.amount : '0.00');
+
+        const elAR = row.querySelector('[data-amount_regularize]');
+        if (elAR) elAR.textContent = (data.amount_regularize != null ? data.amount_regularize : '-');
+
+        const elCom = row.querySelector('[data-commission]');
+        if (elCom) elCom.textContent = (data.commission != null ? data.commission : '-');
+
+        // Descripción + observation
+        let desc = data.description || '-';
+        if (data.observation) desc += ' | ' + data.observation;
+        setDesc(row, escapeHtml(desc));
+
+        // Botones
+        const btnCell = row.querySelector('[data-buttons]');
+        if (btnCell) {
+            btnCell.innerHTML = '';
+            btnCell.appendChild(renderButtons(data));
+        }
+
+        // Color pendiente
+        const tr = row.querySelector('tr');
+        if (tr && isPending) tr.classList.add('regularize-row');
+
+        return row;
     }
 
     function fetchList(page = 1) {
@@ -92,17 +218,9 @@
                     return;
                 }
 
-                items.forEach(it => {
-                    const row = document.querySelector('#item-table').content.cloneNode(true);
-                    row.querySelector('[data-date]').textContent = it.created_at;
-                    row.querySelector('[data-cashbox]').textContent = it.cash_box_name || '-';
-                    row.querySelector('[data-type]').textContent = formatType(it.type);
-                    row.querySelector('[data-subtype]').textContent = it.subtype_name || '-';
-                    row.querySelector('[data-desc]').textContent = it.description || '-';
-                    row.querySelector('[data-amount]').textContent = it.amount;
+                items.forEach(it => $bodyTable.append(renderRow(it)));
 
-                    $bodyTable.append(row);
-                });
+                $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({ selector: '[data-toggle="tooltip"]' });
 
                 renderPagination(meta);
             },
@@ -113,22 +231,24 @@
         });
     }
 
+    // filtros
     $(document).on('click', '#btn-search', function () { fetchList(1); });
     $(document).on('keydown', '#q', function (e) { if (e.key === 'Enter') fetchList(1); });
     $(document).on('change', '#cash_box_id,#type,#subtype_id,#date_from,#date_to', function () { fetchList(1); });
 
+    // paginación
     $(document).on('click', '#pagination a.page-link', function (e) {
         e.preventDefault();
         const p = parseInt(this.dataset.page || '1', 10);
         if (!isNaN(p)) fetchList(p);
     });
 
+    // Init list
     $(function () { fetchList(1); });
 
-    function csrf() {
-        return $('meta[name="csrf-token"]').attr('content');
-    }
-
+    // ===============================
+    // Botones CashBoxes (abrir / ir)
+    // ===============================
     $(document).on('click', '[data-cashbox-btn]', function () {
         const $btn = $(this);
         const cashBoxId = $btn.data('cash_box_id');
@@ -136,13 +256,11 @@
         const type = $btn.data('cash_box_type'); // cash | bank
         const isOpen = String($btn.data('is_open')) === '1';
 
-        // Si ya está abierta (verde) => ir a sesión
         if (isOpen) {
-            window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + '/' + cashBoxId;
+            window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + cashBoxId;
             return;
         }
 
-        // Si está cerrada (gris) => confirmar apertura
         let content = `¿Deseas iniciar sesión en la caja: <b>${name}</b>?`;
         let hasInput = (type === 'cash');
 
@@ -152,8 +270,7 @@
             <div class="form-group mb-0">
                 <label>Saldo inicial (Efectivo)</label>
                 <input type="number" step="0.01" min="0" class="form-control" id="opening_balance" value="0.00">
-            </div>
-        `;
+            </div>`;
         }
 
         $.confirm({
@@ -182,17 +299,13 @@
                                 opening_balance: openingBalance
                             },
                             success: function (res) {
-                                // Cambiar botón a verde
                                 $btn.removeClass('btn-secondary').addClass('btn-success');
                                 $btn.data('is_open', 1);
                                 $btn.attr('data-is_open', '1');
 
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.success(res.message || 'Sesión iniciada', 'OK');
-                                }
+                                if (typeof toastr !== 'undefined') toastr.success(res.message || 'Sesión iniciada', 'OK');
 
-                                // Redirigir a la sesión (opcional)
-                                window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + '/' + cashBoxId;
+                                window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + cashBoxId;
                             },
                             error: function (xhr) {
                                 let msg = 'No se pudo iniciar la sesión.';
@@ -205,4 +318,5 @@
             }
         });
     });
+
 })();
