@@ -8,7 +8,8 @@
     // Permisos
     let permissions = [];
     try { permissions = JSON.parse($('#permissions').val() || '[]'); } catch (e) { permissions = []; }
-    const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
+    // TODO: Cambiar el regularize
+    const canRegularize = $.inArray('regularizes_caja', permissions) !== -1;
 
     let currentPage = 1;
 
@@ -196,6 +197,79 @@
         e.preventDefault();
         const p = parseInt(this.dataset.page || '1', 10);
         if (!isNaN(p)) fetchList(p);
+    });
+
+    // ===============================
+    // Botones CashBoxes (abrir / ir)
+    // ===============================
+    $(document).on('click', '[data-cashbox-btn]', function () {
+        const $btn = $(this);
+        const cashBoxId = $btn.data('cash_box_id');
+        const name = $btn.data('cash_box_name');
+        const type = $btn.data('cash_box_type'); // cash | bank
+        const isOpen = String($btn.data('is_open')) === '1';
+
+        if (isOpen) {
+            window.location.href = window.CASH_REGISTER_SESSION_URL_BASE +"/"+ cashBoxId;
+            return;
+        }
+
+        let content = `¿Deseas iniciar sesión en la caja: <b>${name}</b>?`;
+        let hasInput = (type === 'cash');
+
+        if (hasInput) {
+            content += `
+            <br><br>
+            <div class="form-group mb-0">
+                <label>Saldo inicial (Efectivo)</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="opening_balance" value="0.00">
+            </div>`;
+        }
+
+        $.confirm({
+            icon: 'fas fa-cash-register',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'blue',
+            title: 'Iniciar sesión',
+            content: content,
+            buttons: {
+                cancel: { text: 'Cancelar' },
+                confirm: {
+                    text: 'Confirmar',
+                    btnClass: 'btn-primary',
+                    action: function () {
+                        const openingBalance = hasInput ? ($('#opening_balance').val() || 0) : 0;
+
+                        $.ajax({
+                            url: window.CASH_REGISTER_OPEN_URL,
+                            type: 'POST',
+                            dataType: 'json',
+                            data: {
+                                _token: csrf(),
+                                cash_box_id: cashBoxId,
+                                opening_balance: openingBalance
+                            },
+                            success: function (res) {
+                                $btn.removeClass('btn-secondary').addClass('btn-success');
+                                $btn.data('is_open', 1);
+                                $btn.attr('data-is_open', '1');
+
+                                if (typeof toastr !== 'undefined') toastr.success(res.message || 'Sesión iniciada', 'OK');
+
+                                window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + cashBoxId;
+                            },
+                            error: function (xhr) {
+                                let msg = 'No se pudo iniciar la sesión.';
+                                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                                $.alert({ title: 'Error', content: msg, type: 'red' });
+                            }
+                        });
+                    }
+                }
+            }
+        });
     });
 
     $(function () { fetchList(1); });

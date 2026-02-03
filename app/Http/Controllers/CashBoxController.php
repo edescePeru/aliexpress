@@ -248,12 +248,21 @@ class CashBoxController extends Controller
     // =========================
     public function adminIndex()
     {
-        $cashBoxes = CashBox::where('is_active', true)->orderBy('type')->orderBy('name')->get();
-        $subtypes  = CashBoxSubtype::orderBy('position')->orderBy('name')->get();
+        $userId = auth()->id();
+        $cashBoxes = CashBox::where('is_active', true)->orderBy('position')->orderBy('name')->get();
+        $openCashBoxIds = CashRegister::where('user_id', $userId)
+            ->where('status', 1)
+            ->whereNotNull('cash_box_id')
+            ->pluck('cash_box_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $subtypes  = CashBoxSubtype::where('is_active', 1)->orderBy('position')->orderBy('name')->get();
         $users     = User::orderBy('name')->get();
         $permissions = Auth::user()->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        return view('cashBox.admin_index', compact('permissions','cashBoxes', 'subtypes', 'users'));
+        return view('cashBox.admin_index', compact('openCashBoxIds','permissions','cashBoxes', 'subtypes', 'users'));
     }
 
     public function adminList(Request $request)

@@ -28,6 +28,26 @@
 
 @section('page-title')
     <h5 class="card-title">Listado global de movimientos</h5>
+    <div class="float-right">
+        <div class="btn-group" role="group" aria-label="Cajas">
+            @foreach($cashBoxes as $box)
+                @php $isOpen = in_array($box->id, $openCashBoxIds); @endphp
+
+                <button
+                        type="button"
+                        class="btn btn-sm {{ $isOpen ? 'btn-success' : 'btn-secondary' }} mr-1"
+                        data-cashbox-btn
+                        data-cash_box_id="{{ $box->id }}"
+                        data-cash_box_name="{{ $box->name }}"
+                        data-cash_box_type="{{ $box->type }}"
+                        data-is_open="{{ $isOpen ? 1 : 0 }}"
+                        style="font-weight:600;"
+                >
+                    {{ $box->name }}
+                </button>
+            @endforeach
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
@@ -174,6 +194,8 @@
 @section('scripts')
     <script>
         window.CASH_MOVEMENT_LIST_URL = "{{ route('cashMovement.admin.list') }}";
+        window.CASH_REGISTER_OPEN_URL = "{{ route('cashRegister.open') }}";
+        window.CASH_REGISTER_SESSION_URL_BASE = "{{ url('dashboard/cash-registers/session/') }}";
     </script>
     <script src="{{ asset('js/cashBox/admin_index.js') }}"></script>
 @endsection

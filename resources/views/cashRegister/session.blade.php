@@ -3,6 +3,9 @@
 @section('activeMyCashMovements')
     active
 @endsection
+@section('activeAdminCashMovements')
+    active
+@endsection
 
 @section('title')
     Caja {{ $active }}

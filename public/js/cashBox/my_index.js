@@ -9,7 +9,8 @@
     // Permisos
     let permissions = [];
     try { permissions = JSON.parse($('#permissions').val() || '[]'); } catch (e) { permissions = []; }
-    const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
+    // TODO: Cambiar el regularize
+    const canRegularize = $.inArray('regularizes_caja', permissions) !== -1;
 
     let currentPage = 1;
 
@@ -257,7 +258,7 @@
         const isOpen = String($btn.data('is_open')) === '1';
 
         if (isOpen) {
-            window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + cashBoxId;
+            window.location.href = window.CASH_REGISTER_SESSION_URL_BASE +"/"+ cashBoxId;
             return;
         }
 

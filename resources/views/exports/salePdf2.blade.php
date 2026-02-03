@@ -118,7 +118,9 @@
 
     <div class="line"></div>
 
-    <p class="text-center" style="font-size: 18px; text-align: center"><b>{{ strtoupper($sale->tipoPago->description) }} </b></p>
+    <p class="text-center" style="font-size: 18px; text-align: center">
+        <b>{{ strtoupper($paymentLabel ?? '—') }}</b>
+    </p>
 
     <div class="line"></div>
 
