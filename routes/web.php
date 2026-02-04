@@ -3008,6 +3008,54 @@ Route::middleware('auth')->group(function (){
             Route::patch('presentation/{presentation}/toggle', [MaterialPresentationController::class, 'toggle'])
                 ->name('material-presentations.toggle');
         });
+
+        // Cash Boxes
+        Route::prefix('cash-boxes')
+            ->group(function () {
+                Route::get('/', 'CashBoxController@index')->name('cashBox.index');
+                Route::get('/list', 'CashBoxController@listar')->name('cashBox.list');
+                Route::post('/store', 'CashBoxController@store')->name('cashBox.store');
+                Route::post('/update', 'CashBoxController@update')->name('cashBox.update');
+                Route::post('/toggle', 'CashBoxController@toggle')->name('cashBox.toggle');
+
+            });
+
+        // Subtypes
+        Route::prefix('cash-box-subtypes')
+            ->group(function () {
+                Route::get('/', 'CashBoxSubtypeController@index')->name('cashBoxSubtype.index');
+                Route::get('/list', 'CashBoxSubtypeController@listar')->name('cashBoxSubtype.list');
+                Route::post('/store', 'CashBoxSubtypeController@store')->name('cashBoxSubtype.store');
+                Route::post('/update', 'CashBoxSubtypeController@update')->name('cashBoxSubtype.update');
+                Route::post('/toggle', 'CashBoxSubtypeController@toggle')->name('cashBoxSubtype.toggle');
+
+            });
+
+        Route::prefix('/cash-movements')->group(function () {
+
+            // Vista usuario
+            Route::get('/my', 'CashBoxController@myIndex')->name('cashMovement.my.index');
+            Route::get('/my/list', 'CashBoxController@myList')->name('cashMovement.my.list');
+
+            // Vista admin
+            Route::get('/admin', 'CashBoxController@adminIndex')->name('cashMovement.admin.index');
+            Route::get('/admin/list', 'CashBoxController@adminList')->name('cashMovement.admin.list');
+
+        });
+
+        Route::prefix('cash-registers')->group(function () {
+            Route::post('/open', 'CashRegisterController@open')->name('cashRegister.open');
+            Route::get('/session/{cashBox}', 'CashRegisterController@session')->name('cashRegister.session');
+            Route::post('/arqueo/', 'CashRegisterController@arqueo')->name('cashRegister.arqueo');
+            Route::get('/{cashRegister}/movements/{pageNumber?}', 'CashRegisterController@getSessionMovements')
+                ->name('cashRegister.movements');
+            Route::post('/income', 'CashRegisterController@income')->name('cashRegister.income');
+            Route::post('/expense', 'CashRegisterController@expense')->name('cashRegister.expense');
+
+            Route::post('/{cashRegister}/arqueo', 'CashRegisterController@arqueo')->name('cashRegister.arqueo');
+            Route::post('/regularize', 'CashRegisterController@regularize')->name('cashMovement.regularize');
+        });
+
     });
 });
 

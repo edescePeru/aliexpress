@@ -423,7 +423,7 @@
                                 <div class="col-md-12 px-1 py-1">
 
                                     <div data-mdb-input-init class="form-outline mb-1">
-                                        @foreach( $tipoPagos as $tipoPago )
+                                        {{--@foreach( $tipoPagos as $tipoPago )
                                             <div class="form-group clearfix">
                                                 <div class="icheck-primary d-inline">
                                                     <input type="radio" data-vuelto="{{$tipoPago->vuelto}}" name="tipo_pago" value="{{$tipoPago->id}}" id="checkboxPrimary{{$tipoPago->id}}">
@@ -432,7 +432,36 @@
                                                     </label>
                                                 </div>
                                             </div>
-                                        @endforeach
+                                        @endforeach--}}
+                                        <div class="form-group">
+                                            <label><b>Caja (CashBox)</b></label>
+                                            <select id="pv_cash_box_id" class="form-control select2" style="width:100%;">
+                                                <option value="">Seleccione caja...</option>
+                                                @foreach($cashBoxes as $b)
+                                                    <option value="{{ $b->id }}"
+                                                            data-type="{{ $b->type }}"
+                                                            data-uses_subtypes="{{ $b->uses_subtypes ? 1 : 0 }}">
+                                                        {{ $b->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group" id="wrap_pv_subtype" style="display:none;">
+                                            <label><b>Subtipo bancario</b></label>
+                                            <select id="pv_cash_box_subtype_id" class="form-control select2" style="width:100%;">
+                                                <option value="">Seleccione subtipo...</option>
+                                                @foreach($subtypes as $st)
+                                                    <option value="{{ $st->id }}"
+                                                            data-is_deferred="{{ $st->is_deferred ? 1 : 0 }}">
+                                                        {{ $st->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted" id="pv_subtype_hint" style="display:none;">
+                                                Este canal es diferido: quedará pendiente hasta regularización.
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -526,53 +555,6 @@
                                     <button  type="button" id="btn-newSale" class="btn btn-warning btn-block btn-lg">NUEVA VENTA</button>
 
                                 </div>
-                                {{--<div class="col-md-12 px-5 py-4">
-
-                                    <h3 class="mb-5 pt-2 text-center fw-bold text-uppercase">Payment</h3>
-
-                                    <form class="mb-5">
-
-                                        <div data-mdb-input-init class="form-outline mb-5">
-                                            <input type="text" id="typeText" class="form-control form-control-lg" size="17"
-                                                   value="1234 5678 9012 3457" minlength="19" maxlength="19" />
-                                            <label class="form-label" for="typeText">Card Number</label>
-                                        </div>
-
-                                        <div data-mdb-input-init class="form-outline mb-5">
-                                            <input type="text" id="typeName" class="form-control form-control-lg" size="17"
-                                                   value="John Smith" />
-                                            <label class="form-label" for="typeName">Name on card</label>
-                                        </div>
-
-                                        <div class="row">
-                                            <div class="col-md-6 mb-5">
-                                                <div data-mdb-input-init class="form-outline">
-                                                    <input type="text" id="typeExp" class="form-control form-control-lg" value="01/22"
-                                                           size="7" minlength="7" maxlength="7" />
-                                                    <label class="form-label" for="typeExp">Expiration</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-5">
-                                                <div data-mdb-input-init class="form-outline">
-                                                    <input type="password" id="typeText2" class="form-control form-control-lg"
-                                                           value="&#9679;&#9679;&#9679;" size="1" minlength="3" maxlength="3" />
-                                                    <label class="form-label" for="typeText2">Cvv</label>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <p class="mb-5">Lorem ipsum dolor sit amet consectetur, adipisicing elit <a
-                                                    href="#!">obcaecati sapiente</a>.</p>
-
-                                        <button  type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-primary btn-block btn-lg">Buy now</button>
-
-                                        <h5 class="fw-bold mb-5" style="position: absolute; bottom: 0;">
-                                            <a href="#!"><i class="fas fa-angle-left me-2"></i>Back to shopping</a>
-                                        </h5>
-
-                                    </form>
-
-                                </div>--}}
                             </div>
                         </div>
 
@@ -665,14 +647,38 @@
                             <input type="number" min="0" class="form-control" id="vuelto" readonly>
                         </div>
                         <div class="col-md-6 ">
-                            <label for="vuelto">Caja</label>
+                            {{--<label for="vuelto">Caja</label>
                             <select id="type_caja" class="form-control select2" name="type_caja" data-states style="width: 100%;">
                                 <option></option>
                                 <option value="efectivo" selected>Efectivo</option>
                                 <option value="yape">Yape</option>
                                 <option value="plin">Plin</option>
                                 <option value="bancario">Bancario</option>
+                            </select>--}}
+                            <label for="pv_vuelto_cash_box_id">Caja para el vuelto</label>
+                            <select id="pv_vuelto_cash_box_id" class="form-control select2" style="width: 100%;">
+                                <option value="">Seleccione caja...</option>
+                                @foreach($cashBoxes as $b)
+                                    <option value="{{ $b->id }}"
+                                            data-type="{{ $b->type }}"
+                                            data-uses_subtypes="{{ $b->uses_subtypes ? 1 : 0 }}"
+                                            {{ $b->type === 'cash' ? 'selected' : '' }}>
+                                        {{ $b->name }}
+                                    </option>
+                                @endforeach
                             </select>
+                            <small class="text-muted">Por defecto el vuelto sale de efectivo, pero puedes cambiarlo.</small>
+
+                            <div id="wrap_vuelto_subtype" style="display:none; margin-top:10px;">
+                                <label for="pv_vuelto_subtype_id">Subtipo bancario (para vuelto)</label>
+                                <select id="pv_vuelto_subtype_id" class="form-control select2" style="width: 100%;">
+                                    <option value="">Seleccione subtipo...</option>
+                                    @foreach($subtypes as $st)
+                                        <option value="{{ $st->id }}">{{ $st->name }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Si el vuelto sale de bancario, seleccione el canal (Yape/Plin/Transfer/POS).</small>
+                            </div>
                         </div>
                     </div>
 

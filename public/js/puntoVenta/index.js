@@ -137,6 +137,32 @@ $(document).ready(function () {
             $('#datos_boleta input, #datos_factura input').val('');
         }
     });
+
+    $('#pv_cash_box_id').on('change', function () {
+        const $opt = $(this).find('option:selected');
+        const type = $opt.data('type'); // cash|bank
+        const usesSub = String($opt.data('uses_subtypes')) === '1';
+
+        if (type === 'bank' && usesSub) {
+            $('#wrap_pv_subtype').show();
+            $('#pv_cash_box_subtype_id').val('').trigger('change');
+        } else {
+            $('#wrap_pv_subtype').hide();
+            $('#pv_cash_box_subtype_id').val('').trigger('change');
+            $('#pv_subtype_hint').hide();
+        }
+    });
+
+    $('#pv_cash_box_subtype_id').on('change', function () {
+        const $opt = $(this).find('option:selected');
+        const isDeferred = String($opt.data('is_deferred')) === '1';
+        if (isDeferred) $('#pv_subtype_hint').show();
+        else $('#pv_subtype_hint').hide();
+    });
+
+    $(document).on('change', '#pv_vuelto_cash_box_id', function () {
+        refreshVueltoSubtypeUI();
+    });
 });
 
 let $items = [];
@@ -629,73 +655,69 @@ function payNow() {
     event.preventDefault();
     $("#btn-pay").attr("disabled", true);
 
-    if ( $items.length == 0 )
-    {
-        toastr.error("Seleccione productos a la venta.", 'Error', {
-            "closeButton": true,
-            "debug": false,
-            "newestOnTop": false,
-            "progressBar": true,
-            "positionClass": "toast-top-right",
-            "preventDuplicates": false,
-            "onclick": null,
-            "showDuration": "300",
-            "hideDuration": "1000",
-            "timeOut": "2000",
-            "extendedTimeOut": "1000",
-            "showEasing": "swing",
-            "hideEasing": "linear",
-            "showMethod": "fadeIn",
-            "hideMethod": "fadeOut"
-        });
+    // 1) Validar items
+    if ($items.length === 0) {
+        toastr.error("Seleccione productos a la venta.", 'Error', { "closeButton": true });
         $("#btn-pay").attr("disabled", false);
         return;
     }
 
-    // Verificar si hay algún radio button seleccionado
-    var selectedRadio = $('input[name="tipo_pago"]:checked');
-    if (selectedRadio.length === 0) {
-        toastr.error("Seleccione un tipo de pago.", 'Error', {
-            "closeButton": true,
-            "debug": false,
-            "newestOnTop": false,
-            "progressBar": true,
-            "positionClass": "toast-top-right",
-            "preventDuplicates": false,
-            "onclick": null,
-            "showDuration": "300",
-            "hideDuration": "1000",
-            "timeOut": "2000",
-            "extendedTimeOut": "1000",
-            "showEasing": "swing",
-            "hideEasing": "linear",
-            "showMethod": "fadeIn",
-            "hideMethod": "fadeOut"
-        });
+    // 2) Validar CashBox seleccionado
+    const cashBoxId = $('#pv_cash_box_id').val();
+    if (!cashBoxId) {
+        toastr.error("Seleccione una caja (CashBox).", 'Error', { "closeButton": true });
         $("#btn-pay").attr("disabled", false);
         return;
     }
 
-    // Obtener el valor de data-vuelto
-    var dataVuelto = selectedRadio.data('vuelto');
+    const $opt = $('#pv_cash_box_id').find('option:selected');
+    const boxType = ($opt.data('type') || '').toString();          // 'cash' | 'bank'
+    const usesSub = String($opt.data('uses_subtypes')) === '1';     // 1/0
 
-    // Si la config dice que NO se pide trabajador, seguimos normal
+    // 3) Si es bancario con subtypes, validar subtipo
+    if (boxType === 'bank' && usesSub) {
+        const subtypeId = $('#pv_cash_box_subtype_id').val();
+        if (!subtypeId) {
+            toastr.error("Seleccione el subtipo bancario (Yape/Plin/POS/Transfer).", 'Error', { "closeButton": true });
+            $("#btn-pay").attr("disabled", false);
+            return;
+        }
+    }
+
+    // 4) Definir si requiere vuelto (antes era data-vuelto del radio)
+    // Regla recomendada:
+    // - cash => puede requerir vuelto (abrimos modal)
+    // - bank => no requiere vuelto (guardamos directo)
+    const requiresChange = (boxType === 'cash');
+
+    // 5) Trabajador (si aplica)
     if (!window.PV_ASK_WORKER) {
         window.PV_SELECTED_WORKER_ID = null;
         continuarFlujoPago();
         return;
     }
 
-    // Si hay que pedir trabajador, mostramos popup para elegirlo
     mostrarPopupTrabajador(continuarFlujoPago);
 
-    // Verificar el valor de data-vuelto y realizar acciones
     function continuarFlujoPago() {
-        if (dataVuelto === 1) {
-            mostrarVuelto();   // aquí internamente luego llamas a la confirmación
+        if (requiresChange) {
+            mostrarVuelto();
         } else {
-            guardarVenta();    // idem
+            guardarVenta();
         }
+    }
+}
+
+function refreshVueltoSubtypeUI() {
+    const $opt = $('#pv_vuelto_cash_box_id').find('option:selected');
+    const type = ($opt.data('type') || '').toString(); // cash|bank
+    const usesSub = String($opt.data('uses_subtypes')) === '1';
+
+    if (type === 'bank' && usesSub) {
+        $('#wrap_vuelto_subtype').show();
+    } else {
+        $('#wrap_vuelto_subtype').hide();
+        $('#pv_vuelto_subtype_id').val('').trigger('change');
     }
 }
 
@@ -749,6 +771,7 @@ function mostrarPopupTrabajador(doneCallback) {
 
 function mostrarVuelto() {
     $("#monto_total").val(parseFloat($fin_total_importe).toFixed(2));
+    refreshVueltoSubtypeUI();
     $modalVuelto.modal('show');
 }
 
@@ -822,14 +845,37 @@ function guardarVenta() {
         }
     }
 
-    var tipo_pago = $('input[name="tipo_pago"]:checked').val();
+    // ==============================
+    // Texto del medio de pago (Caja + Subtipo)
+    // ==============================
+    let paymentText = '';
 
-    var tipo_pago_text = $('input[name="tipo_pago"]:checked').siblings('label').text().trim();
+    // Caja seleccionada
+    const $cashBoxOpt = $('#pv_cash_box_id option:selected');
+    const cashBoxName = $cashBoxOpt.text().trim();
+    const cashBoxType = $cashBoxOpt.data('type');
+    const usesSubtypes = String($cashBoxOpt.data('uses_subtypes')) === '1';
+
+    // Subtipo (si aplica)
+    let subtypeName = '';
+
+    if (cashBoxType === 'bank' && usesSubtypes) {
+        const $subOpt = $('#pv_cash_box_subtype_id option:selected');
+        subtypeName = $subOpt.length ? $subOpt.text().trim() : '';
+    }
+
+    // Texto final
+    if (subtypeName) {
+        paymentText = cashBoxName + ' – ' + subtypeName;
+    } else {
+        paymentText = cashBoxName;
+    }
+
 
     // Confirmación con jQuery Confirm
     $.confirm({
         title: 'Confirmar pago',
-        content: '¿Está seguro de realizar el pago usando <strong>' + tipo_pago_text + '</strong>?',
+        content: '¿Está seguro de realizar el pago usando <strong>' + paymentText + '</strong>?',
         type: 'blue',
         buttons: {
             confirmar: {
@@ -849,10 +895,15 @@ function guardarVenta() {
                     form.append('total_descuentos', $fin_total_descuentos);
                     form.append('total_importe', $fin_total_importe);
                     form.append('total_vuelto', $fin_vuelto);
-                    form.append('type_vuelto', $type_vuelto);
-                    form.append('tipo_pago', tipo_pago);
+                    /*form.append('type_vuelto', $type_vuelto);
+                    form.append('tipo_pago', tipo_pago);*/
                     // ⬇️ NUEVO: worker elegido (si no hay, va vacío)
                     form.append('worker_id', window.PV_SELECTED_WORKER_ID || '');
+
+                    form.append('cash_box_id', $('#pv_cash_box_id').val());
+                    form.append('cash_box_subtype_id', $('#pv_cash_box_subtype_id').val() || '');
+                    form.append('vuelto_cash_box_id', $('#pv_vuelto_cash_box_id').val() || '');
+                    form.append('vuelto_cash_box_subtype_id', $('#pv_vuelto_subtype_id').val() || '');
 
                     const tipoComprobante = $('input[name="invoice_type"]:checked').val();
 
@@ -926,38 +977,6 @@ function guardarVenta() {
     });
 }
 
-/*function deleteItem() {
-    if ( $modeEdit == 0 )
-    {
-        toastr.error("Lo sentimos ya no puede quitar productos, anule o imprima el comprobante.", 'Error', {
-            "closeButton": true,
-            "debug": false,
-            "newestOnTop": false,
-            "progressBar": true,
-            "positionClass": "toast-top-right",
-            "preventDuplicates": false,
-            "onclick": null,
-            "showDuration": "300",
-            "hideDuration": "1000",
-            "timeOut": "2000",
-            "extendedTimeOut": "1000",
-            "showEasing": "swing",
-            "hideEasing": "linear",
-            "showMethod": "fadeIn",
-            "hideMethod": "fadeOut"
-        });
-        return;
-    }
-
-    let product_id = $(this).attr('data-delete');
-
-    $items = $items.filter(item => item.productId != product_id);
-
-    updateTotalOrder();
-
-    $(this).parent().parent().remove();
-}*/
-
 function deleteItem() {
     if ($modeEdit == 0) {
         toastr.error("Lo sentimos ya no puede quitar productos, anule o imprima el comprobante.", 'Error', { "closeButton": true });
@@ -973,11 +992,6 @@ function deleteItem() {
     $(this).closest('[data-cart-row]').remove();
 }
 
-/*function updateItems(product_id, precioTotal, quantity) {
-    let result = $items.find( item => item.productId == product_id );
-    result.productTotal = parseFloat(precioTotal).toFixed(2);
-    result.productQuantity = quantity;
-}*/
 function updateItems(itemKey, precioTotal, quantity) {
     let result = $items.find(item => item.itemKey === itemKey);
     if (!result) return;
@@ -1049,25 +1063,12 @@ function decrementQuantity(button) {
     //console.log(string);
 }
 
-/*function changePriceTotal(product_id, quantity) {
-    let result = $items.find( item => item.productId == product_id );
-    let priceTotal;
-    priceTotal = (quantity * result.productPrice).toFixed(2);
-    return priceTotal;
-}*/
 function changePriceTotal(itemKey, quantity) {
     let result = $items.find(item => item.itemKey === itemKey);
     if (!result) return "0.00";
     return (quantity * result.productPrice).toFixed(2);
 }
 
-/*function changeStringPrice(product_id, quantity) {
-    let result = $items.find( item => item.productId == product_id );
-    //let priceTotal = quantity*result.productPrice;
-    let stringTotal;
-    stringTotal = "<strong>" + quantity + "</strong> " + result.productUnit + " a " + result.productPrice + " / Unit";
-    return stringTotal;
-}*/
 function changeStringPrice(itemKey, quantity) {
     let result = $items.find(item => item.itemKey === itemKey);
     if (!result) return "";

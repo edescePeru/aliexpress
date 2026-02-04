@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\CashBox;
+use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
 use App\Category;
@@ -66,11 +68,16 @@ class PuntoVentaController extends Controller
             ->orderBy('last_name')
             ->get();
 
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+
         return view('puntoVenta.index', compact(
             'categories',
             'tipoPagos',
             'askWorker',
-            'workers'
+            'workers',
+            'cashBoxes','subtypes'
         ));
     }
 
@@ -798,6 +805,9 @@ class PuntoVentaController extends Controller
                 'total_descuentos' => $request->get('total_descuentos'),
                 'importe_total' => $request->get('total_importe'),
                 'vuelto' => $request->get('total_vuelto'),
+
+                // ⚠️ Si aún tienes tipo_pago en tu front, puedes mantenerlo.
+                // Si ya lo migraste, puedes dejar null o mapearlo a cash_box_id.
                 'tipo_pago_id' => $request->get('tipo_pago'),
 
                 'type_document' => $type_document,
@@ -891,8 +901,6 @@ class PuntoVentaController extends Controller
 
                 // ===========================
                 // ✅ AJUSTE PARA NUBEFACT (precio_unitario / valor_unitario)
-                //   - totalLine: productTotal (incluye IGV, según tu aclaración)
-                //   - qty SUNAT: packs si hay presentación; si no, unitsEquivalent
                 // ===========================
                 $materialId = (int) $items[$i]->productId;
                 $qtyReal = (float) $unitsEquivalent;
@@ -909,35 +917,21 @@ class PuntoVentaController extends Controller
                 $precioUnitario = $totalLine / $qtyForSunat;   // ✅ con IGV por qty SUNAT
                 $valorUnitario  = $precioUnitario / 1.18;      // ✅ sin IGV
 
-                // (Tu variable anterior) unitPrice por unidad real (si la necesitas para algo interno)
-                $unitPriceReal = $totalLine / $qtyReal;
-
-                // ===========================
-                // ✅ COSTO PROMEDIO (KARDEX) snapshot
-                // ===========================
                 $unitCost  = (float) ($avgCosts[$materialId] ?? 0.0);
                 $totalCost = $qtyReal * $unitCost;
 
-                // ✅ Guardar SaleDetail con valor_unitario + costos
                 $saleDetail = SaleDetail::create([
                     'sale_id'        => $sale->id,
                     'material_id'    => $materialId,
                     'material_presentation_id' => $presentationId,
-
-                    // ✅ requerido por NubefactTrait
                     'valor_unitario' => $valorUnitario,
-                    'price'          => $precioUnitario,   // precio_unitario con IGV (por qty SUNAT)
-
-                    // ✅ stock real
+                    'price'          => $precioUnitario,
                     'quantity'       => $qtyReal,
                     'packs'          => $packs,
                     'units_per_pack' => $unitsPerPack,
-
                     'percentage_tax' => $items[$i]->productTax,
-                    'total'          => $totalLine,        // total con IGV
+                    'total'          => $totalLine,
                     'discount'       => $items[$i]->productDiscount,
-
-                    // ✅ snapshot costos para utilidad histórica
                     'unit_cost'      => $unitCost,
                     'total_cost'     => $totalCost,
                 ]);
@@ -971,17 +965,15 @@ class PuntoVentaController extends Controller
 
                         OutputDetail::create([
                             'output_id'      => $output->id,
-                            'sale_detail_id' => $saleDetail->id, // ✅ NUEVO
+                            'sale_detail_id' => $saleDetail->id,
                             'item_id'        => $itemObj->id,
                             'material_id'    => $material->id,
                             'quote_id'       => $sale->quote_id ?? null,
                             'custom'         => 0,
                             'percentage'     => 1,
-                            'price'          => $precioUnitario, // ✅ consistente con Nubefact (por qty SUNAT)
+                            'price'          => $precioUnitario,
                             'length'         => $itemObj->length,
                             'width'          => $itemObj->width,
-
-                            // ✅ NUEVO: costo aplicado (auditoría)
                             'unit_cost'      => $unitCost,
                             'total_cost'     => $unitCost,
                         ]);
@@ -998,17 +990,15 @@ class PuntoVentaController extends Controller
 
                     OutputDetail::create([
                         'output_id'      => $output->id,
-                        'sale_detail_id' => $saleDetail->id, // ✅ NUEVO
+                        'sale_detail_id' => $saleDetail->id,
                         'item_id'        => null,
                         'material_id'    => $material->id,
                         'quote_id'       => $sale->quote_id ?? null,
                         'custom'         => 0,
                         'percentage'     => $cantidadVendida,
-                        'price'          => $precioUnitario, // ✅ consistente con Nubefact
+                        'price'          => $precioUnitario,
                         'length'         => null,
                         'width'          => null,
-
-                        // ✅ NUEVO: costo aplicado
                         'unit_cost'      => $unitCost,
                         'total_cost'     => $totalCost,
                     ]);
@@ -1019,93 +1009,116 @@ class PuntoVentaController extends Controller
                 }
             }
 
-            // ======= (TU CÓDIGO SIN CAMBIOS) Caja / Vuelto / Notificación / Audit =======
-            // Agregar movimientos a la caja
-            $paymentType = $request->get('tipo_pago');
-            $vuelto = $request->get('total_vuelto');
-            $typeVuelto = $request->get('type_vuelto');
+            // ============================================================
+            // ✅ NUEVO BLOQUE: CAJA / VUELTO con CashBox + Subtype + Sesión
+            // ============================================================
 
-            // Mapear tipo de pago a los nombres de las cajas
-            $paymentTypeMap = [
-                1 => 'yape',
-                2 => 'plin',
-                3 => 'bancario',
-                4 => 'efectivo'
-            ];
+            $cashBoxId   = $request->input('cash_box_id');
+            $subtypeId   = $request->input('cash_box_subtype_id');
+            $vuelto      = (float) $request->get('total_vuelto');
+            $vueltoBoxId = $request->input('vuelto_cash_box_id');
 
-            // Obtener la caja del tipo de pago
-            $cashRegister = CashRegister::where('type', $paymentTypeMap[$paymentType])
-                ->where('user_id', Auth::user()->id)
-                ->where('status', 1) // Caja abierta
+            if (!$cashBoxId) {
+                return response()->json(['message' => 'Debe seleccionar una caja (CashBox).'], 422);
+            }
+
+            $cashRegister = CashRegister::where('cash_box_id', $cashBoxId)
+                ->where('user_id', Auth::id())
+                ->where('status', 1)
                 ->latest()
                 ->first();
 
-            if (!isset($cashRegister)) {
-                return response()->json(['message' => 'No hay caja abierta para este tipo de pago.'], 422);
+            if (!$cashRegister) {
+                return response()->json(['message' => 'No hay sesión abierta para la caja seleccionada.'], 422);
             }
-            if ( $paymentType != 3 ) {
-                // Crear el movimiento de ingreso (venta)
-                CashMovement::create([
-                    'cash_register_id' => $cashRegister->id,
-                    'type' => 'sale', // Tipo de movimiento: venta
-                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
-                    'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
-                    'sale_id' => $sale->id
-                ]);
 
-                // Actualizar el saldo actual y el total de ventas en la caja
-                $cashRegister->current_balance += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
-                $cashRegister->total_sales += (float)$request->get('total_importe')+(float)$request->get('total_vuelto');
-                $cashRegister->save();
+            $cashBox = $cashRegister->cashBox;
+            if (!$cashBox) {
+                return response()->json(['message' => 'La sesión seleccionada no tiene CashBox asociado.'], 422);
+            }
+
+            $regularize = 1;
+            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+                if (!$subtypeId) {
+                    return response()->json(['message' => 'Debe seleccionar el subtipo bancario (Yape/Plin/POS/Transfer).'], 422);
+                }
+
+                $subtype = CashBoxSubtype::findOrFail($subtypeId);
+                $regularize = $subtype->is_deferred ? 0 : 1;
             } else {
-                // Crear el movimiento de ingreso (venta)
-                CashMovement::create([
-                    'cash_register_id' => $cashRegister->id,
-                    'type' => 'sale', // Tipo de movimiento: venta
-                    'amount' => (float)$request->get('total_importe')+(float)$request->get('total_vuelto'),
-                    'description' => 'Venta registrada con tipo de pago: ' . $paymentTypeMap[$paymentType],
-                    'regularize' => 0,
-                    'sale_id' => $sale->id
-                ]);
+                $subtypeId = null;
             }
 
-            // Registrar el vuelto como egreso si el tipo de pago es efectivo y hay vuelto
-            if ($vuelto && $paymentType == 4) {
-                // Mapear el type_vuelto (la caja desde donde se dará el vuelto)
-                $typeVueltoMap = [
-                    'efectivo' => 'efectivo',
-                    'yape' => 'yape',
-                    'plin' => 'plin',
-                    'bancario' => 'bancario'
-                ];
+            $amountSale = (float)$request->get('total_importe') + (float)$request->get('total_vuelto');
 
-                // Obtener la caja para el vuelto
-                $vueltoCashRegister = CashRegister::where('type', $typeVueltoMap[$typeVuelto])
-                    ->where('user_id', Auth::user()->id)
-                    ->where('status', 1) // Caja abierta
+            CashMovement::create([
+                'cash_register_id'      => $cashRegister->id,
+                'type'                  => 'sale',
+                'amount'                => $amountSale,
+                'description'           => 'Venta registrada',
+                'observation'           => ($cashBox->type === 'bank') ? 'Pago bancario' : 'Pago efectivo',
+                'regularize'            => $regularize,
+                'cash_box_subtype_id'   => $subtypeId,
+                'sale_id'               => $sale->id,
+            ]);
+
+            if ($regularize == 1) {
+                $cashRegister->current_balance += $amountSale;
+                $cashRegister->total_sales     += $amountSale;
+                $cashRegister->save();
+            }
+
+            if ($vuelto > 0) {
+
+                $vueltoSubtypeId = $request->input('vuelto_cash_box_subtype_id');
+
+                if (!$vueltoBoxId) {
+                    return response()->json(['message' => 'Seleccione la caja desde donde se dará el vuelto.'], 422);
+                }
+
+                $vueltoRegister = CashRegister::where('cash_box_id', $vueltoBoxId)
+                    ->where('user_id', Auth::id())
+                    ->where('status', 1)
                     ->latest()
                     ->first();
 
-                if (!isset($vueltoCashRegister)) {
-                    return response()->json(['message' => 'No hay caja abierta para dar el vuelto.'], 422);
+                if (!$vueltoRegister) {
+                    return response()->json(['message' => 'No hay sesión abierta para la caja del vuelto.'], 422);
                 }
 
-                // Crear el movimiento de egreso (vuelto)
+                $vueltoCashBox = $vueltoRegister->cashBox;
+                if (!$vueltoCashBox) {
+                    return response()->json(['message' => 'La sesión del vuelto no tiene CashBox asociado.'], 422);
+                }
+
+                // Si el vuelto sale de bancario con subtypes, exige subtipo
+                $vueltoSubtypeToSave = null;
+                if ($vueltoCashBox->type === 'bank' && (int)$vueltoCashBox->uses_subtypes === 1) {
+                    if (!$vueltoSubtypeId) {
+                        return response()->json(['message' => 'Seleccione el subtipo bancario para el vuelto (Yape/Plin/Transfer/POS).'], 422);
+                    }
+                    $vueltoSubtypeToSave = CashBoxSubtype::findOrFail($vueltoSubtypeId)->id;
+                }
+
+                // Crear egreso por vuelto (expense siempre confirmado)
                 CashMovement::create([
-                    'cash_register_id' => $vueltoCashRegister->id,
-                    'type' => 'expense', // Tipo de movimiento: egreso
+                    'cash_register_id' => $vueltoRegister->id,
+                    'type' => 'expense',
                     'amount' => $vuelto,
                     'description' => 'Vuelto entregado de la venta',
+                    'observation' => 'Vuelto aplicado',
+                    'regularize' => 1,
+                    'cash_box_subtype_id' => $vueltoSubtypeToSave,
                     'sale_id' => $sale->id
                 ]);
 
-                // Actualizar el saldo de la caja del vuelto
-                $vueltoCashRegister->current_balance -= $vuelto;
-                $vueltoCashRegister->total_expenses += $vuelto;
-                $vueltoCashRegister->save();
+                // Actualizar caja del vuelto (impacta balance inmediato)
+                $vueltoRegister->current_balance -= $vuelto;
+                $vueltoRegister->total_expenses  += $vuelto;
+                $vueltoRegister->save();
             }
 
-            // Crear notificacion
+            // ======= (TU CÓDIGO SIN CAMBIOS) Notificación / Audit =======
             $notification = Notification::create([
                 'content' => 'Venta creada por '.Auth::user()->name,
                 'reason_for_creation' => 'create_quote',
@@ -1113,7 +1126,6 @@ class PuntoVentaController extends Controller
                 'url_go' => route('puntoVenta.index')
             ]);
 
-            // Roles adecuados para recibir esta notificación admin, logistica
             $users = User::role(['admin', 'owner' , 'principal'])->get();
             foreach ( $users as $user )
             {
@@ -1148,7 +1160,6 @@ class PuntoVentaController extends Controller
             // ===========================
             $nubefactResult = null;
 
-            // Si no eligieron boleta/factura, no intentamos nubefact
             if (in_array($sale->type_document, ['01', '03'])) {
                 try {
                     $sale->loadMissing(['details.material']);
@@ -1157,7 +1168,6 @@ class PuntoVentaController extends Controller
                     $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
 
                 } catch (\Throwable $e) {
-                    // No tumbamos la venta: solo registramos el error
                     $sale->update([
                         'sunat_status'  => 'Error',
                         'sunat_message' => $e->getMessage(),
@@ -1165,30 +1175,23 @@ class PuntoVentaController extends Controller
                 }
             }
 
-            // Por defecto: ticket interno
             $urlPrint = route('puntoVenta.print', $sale->id);
             $printType = 'ticket';
 
-            // Si es boleta/factura, preferimos PDF SUNAT (si existe)
             if (in_array($sale->type_document, ['01', '03'])) {
 
-                // Caso A: tenemos link directo de nubefact en la respuesta
                 if (!empty($nubefactResult['enlace_del_pdf'])) {
                     $urlPrint = $nubefactResult['enlace_del_pdf'];
                 }
 
-                // Caso B (recomendado): usar el PDF guardado localmente (si existe)
                 if (!empty($sale->pdf_path)) {
-                    // Prioridad 1: PDF guardado localmente
                     if (!empty($sale->pdf_path)) {
                         $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
                         if (file_exists($localPath)) {
                             $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
                             $printType = 'sunat_pdf';
                         }
-                    }
-                    // Prioridad 2: enlace directo de Nubefact
-                    elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                    } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
                         $urlPrint  = $nubefactResult['enlace_del_pdf'];
                         $printType = 'sunat_pdf';
                     }
@@ -1308,10 +1311,38 @@ class PuntoVentaController extends Controller
     {
         $sale = Sale::where('id', $id)
             ->with('worker')
-            ->with('tipoPago')
             ->with(['details' => function ($query) {
                 $query->with(['material']);
-            }])->first();
+            }])
+            ->firstOrFail();
+
+        $paymentMovement = CashMovement::where('sale_id', $sale->id)
+            ->where('type', 'sale')
+            ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $paymentLabel = '—';
+
+        if ($paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
+            $box = $paymentMovement->cashRegister->cashBox;
+
+            if ($box->type === 'cash') {
+                // efectivo
+                $paymentLabel = $box->name; // Ej: "Efectivo"
+            } else {
+                // bancario
+                $sub = $paymentMovement->cashBoxSubtype;
+                if ($sub) {
+                    // Ej: "Bancario BCP - Yape"
+                    //$paymentLabel = $box->name . ' - ' . $sub->name;
+                    $paymentLabel = $sub->name;
+                } else {
+                    // Ej: "Bancario BCP"
+                    $paymentLabel = $box->name;
+                }
+            }
+        }
 
         $dataName = DataGeneral::where('name', 'empresa')->first();
         $dataRuc = DataGeneral::where('name', 'ruc')->first();
@@ -1394,8 +1425,9 @@ class PuntoVentaController extends Controller
             'cciCuenta2Empresa',
             'imgCuenta2Empresa',
             'ownerCuenta2Empresa',
-            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address'))
-            ->setPaper([0, 0, 226.8, 900], 'portrait');
+            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address',
+            'paymentLabel'   // ✅ nuevo
+        ))->setPaper([0, 0, 226.8, 900], 'portrait');
 
 
         $length = 5;
@@ -1486,6 +1518,35 @@ class PuntoVentaController extends Controller
                 $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
             }
 
+            // ===============================
+// NUEVO: obtener canal de pago desde CashMovement
+// ===============================
+            $paymentMovement = \App\CashMovement::where('sale_id', $sale->id)
+                ->where('type', 'sale')
+                ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $tipoPagoLabel = '—';
+
+            if ($paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
+                $cashBox = $paymentMovement->cashRegister->cashBox;
+
+                if ($cashBox->type === 'cash') {
+                    // Ej: "Efectivo"
+                    $tipoPagoLabel = $cashBox->name;
+                } else {
+                    // Bancario
+                    if ($paymentMovement->cashBoxSubtype) {
+                        // Ej: "BCP - Yape"
+                        $tipoPagoLabel = $cashBox->name . ' - ' . $paymentMovement->cashBoxSubtype->name;
+                    } else {
+                        // Ej: "BCP"
+                        $tipoPagoLabel = $cashBox->name;
+                    }
+                }
+            }
+
             array_push($arraySales, [
                 "id" => $sale->id,
                 "code" => "VENTA - ".$sale->id,
@@ -1493,7 +1554,7 @@ class PuntoVentaController extends Controller
                 "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
                 //"total" => $sale->importe_total,
                 "total" => number_format($sale->importe_total, 2, '.', ''),
-                "tipo_pago" => ($sale->tipo_pago_id == null) ? 'Sin método de pago':$sale->tipoPago->description ,
+                "tipo_pago" => strtoupper($tipoPagoLabel),
                 "nombre_cliente" => $sale->nombre_cliente,
                 "tipo_documento_cliente" => $tipo_documento_cliente,
                 "numero_documento_cliente" => $sale->numero_documento_cliente,
