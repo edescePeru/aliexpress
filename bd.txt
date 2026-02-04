@@ -12,6 +12,8 @@ php artisan db:seed --class=MaterialsFromExcelSeeder
 php artisan db:seed --class=WorkforceSeeder
 php artisan db:seed --class=BankSeeder
 
+php7.4 /usr/local/bin/composer dump-autoload
+
 php artisan db:seed --class=CashBoxesSeeder
 
 -- Todo lo Efectivo -> CashBox 1
@@ -55,3 +57,6 @@ JOIN cash_registers cr ON cr.id = cm.cash_register_id
 SET cm.cash_box_subtype_id = NULL
 WHERE cm.type = 'sale'
   AND cr.cash_box_id = 1;
+
+
+php7.4 artisan permissions:sync

@@ -241,9 +241,7 @@
                         <div class="form-group row">
                             <div class="col-md-4">
                                 <label for="unit_price">Precio Unitario </label>
-                                <input type="number" id="unit_price" name="unit_price" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                    this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                    ">
+                                <input type="number" id="unit_price" name="unit_price" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" readonly>
                             </div>
                             <div class="col-md-4">
                                 <label for="codigo">Código del producto </label>

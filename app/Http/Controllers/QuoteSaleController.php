@@ -4021,7 +4021,7 @@ class QuoteSaleController extends Controller
                     $material = $consumable->material;
 
                     if ($material) {
-                        $material->unit_price     = $unitCost;
+                        //$material->unit_price     = $unitCost;
                         $material->stock_current  = max(0, (float)$material->stock_current  - (float)$consumable->quantity);
                         $material->stock_reserved = max(0, (float)$material->stock_reserved - (float)$consumable->quantity);
                         $material->save();

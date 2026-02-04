@@ -982,7 +982,7 @@ class PuntoVentaController extends Controller
                         $itemObj->save();
                     }
 
-                    $material->unit_price = $unitCost;
+                    //$material->unit_price = $unitCost;
                     $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendidaInt);
                     $material->save();
 
@@ -1003,7 +1003,7 @@ class PuntoVentaController extends Controller
                         'total_cost'     => $totalCost,
                     ]);
 
-                    $material->unit_price = $unitCost;
+                    //$material->unit_price = $unitCost;
                     $material->stock_current = max(0, (float) $material->stock_current - $cantidadVendida);
                     $material->save();
                 }
