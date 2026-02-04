@@ -845,14 +845,37 @@ function guardarVenta() {
         }
     }
 
-    var tipo_pago = $('input[name="tipo_pago"]:checked').val();
+    // ==============================
+    // Texto del medio de pago (Caja + Subtipo)
+    // ==============================
+    let paymentText = '';
 
-    var tipo_pago_text = $('input[name="tipo_pago"]:checked').siblings('label').text().trim();
+    // Caja seleccionada
+    const $cashBoxOpt = $('#pv_cash_box_id option:selected');
+    const cashBoxName = $cashBoxOpt.text().trim();
+    const cashBoxType = $cashBoxOpt.data('type');
+    const usesSubtypes = String($cashBoxOpt.data('uses_subtypes')) === '1';
+
+    // Subtipo (si aplica)
+    let subtypeName = '';
+
+    if (cashBoxType === 'bank' && usesSubtypes) {
+        const $subOpt = $('#pv_cash_box_subtype_id option:selected');
+        subtypeName = $subOpt.length ? $subOpt.text().trim() : '';
+    }
+
+    // Texto final
+    if (subtypeName) {
+        paymentText = cashBoxName + ' – ' + subtypeName;
+    } else {
+        paymentText = cashBoxName;
+    }
+
 
     // Confirmación con jQuery Confirm
     $.confirm({
         title: 'Confirmar pago',
-        content: '¿Está seguro de realizar el pago usando <strong>' + tipo_pago_text + '</strong>?',
+        content: '¿Está seguro de realizar el pago usando <strong>' + paymentText + '</strong>?',
         type: 'blue',
         buttons: {
             confirmar: {

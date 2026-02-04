@@ -258,7 +258,7 @@
 
                                 if (typeof toastr !== 'undefined') toastr.success(res.message || 'Sesión iniciada', 'OK');
 
-                                window.location.href = window.CASH_REGISTER_SESSION_URL_BASE + cashBoxId;
+                                window.location.href = window.CASH_REGISTER_SESSION_URL_BASE +"/"+cashBoxId;
                             },
                             error: function (xhr) {
                                 let msg = 'No se pudo iniciar la sesión.';

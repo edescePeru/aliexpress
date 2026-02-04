@@ -83,7 +83,7 @@
                                 <label for="typeComprobante">Tipo de comprobante </label>
                                 <input type="text" id="typeComprobante" name="typeComprobante" value="{{ $typeComprobante }}" class="form-control form-control-sm" readonly>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-1" style="display: none">
                                 <label for="numDocumento">Documento </label>
                                 <input type="text" id="numDocumento" name="numDocumento" class="form-control form-control-sm">
                             </div>
@@ -100,13 +100,41 @@
                                        value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
                             </div>
                             <div class="col-md-2">
-                                <label for="tipoPago">Tipo Pago <span class="right badge badge-danger">(*)</span></label>
-                                <select id="tipoPago" name="tipoPago" class="form-control form-control-sm select2" style="width: 100%;">
-                                    <option></option>
-                                    @foreach( $tipoPagos as $tipoPago )
-                                        <option value="{{ $tipoPago->id }}">{{ $tipoPago->description }}</option>
+                                <label for="pv_cash_box_id">
+                                    Caja <span class="right badge badge-danger">(*)</span>
+                                </label>
+
+                                <select id="pv_cash_box_id"
+                                        class="form-control form-control-sm select2"
+                                        style="width: 100%;">
+                                    <option value=""></option>
+
+                                    @foreach($cashBoxes as $b)
+                                        <option
+                                                value="{{ $b['id'] }}"
+                                                data-type="{{ $b['type'] }}"
+                                                data-uses_subtypes="{{ $b['uses_subtypes'] ? 1 : 0 }}"
+                                        >
+                                            {{ $b['name'] }}
+                                        </option>
                                     @endforeach
                                 </select>
+                            </div>
+
+                            <div class="col-md-2" id="pv_cash_box_subtype_wrap" style="display:none;">
+                                <label for="pv_cash_box_subtype_id">
+                                    Canal / Subtipo <span class="right badge badge-danger">(*)</span>
+                                </label>
+
+                                <select id="pv_cash_box_subtype_id"
+                                        class="form-control form-control-sm select2"
+                                        style="width: 100%;">
+                                    <option value=""></option>
+                                </select>
+
+                                <small class="text-muted">
+                                    Solo aplica cuando la caja es bancaria y usa subtipos.
+                                </small>
                             </div>
                             <div class="col-md-2 text-center">
                                 <label for="fechaDocumento">&nbsp;</label>
@@ -647,7 +675,6 @@
             </div>
         </div>
     </div>
-
 @endsection
 
 @section('plugins')
@@ -712,5 +739,9 @@
         })
     </script>
 
+    <script>
+        window.PV_CASHBOXES = @json($cashBoxes);
+        window.PV_SUBTYPES  = @json($subtypes);
+    </script>
     <script src="{{ asset('js/quoteSale/registrarComprobante.js') }}?v={{ time() }}"></script>
 @endsection

@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CashRegisterController extends Controller
 {
@@ -469,10 +470,26 @@ class CashRegisterController extends Controller
 
     public function open(Request $request)
     {
-        $data = $request->validate([
-            'cash_box_id' => 'required|exists:cash_boxes,id',
-            'opening_balance' => 'nullable|numeric|min:0',
-        ]);
+        $data = $request->validate(
+            [
+                'cash_box_id'      => 'required|exists:cash_boxes,id',
+                'opening_balance'  => 'nullable|numeric|min:0',
+            ],
+            [
+                // cash_box_id
+                'cash_box_id.required' => 'Debe seleccionar una caja.',
+                'cash_box_id.exists'  => 'La caja seleccionada no es válida o no existe.',
+
+                // opening_balance
+                'opening_balance.numeric' => 'El saldo inicial debe ser un valor numérico.',
+                'opening_balance.min'     => 'El saldo inicial no puede ser negativo.',
+            ],
+            [
+                // Nombres amigables (opcional pero recomendado)
+                'cash_box_id'     => 'caja',
+                'opening_balance' => 'saldo inicial',
+            ]
+        );
 
         $userId = auth()->id();
         $cashBox = CashBox::findOrFail($data['cash_box_id']);
@@ -677,12 +694,33 @@ class CashRegisterController extends Controller
     {
         DB::beginTransaction();
         try {
-            $data = $request->validate([
-                'cash_register_id' => 'required|integer|exists:cash_registers,id',
-                'amount' => 'required|numeric|min:0.01',
-                'description' => 'required|string|max:255',
-                'cash_box_subtype_id' => 'nullable|exists:cash_box_subtypes,id',
-            ]);
+            $data = $request->validate(
+                [
+                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
+                    'amount'               => 'required|numeric|min:0.01',
+                    'description'          => 'required|string|max:255',
+                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
+                ],
+                [
+                    // cash_register_id
+                    'cash_register_id.required' => 'Debe seleccionar una caja.',
+                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
+                    'cash_register_id.exists'   => 'La caja seleccionada no existe o no está activa.',
+
+                    // amount
+                    'amount.required' => 'Debe ingresar un monto.',
+                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
+                    'amount.min'      => 'El monto debe ser mayor a 0.',
+
+                    // description
+                    'description.required' => 'Debe ingresar una descripción del movimiento.',
+                    'description.string'   => 'La descripción no es válida.',
+                    'description.max'      => 'La descripción no debe superar los 255 caracteres.',
+
+                    // subtype
+                    'cash_box_subtype_id.exists' => 'El canal / subtipo seleccionado no es válido.',
+                ]
+            );
 
             /** @var CashRegister $cashRegister */
             $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
@@ -756,6 +794,14 @@ class CashRegisterController extends Controller
                 'balance_total' => $cashRegister->current_balance,
             ], 200);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Validación fallida.',
+                'errors'  => $e->errors(), // ✅ aquí vienen tus mensajes personalizados
+            ], 422);
+
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -766,12 +812,33 @@ class CashRegisterController extends Controller
     {
         DB::beginTransaction();
         try {
-            $data = $request->validate([
-                'cash_register_id' => 'required|integer|exists:cash_registers,id',
-                'amount' => 'required|numeric|min:0.01',
-                'description' => 'required|string|max:255',
-                'cash_box_subtype_id' => 'nullable|exists:cash_box_subtypes,id',
-            ]);
+            $data = $request->validate(
+                [
+                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
+                    'amount'               => 'required|numeric|min:0.01',
+                    'description'          => 'required|string|max:255',
+                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
+                ],
+                [
+                    // cash_register_id
+                    'cash_register_id.required' => 'Debe seleccionar una caja abierta.',
+                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
+                    'cash_register_id.exists'   => 'La caja seleccionada no existe o fue cerrada.',
+
+                    // amount
+                    'amount.required' => 'Debe ingresar un monto.',
+                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
+                    'amount.min'      => 'El monto debe ser mayor a 0.',
+
+                    // description
+                    'description.required' => 'Debe ingresar una descripción del movimiento.',
+                    'description.string'   => 'La descripción no es válida.',
+                    'description.max'      => 'La descripción no puede exceder los 255 caracteres.',
+
+                    // cash_box_subtype_id
+                    'cash_box_subtype_id.exists' => 'El canal o subtipo seleccionado no es válido.',
+                ]
+            );
 
             /** @var CashRegister $cashRegister */
             $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
@@ -839,6 +906,14 @@ class CashRegisterController extends Controller
                 'message' => 'Egreso registrado con éxito.',
                 'balance_total' => $cashRegister->current_balance,
             ], 200);
+
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Validación fallida.',
+                'errors'  => $e->errors(), // ✅ aquí vienen tus mensajes personalizados
+            ], 422);
 
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1068,7 +1143,7 @@ class CashRegisterController extends Controller
                 'amount' => $mov->amount,
 
                 // Mantener descripción original
-                'description' => $mov->description,
+                'description' => "Arqueo: ".$mov->description,
 
                 // ✅ Observación generada para trazabilidad rápida
                 'observation' => $obs,

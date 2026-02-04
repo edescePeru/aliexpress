@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\CashBox;
+use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
 use App\Customer;
@@ -50,6 +52,7 @@ use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade as PDF;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Webklex\PDFMerger\Facades\PDFMergerFacade as PDFMerger;
 use Intervention\Image\Facades\Image;
 
@@ -3079,16 +3082,47 @@ class QuoteSaleController extends Controller
     {
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
         $dataCurrency = DataGeneral::where('name', 'type_current')->first();
         $currency = $dataCurrency->valueText;
 
         $dataIgv = PorcentageQuote::where('name', 'igv')->first();
         $igv = $dataIgv->value;
 
-        $tipoPagos = TipoPago::all();
+        // ✅ NUEVO: Cajas + subtipos (igual que PV)
+        $cashBoxes = CashBox::where('is_active', 1)
+            ->orderBy('position')
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id'            => (int) $b->id,
+                    'name'          => (string) $b->name,
+                    'type'          => (string) $b->type,
+                    'uses_subtypes' => (bool) $b->uses_subtypes,
+                ];
+            })
+            ->values();
 
-        return view('quoteSale.registrarComprobante', compact('typeComprobante', 'permissions', 'currency', 'igv', 'tipoPagos'));
-
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')
+            ->where('is_active', 1)
+            ->orderBy('position')
+            ->get()
+            ->map(function ($s) {
+                return [
+                    'id'   => (int) $s->id,
+                    'name' => (string) $s->name,
+                ];
+            })
+            ->values();
+        /*dump($cashBoxes);
+        dd();*/
+        return view('quoteSale.registrarComprobante', compact(
+            'typeComprobante',
+            'permissions',
+            'currency',
+            'igv',
+            'cashBoxes','subtypes'
+        ));
     }
 
     public function buscar(Request $request)
@@ -3416,7 +3450,7 @@ class QuoteSaleController extends Controller
         }
     }
 
-    public function storeFromQuote(Request $request)
+    public function storeFromQuoteO2(Request $request)
     {
         $begin = microtime(true);
 
@@ -3820,6 +3854,436 @@ class QuoteSaleController extends Controller
                 'sale_id' => $sale->id,
                 'nubefact' => $nubefactResult,
                 'url_print' => $urlPrint,
+                'print_type' => $printType,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function storeFromQuote(Request $request)
+    {
+        $begin = microtime(true);
+
+        $worker = Worker::where('user_id', Auth::id())->firstOrFail();
+
+        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
+        $currency = $dataCurrency ? $dataCurrency->valueText : 'pen';
+
+        // ===========================
+        // ✅ Validación CashBox/Subtype
+        // ===========================
+        $cashBoxId        = $request->input('pv_cash_box_id');
+        $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+
+        if (!$cashBoxId) {
+            return response()->json(['message' => 'Seleccione una caja (CashBox).'], 422);
+        }
+
+        $cashBox = CashBox::find($cashBoxId);
+
+        if (!$cashBox || !(bool)$cashBox->is_active) {
+            return response()->json(['message' => 'La caja seleccionada no es válida o está inactiva.'], 422);
+        }
+
+        $needSubtype = ($cashBox->type === 'bank' && (bool)$cashBox->uses_subtypes);
+
+        if ($needSubtype) {
+            if (!$cashBoxSubtypeId) {
+                return response()->json(['message' => 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).'], 422);
+            }
+
+            // ✅ Subtypes globales (no dependen de cash_box_id)
+            $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
+                ->where('is_active', 1)
+                ->where('id', (int)$cashBoxSubtypeId)
+                ->first();
+
+            if (!$validSubtype) {
+                return response()->json(['message' => 'El subtipo seleccionado no es válido o está inactivo.'], 422);
+            }
+        } else {
+            $cashBoxSubtypeId = null;
+        }
+
+        DB::beginTransaction();
+        try {
+            $quote = Quote::with(['equipments.consumables.material'])->findOrFail($request->quote_id);
+
+            if (!$quote || $quote->state !== 'confirmed') {
+                throw new \Exception("La cotización no es válida o no está confirmada.");
+            }
+
+            // ===========================
+            // 1) Crear venta (Sale)
+            // ===========================
+            $sale = Sale::create([
+                'date_sale' => $request->filled('fechaDocumento')
+                    ? Carbon::createFromFormat('Y-m-d', $request->fechaDocumento)
+                    : Carbon::now(),
+
+                'serie'     => $this->generateRandomString(),
+                'worker_id' => $worker->id,
+                'caja'      => $worker->id,
+                'currency'  => ($currency === 'usd') ? 'USD' : 'PEN',
+
+                'op_exonerada'     => 0,
+                'op_inafecta'      => 0,
+                'op_gravada'       => $quote->gravada,
+                'igv'              => $quote->igv_total,
+                'total_descuentos' => $quote->descuento,
+                'importe_total'    => $quote->total_importe,
+                'vuelto'           => 0,
+
+                'quote_id' => $quote->id,
+
+                // ❌ Ya NO usamos tipo_pago_id
+                // 'tipo_pago_id' => ...
+
+                'type_document'            => $request->type_document,
+                'numero_documento_cliente' => $request->numero_documento_cliente,
+                'tipo_documento_cliente'   => $request->tipo_documento_cliente,
+                'nombre_cliente'           => $request->nombre_cliente,
+                'direccion_cliente'        => $request->direccion_cliente,
+                'email_cliente'            => $request->email_cliente,
+
+                'serie_sunat'   => null,
+                'numero'        => null,
+                'sunat_ticket'  => null,
+                'sunat_status'  => null,
+                'sunat_message' => null,
+                'xml_path'      => null,
+                'cdr_path'      => null,
+                'pdf_path'      => null,
+                'fecha_emision' => null,
+            ]);
+
+            $saleDate = $sale->date_sale instanceof Carbon
+                ? $sale->date_sale
+                : Carbon::parse($sale->date_sale);
+
+            // recolectar materialIds
+            $materialIds = [];
+            foreach ($quote->equipments as $equipment) {
+                foreach ($equipment->consumables as $consumable) {
+                    $materialIds[] = (int)$consumable->material_id;
+                }
+            }
+            $materialIds = array_values(array_unique($materialIds));
+
+            // costo promedio vigente por material hasta la fecha de emisión
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($materialIds, $saleDate);
+
+            // ===========================
+            // 2) Crear Output
+            // ===========================
+            $output = Output::create([
+                'execution_order'   => ($quote->order_execution == "") ? 'VENTA POR COTIZACION' : $quote->order_execution,
+                'request_date'      => $sale->date_sale,
+                'requesting_user'   => Auth::id(),
+                'responsible_user'  => Auth::id(),
+                'state'             => 'confirmed',
+                'indicator'         => 'or',
+            ]);
+
+            // ===========================
+            // 3) Detalles + stock + output details
+            // ===========================
+            foreach ($quote->equipments as $equipment) {
+                foreach ($equipment->consumables as $consumable) {
+
+                    $materialId = (int)$consumable->material_id;
+                    $qty        = (float)$consumable->quantity;
+
+                    $unitCost  = (float)($avgCosts[$materialId] ?? 0.0);
+                    $totalCost = $qty * $unitCost;
+
+                    $saleDetail = SaleDetail::create([
+                        'sale_id'                  => $sale->id,
+                        'material_id'              => $consumable->material_id,
+                        'material_presentation_id' => $consumable->material_presentation_id,
+                        'valor_unitario'           => $consumable->valor_unitario,
+                        'price'                    => $consumable->price,
+                        'quantity'                 => $consumable->quantity,
+                        'packs'                    => $consumable->packs,
+                        'units_per_pack'           => $consumable->units_per_pack,
+                        'percentage_tax'           => 18,
+                        'total'                    => $consumable->total,
+                        'discount'                 => $consumable->discount,
+
+                        // snapshot costos
+                        'unit_cost'                => $unitCost,
+                        'total_cost'               => $totalCost,
+                    ]);
+
+                    $material = $consumable->material;
+
+                    if ($material) {
+                        $material->unit_price     = $unitCost;
+                        $material->stock_current  = max(0, (float)$material->stock_current  - (float)$consumable->quantity);
+                        $material->stock_reserved = max(0, (float)$material->stock_reserved - (float)$consumable->quantity);
+                        $material->save();
+                    }
+
+                    $qtyNeeded = (float)$consumable->quantity;
+
+                    if (floor($qtyNeeded) != $qtyNeeded) {
+                        throw new \Exception("La cotización requiere cantidad decimal para el material {$materialId}. Aún no está implementado para retazos.");
+                    }
+
+                    $qtyNeeded = (int)$qtyNeeded;
+
+                    if ($material && (int)$material->tipo_venta_id === 3) {
+
+                        $items = Item::where('material_id', $materialId)
+                            ->whereIn('state_item', ['entered', 'scrapped'])
+                            ->orderBy('id', 'asc')
+                            ->lockForUpdate()
+                            ->take($qtyNeeded)
+                            ->get();
+
+                        if ($items->count() < $qtyNeeded) {
+                            throw new \Exception("Stock insuficiente del material ID {$materialId}. Se requieren {$qtyNeeded} y solo hay {$items->count()} disponibles.");
+                        }
+
+                        foreach ($items as $item) {
+
+                            OutputDetail::create([
+                                'output_id'      => $output->id,
+                                'sale_detail_id' => $saleDetail->id,
+                                'item_id'        => $item->id,
+                                'material_id'    => $materialId,
+                                'quote_id'       => $quote->id,
+                                'custom'         => 0,
+                                'percentage'     => 1,
+                                'price'          => $item->price,
+                                'length'         => $item->length,
+                                'width'          => $item->width,
+                                'equipment_id'   => $equipment->id ?? null,
+                                'activo'         => null,
+                                'unit_cost'      => $unitCost,
+                                'total_cost'     => $unitCost,
+                            ]);
+
+                            $item->state_item = 'exited';
+                            $item->save();
+                        }
+                    }
+
+                    if ($material && (int)$material->tipo_venta_id !== 3) {
+                        OutputDetail::create([
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => $saleDetail->id,
+                            'item_id'        => null,
+                            'material_id'    => $materialId,
+                            'quote_id'       => $quote->id,
+                            'custom'         => 0,
+                            'percentage'     => $qty,
+                            'price'          => $consumable->price,
+                            'length'         => null,
+                            'width'          => null,
+                            'equipment_id'   => $equipment->id ?? null,
+                            'activo'         => null,
+                            'unit_cost'      => $unitCost,
+                            'total_cost'     => $totalCost,
+                        ]);
+                    }
+                }
+            }
+
+            // ===========================
+            // 4) Caja: movimiento (SIN VUELTO)
+            // ===========================
+            $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
+                ->where('user_id', Auth::id())
+                ->where('status', 1)
+                ->latest();
+
+            // Si tu tabla cash_registers tiene cash_box_subtype_id, filtramos
+            if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
+                $cashRegisterQuery->where('cash_box_subtype_id', (int)$cashBoxSubtypeId);
+            }
+
+            $cashRegister = $cashRegisterQuery->first();
+
+            if (!$cashRegister) {
+                return response()->json(['message' => 'No hay caja abierta para la caja/canal seleccionado.'], 422);
+            }
+
+            $amount = (float)$quote->total_importe;
+
+            $description = 'Venta desde cotización - ' . ($cashBox->name ?? 'Caja');
+            if ($needSubtype && $cashBoxSubtypeId) {
+                $sub = CashBoxSubtype::find((int)$cashBoxSubtypeId);
+                if ($sub) $description .= ' (' . $sub->name . ')';
+            }
+
+            // ===========================
+            // Determinar regularize según subtipo (MISMA LÓGICA QUE POS)
+            // ===========================
+            $regularize = 1;
+
+            if ($cashBox->type === 'bank' && (int) $cashBox->uses_subtypes === 1) {
+
+                if (!$cashBoxSubtypeId) {
+                    return response()->json([
+                        'message' => 'Debe seleccionar el subtipo bancario (Yape / Plin / POS / Transfer).'
+                    ], 422);
+                }
+
+                $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
+
+                // 👉 si es diferido, NO se regulariza aún
+                $regularize = $subtype->is_deferred ? 0 : 1;
+            } else {
+                // por seguridad, si no aplica, lo anulamos
+                $cashBoxSubtypeId = null;
+            }
+
+            // ===========================
+            // Construir movimiento
+            // ===========================
+            $movement = [
+                'cash_register_id'      => $cashRegister->id,
+                'type'                  => 'sale',
+                'amount'                => $amount,
+                'description'           => $description,
+                'sale_id'               => $sale->id,
+                // ✅ correcto
+                'regularize'            => $regularize,
+            ];
+
+            // Si hay subtipo, lo seteamos (tu modelo SÍ lo tiene)
+            if (!is_null($cashBoxSubtypeId)) {
+                $movement['cash_box_subtype_id'] = (int) $cashBoxSubtypeId;
+            }
+
+            CashMovement::create($movement);
+
+            // Si NO es bank, actualizamos saldos (si aplica en tu modelo)
+            if ($regularize == 1) {
+                $cashRegister->current_balance += $amount;
+                $cashRegister->total_sales     += $amount;
+                $cashRegister->save();
+            }
+
+            // ===========================
+            // Notificación + Auditoría
+            // ===========================
+            $notification = Notification::create([
+                'content' => 'Venta creada desde cotización por ' . Auth::user()->name,
+                'reason_for_creation' => 'create_sale_from_quote',
+                'user_id' => Auth::id(),
+                'url_go' => route('puntoVenta.index')
+            ]);
+
+            $users = User::role(['admin', 'principal', 'logistic'])->get();
+            foreach ($users as $u) {
+                if ($u->id != Auth::id()) {
+                    foreach ($u->roles as $role) {
+                        NotificationUser::create([
+                            'notification_id' => $notification->id,
+                            'role_id' => $role->id,
+                            'user_id' => $u->id,
+                            'read' => false
+                        ]);
+                    }
+                }
+            }
+
+            $elapsed = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Guardar venta desde cotización',
+                'time'    => $elapsed
+            ]);
+
+            DB::commit();
+
+            // ===========================
+            // 5) Nubefact (igual que tu bloque)
+            // ===========================
+            $nubefactResult = null;
+
+            if (in_array($sale->type_document, ['01', '03'])) {
+                try {
+                    $sale->loadMissing(['details.material']);
+                    $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
+
+                    $filename = 'ORD' . $sale->id;
+                    $pdfFilename = $filename . '.pdf';
+                    $xmlFilename = $filename . '.xml';
+                    $cdrFilename = $filename . '.zip';
+
+                    foreach (['pdfs', 'xmls', 'cdrs'] as $folder) {
+                        if (!file_exists(public_path("comprobantes/$folder"))) {
+                            mkdir(public_path("comprobantes/$folder"), 0777, true);
+                        }
+                    }
+
+                    if (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $pdfContent = Http::get($nubefactResult['enlace_del_pdf'])->body();
+                        file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_xml'])) {
+                        $xmlContent = Http::get($nubefactResult['enlace_del_xml'])->body();
+                        file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_cdr'])) {
+                        $cdrContent = Http::get($nubefactResult['enlace_del_cdr'])->body();
+                        file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
+                    }
+
+                    $sale->update([
+                        'serie_sunat'   => $nubefactResult['serie'] ?? null,
+                        'numero'        => $nubefactResult['numero'] ?? null,
+                        'sunat_ticket'  => $nubefactResult['sunat_ticket'] ?? null,
+                        'sunat_status'  => $nubefactResult['sunat_description'] ?? 'Enviado',
+                        'sunat_message' => $nubefactResult['sunat_note'] ?? '',
+                        'xml_path'      => file_exists(public_path('comprobantes/xmls/' . $xmlFilename)) ? $xmlFilename : null,
+                        'cdr_path'      => file_exists(public_path('comprobantes/cdrs/' . $cdrFilename)) ? $cdrFilename : null,
+                        'pdf_path'      => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
+                        'fecha_emision' => now()->toDateString(),
+                    ]);
+
+                } catch (\Throwable $e) {
+                    $sale->update([
+                        'sunat_status'  => 'Error',
+                        'sunat_message' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // ===========================
+            // URL impresión
+            // ===========================
+            $urlPrint  = route('puntoVenta.print', $sale->id);
+            $printType = 'ticket';
+
+            if (in_array($sale->type_document, ['01', '03'])) {
+                if (!empty($nubefactResult['enlace_del_pdf'])) {
+                    $urlPrint = $nubefactResult['enlace_del_pdf'];
+                }
+                if (!empty($sale->pdf_path)) {
+                    $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+                    if (file_exists($localPath)) {
+                        $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                        $printType = 'sunat_pdf';
+                    } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
+                        $printType = 'sunat_pdf';
+                    }
+                }
+            }
+
+            return response()->json([
+                'message'    => 'Venta creada con éxito desde cotización' . ($nubefactResult ? ' y comprobante generado.' : ' (sin comprobante).'),
+                'sale_id'    => $sale->id,
+                'nubefact'   => $nubefactResult,
+                'url_print'  => $urlPrint,
                 'print_type' => $printType,
             ], 200);
 

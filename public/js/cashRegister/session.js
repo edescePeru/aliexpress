@@ -116,6 +116,36 @@ $(document).ready(function () {
     });
 });
 
+function showAjaxErrors(jqXHR, title = 'Error') {
+
+    const toastOptions = {
+        closeButton: true,      // ❌ botón X
+        timeOut: 2500,          // ⏱ 2.5 segundos
+        extendedTimeOut: 1000,  // tiempo extra si pasas el mouse
+        progressBar: true,
+        positionClass: 'toast-top-right'
+    };
+
+    // 1) Errores de validación (Laravel)
+    if (jqXHR.responseJSON && jqXHR.responseJSON.errors) {
+        const errors = jqXHR.responseJSON.errors;
+
+        Object.keys(errors).forEach(function (field) {
+            errors[field].forEach(function (msg) {
+                toastr.error(msg, title, toastOptions);
+            });
+        });
+        return;
+    }
+
+    // 2) Error genérico
+    const msg = (jqXHR.responseJSON && jqXHR.responseJSON.message)
+        ? jqXHR.responseJSON.message
+        : 'Ocurrió un error.';
+
+    toastr.error(msg, title, toastOptions);
+}
+
 function updateBalanceUI(newBalance) {
     // Hidden balance
     $("#balance_total").val(newBalance);
@@ -175,8 +205,8 @@ function regularizarCaja(e) {
         },
         error: function (xhr) {
             let msg = 'No se pudo regularizar.';
-            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-            toastr.error(msg, 'Error');
+            // 🟩 aquí ya se muestran todos los errores detallados
+            showAjaxErrors(jqXHR, 'msg');
         }
     });
 }
@@ -237,9 +267,9 @@ function egresoCaja() {
                 getDataMovements(1);
             }, 700);
         },
-        error: function(data) {
-            let msg = (data.responseJSON && data.responseJSON.message) ? data.responseJSON.message : 'Error';
-            toastr.error(msg, 'Error');
+        error: function(jqXHR) {
+            // 🟩 aquí ya se muestran todos los errores detallados
+            showAjaxErrors(jqXHR, 'Error');
         }
     });
 }
@@ -311,9 +341,9 @@ function ingresoCaja() {
                 getDataMovements(1);
             }, 700);
         },
-        error: function(data) {
-            let msg = (data.responseJSON && data.responseJSON.message) ? data.responseJSON.message : 'Error';
-            toastr.error(msg, 'Error');
+        error: function(jqXHR) {
+            // 🟩 aquí ya se muestran todos los errores detallados
+            showAjaxErrors(jqXHR, 'Error');
         }
     });
 }
