@@ -1632,46 +1632,52 @@ class PuntoVentaController extends Controller
             // Cambios en los movimientos
             // Revertir los movimientos de caja asociados a la orden
             $movements = CashMovement::where('sale_id', $sale->id)->get();
-            $tipoPago = $sale->tipoPago->description;
+
+
+            //$tipoPago = $sale->tipoPago->description;
             foreach ($movements as $movement) {
+
+                $cashBoxSubType = CashBoxSubtype::find($movement->cash_box_subtype_id);
+                $is_deferred = $cashBoxSubType->is_deferred;
+
                 // Si es un movimiento de tipo "sale"
                 if ($movement->type === 'sale') {
                     // Caso de pago POS (no pago directo)
-                    if ($tipoPago === 'POS') {
+                    if ($is_deferred == 1) {
                         if ($movement->regularize == 0) {
                             // No se regularizó: se elimina el movimiento
                             $movement->delete();
                         } elseif ($movement->regularize == 1) {
                             // Si se regularizó, se crea un movimiento inverso de tipo "expense"
                             CashMovement::create([
-                                'cash_register_id' => $movement->cash_register_id,
-                                'sale_id'         => $sale->id,
-                                'type'             => 'expense',
-                                'amount'           => $movement->amount,
-                                'description'      => 'Reversión de venta (POS regularizado) por anulación de orden',
-                                'regularize'       => $movement->regularize
+                                'cash_register_id'      => $movement->cash_register_id,
+                                'sale_id'               => $sale->id,
+                                'type'                  => 'expense',
+                                'amount'                => $movement->amount_regularize,
+                                'description'           => 'Reversión de venta (POS regularizado) por anulación de venta',
+                                'regularize'            => $movement->regularize,
+                                'cash_box_subtype_id'   => $cashBoxSubType->id,
                             ]);
                             $cashRegister = CashRegister::find($movement->cash_register_id);
-                            $cashRegister->current_balance -= $movement->amount;
-                            $cashRegister->total_sales    -= $movement->amount;
-                            $cashRegister->total_incomes  -= $movement->amount;
-                            $cashRegister->total_expenses += $movement->amount;
+                            $cashRegister->current_balance -= $movement->amount_regularize;
+                            $cashRegister->total_sales    -= $movement->amount_regularize;
+                            $cashRegister->total_expenses += $movement->amount_regularize;
                             $cashRegister->save();
                         }
                     } else {
                         // Para ventas normales, se revierte creando un movimiento de tipo "expense"
                         CashMovement::create([
-                            'cash_register_id' => $movement->cash_register_id,
-                            'sale_id'         => $sale->id,
-                            'type'             => 'expense',
-                            'amount'           => $movement->amount,
-                            'description'      => 'Reversión de venta por anulación de orden',
-                            'regularize'       => $movement->regularize
+                            'cash_register_id'      => $movement->cash_register_id,
+                            'sale_id'               => $sale->id,
+                            'type'                  => 'expense',
+                            'amount'                => $movement->amount,
+                            'description'           => 'Reversión de venta por anulación de venta',
+                            'regularize'            => $movement->regularize,
+                            'cash_box_subtype_id'   => $cashBoxSubType->id,
                         ]);
                         $cashRegister = CashRegister::find($movement->cash_register_id);
                         $cashRegister->current_balance -= $movement->amount;
                         $cashRegister->total_sales    -= $movement->amount;
-                        $cashRegister->total_incomes  -= $movement->amount;
                         $cashRegister->total_expenses += $movement->amount;
                         $cashRegister->save();
                     }
@@ -1680,13 +1686,14 @@ class PuntoVentaController extends Controller
                 elseif ($movement->type === 'expense') {
                     // Se revierte creando un movimiento de tipo "income"
                     CashMovement::create([
-                        'cash_register_id' => $movement->cash_register_id,
-                        'sale_id'          => $sale->id,
-                        'type'             => 'income',
-                        'amount'           => $movement->amount,
-                        'description'      => 'Reversión de gasto (vuelto) por anulación de orden',
-                        'subtype'          => $movement->subtype,
-                        'regularize'       => $movement->regularize
+                        'cash_register_id'      => $movement->cash_register_id,
+                        'sale_id'               => $sale->id,
+                        'type'                  => 'income',
+                        'amount'                => $movement->amount,
+                        'description'           => 'Reversión de gasto (vuelto) por anulación de orden',
+                        'subtype'               => $movement->subtype,
+                        'regularize'            => $movement->regularize,
+                        'cash_box_subtype_id'   => $cashBoxSubType->id,
                     ]);
                     $cashRegister = CashRegister::find($movement->cash_register_id);
                     $cashRegister->current_balance += $movement->amount;
