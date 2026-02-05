@@ -60,3 +60,5 @@ WHERE cm.type = 'sale'
 
 
 php7.4 artisan permissions:sync
+
+cash_box_subtypes colocar is_deferred
