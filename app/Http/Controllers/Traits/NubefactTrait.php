@@ -80,7 +80,8 @@ trait NubefactTrait
         /*dump("total_gravada");
         dump($total_gravada);*/
 
-        $base = bcsub($total_gravada, 0, 10);
+        //$base = bcsub($total_gravada, 0, 10);
+        $base = $total_gravada;
         /*dump("base");
         dump($base);*/
 
