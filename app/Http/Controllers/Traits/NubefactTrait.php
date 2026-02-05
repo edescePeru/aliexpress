@@ -74,13 +74,25 @@ trait NubefactTrait
 
         // base = total_gravada - descuento (ambos a 2 decimales)
         $discount = $order->total_descuentos;
+        /*dump("discount");
+        dump($discount);*/
         $total_gravada = $order->op_gravada;
+        /*dump("total_gravada");
+        dump($total_gravada);*/
 
-        $base = bcsub($total_gravada, $discount, 10);
+        $base = bcsub($total_gravada, 0, 10);
+        /*dump("base");
+        dump($base);*/
 
         $total_igv = bcmul($base, '0.18', 10);
+        /*dump("total_igv");
+        dump($total_igv);*/
 
         $total = bcadd($base, $total_igv, 10);
+
+        /*dump("total");
+        dump($total);*/
+
         return [
                 "operacion" => "generar_comprobante",
                 "tipo_de_comprobante" => $isFactura ? "1" : "2",
@@ -136,8 +148,8 @@ trait NubefactTrait
         }
 
         $data = $this->buildNubefactData($order);
-
-        /*dump($data);
+        /*dump("Nubefact data");
+        dump($data);
         dd();*/
 
         /*$token = env('NUBEFACT_TOKEN');

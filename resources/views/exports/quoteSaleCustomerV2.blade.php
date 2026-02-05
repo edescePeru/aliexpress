@@ -225,13 +225,13 @@
                 <td style="text-align:left;">{{ "(".$present.") ".$consumable->material->full_name }}</td>
 
                 @if($quote->state_decimals)
-                    <td class="text-right">{{ number_format($vunit, 0) }}</td>
-                    <td class="text-right">{{ number_format($punit, 0) }}</td>
-                    <td class="text-right">{{ number_format($importe, 0) }}.00</td>
+                    <td style="text-align: right">{{ number_format($vunit, 0) }}</td>
+                    <td style="text-align: right">{{ number_format($punit, 0) }}</td>
+                    <td style="text-align: right">{{ number_format($importe, 0) }}.00</td>
                 @else
-                    <td class="text-right">{{ number_format($vunit, 2) }}</td>
-                    <td class="text-right">{{ number_format($punit, 2) }}</td>
-                    <td class="text-right">{{ number_format($importe, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($vunit, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($punit, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($importe, 2) }}</td>
                 @endif
             </tr>
         @endforeach
@@ -258,13 +258,13 @@
                 <td style="text-align:left;">{{ $workforce->description }}</td>
 
                 @if($quote->state_decimals)
-                    <td class="text-right">{{ number_format($vunit, 0) }}</td>
-                    <td class="text-right">{{ number_format($punit, 0) }}</td>
-                    <td class="text-right">{{ number_format($importe, 0) }}.00</td>
+                    <td style="text-align: right">{{ number_format($vunit, 0) }}</td>
+                    <td style="text-align: right">{{ number_format($punit, 0) }}</td>
+                    <td style="text-align: right">{{ number_format($importe, 0) }}.00</td>
                 @else
-                    <td class="text-right">{{ number_format($vunit, 2) }}</td>
-                    <td class="text-right">{{ number_format($punit, 2) }}</td>
-                    <td class="text-right">{{ number_format($importe, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($vunit, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($punit, 2) }}</td>
+                    <td style="text-align: right">{{ number_format($importe, 2) }}</td>
                 @endif
             </tr>
         @endforeach
@@ -278,15 +278,15 @@
 {{-- ============================= --}}
 
 <table class="totales-table">
-    {{--<tr>
+    <tr>
         <td class="text-right">DESCUENTO (-)</td>
-        <td class="text-right">
+        <td style="text-align: right">
             {{ $quote->currency_invoice }}
-            {{ number_format($quote->descuento, $quote->state_decimals ? 0 : 2) }}
+            {{ number_format($quote->discount_input_value, $quote->state_decimals ? 0 : 2) }}
         </td>
     </tr>
 
-    <tr>
+    {{--<tr>
         <td class="text-right">GRAVADA</td>
         <td class="text-right">
             {{ $quote->currency_invoice }}
