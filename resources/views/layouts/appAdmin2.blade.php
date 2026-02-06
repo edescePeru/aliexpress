@@ -333,12 +333,21 @@
                             </a>
                         </li>
                         @endcan
+                            @can('showFinancialSummary_cashBox')
+                                <li class="nav-item">
+                                    <a href="{{ route('financial.summary') }}"
+                                       class="nav-link @yield('activeAdminFinancialSummary')">
+                                        <i class="nav-icon fas fa-money-bill"></i>
+                                        <p>RESUMEN FINANCIERO</p>
+                                    </a>
+                                </li>
+                            @endcan
                     @endcan
 
                     @can('enable_gananciaDiaria')
                     <li class="nav-item has-treeview @yield('openGanancias')">
                         <a href="#" class="nav-link @yield('activeGanancias')">
-                            <i class="nav-icon fas fa-truck-loading"></i>
+                            <i class="nav-icon fas fas fa-coins"></i>
                             <p>
                                 GANANCIA DIARIA
                                 <i class="right fas fa-angle-left"></i>

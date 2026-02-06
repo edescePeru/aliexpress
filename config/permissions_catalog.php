@@ -473,6 +473,7 @@ return [
 
     'listCashMovementMy_cashBox' => 'Listar mis movimientos de Cajas de efectivo',
     'listCashMovementAdmin_cashBox' => 'Listar movimientos admin de Cajas de efectivo',
+    'showFinancialSummary_cashBox' => 'Ver resumen financiero de Cajas de efectivo',
 
     'enableAdmin_caja' => 'Habilitar Caja Administrador',
     'regularize_caja' => 'Regularizar movimientos de caja'

@@ -3056,6 +3056,7 @@ Route::middleware('auth')->group(function (){
             Route::post('/regularize', 'CashRegisterController@regularize')->name('cashMovement.regularize');
         });
 
+        Route::get('/financial/summary', 'CashRegisterController@financialSummary')->name('financial.summary');
     });
 });
 

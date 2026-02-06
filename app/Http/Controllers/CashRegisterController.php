@@ -1279,4 +1279,105 @@ class CashRegisterController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+
+    public function financialSummary(Request $request)
+    {
+        // 1) Usuario "central" (owner=true)
+        $ownerUser = User::where('owner', 1)->firstOrFail();
+
+        // 2) CashBoxes activos (pueden ser varios bancos)
+        $cashBoxes = CashBox::where('is_active', 1)
+            ->orderBy('position')
+            ->get(['id', 'name', 'type', 'uses_subtypes']);
+
+        // 3) CashRegisters "centrales": últimas sesiones ABIERTAS del owner, 1 por cash_box_id
+        //    (blindaje por si existieran duplicados abiertos por error)
+        $sub = DB::table('cash_registers')
+            ->selectRaw('MAX(id) as id')
+            ->where('user_id', $ownerUser->id)
+            ->where('status', 1) // abierta
+            ->groupBy('cash_box_id');
+
+        $registers = CashRegister::query()
+            ->joinSub($sub, 'cr2', function ($join) {
+                $join->on('cr2.id', '=', 'cash_registers.id');
+            })
+            ->select('cash_registers.*')
+            ->get()
+            ->keyBy('cash_box_id');
+
+        $registerIds = $registers->pluck('id')->values()->all();
+
+        // 4) Comisiones CONFIRMADAS (regularize=1)
+        $commissionsConfirmed = 0.0;
+        if (!empty($registerIds)) {
+            $commissionsConfirmed = (float) CashMovement::whereIn('cash_register_id', $registerIds)
+                ->where('regularize', 1)
+                ->whereNotNull('commission')
+                ->where('commission', '>', 0)
+                ->sum('commission');
+        }
+
+        // 5) Pendientes por regularizar (solo bancarios, regularize=0)
+        $pendingByRegisterId = [];
+        if (!empty($registerIds)) {
+            $pendingByRegisterId = CashMovement::selectRaw('cash_register_id, COALESCE(SUM(amount),0) as pending')
+                ->whereIn('cash_register_id', $registerIds)
+                ->where('regularize', 0)
+                ->whereIn('type', ['sale', 'income'])
+                ->groupBy('cash_register_id')
+                ->pluck('pending', 'cash_register_id')
+                ->toArray();
+        }
+
+        $pendingTotal = 0.0;
+
+        if (!empty($pendingByRegisterId)) {
+            foreach ($pendingByRegisterId as $p) {
+                $pendingTotal += (float)$p;
+            }
+        }
+
+        // 6) Armar filas por cada CashBox
+        $rows = [];
+        $totalBalances = 0.0;
+
+        foreach ($cashBoxes as $box) {
+            $reg = $registers->get($box->id);
+
+            $balance = $reg ? (float) $reg->current_balance : 0.0;
+            $totalBalances += $balance;
+
+            $pending = 0.0;
+            if ($box->type === 'bank' && $reg) {
+                $pending = (float)($pendingByRegisterId[$reg->id] ?? 0.0);
+            }
+
+            $rows[] = [
+                'label'         => $box->name, // ✅ aquí
+                'cash_box_id'   => $box->id,
+                'cash_box_name' => $box->name,
+                'cash_box_type' => $box->type, // cash | bank | other
+                'balance'       => $balance,
+                'pending'       => $pending,
+                'has_register'  => (bool) $reg,
+                'url_admin'     => route('cashRegister.session', $box->id)
+            ];
+        }
+
+        $grandTotal = $totalBalances + $commissionsConfirmed + $pendingTotal;
+
+        // Links (ajústalos a tus rutas reales)
+        $urlDiferidos     = url('/dashboard/cash-movements/deferred');  // ejemplo
+
+        return view('cashRegister.summary', compact(
+            'ownerUser',
+            'rows',
+            'commissionsConfirmed',
+            'totalBalances',
+            'grandTotal',
+            'urlDiferidos',
+            'pendingTotal'
+        ));
+    }
 }
