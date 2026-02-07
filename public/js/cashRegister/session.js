@@ -176,6 +176,7 @@ function regularizarCaja(e) {
 
     $.ajax({
         url: url,
+        headers: { 'Accept': 'application/json' },
         method: 'POST',
         dataType: 'json',
         data: {
@@ -203,10 +204,8 @@ function regularizarCaja(e) {
                 getDataMovements(1);
             }, 400);
         },
-        error: function (xhr) {
-            let msg = 'No se pudo regularizar.';
-            // 🟩 aquí ya se muestran todos los errores detallados
-            showAjaxErrors(jqXHR, 'msg');
+        error: function (jqXHR) {
+            showAjaxErrors(jqXHR, 'Error'); // <- aquí el título real, no 'msg'
         }
     });
 }

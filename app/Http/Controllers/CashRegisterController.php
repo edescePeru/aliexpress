@@ -1169,11 +1169,34 @@ class CashRegisterController extends Controller
 
     public function regularize(Request $request)
     {
-        $data = $request->validate([
-            'cash_movement_id' => 'required|integer|exists:cash_movements,id',
-            'amount_regularize' => 'required|numeric|min:0.01',
-            'observation' => 'nullable|string|max:1000',
-        ]);
+        $data = $request->validate(
+            [
+                'cash_movement_id' => 'required|integer|exists:cash_movements,id',
+                'amount_regularize' => 'required|numeric|min:0.01',
+                'observation' => 'nullable|string|max:1000',
+            ],
+            [
+                // cash_movement_id
+                'cash_movement_id.required' => 'No se envió el movimiento a regularizar.',
+                'cash_movement_id.integer'  => 'El identificador del movimiento no es válido.',
+                'cash_movement_id.exists'   => 'El movimiento seleccionado no existe o ya fue eliminado.',
+
+                // amount_regularize
+                'amount_regularize.required' => 'Debe ingresar el monto neto recibido.',
+                'amount_regularize.numeric'  => 'El monto neto debe ser un número válido.',
+                'amount_regularize.min'      => 'El monto neto debe ser mayor a 0.',
+
+                // observation
+                'observation.string' => 'La observación contiene caracteres inválidos.',
+                'observation.max'    => 'La observación no puede superar los 1000 caracteres.',
+            ],
+            [
+                // nombres amigables (MUY importante para toastr)
+                'cash_movement_id'  => 'movimiento',
+                'amount_regularize' => 'monto neto',
+                'observation'       => 'observación',
+            ]
+        );
 
         // ✅ Solo admin/owner (según tu regla)
         // Si prefieres permiso en vez de owner, reemplaza este bloque.
