@@ -1460,14 +1460,14 @@ class PuntoVentaController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::where('state_annulled', 0)->orderBy('date_sale', 'DESC');
+            $query = Sale::where('state_annulled', 0)->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::where('state_annulled', 0)->whereDate('date_sale', '>=', $fechaInicio)
-                ->whereDate('date_sale', '<=', $fechaFinal)
-                ->orderBy('date_sale', 'DESC');
+            $query = Sale::where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
+                ->whereDate('created_at', '<=', $fechaFinal)
+                ->orderBy('created_at', 'DESC');
         }
 
         // Aplicar filtros si se proporcionan
@@ -1477,7 +1477,7 @@ class PuntoVentaController extends Controller
         }
 
         if ($year != "") {
-            $query->whereYear('date_sale', $year);
+            $query->whereYear('created_at', $year);
 
         }
 
