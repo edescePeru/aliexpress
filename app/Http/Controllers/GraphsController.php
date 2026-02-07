@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\CashBox;
 use App\CashMovement;
+use App\CashRegister;
 use App\Entry;
 use App\OrderService;
 use App\Sale;
+use App\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class GraphsController extends Controller
 {
@@ -256,6 +260,7 @@ class GraphsController extends Controller
         // Sumar ingresos (type = income) + (type = sale con regularize = 1)
         $incomeTotal = CashMovement::whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
+            ->where('arqueo', false)
             ->where(function ($query) {
                 $query->where('type', 'income')
                     ->orWhere(function ($subQuery) {
@@ -275,6 +280,7 @@ class GraphsController extends Controller
         // Sumar egresos (type = expense)
         $expenseCaja = CashMovement::whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
+            ->where('arqueo', false)
             ->where('type', 'expense')
             ->sum('amount');
 

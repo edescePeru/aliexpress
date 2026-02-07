@@ -19,6 +19,7 @@ class CashMovement extends Model
         'observation',
         'cash_movement_origin_id',       // origen (ej: movimiento del cajero)
         'cash_movement_regularize_id',   // el movimiento central que lo vinculó/regularizó
+        'arqueo'
     ];
 
     protected $dates = ['created_at', 'updated_at'];
@@ -28,6 +29,7 @@ class CashMovement extends Model
         'amount_regularize' => 'decimal:2',
         'commission' => 'decimal:2',
         'regularize' => 'boolean',
+        'arqueo' => 'boolean',
     ];
 
     public function cashRegister()

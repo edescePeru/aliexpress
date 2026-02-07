@@ -1040,6 +1040,7 @@ class CashRegisterController extends Controller
             'observation' => $obs ?: null,
             'regularize' => 1,
             'cash_box_subtype_id' => null,
+            'arqueo' => true
         ]);
 
         // Income en central
@@ -1052,6 +1053,7 @@ class CashRegisterController extends Controller
             'regularize' => 1,
             'cash_box_subtype_id' => null,
             'cash_movement_origin_id' => $movExpense->id,
+            'arqueo' => true
         ]);
 
         // Actualizar balances
@@ -1106,6 +1108,7 @@ class CashRegisterController extends Controller
                 'observation' => $desc,
                 'regularize' => 1,
                 'cash_box_subtype_id' => null,
+                'arqueo' => true
             ]);
 
             // income en central
@@ -1118,6 +1121,7 @@ class CashRegisterController extends Controller
                 'regularize' => 1,
                 'cash_box_subtype_id' => null,
                 'cash_movement_origin_id' => $movExpense->id,
+                'arqueo' => true
             ]);
 
             // actualizar balances
@@ -1152,6 +1156,7 @@ class CashRegisterController extends Controller
                 'cash_box_subtype_id' => $mov->cash_box_subtype_id,
                 'cash_movement_origin_id' => $mov->id,
                 'sale_id' => $mov->sale_id,
+                'arqueo' => true
 
             ]);
 
