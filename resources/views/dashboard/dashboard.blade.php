@@ -1550,6 +1550,14 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary filter-btn-sale" data-filter="date_range" data-dismiss="modal">Aplicar</button>
+                    <button
+                            type="button"
+                            class="btn btn-success"
+                            id="btn-export-range-sales"
+                            data-url="{{ route('sales.export.range') }}"
+                    >
+                        <i class="fas fa-file-excel"></i> Exportar
+                    </button>
                 </div>
             </div>
         </div>
@@ -1579,6 +1587,14 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary filter-btn-utilidad" data-filter="date_range" data-dismiss="modal">Aplicar</button>
+                    <button
+                            type="button"
+                            class="btn btn-success"
+                            id="btn-export-cashflow-range"
+                            data-url="{{ route('cashflow.export.range') }}"
+                    >
+                        <i class="fas fa-file-excel"></i> Exportar
+                    </button>
                 </div>
             </div>
         </div>

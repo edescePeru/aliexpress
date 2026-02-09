@@ -316,6 +316,186 @@ $(document).ready(function () {
     }
 
     $("#btn-pays").on('click', reportPersonalPayment);
+
+    $(document).on('click', '#btn-export-range-sales', function (e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+
+        // 🔒 Evitar doble click
+        if ($btn.data('busy') === 1) return;
+
+        var startDate = $('#start_date_sale').val();
+        var endDate   = $('#end_date_sale').val();
+
+        // Validaciones
+        if (!startDate || !endDate) {
+            $.alert({
+                title: 'Fechas requeridas',
+                content: 'Selecciona <b>Fecha Inicio</b> y <b>Fecha Fin</b>.',
+                type: 'orange'
+            });
+            return;
+        }
+
+        if (startDate > endDate) {
+            $.alert({
+                title: 'Rango inválido',
+                content: 'La <b>Fecha Fin</b> no puede ser menor que la <b>Fecha Inicio</b>.',
+                type: 'red'
+            });
+            return;
+        }
+
+        var prettyStart = startDate.split('-').reverse().join('/');
+        var prettyEnd   = endDate.split('-').reverse().join('/');
+
+        $.confirm({
+            title: 'Confirmar exportación',
+            icon: 'fas fa-file-excel',
+            type: 'green',
+            theme: 'modern',
+            animation: 'zoom',
+            closeIcon: true,
+            content:
+                '¿Deseas exportar las ventas desde <b>' +
+                prettyStart +
+                '</b> hasta <b>' +
+                prettyEnd +
+                '</b>?',
+            buttons: {
+                cancel: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary'
+                },
+                confirm: {
+                    text: 'Sí, exportar',
+                    btnClass: 'btn-success',
+                    action: function () {
+
+                        // 🔒 Bloquear botón DEFINITIVO
+                        $btn.data('busy', 1);
+
+                        $btn.prop('disabled', true)
+                            .removeClass('btn-success')
+                            .addClass('btn-secondary')
+                            .html('<i class="fas fa-spinner fa-spin"></i> Exportando...');
+
+                        // Cerrar modal
+                        $('#dateRangeModalSale').modal('hide');
+
+                        // Construir URL desde data-url
+                        var baseUrl = $btn.data('url');
+                        var urlComplete = baseUrl +
+                            '?start_date=' + encodeURIComponent(startDate) +
+                            '&end_date=' + encodeURIComponent(endDate);
+
+                        // 🚀 Disparar descarga
+                        window.location.href = urlComplete;
+                    }
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '#btn-export-cashflow-range', function (e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+
+        // 🔒 Evitar doble click
+        if ($btn.data('busy') === 1) return;
+
+        var startDate = $('#start_date_utilidad').val();
+        var endDate   = $('#end_date_utilidad').val();
+
+        // Validaciones
+        if (!startDate || !endDate) {
+            $.alert({
+                title: 'Fechas requeridas',
+                content: 'Selecciona <b>Fecha Inicio</b> y <b>Fecha Fin</b>.',
+                type: 'orange'
+            });
+            return;
+        }
+
+        if (startDate > endDate) {
+            $.alert({
+                title: 'Rango inválido',
+                content: 'La <b>Fecha Fin</b> no puede ser menor que la <b>Fecha Inicio</b>.',
+                type: 'red'
+            });
+            return;
+        }
+
+        var prettyStart = startDate.split('-').reverse().join('/');
+        var prettyEnd   = endDate.split('-').reverse().join('/');
+
+        $.confirm({
+            title: 'Confirmar exportación',
+            icon: 'fas fa-file-excel',
+            type: 'green',
+            theme: 'modern',
+            animation: 'zoom',
+            closeIcon: true,
+            content:
+                '¿Deseas exportar las ventas desde <b>' +
+                prettyStart +
+                '</b> hasta <b>' +
+                prettyEnd +
+                '</b>?',
+            buttons: {
+                cancel: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary'
+                },
+                confirm: {
+                    text: 'Sí, exportar',
+                    btnClass: 'btn-success',
+                    action: function () {
+
+                        // 🔒 Bloquear botón DEFINITIVO
+                        $btn.data('busy', 1);
+
+                        $btn.prop('disabled', true)
+                            .removeClass('btn-success')
+                            .addClass('btn-secondary')
+                            .html('<i class="fas fa-spinner fa-spin"></i> Exportando...');
+
+                        // Cerrar modal
+                        $('#dateRangeModalUtilidad').modal('hide');
+
+                        // Construir URL desde data-url
+                        var baseUrl = $btn.data('url');
+                        var urlComplete = baseUrl +
+                            '?start_date=' + encodeURIComponent(startDate) +
+                            '&end_date=' + encodeURIComponent(endDate);
+
+                        // 🚀 Disparar descarga
+                        window.location.href = urlComplete;
+                    }
+                }
+            }
+        });
+    });
+
+    $('#dateRangeModalSale').on('show.bs.modal', function () {
+        var $btn = $('#btn-export-range-sales');
+        $btn.data('busy', 0)
+            .prop('disabled', false)
+            .removeClass('btn-secondary')
+            .addClass('btn-success')
+            .html('<i class="fas fa-file-excel"></i> Exportar');
+    });
+
+    $('#dateRangeModalUtilidad').on('show.bs.modal', function () {
+        var $btn = $('#btn-export-cashflow-range');
+        $btn.data('busy', 0)
+            .prop('disabled', false)
+            .removeClass('btn-secondary')
+            .addClass('btn-success')
+            .html('<i class="fas fa-file-excel"></i> Exportar');
+    });
 });
 
 function reportPersonalPayment() {

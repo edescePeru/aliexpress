@@ -12,6 +12,9 @@ use App\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SalesRangeExport;
+use App\Exports\CashFlowRangeExport;
 
 class GraphsController extends Controller
 {
@@ -333,5 +336,45 @@ class GraphsController extends Controller
             'income_total' => round($incomeTotal, 2),
             'expense_total' => round($expenseTotal, 2)
         ];
+    }
+
+    public function exportSalesByDateRange(Request $request)
+    {
+        $data = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ], [
+            'start_date.required' => 'La fecha inicio es obligatoria.',
+            'start_date.date'     => 'La fecha inicio no es válida.',
+            'end_date.required'   => 'La fecha fin es obligatoria.',
+            'end_date.date'       => 'La fecha fin no es válida.',
+            'end_date.after_or_equal' => 'La fecha fin debe ser mayor o igual a la fecha inicio.',
+        ]);
+
+        $start = Carbon::parse($data['start_date'])->startOfDay();
+        $end   = Carbon::parse($data['end_date'])->endOfDay();
+
+        $fileName = 'reporte_ventas_'.$start->format('Ymd').'_al_'.$end->format('Ymd').'.xlsx';
+
+        return Excel::download(new SalesRangeExport($start, $end), $fileName);
+    }
+
+    public function exportCashFlowRangeExcel(Request $request)
+    {
+        $data = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ], [
+            'start_date.required' => 'La fecha inicio es obligatoria.',
+            'end_date.required'   => 'La fecha fin es obligatoria.',
+            'end_date.after_or_equal' => 'La fecha fin debe ser mayor o igual a la fecha inicio.',
+        ]);
+
+        $start = Carbon::parse($data['start_date'])->startOfDay();
+        $end   = Carbon::parse($data['end_date'])->endOfDay();
+
+        $fileName = 'cashflow_'.$start->format('Ymd').'_al_'.$end->format('Ymd').'.xlsx';
+
+        return Excel::download(new CashFlowRangeExport($start, $end), $fileName);
     }
 }

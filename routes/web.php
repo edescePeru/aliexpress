@@ -3057,6 +3057,9 @@ Route::middleware('auth')->group(function (){
         });
 
         Route::get('/financial/summary', 'CashRegisterController@financialSummary')->name('financial.summary');
+        Route::get('/sales/export-range/excel', 'GraphsController@exportSalesByDateRange')->name('sales.export.range');
+        Route::get('/cashflow/export-range/excel', 'GraphsController@exportCashFlowRangeExcel')
+            ->name('cashflow.export.range');
     });
 });
 
