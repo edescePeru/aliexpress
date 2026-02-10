@@ -373,7 +373,7 @@ class GraphsController extends Controller
         $start = Carbon::parse($data['start_date'])->startOfDay();
         $end   = Carbon::parse($data['end_date'])->endOfDay();
 
-        $fileName = 'cashflow_'.$start->format('Ymd').'_al_'.$end->format('Ymd').'.xlsx';
+        $fileName = 'reporte_ingresos_vs_egresos_'.$start->format('Ymd').'_al_'.$end->format('Ymd').'.xlsx';
 
         return Excel::download(new CashFlowRangeExport($start, $end), $fileName);
     }

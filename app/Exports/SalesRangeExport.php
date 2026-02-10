@@ -10,8 +10,9 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
+class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithEvents, WithTitle
 {
     protected $start;
     protected $end;
@@ -23,6 +24,11 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
     {
         $this->start = $start;
         $this->end   = $end;
+    }
+
+    public function title(): string
+    {
+        return 'VENTAS';
     }
 
     public function collection()
