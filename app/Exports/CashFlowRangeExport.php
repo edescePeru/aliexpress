@@ -127,7 +127,7 @@ class CashFlowRangeExport implements WithMultipleSheets
                 $this->end,
                 $this->totalIncome,
                 $this->totalExpenseCaja,
-                $this->totalExpenseFinanzas,
+                //$this->totalExpenseFinanzas,
                 $this->totalCompras,
                 $this->totalServicios,
                 $totalExpense,
@@ -146,7 +146,7 @@ class CashFlowRangeExport implements WithMultipleSheets
                 'TOTAL EGRESOS CAJA'
             ),
 
-            new Sheets\EntriesFinanzasSheet($this->entriesFinanzas, 'TOTAL EGRESOS FINANZAS'),
+            //new Sheets\EntriesFinanzasSheet($this->entriesFinanzas, 'TOTAL EGRESOS FINANZAS'),
 
             new Sheets\EntriesComprasSheet($this->entriesCompras, 'TOTAL COMPRAS'),
 

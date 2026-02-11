@@ -24,7 +24,7 @@ class CashFlowSummarySheet implements FromArray, WithTitle
         Carbon $end,
         $totalIncome,
         $expenseCaja,
-        $expenseFinanzas,
+        //$expenseFinanzas,
         $compras,
         $servicios,
         $totalExpense,
@@ -35,7 +35,7 @@ class CashFlowSummarySheet implements FromArray, WithTitle
 
         $this->totalIncome = $totalIncome;
         $this->expenseCaja = $expenseCaja;
-        $this->expenseFinanzas = $expenseFinanzas;
+        //$this->expenseFinanzas = $expenseFinanzas;
         $this->compras = $compras;
         $this->servicios = $servicios;
         $this->totalExpense = $totalExpense;
@@ -54,7 +54,7 @@ class CashFlowSummarySheet implements FromArray, WithTitle
             ['Total Ingresos', number_format($this->totalIncome, 2, '.', '')],
 
             ['Egresos Caja', number_format($this->expenseCaja, 2, '.', '')],
-            ['Egresos Finanzas', number_format($this->expenseFinanzas, 2, '.', '')],
+            //['Egresos Finanzas', number_format($this->expenseFinanzas, 2, '.', '')],
             ['Compras', number_format($this->compras, 2, '.', '')],
             ['Servicios', number_format($this->servicios, 2, '.', '')],
 
