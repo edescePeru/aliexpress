@@ -1163,7 +1163,7 @@ class QuoteSaleController extends Controller
                 "date_validate" => ($quote->date_validate == null || $quote->date_validate == "") ? '': $quote->date_validate->format('d/m/Y'),
                 "deadline" => ($quote->payment_deadline_id == null || $quote->payment_deadline_id == "") ? "":$quote->deadline->description,
                 "time_delivery" => $quote->time_delivery.' DÍAS',
-                "customer" => ($quote->customer_id == "" || $quote->customer_id == null) ? "" : $quote->customer->business_name,
+                "customer" => empty($quote->customer_id) ? "" : ($quote->customer->business_name ?? ""),
                 "total_sunat" => number_format($quote->total_importe, 2),
                 "total_cliente" => number_format($quote->total_importe+$total_workforce, 2),
                 "currency" => ($quote->currency_invoice == null || $quote->currency_invoice == "") ? '': $quote->currency_invoice,
