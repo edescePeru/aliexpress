@@ -12,6 +12,13 @@ php artisan db:seed --class=MaterialsFromExcelSeeder
 php artisan db:seed --class=WorkforceSeeder
 php artisan db:seed --class=BankSeeder
 
+---------------------------------------------------------
+
+php artisan db:seed --class=TransferReasonsSeeder
+php artisan db:seed --class=WeightUnitsSeeder
+php artisan db:seed --class=IdentityDocumentTypesSeeder
+php artisan db:seed --class=SunatShippingIndicatorsSeeder
+
 php7.4 /usr/local/bin/composer dump-autoload
 
 php artisan db:seed --class=CashBoxesSeeder

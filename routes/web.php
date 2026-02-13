@@ -3060,6 +3060,21 @@ Route::middleware('auth')->group(function (){
         Route::get('/sales/export-range/excel', 'GraphsController@exportSalesByDateRange')->name('sales.export.range');
         Route::get('/cashflow/export-range/excel', 'GraphsController@exportCashFlowRangeExcel')
             ->name('cashflow.export.range');
+
+        Route::prefix('shipping-guides')->group(function () {
+            // Vistas
+            Route::get('/', 'ShippingGuideController@viewIndex')->name('shipping_guides.view');
+            Route::get('/create', 'ShippingGuideController@create')->name('shipping_guides.create');
+
+            // Ajax / API internas
+            Route::get('/list', 'ShippingGuideController@index')->name('shipping_guides.list');
+            Route::post('/', 'ShippingGuideController@store')->name('shipping_guides.store');
+
+            Route::get('/{id}', 'ShippingGuideController@show')->name('shipping_guides.show');
+            Route::post('/export', 'ShippingGuideController@exportExcel')->name('shipping_guides.export');
+            Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
+        });
+
     });
 });
 

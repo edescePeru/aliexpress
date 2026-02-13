@@ -1320,13 +1320,13 @@
                             <ul class="nav nav-treeview">
                                 @can('list_referralGuide')
                                     <li class="nav-item">
-                                        <a href="{{ route('referral.guide.index') }}" class="nav-link @yield('activeListReferralGuide')">
+                                        <a href="{{ route('shipping_guides.view') }}" class="nav-link @yield('activeListReferralGuide')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listado de guías</p>
                                         </a>
                                     </li>
                                 @endcan
-                                @can('create_referralGuide')
+                                {{--@can('create_referralGuide')
                                     <li class="nav-item">
                                         <a href="{{ route('referral.guide.create') }}" class="nav-link @yield('activeCreateReferralGuide')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -1336,12 +1336,12 @@
                                 @endcan
                                 @can('setManagers_referralGuide')
                                     <li class="nav-item">
-                                        <a href="{{--{{ route('inventory.index') }}--}}" class="nav-link @yield('activeListInventory')">
+                                        <a href="--}}{{--{{ route('inventory.index') }}--}}{{--" class="nav-link @yield('activeListInventory')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Configurar responsables</p>
                                         </a>
                                     </li>
-                                @endcan
+                                @endcan--}}
                             </ul>
                         </li>
                     @endcan
