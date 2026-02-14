@@ -3075,6 +3075,8 @@ Route::middleware('auth')->group(function (){
             Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
         });
 
+        Route::get('/customers/{customer}/payload', 'CustomerController@payload')->name('customers.payload');
+
     });
 });
 

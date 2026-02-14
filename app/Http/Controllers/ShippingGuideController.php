@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Customer;
+use App\IdentityDocumentType;
 use App\Sale;
 use App\Services\NubefactGreService;
 use App\ShippingGuide;
 use App\ShippingGuideDriver;
 use App\ShippingGuideItem;
 use App\ShippingGuideVehicle;
+use App\SunatShippingIndicator;
+use App\TransferReason;
+use App\WeightUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -65,20 +70,23 @@ class ShippingGuideController extends Controller
         if ($type !== 'remitente') abort(404);
 
         // Cargar catálogos para los selects
-        $transferReasons = \App\TransferReason::orderBy('code')->get();
-        $weightUnits = \App\WeightUnit::orderBy('code')->get();
-        $indicators = \App\SunatShippingIndicator::orderBy('code')->get();
-        $identityDocTypes = \App\IdentityDocumentType::orderBy('code')->get();
+        $transferReasons = TransferReason::orderBy('code')->get();
+        $weightUnits = WeightUnit::orderBy('code')->get();
+        $indicators = SunatShippingIndicator::orderBy('code')->get();
+        $identityDocTypes = IdentityDocumentType::orderBy('code')->get();
 
         // Serie por defecto: una por empresa (lo puedes leer de DataGeneral si ya lo tienes)
         $defaultSerie = 'TPD1';
+
+        $customers = Customer::all();
 
         return view('shipping_guides.create', compact(
             'transferReasons',
             'weightUnits',
             'indicators',
             'identityDocTypes',
-            'defaultSerie'
+            'defaultSerie',
+            'customers'
         ));
     }
 

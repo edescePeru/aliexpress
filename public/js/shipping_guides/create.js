@@ -91,6 +91,30 @@
         });
     }
 
+    function guessDocType(docNumber) {
+        if (!docNumber) return '6';
+        var digits = String(docNumber).replace(/\D/g, '');
+
+        // Perú: DNI 8, RUC 11
+        if (digits.length === 8) return '1';
+        if (digits.length === 11) return '6';
+
+        // fallback: RUC
+        return '6';
+    }
+
+    function fillCustomerFields(customer) {
+        var docNumber = customer.doc_number || '';
+        console.log(docNumber);
+
+        $('#customer_doc_number').val(docNumber);
+        $('#customer_doc_type').val(guessDocType(docNumber)).trigger('change');
+
+        // Si tienes input de address/email en la guía:
+        $('input[name="customer_address"]').val(customer.address || '');
+        $('input[name="customer_email"]').val(customer.email || '');
+    }
+
     $(document).ready(function () {
         // Defaults
         toggleTransportSections();
@@ -106,6 +130,110 @@
         });
 
         $(document).on('click', '#btnSubmitGuide', submitGuide);
+
+        // Abrir modal al dar click en +
+        $("#btn-add-customer").on("click", function() {
+            $("#formCreateCustomer")[0].reset(); // limpiar formulario
+            $("#modalCustomer").modal("show");
+        });
+
+        // Enviar formulario por AJAX
+        $("#btn-submit-customer").on("click", function(e) {
+            e.preventDefault();
+
+            let form = $("#formCreateCustomer");
+            let url = form.data("url");
+            let formData = form.serialize();
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: formData,
+                success: function(response) {
+                    toastr.success(response.message);
+
+                    // Cerrar modal
+                    $("#modalCustomer").modal("hide");
+
+                    // Obtener el cliente nuevo
+                    let customer = response.customer;
+
+                    // Crear nueva opción
+                    let newOption = new Option(customer.business_name, customer.id, true, true);
+
+                    // Agregar al select2 y seleccionarlo
+                    $('#customer_id').append(newOption).trigger('change');
+
+                    // Limpiar el formulario
+                    $("#formCreateCustomer")[0].reset();
+
+                },
+                error: function(data) {
+                    if( data.responseJSON.message && !data.responseJSON.errors )
+                    {
+                        toastr.error(data.responseJSON.message, 'Error',
+                            {
+                                "closeButton": true,
+                                "debug": false,
+                                "newestOnTop": false,
+                                "progressBar": true,
+                                "positionClass": "toast-top-right",
+                                "preventDuplicates": false,
+                                "onclick": null,
+                                "showDuration": "300",
+                                "hideDuration": "1000",
+                                "timeOut": "2000",
+                                "extendedTimeOut": "1000",
+                                "showEasing": "swing",
+                                "hideEasing": "linear",
+                                "showMethod": "fadeIn",
+                                "hideMethod": "fadeOut"
+                            });
+                    }
+                    for ( var property in data.responseJSON.errors ) {
+                        toastr.error(data.responseJSON.errors[property], 'Error',
+                            {
+                                "closeButton": true,
+                                "debug": false,
+                                "newestOnTop": false,
+                                "progressBar": true,
+                                "positionClass": "toast-top-right",
+                                "preventDuplicates": false,
+                                "onclick": null,
+                                "showDuration": "300",
+                                "hideDuration": "1000",
+                                "timeOut": "2000",
+                                "extendedTimeOut": "1000",
+                                "showEasing": "swing",
+                                "hideEasing": "linear",
+                                "showMethod": "fadeIn",
+                                "hideMethod": "fadeOut"
+                            });
+                    }
+                }
+            });
+        });
+
+        $(document).on('change', '#customer_id', function () {
+            var customerId = $(this).val();
+
+            // limpiar si no hay
+            if (!customerId) {
+                $('#customer_doc_number').val('');
+                $('#customer_doc_type').val('6').trigger('change');
+                $('input[name="customer_address"]').val('');
+                $('input[name="customer_email"]').val('');
+                return;
+            }
+
+            $.get(window.routes.customerPayload.replace(':id', customerId))
+                .done(function (res) {
+                    fillCustomerFields(res);
+                })
+                .fail(function () {
+                    toastr.error('No se pudo cargar datos del cliente');
+                });
+        });
     });
 
 })(jQuery);

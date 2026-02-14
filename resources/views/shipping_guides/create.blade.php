@@ -85,7 +85,20 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <label class="required">Destinatario (Cliente)</label>
-                                        <input type="text" class="form-control" name="customer_name" placeholder="Razón social / Nombre">
+                                        {{--<input type="text" class="form-control" name="customer_name" placeholder="Razón social / Nombre">--}}
+                                        <div class="input-group input-group-sm">
+                                            <select id="customer_id" name="customer_id" class="form-control select2bs4">
+                                                <option></option>
+                                                @foreach($customers as $customer)
+                                                    <option value="{{ $customer->id }}">{{ $customer->business_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-primary" id="btn-add-customer">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="col-md-2">
@@ -100,7 +113,7 @@
 
                                     <div class="col-md-3">
                                         <label class="required">Nro doc</label>
-                                        <input type="text" class="form-control" name="customer_doc_number" placeholder="Nro documento">
+                                        <input type="text" class="form-control" id="customer_doc_number" name="customer_doc_number" placeholder="Nro documento">
                                     </div>
 
                                     <div class="col-md-3">
@@ -420,14 +433,92 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Cliente -->
+    <div class="modal fade" id="modalCustomer" tabindex="-1" role="dialog" aria-labelledby="modalCustomerLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCustomerLabel">Nuevo Cliente</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="formCreateCustomer" class="form-horizontal" data-url="{{ route('customer.store') }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="form-group row">
+                            <div class="col-md-4">
+                                <label class="col-12 col-form-label">RUC <span class="right badge badge-danger">(*)</span></label>
+                                <input type="text" class="form-control" name="ruc" placeholder="Ejm: 1234678901">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="col-12 col-form-label">Extranjero <span class="right badge badge-danger">(*)</span></label>
+                                <input id="btn-grouped" type="checkbox" name="special" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="col-12 col-form-label">Razon Social <span class="right badge badge-danger">(*)</span></label>
+                                <input type="text" class="form-control" onkeyup="mayus(this);" name="business_name" placeholder="Ejm: Edesce EIRL">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <div class="col-md-6">
+                                <label class="col-12 col-form-label">Direccion</label>
+                                <input type="text" class="form-control" onkeyup="mayus(this);" name="address" placeholder="Ejm: Jr Union">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="col-12 col-form-label">Ubicacion</label>
+                                <input type="text" class="form-control" onkeyup="mayus(this);" name="location" placeholder="Ejm: Moche">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="btn-submit-customer" class="btn btn-outline-success">Guardar</button>
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+@endsection
+
+@section('plugins')
+    <!-- Select2 -->
+    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
+    <script src="{{ asset('admin/plugins/bootstrap-switch/js/bootstrap-switch.min.js') }}"></script>
+    <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
+    <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
+    <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
+    <script src="{{asset('admin/plugins/typehead/typeahead.bundle.js')}}"></script>
 @endsection
 
 @section('scripts')
     <script>
         window.routes = {
             store: "{{ route('shipping_guides.store') }}",
-            index: "{{ route('referral.guide.index') }}"
+            index: "{{ route('referral.guide.index') }}",
+            customerPayload: "{{ route('customers.payload', ['customer' => ':id']) }}"
         };
+    </script>
+    <script>
+        $(function () {
+            $('#customer_id').select2({
+                placeholder: "Selecione cliente",
+                theme: 'bootstrap4',
+                width: 'resolve'
+            });
+            $("input[data-bootstrap-switch]").each(function(){
+                $(this).bootstrapSwitch();
+            });
+        })
     </script>
     <script src="{{ asset('js/shipping_guides/create.js') }}"></script>
 @endsection

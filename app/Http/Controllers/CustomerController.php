@@ -194,4 +194,28 @@ class CustomerController extends Controller
 
         return response()->json(['message' => 'Cliente restaurado con éxito.'], 200);
     }
+
+    public function payload(Customer $customer)
+    {
+        // Si tienes emails en ContactName, saca el principal.
+        // Si no tienes email guardado aún, devuelve null.
+        $email = null;
+
+        // Ajusta esto a tu estructura real de ContactName:
+        // ejemplo típico: contactNames tiene campo "email"
+        if (method_exists($customer, 'contactNames')) {
+            $firstContact = $customer->contactNames()->first();
+            if ($firstContact && !empty($firstContact->email)) {
+                $email = $firstContact->email;
+            }
+        }
+
+        return response()->json([
+            'id' => $customer->id,
+            'business_name' => $customer->business_name,
+            'doc_number' => $customer->RUC,          // en tu tabla se llama RUC
+            'address' => $customer->address,
+            'email' => $email,
+        ]);
+    }
 }
