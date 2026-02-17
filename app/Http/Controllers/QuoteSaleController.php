@@ -3147,16 +3147,20 @@ class QuoteSaleController extends Controller
         }
 
         $quotes = $query->where('state', 'confirmed')
-            ->whereDoesntHave('sales') // 👈 solo las que no tienen ventas
+            ->whereDoesntHave('sales', function ($q) {
+                $q->where('state_annulled', 0);
+            })
             ->limit(20)
             ->get()
             ->map(function ($quote) {
                 $quote->customer_name = $quote->customer_id
-                    ? $quote->customer->business_name
+                    ? optional($quote->customer)->business_name
                     : "";
+
                 $quote->date_quote_format = $quote->date_quote
                     ? $quote->date_quote->format('d/m/Y')
                     : "";
+
                 return $quote;
             });
 
