@@ -304,8 +304,12 @@ class Quote extends Model
         return $this->hasMany('App\Output', 'execution_order', 'order_execution');
     }
 
-    public function sales()
+    /*public function sales()
     {
         return $this->hasMany('App\Sale');
+    }*/
+    public function sales()
+    {
+        return $this->hasMany(Sale::class, 'quote_id');
     }
 }

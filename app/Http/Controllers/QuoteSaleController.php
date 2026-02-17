@@ -985,24 +985,28 @@ class QuoteSaleController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
-        if ( $startDate == "" || $endDate == "" )
+        if ($startDate == "" || $endDate == "")
         {
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
-                ->whereDoesntHave('sales')
+                ->whereDoesntHave('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
 
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
-            $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $endDate);
 
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
                 ->whereDate('date_quote', '>=', $fechaInicio)
                 ->whereDate('date_quote', '<=', $fechaFinal)
-                ->whereDoesntHave('sales')
+                ->whereDoesntHave('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
         }
 
@@ -1201,24 +1205,29 @@ class QuoteSaleController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
-        if ( $startDate == "" || $endDate == "" )
+        if ($startDate == "" || $endDate == "")
         {
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
-                ->whereHas('sales')
+                ->whereHas('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
 
         } else {
+
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
-            $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $endDate);
 
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
                 ->whereDate('date_quote', '>=', $fechaInicio)
                 ->whereDate('date_quote', '<=', $fechaFinal)
-                ->whereHas('sales')
+                ->whereHas('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
         }
 
