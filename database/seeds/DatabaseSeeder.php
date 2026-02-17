@@ -79,5 +79,7 @@ class DatabaseSeeder extends Seeder
         $this->call(WeightUnitsSeeder::class);
         $this->call(IdentityDocumentTypesSeeder::class);
         $this->call(SunatShippingIndicatorsSeeder::class);
+
+        $this->call(UbigeoSqlSeeder::class);
     }
 }

@@ -42,7 +42,7 @@
 
 @section('page-title')
     <h5 class="card-title">Emitir guía de remisión (Remitente)</h5>
-    <a href="{{ route('referral.guide.index') }}" class="btn btn-outline-secondary btn-sm float-right">
+    <a href="{{ route('shipping_guides.view') }}" class="btn btn-outline-secondary btn-sm float-right">
         <i class="fa fa-arrow-left"></i> Volver al listado
     </a>
 @endsection
@@ -53,7 +53,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('referral.guide.index') }}"><i class="fa fa-archive"></i> Guías de Remisión</a>
+            <a href="{{ route('shipping_guides.view') }}"><i class="fa fa-archive"></i> Guías de Remisión</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Emitir</li>
     </ol>
@@ -186,6 +186,7 @@
                                     2. Productos / Items
                                 </a>
                             </div>
+
                             <div id="secItems" class="collapse" aria-labelledby="headingItems" data-parent="#accordionGuide">
                                 <div class="card-body">
 
@@ -193,31 +194,68 @@
                                         <div class="col-md-3">
                                             <label class="required">Modo</label>
                                             <select class="form-control" name="items_mode" id="items_mode">
-                                                <option value="SALE">Desde venta (Boleta/Factura)</option>
+                                                <option value="SALE">Desde venta (Boleta/Factura/Ticket)</option>
                                                 <option value="MANUAL">Manual</option>
                                             </select>
                                         </div>
 
-                                        <div class="col-md-5" id="boxSaleRef">
-                                            <label class="required">Venta (serie-num)</label>
-                                            <input type="text" class="form-control" name="sale_ref" placeholder="FFF1-6">
-                                            <small class="text-muted">Cargará items tal cual (sin editar cantidades).</small>
+                                        {{-- MODO SALE --}}
+                                        <div class="col-md-6" id="boxSaleMode">
+                                            <label class="required">Venta</label>
+
+                                            <div class="row">
+                                                <div class="col-md-10 pr-1">
+                                                    <select class="form-control" name="sale_id" id="sale_id" style="width:100%;"></select>
+                                                </div>
+                                                <div class="col-md-2 pl-1">
+                                                    <button type="button" class="btn btn-primary btn-block" id="btnLoadSaleItems">
+                                                        <i class="fa fa-sync"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <small class="text-muted">
+                                                Busca por cliente, doc, serie-num o ID. Cargará items tal cual (sin editar cantidades).
+                                            </small>
+
+                                            <div class="mt-2" id="saleMeta" style="display:none;">
+                                                <span class="badge badge-info" id="saleMetaText"></span>
+                                            </div>
                                         </div>
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="required">Placa vehículo principal</label>
-                                            <input type="text" class="form-control" name="vehicle_primary_plate" placeholder="ABC123">
+                                            <input type="text" class="form-control" name="vehicle_primary_plate" id="vehicle_primary_plate" placeholder="ABC123">
                                         </div>
                                     </div>
 
-                                    <div id="boxItemsManual" class="mt-3" style="display:none;">
+                                    {{-- PREVIEW ITEMS (SALE) --}}
+                                    <div class="mt-3" id="saleItemsPreview" style="display:none;">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <strong>Items manuales</strong>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddItem">
-                                                + Agregar
-                                            </button>
+                                            <strong>Items cargados desde la venta</strong>
+                                            <span class="text-muted" id="saleItemsCount"></span>
                                         </div>
-                                        <div id="itemsContainer"></div>
+
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead>
+                                                <tr>
+                                                    <th style="width:60px;">#</th>
+                                                    <th>Descripción</th>
+                                                    <th style="width:120px;" class="text-right">Cantidad</th>
+                                                    <th style="width:90px;">UM</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="tbodySaleItems"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {{-- MODO MANUAL (placeholder) --}}
+                                    <div class="mt-3" id="manualItemsBox" style="display:none;">
+                                        <div class="alert alert-warning mb-0">
+                                            Modo manual pendiente (aquí irá tu tabla de items manuales con “Agregar fila”).
+                                        </div>
                                     </div>
 
                                 </div>
@@ -362,15 +400,30 @@
                                     6. Punto de partida
                                 </a>
                             </div>
+
                             <div id="secPartida" class="collapse" aria-labelledby="headingPartida" data-parent="#accordionGuide">
                                 <div class="card-body">
 
                                     <div class="row">
-                                        <div class="col-md-3">
-                                            <label class="required">Ubigeo</label>
-                                            <input type="text" class="form-control" name="partida_ubigeo" placeholder="151021">
+                                        <div class="col-md-4">
+                                            <label class="required">Departamento</label>
+                                            <select id="partida_department_id" class="form-control" style="width:100%"></select>
                                         </div>
-                                        <div class="col-md-9">
+                                        <div class="col-md-4">
+                                            <label class="required">Provincia</label>
+                                            <select id="partida_province_id" class="form-control" style="width:100%"></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="required">Distrito</label>
+                                            <select id="partida_ubigeo_select" class="form-control" style="width:100%"></select>
+
+                                            {{-- este es el que se envía al controller --}}
+                                            <input type="hidden" name="partida_ubigeo" id="partida_ubigeo">
+                                        </div>
+                                    </div>
+
+                                    <div class="row mt-2">
+                                        <div class="col-md-12">
                                             <label class="required">Dirección</label>
                                             <input type="text" class="form-control" name="partida_direccion" placeholder="Dirección de partida">
                                         </div>
@@ -387,15 +440,28 @@
                                     7. Punto de llegada
                                 </a>
                             </div>
+
                             <div id="secLlegada" class="collapse" aria-labelledby="headingLlegada" data-parent="#accordionGuide">
                                 <div class="card-body">
 
                                     <div class="row">
-                                        <div class="col-md-3">
-                                            <label class="required">Ubigeo</label>
-                                            <input type="text" class="form-control" name="llegada_ubigeo" placeholder="211101">
+                                        <div class="col-md-4">
+                                            <label class="required">Departamento</label>
+                                            <select id="llegada_department_id" class="form-control" style="width:100%"></select>
                                         </div>
-                                        <div class="col-md-9">
+                                        <div class="col-md-4">
+                                            <label class="required">Provincia</label>
+                                            <select id="llegada_province_id" class="form-control" style="width:100%"></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="required">Distrito</label>
+                                            <select id="llegada_ubigeo_select" class="form-control" style="width:100%"></select>
+                                            <input type="hidden" name="llegada_ubigeo" id="llegada_ubigeo">
+                                        </div>
+                                    </div>
+
+                                    <div class="row mt-2">
+                                        <div class="col-md-12">
                                             <label class="required">Dirección</label>
                                             <input type="text" class="form-control" name="llegada_direccion" placeholder="Dirección de llegada">
                                         </div>
@@ -505,7 +571,13 @@
         window.routes = {
             store: "{{ route('shipping_guides.store') }}",
             index: "{{ route('referral.guide.index') }}",
-            customerPayload: "{{ route('customers.payload', ['customer' => ':id']) }}"
+            customerPayload: "{{ route('customers.payload', ['customer' => ':id']) }}",
+            saleItems: "{{ route('shipping_guides.sale_items') }}",
+            salesSelect2: "{{ route('sales.select2') }}",
+            saleItemsById: "{{ url('dashboard/sales') }}/:id/items",
+            ubigeoDepartments: "{{ route('ubigeo.departments.select2') }}",
+            ubigeoProvinces: "{{ route('ubigeo.provinces.select2')}}",
+            ubigeoDistricts: "{{ route('ubigeo.districts.select2')}}",
         };
     </script>
     <script>
@@ -520,5 +592,5 @@
             });
         })
     </script>
-    <script src="{{ asset('js/shipping_guides/create.js') }}"></script>
+    <script src="{{ asset('js/shipping_guides/create.js') }}?v={{ time() }}"></script>
 @endsection

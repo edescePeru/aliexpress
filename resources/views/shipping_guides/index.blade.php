@@ -116,7 +116,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('referral.guide.index') }}"><i class="fa fa-archive"></i> Guías de Remisión</a>
+            <a href="{{ route('shipping_guides.view') }}"><i class="fa fa-archive"></i> Guías de Remisión</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>
@@ -189,13 +189,22 @@
     </div>
 @endsection
 
+@section('plugins')
+    <!-- Select2 -->
+    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
+    <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
+
+@endsection
+
 @section('scripts')
     <script>
         window.routes = {
             list: "{{ route('shipping_guides.list') }}",
             create: "{{ route('shipping_guides.create') }}",
-            export: "{{ route('shipping_guides.export') }}"
+            export: "{{ route('shipping_guides.export') }}",
+            consult: "{{ route('shipping_guides.consult', ['guide' => ':id']) }}",
+            showView: "{{ route('shipping_guides.show', ['guide' => ':id']) }}"
         };
     </script>
-    <script src="{{ asset('js/shipping_guides/index.js') }}"></script>
+    <script src="{{ asset('js/shipping_guides/index.js') }}?v={{ time() }}"></script>
 @endsection

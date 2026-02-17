@@ -1,55 +1,313 @@
 (function ($) {
 
+    // =========================
+    // Helpers
+    // =========================
+    function csrfHeader() {
+        var token = $('meta[name="csrf-token"]').attr('content');
+        if (token) {
+            $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': token } });
+        }
+    }
+
+    function guessDocType(docNumber) {
+        if (!docNumber) return '6';
+        var digits = String(docNumber).replace(/\D/g, '');
+        if (digits.length === 8) return '1';   // DNI
+        if (digits.length === 11) return '6';  // RUC
+        return '6';
+    }
+
+    function fillCustomerFields(customer) {
+        var docNumber = customer.doc_number || customer.RUC || customer.ruc || '';
+        var email = customer.email || customer.email_cliente || '';
+        var address = customer.address || customer.direccion || customer.customer_address || '';
+
+        $('#customer_doc_number').val(docNumber);
+        $('#customer_doc_type').val(guessDocType(docNumber)).trigger('change');
+
+        $('input[name="customer_address"]').val(address);
+        $('input[name="customer_email"]').val(email);
+    }
+
+    function select2Common() {
+        return {
+            theme: 'bootstrap4',
+            width: '100%',
+            allowClear: true,
+            placeholder: 'Seleccionar...',
+            dropdownParent: $('#frmGuide') // clave para accordion/cards
+        };
+    }
+
+    // =========================
+    // Transport sections
+    // =========================
     function toggleTransportSections() {
         var t = $('#tipo_transporte').val();
 
-        // Mostrar/ocultar cards
         $('#cardPublicTransport').toggle(t === '01');
         $('#cardPrivateDriver').toggle(t === '02');
 
-        // Si cambia, colapsar cualquier sección abierta que ya no aplica
-        if (t === '01') {
-            // cerrar conductor si estaba abierto
-            $('#secDriver').collapse('hide');
-        }
-        if (t === '02') {
-            $('#secTransportista').collapse('hide');
-        }
+        if (t === '01' && $('#secDriver').length) $('#secDriver').collapse('hide');
+        if (t === '02' && $('#secTransportista').length) $('#secTransportista').collapse('hide');
     }
 
+    // =========================
+    // Items mode (SALE/MANUAL)
+    // =========================
     function toggleItemsMode() {
-        var m = $('#items_mode').val();
-        $('#boxSaleRef').toggle(m === 'SALE');
-        $('#boxItemsManual').toggle(m === 'MANUAL');
+        var mode = $('#items_mode').val();
+
+        if (mode === 'SALE') {
+            $('#boxSaleMode').show();
+            $('#manualItemsBox').hide();
+        } else {
+            $('#boxSaleMode').hide();
+            $('#saleItemsPreview').hide();
+            $('#manualItemsBox').show();
+        }
     }
 
-    function addItemRow() {
-        var idx = $('#itemsContainer .itemRow').length;
-
-        var html = ''
-            + '<div class="itemRow border rounded p-2 mb-2">'
-            + '  <div class="row">'
-            + '    <div class="col-md-6">'
-            + '      <label class="required">Descripción</label>'
-            + '      <input class="form-control" name="items[' + idx + '][descripcion]" />'
-            + '    </div>'
-            + '    <div class="col-md-2">'
-            + '      <label class="required">Cantidad</label>'
-            + '      <input type="number" step="0.001" class="form-control" name="items[' + idx + '][cantidad]" />'
-            + '    </div>'
-            + '    <div class="col-md-2">'
-            + '      <label>Código</label>'
-            + '      <input class="form-control" name="items[' + idx + '][codigo]" />'
-            + '    </div>'
-            + '    <div class="col-md-2 d-flex align-items-end">'
-            + '      <button type="button" class="btn btn-danger btn-block btnDelItem">Eliminar</button>'
-            + '    </div>'
-            + '  </div>'
-            + '</div>';
-
-        $('#itemsContainer').append(html);
+    function clearSalePreview() {
+        $('#saleMeta').hide();
+        $('#saleMetaText').text('');
+        $('#tbodySaleItems').html('');
+        $('#saleItemsCount').text('');
+        $('#saleItemsPreview').hide();
     }
 
+    function renderSaleItemsPreview(res) {
+        $('#saleMeta').show();
+        $('#saleMetaText').text(
+            'Venta: ' + (res.sale && res.sale.ref ? res.sale.ref : '') +
+            ' | ' + (res.sale && res.sale.tipo ? res.sale.tipo : '') +
+            ' | Cliente: ' + (res.sale && res.sale.cliente ? res.sale.cliente : '-') +
+            ' | Total: ' + (res.sale && res.sale.total ? res.sale.total : '-')
+        );
+
+        var rows = [];
+        (res.items || []).forEach(function (it) {
+            rows.push(
+                '<tr>' +
+                '<td>' + (it.line || '') + '</td>' +
+                '<td>' + (it.descripcion || '') + '</td>' +
+                '<td class="text-right">' + (it.cantidad || 0) + '</td>' +
+                '<td>' + (it.unidad_medida || 'NIU') + '</td>' +
+                '</tr>'
+            );
+        });
+
+        $('#tbodySaleItems').html(rows.join(''));
+        $('#saleItemsCount').text((res.items || []).length + ' items');
+        $('#saleItemsPreview').show();
+    }
+
+    function initSaleSelect2() {
+        if (!$('#sale_id').length) return;
+
+        $('#sale_id').select2($.extend(true, {}, select2Common(), {
+            placeholder: 'Buscar venta...',
+            ajax: {
+                url: window.routes.salesSelect2,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', page: params.page || 1 };
+                },
+                processResults: function (data) {
+                    // Debe ser {results:[{id,text}], pagination:{more:boolean}}
+                    return data;
+                },
+                cache: true
+            }
+        }));
+    }
+
+    function loadSaleItems() {
+        var saleId = $('#sale_id').val();
+        if (!saleId) {
+            toastr.error('Selecciona una venta primero');
+            return;
+        }
+
+        var url = window.routes.saleItemsById.replace(':id', saleId);
+
+        $('#btnLoadSaleItems').prop('disabled', true);
+
+        $.get(url)
+            .done(function (res) {
+                renderSaleItemsPreview(res);
+            })
+            .fail(function (xhr) {
+                toastr.error('Error cargando items de la venta');
+                clearSalePreview();
+            })
+            .always(function () {
+                $('#btnLoadSaleItems').prop('disabled', false);
+            });
+    }
+
+    // =========================
+    // Customers (select + modal)
+    // =========================
+    function initCustomerEvents() {
+
+        $(document).on('click', '#btn-add-customer', function () {
+            $('#formCreateCustomer')[0].reset();
+            $('#modalCustomer').modal('show');
+        });
+
+        $(document).on('click', '#btn-submit-customer', function (e) {
+            e.preventDefault();
+
+            var $btn = $('#btn-submit-customer');
+            $btn.prop('disabled', true);
+
+            var form = $('#formCreateCustomer');
+            var url = form.data('url');
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: form.serialize()
+            }).done(function (response) {
+                toastr.success(response.message || 'Cliente creado');
+                $('#modalCustomer').modal('hide');
+
+                var customer = response.customer;
+
+                // agregar al select2 y seleccionar
+                var newOption = new Option(customer.business_name, customer.id, true, true);
+                $('#customer_id').append(newOption);
+                $('#customer_id').val(customer.id).trigger('change.select2');
+
+                // llenar snapshot
+                fillCustomerFields({
+                    RUC: customer.RUC || customer.ruc || '',
+                    address: customer.address || '',
+                    email: customer.email || ''
+                });
+
+                form[0].reset();
+            }).fail(function (xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    Object.keys(xhr.responseJSON.errors).forEach(function (k) {
+                        toastr.error(xhr.responseJSON.errors[k][0]);
+                    });
+                } else {
+                    toastr.error((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error');
+                }
+            }).always(function () {
+                $btn.prop('disabled', false);
+            });
+        });
+
+        $(document).on('change', '#customer_id', function () {
+            var customerId = $(this).val();
+
+            if (!customerId) {
+                $('#customer_doc_number').val('');
+                $('#customer_doc_type').val('6').trigger('change');
+                $('input[name="customer_address"]').val('');
+                $('input[name="customer_email"]').val('');
+                return;
+            }
+
+            var url = window.routes.customerPayload.replace(':id', customerId);
+
+            $.get(url)
+                .done(function (res) {
+                    fillCustomerFields(res);
+                })
+                .fail(function () {
+                    toastr.error('No se pudo cargar datos del cliente');
+                });
+        });
+    }
+
+    // =========================
+    // Ubigeo triple select2 (dep -> prov -> dist)
+    // =========================
+    function initUbigeoTriple(prefix) {
+        var $dep = $('#' + prefix + '_department_id');
+        var $prov = $('#' + prefix + '_province_id');
+        var $dist = $('#' + prefix + '_ubigeo_select');
+        var $hidden = $('#' + prefix + '_ubigeo');
+
+        // init states
+        $prov.prop('disabled', true);
+        $dist.prop('disabled', true);
+
+        $dep.select2($.extend(true, {}, select2Common(), {
+            ajax: {
+                url: window.routes.ubigeoDepartments,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', page: params.page || 1 };
+                },
+                processResults: function (data) { return data; }
+            }
+        }));
+
+        $prov.select2($.extend(true, {}, select2Common(), {
+            ajax: {
+                url: window.routes.ubigeoProvinces,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1,
+                        department_id: $dep.val() || ''
+                    };
+                },
+                processResults: function (data) { return data; }
+            }
+        }));
+
+        $dist.select2($.extend(true, {}, select2Common(), {
+            ajax: {
+                url: window.routes.ubigeoDistricts,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1,
+                        department_id: $dep.val() || '',
+                        province_id: $prov.val() || ''
+                    };
+                },
+                processResults: function (data) { return data; }
+            }
+        }));
+
+        $dep.on('change', function () {
+            $prov.val(null).trigger('change');
+            $dist.val(null).trigger('change');
+            $hidden.val('');
+
+            $prov.prop('disabled', !$dep.val());
+            $dist.prop('disabled', true);
+        });
+
+        $prov.on('change', function () {
+            $dist.val(null).trigger('change');
+            $hidden.val('');
+
+            $dist.prop('disabled', !$prov.val());
+        });
+
+        $dist.on('change', function () {
+            $hidden.val($dist.val() || '');
+        });
+    }
+
+    // =========================
+    // Submit
+    // =========================
     function submitGuide() {
         $.confirm({
             title: 'Confirmación',
@@ -58,7 +316,6 @@
                 Si: {
                     btnClass: 'btn-success',
                     action: function () {
-
                         var $btn = $('#btnSubmitGuide');
                         $btn.prop('disabled', true);
 
@@ -86,154 +343,36 @@
                         });
                     }
                 },
-                No: function () {}
+                No: function () { }
             }
         });
     }
 
-    function guessDocType(docNumber) {
-        if (!docNumber) return '6';
-        var digits = String(docNumber).replace(/\D/g, '');
-
-        // Perú: DNI 8, RUC 11
-        if (digits.length === 8) return '1';
-        if (digits.length === 11) return '6';
-
-        // fallback: RUC
-        return '6';
-    }
-
-    function fillCustomerFields(customer) {
-        var docNumber = customer.doc_number || '';
-        console.log(docNumber);
-
-        $('#customer_doc_number').val(docNumber);
-        $('#customer_doc_type').val(guessDocType(docNumber)).trigger('change');
-
-        // Si tienes input de address/email en la guía:
-        $('input[name="customer_address"]').val(customer.address || '');
-        $('input[name="customer_email"]').val(customer.email || '');
-    }
-
+    // =========================
+    // Ready
+    // =========================
     $(document).ready(function () {
-        // Defaults
+
+        csrfHeader();
+
         toggleTransportSections();
         toggleItemsMode();
+        initSaleSelect2();
+        clearSalePreview();
+        initCustomerEvents();
 
-        // Eventos
+        initUbigeoTriple('partida');
+        initUbigeoTriple('llegada');
+
         $(document).on('change', '#tipo_transporte', toggleTransportSections);
-        $(document).on('change', '#items_mode', toggleItemsMode);
 
-        $(document).on('click', '#btnAddItem', addItemRow);
-        $(document).on('click', '.btnDelItem', function () {
-            $(this).closest('.itemRow').remove();
+        $(document).on('change', '#items_mode', function () {
+            toggleItemsMode();
+            clearSalePreview();
         });
 
+        $(document).on('click', '#btnLoadSaleItems', loadSaleItems);
         $(document).on('click', '#btnSubmitGuide', submitGuide);
-
-        // Abrir modal al dar click en +
-        $("#btn-add-customer").on("click", function() {
-            $("#formCreateCustomer")[0].reset(); // limpiar formulario
-            $("#modalCustomer").modal("show");
-        });
-
-        // Enviar formulario por AJAX
-        $("#btn-submit-customer").on("click", function(e) {
-            e.preventDefault();
-
-            let form = $("#formCreateCustomer");
-            let url = form.data("url");
-            let formData = form.serialize();
-
-            $.ajax({
-                type: "POST",
-                url: url,
-                data: formData,
-                success: function(response) {
-                    toastr.success(response.message);
-
-                    // Cerrar modal
-                    $("#modalCustomer").modal("hide");
-
-                    // Obtener el cliente nuevo
-                    let customer = response.customer;
-
-                    // Crear nueva opción
-                    let newOption = new Option(customer.business_name, customer.id, true, true);
-
-                    // Agregar al select2 y seleccionarlo
-                    $('#customer_id').append(newOption).trigger('change');
-
-                    // Limpiar el formulario
-                    $("#formCreateCustomer")[0].reset();
-
-                },
-                error: function(data) {
-                    if( data.responseJSON.message && !data.responseJSON.errors )
-                    {
-                        toastr.error(data.responseJSON.message, 'Error',
-                            {
-                                "closeButton": true,
-                                "debug": false,
-                                "newestOnTop": false,
-                                "progressBar": true,
-                                "positionClass": "toast-top-right",
-                                "preventDuplicates": false,
-                                "onclick": null,
-                                "showDuration": "300",
-                                "hideDuration": "1000",
-                                "timeOut": "2000",
-                                "extendedTimeOut": "1000",
-                                "showEasing": "swing",
-                                "hideEasing": "linear",
-                                "showMethod": "fadeIn",
-                                "hideMethod": "fadeOut"
-                            });
-                    }
-                    for ( var property in data.responseJSON.errors ) {
-                        toastr.error(data.responseJSON.errors[property], 'Error',
-                            {
-                                "closeButton": true,
-                                "debug": false,
-                                "newestOnTop": false,
-                                "progressBar": true,
-                                "positionClass": "toast-top-right",
-                                "preventDuplicates": false,
-                                "onclick": null,
-                                "showDuration": "300",
-                                "hideDuration": "1000",
-                                "timeOut": "2000",
-                                "extendedTimeOut": "1000",
-                                "showEasing": "swing",
-                                "hideEasing": "linear",
-                                "showMethod": "fadeIn",
-                                "hideMethod": "fadeOut"
-                            });
-                    }
-                }
-            });
-        });
-
-        $(document).on('change', '#customer_id', function () {
-            var customerId = $(this).val();
-
-            // limpiar si no hay
-            if (!customerId) {
-                $('#customer_doc_number').val('');
-                $('#customer_doc_type').val('6').trigger('change');
-                $('input[name="customer_address"]').val('');
-                $('input[name="customer_email"]').val('');
-                return;
-            }
-
-            $.get(window.routes.customerPayload.replace(':id', customerId))
-                .done(function (res) {
-                    fillCustomerFields(res);
-                })
-                .fail(function () {
-                    toastr.error('No se pudo cargar datos del cliente');
-                });
-        });
     });
 
 })(jQuery);

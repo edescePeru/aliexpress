@@ -3063,20 +3063,28 @@ Route::middleware('auth')->group(function (){
 
         Route::prefix('shipping-guides')->group(function () {
             // Vistas
-            Route::get('/', 'ShippingGuideController@viewIndex')->name('shipping_guides.view');
+            Route::get('/listado', 'ShippingGuideController@viewIndex')->name('shipping_guides.view');
             Route::get('/create', 'ShippingGuideController@create')->name('shipping_guides.create');
 
             // Ajax / API internas
             Route::get('/list', 'ShippingGuideController@index')->name('shipping_guides.list');
             Route::post('/', 'ShippingGuideController@store')->name('shipping_guides.store');
 
-            Route::get('/{id}', 'ShippingGuideController@show')->name('shipping_guides.show');
+            Route::get('/detalles/{guide}', 'ShippingGuideController@show')->name('shipping_guides.show');
+            Route::post('/{guide}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
             Route::post('/export', 'ShippingGuideController@exportExcel')->name('shipping_guides.export');
-            Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
+            //Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
         });
 
         Route::get('/customers/{customer}/payload', 'CustomerController@payload')->name('customers.payload');
+        Route::get('shipping-guides/sale-items', 'ShippingGuideController@saleItems')
+            ->name('shipping_guides.sale_items');
+        Route::get('/listado/sales/select2/', 'ShippingGuideController@select2')->name('sales.select2');
+        Route::get('/sales/{sale}/items', 'ShippingGuideController@items')->name('sales.items');
 
+        Route::get('ubigeo/departments/select2', 'UbigeoController@departmentsSelect2')->name('ubigeo.departments.select2');
+        Route::get('ubigeo/provinces/select2', 'UbigeoController@provincesSelect2')->name('ubigeo.provinces.select2');
+        Route::get('ubigeo/districts/select2', 'UbigeoController@districtsSelect2')->name('ubigeo.districts.select2');
     });
 });
 
