@@ -16,6 +16,7 @@ use App\MaterialPresentation;
 use App\Output;
 use App\OutputDetail;
 use App\PorcentageQuote;
+use App\QuoteMaterialReservation;
 use App\Services\InventoryCostService;
 use Illuminate\Support\Facades\Mail;
 use App\Material;
@@ -1701,6 +1702,16 @@ class PuntoVentaController extends Controller
                     $cashRegister->total_expenses -= $movement->amount;
                     $cashRegister->save();
                 }
+            }
+
+            // TODO: Revertir los reservations
+            $reservations = QuoteMaterialReservation::where('quote_id', $sale->quote_id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($reservations as $reservation) {
+                // Borramos la reserva de esta cotización
+                $reservation->delete();
             }
 
             DB::commit();

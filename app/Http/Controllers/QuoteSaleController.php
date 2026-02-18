@@ -985,24 +985,28 @@ class QuoteSaleController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
-        if ( $startDate == "" || $endDate == "" )
+        if ($startDate == "" || $endDate == "")
         {
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
-                ->whereDoesntHave('sales')
+                ->whereDoesntHave('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
 
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
-            $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $endDate);
 
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
                 ->whereDate('date_quote', '>=', $fechaInicio)
                 ->whereDate('date_quote', '<=', $fechaFinal)
-                ->whereDoesntHave('sales')
+                ->whereDoesntHave('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
         }
 
@@ -1163,7 +1167,7 @@ class QuoteSaleController extends Controller
                 "date_validate" => ($quote->date_validate == null || $quote->date_validate == "") ? '': $quote->date_validate->format('d/m/Y'),
                 "deadline" => ($quote->payment_deadline_id == null || $quote->payment_deadline_id == "") ? "":$quote->deadline->description,
                 "time_delivery" => $quote->time_delivery.' DÍAS',
-                "customer" => ($quote->customer_id == "" || $quote->customer_id == null) ? "" : $quote->customer->business_name,
+                "customer" => empty($quote->customer_id) ? "" : ($quote->customer->business_name ?? ""),
                 "total_sunat" => number_format($quote->total_importe, 2),
                 "total_cliente" => number_format($quote->total_importe+$total_workforce, 2),
                 "currency" => ($quote->currency_invoice == null || $quote->currency_invoice == "") ? '': $quote->currency_invoice,
@@ -1201,24 +1205,29 @@ class QuoteSaleController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
-        if ( $startDate == "" || $endDate == "" )
+        if ($startDate == "" || $endDate == "")
         {
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
-                ->whereHas('sales')
+                ->whereHas('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
 
         } else {
+
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
-            $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $endDate);
 
             $query = Quote::with('customer', 'deadline', 'users')
                 ->whereNotIn('state', ['canceled', 'expired'])
                 ->where('state_active', 'open')
                 ->whereDate('date_quote', '>=', $fechaInicio)
                 ->whereDate('date_quote', '<=', $fechaFinal)
-                ->whereHas('sales')
+                ->whereHas('sales', function ($q) {
+                    $q->where('state_annulled', 0);
+                })
                 ->orderBy('created_at', 'DESC');
         }
 
@@ -3138,16 +3147,20 @@ class QuoteSaleController extends Controller
         }
 
         $quotes = $query->where('state', 'confirmed')
-            ->whereDoesntHave('sales') // 👈 solo las que no tienen ventas
+            ->whereDoesntHave('sales', function ($q) {
+                $q->where('state_annulled', 0);
+            })
             ->limit(20)
             ->get()
             ->map(function ($quote) {
                 $quote->customer_name = $quote->customer_id
-                    ? $quote->customer->business_name
+                    ? optional($quote->customer)->business_name
                     : "";
+
                 $quote->date_quote_format = $quote->date_quote
                     ? $quote->date_quote->format('d/m/Y')
                     : "";
+
                 return $quote;
             });
 

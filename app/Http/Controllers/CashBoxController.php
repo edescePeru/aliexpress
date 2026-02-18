@@ -365,6 +365,7 @@ class CashBoxController extends Controller
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
                 $w->where('cash_movements.description', 'like', "%{$q}%")
+                    ->orwhere('cash_movements.observation', 'like', "%{$q}%")
                     ->orWhere('cash_boxes.name', 'like', "%{$q}%")
                     ->orWhere('users.name', 'like', "%{$q}%")
                     ->orWhere('cash_box_subtypes.name', 'like', "%{$q}%")
