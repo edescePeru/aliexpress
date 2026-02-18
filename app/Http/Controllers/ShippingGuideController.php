@@ -16,6 +16,8 @@ use App\WeightUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ShippingGuidesExport;
 
 class ShippingGuideController extends Controller
 {
@@ -824,7 +826,21 @@ class ShippingGuideController extends Controller
 
     public function exportExcel(Request $request)
     {
-        return response()->json(['message' => 'Pendiente de implementación'], 501);
+        $data = $request->validate([
+            'date_from' => ['required', 'date'],
+            'date_to'   => ['required', 'date', 'after_or_equal:date_from'],
+        ], [
+            'date_from.required' => 'Selecciona la fecha "Desde".',
+            'date_to.required'   => 'Selecciona la fecha "Hasta".',
+            'date_to.after_or_equal' => 'La fecha "Hasta" no puede ser menor que "Desde".',
+        ]);
+
+        $from = $data['date_from'];
+        $to   = $data['date_to'];
+
+        $filename = "GRE-{$from}-{$to}.xlsx";
+
+        return Excel::download(new ShippingGuidesExport($from, $to), $filename);
     }
 
     public function consultNubefact($id)

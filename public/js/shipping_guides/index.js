@@ -1,5 +1,21 @@
 (function ($) {
 
+    function downloadExport(dateFrom, dateTo) {
+        // Descargar archivo (NO AJAX) -> form POST invisible
+        const $form = $('<form>', {
+            method: 'POST',
+            action: window.routes.export
+        });
+
+        $form.append($('<input>', { type: 'hidden', name: '_token', value: $('meta[name="csrf-token"]').attr('content') }));
+        $form.append($('<input>', { type: 'hidden', name: 'date_from', value: dateFrom }));
+        $form.append($('<input>', { type: 'hidden', name: 'date_to', value: dateTo }));
+
+        $('body').append($form);
+        $form.trigger('submit');
+        $form.remove();
+    }
+
     let page = 1;
 
     $.ajaxSetup({
@@ -159,6 +175,29 @@
 
     $(document).ready(function () {
         loadList();
+
+        // Abrir modal
+        $(document).on('click', '#btnExport', function () {
+            $('#modalExportGuides').modal('show');
+        });
+
+        // Descargar
+        $(document).on('click', '#btnDoExport', function () {
+            const from = $('#expDateFrom').val();
+            const to = $('#expDateTo').val();
+
+            if (!from || !to) {
+                toastr.error('Selecciona las dos fechas.');
+                return;
+            }
+            if (from > to) {
+                toastr.error('La fecha "Desde" no puede ser mayor que "Hasta".');
+                return;
+            }
+
+            $('#modalExportGuides').modal('hide');
+            downloadExport(from, to);
+        });
     });
 
 })(jQuery);

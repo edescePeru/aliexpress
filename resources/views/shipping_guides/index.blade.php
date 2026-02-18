@@ -187,6 +187,40 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Export Excel -->
+    <div class="modal fade" id="modalExportGuides" tabindex="-1" role="dialog" aria-labelledby="modalExportGuidesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalExportGuidesLabel">Descarga en Excel</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Indica el rango de fechas que deseas descargar</p>
+
+                    <div class="form-group">
+                        <label>Desde esta fecha</label>
+                        <input type="date" class="form-control" id="expDateFrom" value="{{ now()->format('Y-m-d') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hasta esta fecha</label>
+                        <input type="date" class="form-control" id="expDateTo" value="{{ now()->format('Y-m-d') }}">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btn-block" id="btnDoExport">DESCARGAR</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')

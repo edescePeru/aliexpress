@@ -16,13 +16,14 @@ class IdentityDocumentTypesSeeder extends Seeder
 
         $rows = [
             ['code' => '1', 'name' => 'DNI - DOC. NACIONAL DE IDENTIDAD', 'sort_order' => 1],
-            ['code' => '4', 'name' => 'CARNET DE EXTRANJERÍA', 'sort_order' => 2],
-            ['code' => '7', 'name' => 'PASAPORTE', 'sort_order' => 3],
-            ['code' => 'A', 'name' => 'CÉDULA DIPLOMATICA DE IDENTIDAD', 'sort_order' => 4],
-            ['code' => 'G', 'name' => 'SALVOCONDUCTO', 'sort_order' => 5],
-            ['code' => 'B', 'name' => 'DOC. IDENT. PAIS. RESIDENCIA - NO.D', 'sort_order' => 6],
-            ['code' => 'C', 'name' => 'Tax Identification Number - TIN – Doc Trib PP.NN', 'sort_order' => 7],
-            ['code' => 'D', 'name' => 'Identification Number - IN – Doc Trib PP.JJ', 'sort_order' => 8],
+            ['code' => '6', 'name' => 'RUC', 'sort_order' => 2],
+            ['code' => '4', 'name' => 'CARNET DE EXTRANJERÍA', 'sort_order' => 3],
+            ['code' => '7', 'name' => 'PASAPORTE', 'sort_order' => 4],
+            ['code' => 'A', 'name' => 'CÉDULA DIPLOMATICA DE IDENTIDAD', 'sort_order' => 5],
+            ['code' => 'G', 'name' => 'SALVOCONDUCTO', 'sort_order' => 6],
+            ['code' => 'B', 'name' => 'DOC. IDENT. PAIS. RESIDENCIA - NO.D', 'sort_order' => 7],
+            ['code' => 'C', 'name' => 'Tax Identification Number - TIN – Doc Trib PP.NN', 'sort_order' => 8],
+            ['code' => 'D', 'name' => 'Identification Number - IN – Doc Trib PP.JJ', 'sort_order' => 9],
         ];
 
         foreach ($rows as $r) {
