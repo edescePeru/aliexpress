@@ -1087,7 +1087,7 @@ function incrementQuantity(button) {
     var $input = $(button).siblings('input[type="number"]');
     var currentValue = parseFloat($input.val());
     var step = parseFloat($input.attr('step')) || 0.01;
-    let itemKey = $(button).attr('data-item_key_minus');
+    let itemKey = $(button).attr('data-item_key_plus');
     $input.val((currentValue + step).toFixed(2)).trigger('change');
 
     var string = "";
