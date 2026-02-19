@@ -335,8 +335,10 @@
                                 });
                                 toastr.error(msg || 'Validación fallida');
                             } else {
-                                var m = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error';
-                                toastr.error(m);
+                                var res = xhr.responseJSON || {};
+                                var msg2 = res.detail || res.message || 'Error inesperado';
+
+                                toastr.error(msg2);
                             }
                         }).always(function () {
                             $btn.prop('disabled', false);
@@ -345,6 +347,141 @@
                 },
                 No: function () { }
             }
+        });
+    }
+
+    function manualRowTemplate(idx) {
+        return `
+        <tr class="manualItemRow" data-idx="${idx}">
+            <td class="text-center align-middle">${idx + 1}</td>
+
+            <td>
+                <select class="form-control manualMaterialSelect" style="width:100%"></select>
+
+                <input type="hidden" name="items[${idx}][product_id]" class="manualProductId">
+                <input type="hidden" name="items[${idx}][codigo]" class="manualCodigo">
+                <input type="hidden" name="items[${idx}][descripcion]" class="manualDescripcion">
+            </td>
+
+            <td>
+                <input type="number" step="0.001" min="0.001"
+                       class="form-control"
+                       name="items[${idx}][cantidad]" value="1">
+            </td>
+
+            <td class="text-center align-middle">NIU</td>
+
+            <td>
+                <input type="text" class="form-control"
+                       name="items[${idx}][detalle_adicional]"
+                       placeholder="(opcional)">
+            </td>
+
+            <td class="text-center align-middle">
+                <button type="button" class="btn btn-sm btn-outline-danger btnDelManualItem">
+                    <i class="fa fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    }
+
+    function initManualMaterialSelect2($select) {
+        $select.select2({
+            theme: 'bootstrap4',
+            placeholder: 'Buscar material...',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: window.routes.materialsSelect2,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', page: params.page || 1 };
+                },
+                processResults: function (data) { return data; },
+                cache: true
+            }
+        });
+
+        $select.on('select2:select', function (e) {
+            const row = $(this).closest('tr');
+            const data = e.params.data || {};
+
+            const materialId = data.material_id || data.id || '';
+            const descripcion = data.descripcion || data.text || '';
+            const codigo = data.codigo || materialId || '';
+
+            row.find('.manualProductId').val(materialId);
+            row.find('.manualCodigo').val(codigo);
+            row.find('.manualDescripcion').val(descripcion);
+        });
+
+        $select.on('select2:clear', function () {
+            const row = $(this).closest('tr');
+            row.find('.manualProductId').val('');
+            row.find('.manualCodigo').val('');
+            row.find('.manualDescripcion').val('');
+        });
+    }
+
+    function initManualMaterialSelect2($select) {
+        $select.select2({
+            theme: 'bootstrap4',
+            placeholder: 'Buscar material...',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: window.routes.materialsSelect2,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', page: params.page || 1 };
+                },
+                processResults: function (data) { return data; },
+                cache: true
+            }
+        });
+
+        $select.on('select2:select', function (e) {
+            const row = $(this).closest('tr');
+            const data = e.params.data || {};
+
+            const materialId = data.material_id || data.id || '';
+            const descripcion = data.descripcion || data.text || '';
+            const codigo = data.codigo || materialId || '';
+
+            row.find('.manualProductId').val(materialId);
+            row.find('.manualCodigo').val(codigo);
+            row.find('.manualDescripcion').val(descripcion);
+        });
+
+        $select.on('select2:clear', function () {
+            const row = $(this).closest('tr');
+            row.find('.manualProductId').val('');
+            row.find('.manualCodigo').val('');
+            row.find('.manualDescripcion').val('');
+        });
+    }
+
+    function addManualItemRow() {
+        const idx = $('#tbodyManualItems tr.manualItemRow').length;
+        $('#tbodyManualItems').append(manualRowTemplate(idx));
+
+        const $newRow = $('#tbodyManualItems tr.manualItemRow').last();
+        initManualMaterialSelect2($newRow.find('.manualMaterialSelect'));
+    }
+
+    function reindexManualRows() {
+        $('#tbodyManualItems tr.manualItemRow').each(function (i) {
+            $(this).attr('data-idx', i);
+            $(this).find('td:first').text(i + 1);
+
+            $(this).find('input, select').each(function () {
+                const name = $(this).attr('name');
+                if (!name) return;
+                $(this).attr('name', name.replace(/items\[\d+]/, `items[${i}]`));
+            });
         });
     }
 
@@ -373,6 +510,15 @@
 
         $(document).on('click', '#btnLoadSaleItems', loadSaleItems);
         $(document).on('click', '#btnSubmitGuide', submitGuide);
+
+        $(document).on('click', '#btnAddManualItem', function () {
+            addManualItemRow();
+        });
+
+        $(document).on('click', '.btnDelManualItem', function () {
+            $(this).closest('tr').remove();
+            reindexManualRows();
+        });
     });
 
 })(jQuery);

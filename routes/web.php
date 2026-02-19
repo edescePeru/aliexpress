@@ -3085,6 +3085,8 @@ Route::middleware('auth')->group(function (){
         Route::get('ubigeo/departments/select2', 'UbigeoController@departmentsSelect2')->name('ubigeo.departments.select2');
         Route::get('ubigeo/provinces/select2', 'UbigeoController@provincesSelect2')->name('ubigeo.provinces.select2');
         Route::get('ubigeo/districts/select2', 'UbigeoController@districtsSelect2')->name('ubigeo.districts.select2');
+
+        Route::get('/materials/select2', 'MaterialController@select2')->name('materials.select2');
     });
 });
 

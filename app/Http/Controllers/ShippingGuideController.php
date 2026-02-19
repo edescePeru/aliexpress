@@ -84,6 +84,12 @@ class ShippingGuideController extends Controller
         // Serie por defecto: una por empresa (lo puedes leer de DataGeneral si ya lo tienes)
         $defaultSerie = 'TTT1';
 
+        $maxNum = ShippingGuide::where('serie', $defaultSerie)
+            ->whereNotNull('numero')
+            ->max(DB::raw('CAST(numero AS UNSIGNED)'));
+
+        $nextNum = ($maxNum ?: 0) + 1;
+
         $customers = Customer::all();
 
         return view('shipping_guides.create', compact(
@@ -92,7 +98,8 @@ class ShippingGuideController extends Controller
             'indicators',
             'identityDocTypes',
             'defaultSerie',
-            'customers'
+            'customers',
+            'nextNum'
         ));
     }
 
@@ -422,6 +429,7 @@ class ShippingGuideController extends Controller
                 'sale_id'    => ['required_if:items_mode,SALE', 'nullable', 'integer', 'exists:sales,id'],
 
                 'items' => ['required_if:items_mode,MANUAL', 'array'],
+                'items.*.product_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:materials,id'],
                 'items.*.descripcion' => ['required_if:items_mode,MANUAL', 'string', 'max:255'],
                 'items.*.cantidad'    => ['required_if:items_mode,MANUAL', 'numeric', 'min:0.001'],
                 'items.*.codigo'      => ['nullable', 'string', 'max:60'],
@@ -495,6 +503,9 @@ class ShippingGuideController extends Controller
 
                 'items.required_if' => 'Debes agregar al menos un item en modo manual.',
                 'items.array'       => 'El formato de items manuales no es válido.',
+
+                'items.*.product_id.required_if' => 'Debes seleccionar un producto en cada item manual.',
+                'items.*.product_id.exists' => 'El producto seleccionado no existe.',
 
                 'items.*.descripcion.required_if' => 'La descripción del item es obligatoria.',
                 'items.*.descripcion.max'         => 'La descripción del item no debe exceder 255 caracteres.',
@@ -741,11 +752,21 @@ class ShippingGuideController extends Controller
 
                 $line = 1;
                 foreach ($data['items'] as $it) {
+
+                    $productId = isset($it['product_id']) && $it['product_id'] !== ''
+                        ? (int)$it['product_id']
+                        : null;
+
                     ShippingGuideItem::create([
                         'shipping_guide_id' => $guide->id,
                         'line' => $line++,
-                        'product_id' => null,
-                        'codigo' => $it['codigo'] ?? null,
+
+                        // ✅ referencia real a materials.id
+                        'product_id' => $productId,
+
+                        // ✅ “codigo” repetido (id del material)
+                        'codigo' => $it['codigo'] ?? ($productId ? (string)$productId : null),
+
                         'descripcion' => $it['descripcion'],
                         'detalle_adicional' => $it['detalle_adicional'] ?? null,
                         'cantidad' => $it['cantidad'],
@@ -768,14 +789,21 @@ class ShippingGuideController extends Controller
 
             // Estado por SUNAT
             $accepted = (bool)($resp['aceptada_por_sunat'] ?? false);
-            $code = (string)($resp['sunat_responsecode'] ?? '');
 
-            // Si vino código y no es 0 y no fue aceptada -> REJECTED
-            $isRejected = (!$accepted && $code !== '' && $code !== '0');
+            $soapError = trim((string)($resp['sunat_soap_error'] ?? ''));
+            $description = trim((string)($resp['sunat_description'] ?? ''));
+            $responseCode = trim((string)($resp['sunat_responsecode'] ?? ''));
 
-            $finalStatus = $accepted
-                ? 'ACCEPTED'
-                : ($isRejected ? 'REJECTED' : 'PENDING_SUNAT');
+            // Detectar error real de SUNAT
+            $hasError = (!$accepted && ($soapError !== '' || $responseCode !== ''));
+
+            if ($accepted) {
+                $finalStatus = 'ACCEPTED';
+            } elseif ($hasError) {
+                $finalStatus = 'REJECTED';
+            } else {
+                $finalStatus = 'PENDING_SUNAT';
+            }
 
             $guide->update([
                 'last_nubefact_response' => $resp,
@@ -799,9 +827,21 @@ class ShippingGuideController extends Controller
 
             DB::commit();
 
+            $message = 'Guía creada y enviada correctamente.';
+
+            if ($finalStatus === 'REJECTED') {
+
+                $message = $soapError ?: $description ?: 'SUNAT rechazó la guía.';
+
+            } elseif ($finalStatus === 'PENDING_SUNAT') {
+
+                $message = 'Guía enviada. SUNAT aún no responde.';
+            }
+
             return response()->json([
-                'message' => 'Guía creada y enviada a Nubefact.',
-                'data' => $guide->fresh(['items', 'vehicles', 'drivers']),
+                'message' => $message,
+                'status' => $finalStatus,
+                'data' => $guide->fresh(),
                 'nubefact' => $resp,
             ]);
 
@@ -818,8 +858,8 @@ class ShippingGuideController extends Controller
             }
 
             return response()->json([
-                'message' => 'Error al crear/enviar la guía.',
-                'error' => $e->getMessage(),
+                'message' => 'Error al enviar a Nubefact.',
+                'detail'  => $e->getMessage(),
             ], 500);
         }
     }

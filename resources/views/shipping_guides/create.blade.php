@@ -135,12 +135,12 @@
 
                                     <div class="col-md-2">
                                         <label class="required">Serie</label>
-                                        <input type="text" class="form-control" name="serie" value="{{ $defaultSerie ?? 'TPD1' }}" readonly>
+                                        <input type="text" class="form-control" name="serie" value="{{ $defaultSerie ?? 'TTT1' }}" readonly>
                                     </div>
 
                                     <div class="col-md-2">
                                         <label>Número</label>
-                                        <input type="text" class="form-control" name="numero" placeholder="Auto/Editable">
+                                        <input type="text" class="form-control" name="numero" placeholder="Auto/Editable" value="{{ $nextNum }}" readonly>
                                     </div>
                                 </div>
 
@@ -253,9 +253,34 @@
 
                                     {{-- MODO MANUAL (placeholder) --}}
                                     <div class="mt-3" id="manualItemsBox" style="display:none;">
-                                        <div class="alert alert-warning mb-0">
-                                            Modo manual pendiente (aquí irá tu tabla de items manuales con “Agregar fila”).
+
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <strong>Items manuales</strong>
+
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddManualItem">
+                                                <i class="fa fa-plus"></i> Agregar item
+                                            </button>
                                         </div>
+
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead>
+                                                <tr>
+                                                    <th style="width:60px;">#</th>
+                                                    <th style="min-width:260px;">Producto</th>
+                                                    <th style="width:140px;">Cantidad</th>
+                                                    <th style="width:80px;">UM</th>
+                                                    <th>Detalle adicional</th>
+                                                    <th style="width:70px;"></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="tbodyManualItems"></tbody>
+                                            </table>
+                                        </div>
+
+                                        <small class="text-muted d-block mt-2">
+                                            UM fija: <b>NIU</b>. Producto se busca desde tu tabla <b>materials</b>.
+                                        </small>
                                     </div>
 
                                 </div>
@@ -570,7 +595,7 @@
     <script>
         window.routes = {
             store: "{{ route('shipping_guides.store') }}",
-            index: "{{ route('referral.guide.index') }}",
+            index: "{{ route('shipping_guides.view') }}",
             customerPayload: "{{ route('customers.payload', ['customer' => ':id']) }}",
             saleItems: "{{ route('shipping_guides.sale_items') }}",
             salesSelect2: "{{ route('sales.select2') }}",
@@ -578,6 +603,7 @@
             ubigeoDepartments: "{{ route('ubigeo.departments.select2') }}",
             ubigeoProvinces: "{{ route('ubigeo.provinces.select2')}}",
             ubigeoDistricts: "{{ route('ubigeo.districts.select2')}}",
+            materialsSelect2: "{{ route('materials.select2') }}",
         };
     </script>
     <script>
