@@ -4001,10 +4001,14 @@ class QuoteSaleController extends Controller
                 'indicator'         => 'or',
             ]);
 
+            $igv = (float) PorcentageQuote::where('name', 'igv')->value('value'); // 18.00
+            $factor = bcadd('1', bcdiv((string)$igv, '100', 10), 10); // 1.1800000000
+
             // ===========================
             // 3) Detalles + stock + output details
             // ===========================
             foreach ($quote->equipments as $equipment) {
+                // 1) Consumables (tal cual lo tienes)
                 foreach ($equipment->consumables as $consumable) {
 
                     $materialId = (int)$consumable->material_id;
@@ -4104,6 +4108,43 @@ class QuoteSaleController extends Controller
                         ]);
                     }
                 }
+
+                // 2) Workforces (solo billable = 1)
+                foreach ($equipment->workforces->where('billable', 1) as $wf) {
+
+                    $qty = (string) $wf->quantity;
+                    $priceWithIgv = (string) $wf->price; // precio unitario con IGV
+
+                    // 🔥 valor_unitario SIN IGV (20,10)
+                    $valorUnitario = bcdiv($priceWithIgv, $factor, 10);
+
+                    // 🔥 total sin IGV
+                    $totalSinIgv = bcmul($valorUnitario, $qty, 10);
+
+                    // 🔥 IGV del item
+                    $igvItem = bcsub((string)$wf->total, $totalSinIgv, 10);
+
+                    $saleDetail = SaleDetail::create([
+                        'sale_id'                  => $sale->id,
+                        'material_id'              => null,
+                        'material_presentation_id' => null,
+                        'description'              => $wf->description,
+
+                        'valor_unitario'           => $valorUnitario, // 🔥 SIN IGV
+                        'price'                    => $priceWithIgv,  // CON IGV
+                        'quantity'                 => $qty,
+                        'packs'                    => null,
+                        'units_per_pack'           => null,
+                        'percentage_tax'           => $igv,
+
+                        'total'                    => $wf->total,     // total CON IGV
+                        'discount'                 => 0,
+
+                        'unit_cost'                => '0.0000000000',
+                        'total_cost'               => '0.0000000000',
+                    ]);
+                }
+
             }
 
             // ===========================

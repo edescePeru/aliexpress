@@ -18,6 +18,9 @@ trait NubefactTrait
 
         $items = $order->details->map(function ($item) {
 
+            // 1) Determinar si es servicio (workforce) o producto
+            $isService = empty($item->material_id); // null => servicio
+
             $qty = (string) ((float)$item->quantity);
             if ((float)$qty <= 0) {
                 throw new \Exception("Cantidad inválida en detalle {$item->id}");
@@ -43,12 +46,27 @@ trait NubefactTrait
             // ✅ igv = total - subtotal (2 decimales)
             $igv = bcsub($totalLine, $subtotal, 10);
 
-            $present = (string) ( ($item->material_presentation_id == null) ? round($item->quantity): $item->units_per_pack.'und');
+            //$present = (string) ( ($item->material_presentation_id == null) ? round($item->quantity): $item->units_per_pack.'und');
+
+            if ($isService) {
+                $descripcion = strtoupper($item->description) ?: 'Servicio';
+                $present = 'srv';
+            } else {
+                $present = (string) (
+                $item->material_presentation_id == null
+                    ? round($item->quantity)
+                    : $item->units_per_pack . 'und'
+                );
+
+                $descripcion = $item->material
+                    ? "(".$present.") ".$item->material->full_name
+                    : "(".$present.") ".'Material ' . $item->material_id;
+            }
 
             return [
                 "unidad_de_medida" => "NIU",
                 "codigo" => "",
-                "descripcion" => $item->material ? "(".$present.") ".$item->material->full_name : ("(".$present.") ".'Material ' . $item->material_id),
+                "descripcion" => $descripcion,
                 "cantidad" => (float) $qty,
 
                 // Nubefact usa estos para recalcular/mostrar:

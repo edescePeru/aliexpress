@@ -101,6 +101,9 @@
 
 @section('page-title')
     <h5 class="card-title">Listar materiales almacen</h5>
+    <button type="button" class="btn btn-outline-info btn-sm float-right" id="btn-resumen-stock">
+        Ver resumen de stock
+    </button>
     @can('create_material')
         <a href="{{ route('material.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo material </a>
     @endcan
@@ -117,6 +120,7 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+    <input type="hidden" id="hay-alertas" value="{{ $hayAlertas ? '1' : '0' }}">
     <!--begin::Form-->
     <form action="#">
         <!--begin::Card-->
@@ -787,6 +791,10 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="resumen-stock-html" class="d-none">
+        @include('material._resumen_popup', ['rows' => $rows])
     </div>
 @endsection
 

@@ -649,7 +649,24 @@ class MaterialController extends Controller
             ]);
         }
 
-        return view('material.indexv2', compact( 'permissions', 'arrayCategories', 'arrayCedulas', 'arrayCalidades', 'arrayMarcas', 'arrayRetacerias', 'arrayRotations', 'arrayMaterials'));
+        $rows = Material::resumenPorMaterial()->get();
+
+        // Calculamos el estado de stock
+        foreach ($rows as $row) {
+            if ($row->stock_total <= 0) {
+                $row->estado = 'desabastecido';
+            } elseif ($row->stock_total <= $row->stock_min) {
+                $row->estado = 'por_desabastecer';
+            } else {
+                $row->estado = 'ok';
+            }
+        }
+
+        $hayAlertas = $rows->contains(function ($r) {
+            return $r->estado === 'desabastecido' || $r->estado === 'por_desabastecer';
+        });
+
+        return view('material.indexv2', compact( 'permissions', 'arrayCategories', 'arrayCedulas', 'arrayCalidades', 'arrayMarcas', 'arrayRetacerias', 'arrayRotations', 'arrayMaterials', 'rows', 'hayAlertas'));
 
     }
 
@@ -1902,5 +1919,46 @@ class MaterialController extends Controller
         });
 
         return response()->json($results);
+    }
+
+    public function select2(Request $request)
+    {
+        $q = trim((string)$request->get('q', ''));
+        $page = max(1, (int)$request->get('page', 1));
+        $perPage = 10;
+
+        $query = Material::where('enable_status', 1);
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('full_name', 'like', "%{$q}%")
+                    ->orWhere('id', 'like', "%{$q}%");
+            });
+        }
+
+        $total = (clone $query)->count();
+
+        $items = $query
+            ->orderBy('full_name')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get(['id', 'full_name']);
+
+        $results = $items->map(function ($m) {
+            return [
+                'id' => $m->id,
+                'text' => $m->full_name,
+
+                // extra para el JS
+                'material_id' => $m->id,
+                'codigo' => (string)$m->id,
+                'descripcion' => $m->full_name,
+            ];
+        });
+
+        return response()->json([
+            'results' => $results,
+            'pagination' => ['more' => ($page * $perPage) < $total],
+        ]);
     }
 }

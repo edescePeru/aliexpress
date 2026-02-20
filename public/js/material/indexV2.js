@@ -474,6 +474,43 @@ $(document).ready(function () {
             }
         });
     });
+
+    $('#btn-resumen-stock').on('click', function (e) {
+        e.preventDefault();
+
+        var resumenHtml = $('#resumen-stock-html').html(); // leemos el HTML del partial incluido
+
+        $.confirm({
+            title: 'Resumen de stock por material',
+            useBootstrap: true,
+            columnClass: 'col-md-8',
+            content: resumenHtml,  // aquí va el HTML ya listo
+            buttons: {
+                cerrar: {
+                    text: 'Cerrar',
+                    btnClass: 'btn-secondary'
+                }
+            }
+        });
+    });
+
+    if ($('#hay-alertas').val() === '1') {
+        var resumenHtml = $('#resumen-stock-html').html();
+
+        $.confirm({
+            title: 'Resumen de stock por material',
+            useBootstrap: true,
+            columnClass: 'col-md-8',
+            content: resumenHtml,
+            autoClose: 'cerrar|10000',
+            buttons: {
+                cerrar: {
+                    text: 'Cerrar',
+                    btnClass: 'btn-secondary'
+                }
+            }
+        });
+    }
 });
 
 var $formAssignChild;

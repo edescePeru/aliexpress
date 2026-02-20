@@ -74,5 +74,12 @@ class DatabaseSeeder extends Seeder
 
         // 👇 DIMENSIÓN TIEMPO
         Artisan::call('dimension:populate-date');
+
+        $this->call(TransferReasonsSeeder::class);
+        $this->call(WeightUnitsSeeder::class);
+        $this->call(IdentityDocumentTypesSeeder::class);
+        $this->call(SunatShippingIndicatorsSeeder::class);
+
+        $this->call(UbigeoSqlSeeder::class);
     }
 }
