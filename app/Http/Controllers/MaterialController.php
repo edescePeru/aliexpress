@@ -649,7 +649,24 @@ class MaterialController extends Controller
             ]);
         }
 
-        return view('material.indexv2', compact( 'permissions', 'arrayCategories', 'arrayCedulas', 'arrayCalidades', 'arrayMarcas', 'arrayRetacerias', 'arrayRotations', 'arrayMaterials'));
+        $rows = Material::resumenPorMaterial()->get();
+
+        // Calculamos el estado de stock
+        foreach ($rows as $row) {
+            if ($row->stock_total <= 0) {
+                $row->estado = 'desabastecido';
+            } elseif ($row->stock_total <= $row->stock_min) {
+                $row->estado = 'por_desabastecer';
+            } else {
+                $row->estado = 'ok';
+            }
+        }
+
+        $hayAlertas = $rows->contains(function ($r) {
+            return $r->estado === 'desabastecido' || $r->estado === 'por_desabastecer';
+        });
+
+        return view('material.indexv2', compact( 'permissions', 'arrayCategories', 'arrayCedulas', 'arrayCalidades', 'arrayMarcas', 'arrayRetacerias', 'arrayRotations', 'arrayMaterials', 'rows', 'hayAlertas'));
 
     }
 

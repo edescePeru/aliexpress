@@ -222,4 +222,17 @@ class Material extends Model
         $array['full_description'] = $this->full_description;
         return $array;
     }
+
+    // Scope para obtener el resumen por material
+    public function scopeResumenPorMaterial($query)
+    {
+        return $query->selectRaw('
+                id,
+                full_name,
+                MIN(stock_min) as stock_min,
+                SUM(stock_current) as stock_total
+            ')
+            ->groupBy('id', 'full_name')
+            ->orderBy('full_name');
+    }
 }
