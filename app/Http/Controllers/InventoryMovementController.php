@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataGeneral;
 use App\InventoryMovement;
 use App\Material;
 use Illuminate\Http\Request;
@@ -57,6 +58,15 @@ class InventoryMovementController extends Controller
 
         $rows = [];
 
+        $flag = DataGeneral::where('name', 'type_current')->first();
+        $currency = $flag->valueText;
+        $simboloMoneda = "S/. ";
+
+        if ( $currency == 'usd' )
+        {
+            $simboloMoneda = "$ ";
+        }
+
         foreach ($movements as $m) {
             if ($m->movement_type === 'IN') {
                 // ENTRADA
@@ -86,6 +96,7 @@ class InventoryMovementController extends Controller
                     'saldo_qty'      => round($saldoCantidad, 4),
                     'saldo_cost'     => round($costoPromedio, 4),
                     'saldo_total'    => round($saldoImporte, 2),
+                    'simbolo_moneda' => $simboloMoneda
                 ];
             } else {
                 // SALIDA
@@ -114,6 +125,7 @@ class InventoryMovementController extends Controller
                     'saldo_qty'      => round($saldoCantidad, 4),
                     'saldo_cost'     => round($costoPromedio, 4), // el promedio no cambia en salidas
                     'saldo_total'    => round($saldoImporte, 2),
+                    'simbolo_moneda' => $simboloMoneda
                 ];
             }
         }

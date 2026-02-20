@@ -62,10 +62,10 @@ function loadKardex(materialId, from, to) {
                 tr.append('<td>' + origen + '</td>');
                 tr.append('<td class="text-right">' + (r.qty_in || '') + '</td>');
                 tr.append('<td class="text-right">' + (r.qty_out || '') + '</td>');
-                tr.append('<td class="text-right">' + (r.unit_cost_in ?? '') + '</td>');
-                tr.append('<td class="text-right">' + (r.unit_cost_out ?? '') + '</td>');
+                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.unit_cost_in ?? '') + '</td>');
+                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.unit_cost_out ?? '') + '</td>');
                 tr.append('<td class="text-right">' + (r.saldo_qty || 0) + '</td>');
-                tr.append('<td class="text-right">' + (r.saldo_cost || 0) + '</td>');
+                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.saldo_cost || 0) + '</td>');
                 tr.append('<td class="text-right">' + (r.saldo_total || 0) + '</td>');
                 tbody.append(tr);
             });
