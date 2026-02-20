@@ -39,6 +39,13 @@ $(function () {
     });
 });
 
+function money(simbolo, valor) {
+    if (valor === null || valor === undefined || valor === '' || Number(valor) === 0) {
+        return '';
+    }
+    return simbolo + ' ' + parseFloat(valor).toFixed(2);
+}
+
 function loadKardex(materialId, from, to) {
     $('#kardex-body').html(
         '<tr><td colspan="10" class="text-center">Cargando...</td></tr>'
@@ -62,11 +69,11 @@ function loadKardex(materialId, from, to) {
                 tr.append('<td>' + origen + '</td>');
                 tr.append('<td class="text-right">' + (r.qty_in || '') + '</td>');
                 tr.append('<td class="text-right">' + (r.qty_out || '') + '</td>');
-                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.unit_cost_in ?? '') + '</td>');
-                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.unit_cost_out ?? '') + '</td>');
+                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.unit_cost_in) + '</td>');
+                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.unit_cost_out) + '</td>');
                 tr.append('<td class="text-right">' + (r.saldo_qty || 0) + '</td>');
-                tr.append('<td class="text-right">' + r.simbolo_moneda + (r.saldo_cost || 0) + '</td>');
-                tr.append('<td class="text-right">' + (r.saldo_total || 0) + '</td>');
+                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.saldo_cost) + '</td>');
+                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.saldo_total) + '</td>');
                 tbody.append(tr);
             });
         }
