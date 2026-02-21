@@ -662,9 +662,15 @@ class MaterialController extends Controller
             }
         }
 
-        $hayAlertas = $rows->contains(function ($r) {
-            return $r->estado === 'desabastecido' || $r->estado === 'por_desabastecer';
-        });
+        $flagAlertas = DataGeneral::where('name', 'show_alert_stock_minimos')->first();
+        $alerta = $flagAlertas->valueText;
+        $hayAlertas = [];
+        if ($alerta == 's')
+        {
+            $hayAlertas = $rows->contains(function ($r) {
+                return $r->estado === 'desabastecido' || $r->estado === 'por_desabastecer';
+            });
+        }
 
         return view('material.indexv2', compact( 'permissions', 'arrayCategories', 'arrayCedulas', 'arrayCalidades', 'arrayMarcas', 'arrayRetacerias', 'arrayRotations', 'arrayMaterials', 'rows', 'hayAlertas'));
 
