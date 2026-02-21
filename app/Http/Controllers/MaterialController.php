@@ -649,7 +649,7 @@ class MaterialController extends Controller
             ]);
         }
 
-        $rows = Material::resumenPorMaterial()->get();
+        $rows = Material::where('enable_status', 1)->resumenPorMaterial()->get();
 
         // Calculamos el estado de stock
         foreach ($rows as $row) {

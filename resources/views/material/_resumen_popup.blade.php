@@ -9,6 +9,7 @@
     </thead>
     <tbody>
     @foreach($rows as $row)
+        @if($row->estado != 'ok')
         <tr>
             <td>{{ $row->full_name }}</td>
             <td class="text-right">{{ number_format($row->stock_total, 2) }}</td>
@@ -23,6 +24,7 @@
                 @endif
             </td>
         </tr>
+        @endif
     @endforeach
     </tbody>
 </table>
