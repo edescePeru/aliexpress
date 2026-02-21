@@ -232,6 +232,7 @@ class Material extends Model
                 MIN(stock_min) as stock_min,
                 SUM(stock_current) as stock_total
             ')
+            ->where('enable_status', 1)
             ->groupBy('id', 'full_name')
             ->orderBy('full_name');
     }
