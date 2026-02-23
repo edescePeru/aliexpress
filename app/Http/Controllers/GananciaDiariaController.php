@@ -10,6 +10,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Exports\GananciasTrabajadorExport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\GananciaVentasDetalladoExport;
 
 class GananciaDiariaController extends Controller
 {
@@ -42,6 +45,31 @@ class GananciaDiariaController extends Controller
 
         return view('ganancia.indexTrabajador', compact( 'permissions', 'workers'));
 
+    }
+
+    private function resolveUnitCost($detail): float
+    {
+        // 1) Si el detalle ya guardó costo unitario, úsalo
+        if (!is_null($detail->unit_cost) && (float)$detail->unit_cost > 0) {
+            return (float)$detail->unit_cost;
+        }
+
+        // 2) Fallback: costo actual del material (para ventas antiguas)
+        return (float) (optional($detail->material)->unit_price ?? 0);
+    }
+
+    public function exportGananciaVentasDetallado(Request $request)
+    {
+        $creator   = $request->input('creator');
+        $startDate = $request->input('startDate');
+        $endDate   = $request->input('endDate');
+
+        $fileName = 'ganancia_ventas_detallado_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(
+            new GananciaVentasDetalladoExport($creator, $startDate, $endDate),
+            $fileName
+        );
     }
 
     public function getDataGananciasTrabajador(Request $request, $pageNumber = 1)
@@ -83,16 +111,24 @@ class GananciaDiariaController extends Controller
 
         foreach ($allSales as $saleGlobal) {
             foreach ($saleGlobal->details as $detailGlobal) {
+
+                // ✅ Ignorar servicios u otros detalles sin material
+                if (empty($detailGlobal->material_id)) {
+                    continue;
+                }
+
                 $qtyGlobal       = (float) $detailGlobal->quantity;
                 $lineTotalGlobal = (float) $detailGlobal->total;
                 $lineDiscGlobal  = (float) $detailGlobal->discount;
-                $unitPriceGlobal = (float) optional($detailGlobal->material)->unit_price ?? 0;
 
                 $netLineGlobal = $lineTotalGlobal - $lineDiscGlobal;
 
+                $unitCostGlobal = $this->resolveUnitCost($detailGlobal);
+                $costLineGlobal = $unitCostGlobal * $qtyGlobal;
+
                 $total_quantity_sale_global += $qtyGlobal;
                 $total_total_sale_global    += $netLineGlobal;
-                $total_total_utility_global += $netLineGlobal - ($unitPriceGlobal * $qtyGlobal);
+                $total_total_utility_global += ($netLineGlobal - $costLineGlobal);
             }
         }
 
@@ -120,20 +156,24 @@ class GananciaDiariaController extends Controller
             $total_utility = 0;
 
             foreach ($sale->details as $detail) {
+
+                // ✅ Ignorar servicios u otros detalles sin material
+                if (empty($detail->material_id)) {
+                    continue;
+                }
+
                 $qty          = (float) $detail->quantity;
                 $lineTotal    = (float) $detail->total;
                 $lineDiscount = (float) $detail->discount;
-                $unitPrice    = (float) optional($detail->material)->unit_price ?? 0;
 
-                // Cantidad total de productos
-                $quantity_sale += $qty;
-
-                // Total de la venta (total - descuento)
                 $netLine = $lineTotal - $lineDiscount;
-                $total_sale += $netLine;
 
-                // Utilidad: (venta neta) - (costo)
-                $total_utility += $netLine - ($unitPrice * $qty);
+                $unitCost = $this->resolveUnitCost($detail);
+                $costLine = $unitCost * $qty;
+
+                $quantity_sale += $qty;
+                $total_sale    += $netLine;
+                $total_utility += ($netLine - $costLine);
             }
 
             $tipo_comprobante = null;
@@ -191,6 +231,20 @@ class GananciaDiariaController extends Controller
             'pagination' => $pagination,
             'totals'     => $totals,
         ];
+    }
+
+    public function exportGananciasTrabajador(Request $request)
+    {
+        $creator   = $request->input('creator');
+        $startDate = $request->input('startDate');
+        $endDate   = $request->input('endDate');
+
+        $fileName = 'ganancias_trabajador_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(
+            new GananciasTrabajadorExport($creator, $startDate, $endDate),
+            $fileName
+        );
     }
 
     public function getDataGanancias(Request $request, $pageNumber = 1)

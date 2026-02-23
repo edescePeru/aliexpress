@@ -49,7 +49,7 @@
 
 @section('page-header')
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-5">
             <h1 class="page-title">Ganancias Diarias</h1>
         </div>
     </div>
@@ -57,7 +57,29 @@
 @endsection
 
 @section('page-title')
+    @can('exportDetail_gananciaDiaria')
+    <div class="callout callout-warning mb-2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
 
+            <div>
+                <h5 class="mb-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Importante
+                </h5>
+                <p class="mb-0">
+                    Los filtros de <b>Trabajador</b> y <b>Rango de Fechas</b> también se aplicarán
+                    al <b>Excel de Ganancia de Ventas Detallado</b>.
+                </p>
+            </div>
+
+            <div class="ml-3 mt-2 mt-md-0">
+                <button type="button" id="btn-export-detallado" class="btn btn-success btn-sm">
+                    <i class="far fa-file-excel"></i> Descargar Ganancia Detallada
+                </button>
+            </div>
+
+        </div>
+    </div>
+    @endcan
 @endsection
 
 @section('page-breadcrumb')
@@ -97,10 +119,27 @@
             </div>
         </div>
 
+
+        {{--<div class="col-md-2">
+            <label> &nbsp;</label>
+            <a href="#" id="btn-search" class="btn btn-primary btn-sm btn-block"><i class="fas fa-search"></i> Buscar</a>
+
+        </div>--}}
+
         <div class="col-md-4">
             <label> &nbsp;</label>
-            <a href="#" id="btn-search" class="btn btn-primary btn-sm btn-block">Buscar</a>
 
+            <div class="d-flex" style="gap: 8px;">
+                <a href="#" id="btn-search" class="btn btn-primary btn-sm flex-fill"> <i class="fas fa-search"></i> Buscar</a>
+                {{--<a href="#" id="btn-export" class="btn btn-success btn-sm flex-fill">
+                    <i class="far fa-file-excel"></i> Exportar
+                </a>--}}
+                @can( 'export_gananciaDiaria' )
+                <button type="button" id="btn-export" class="btn btn-success btn-sm flex-fill">
+                    <i class="far fa-file-excel"></i> Exportar Excel
+                </button>
+                @endcan
+            </div>
         </div>
     </div>
     <!--begin::Toolbar-->
@@ -243,6 +282,14 @@
     <template id="template-button">
         <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Detalles</a>
     </template>
+
+    <div id="export-overlay" style="display:none; position:fixed; z-index:9999; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.35);">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; padding:18px 22px; border-radius:8px; min-width:320px; box-shadow:0 10px 30px rgba(0,0,0,.2); text-align:center;">
+            <div style="font-size:15px; font-weight:600; margin-bottom:8px;">Generando reporte</div>
+            <div style="font-size:13px; opacity:.8; margin-bottom:12px;">Por favor espere…</div>
+            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')

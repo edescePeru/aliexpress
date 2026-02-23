@@ -1638,8 +1638,16 @@ class PuntoVentaController extends Controller
             //$tipoPago = $sale->tipoPago->description;
             foreach ($movements as $movement) {
 
-                $cashBoxSubType = CashBoxSubtype::find($movement->cash_box_subtype_id);
-                $is_deferred = $cashBoxSubType->is_deferred;
+                //$cashBoxSubType = CashBoxSubtype::find($movement->cash_box_subtype_id);
+                $cashBoxSubType = $movement->cash_box_subtype_id
+                    ? CashBoxSubtype::find($movement->cash_box_subtype_id)
+                    : null;
+                //$is_deferred = $cashBoxSubType->is_deferred;
+                // si no hay subtype (efectivo) => NO diferido
+                $is_deferred = $cashBoxSubType ? (int) $cashBoxSubType->is_deferred : 0;
+
+                // para re-usarlo al crear movimientos (si no hay subtype => null)
+                $cash_box_subtype_id_to_use = $cashBoxSubType ? $cashBoxSubType->id : null;
 
                 // Si es un movimiento de tipo "sale"
                 if ($movement->type === 'sale') {
@@ -1657,7 +1665,8 @@ class PuntoVentaController extends Controller
                                 'amount'                => $movement->amount_regularize,
                                 'description'           => 'Reversión de venta (POS regularizado) por anulación de venta',
                                 'regularize'            => $movement->regularize,
-                                'cash_box_subtype_id'   => $cashBoxSubType->id,
+                                //'cash_box_subtype_id'   => $cashBoxSubType->id,
+                                'cash_box_subtype_id'   => $cash_box_subtype_id_to_use,
                             ]);
                             $cashRegister = CashRegister::find($movement->cash_register_id);
                             $cashRegister->current_balance -= $movement->amount_regularize;
@@ -1674,7 +1683,8 @@ class PuntoVentaController extends Controller
                             'amount'                => $movement->amount,
                             'description'           => 'Reversión de venta por anulación de venta',
                             'regularize'            => $movement->regularize,
-                            'cash_box_subtype_id'   => $cashBoxSubType->id,
+                            //'cash_box_subtype_id'   => $cashBoxSubType->id,
+                            'cash_box_subtype_id'   => $cash_box_subtype_id_to_use,
                         ]);
                         $cashRegister = CashRegister::find($movement->cash_register_id);
                         $cashRegister->current_balance -= $movement->amount;
@@ -1694,7 +1704,8 @@ class PuntoVentaController extends Controller
                         'description'           => 'Reversión de gasto (vuelto) por anulación de orden',
                         'subtype'               => $movement->subtype,
                         'regularize'            => $movement->regularize,
-                        'cash_box_subtype_id'   => $cashBoxSubType->id,
+                        //'cash_box_subtype_id'   => $cashBoxSubType->id,
+                        'cash_box_subtype_id'   => $cash_box_subtype_id_to_use,
                     ]);
                     $cashRegister = CashRegister::find($movement->cash_register_id);
                     $cashRegister->current_balance += $movement->amount;

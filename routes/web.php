@@ -2819,6 +2819,11 @@ Route::middleware('auth')->group(function (){
         Route::get('/listado/ganancias/diarias/trabajador', 'GananciaDiariaController@indexTrabajador')
             ->name('ganancia.index.trabajador');
 
+        Route::get('/export/ganancias/trabajador', 'GananciaDiariaController@exportGananciasTrabajador')
+            ->name('ganancia.export.trabajador');
+        Route::get('/export/ganancia/ventas-detallado', 'GananciaDiariaController@exportGananciaVentasDetallado')
+            ->name('ganancia.export.ventas_detallado');
+
         Route::get('/material-unpack/{id}/childs', 'MaterialUnpackController@getChilds');
         Route::delete('/material-unpack/{id}', 'MaterialUnpackController@destroy');
         Route::post('/material-unpack/store', 'MaterialUnpackController@store');

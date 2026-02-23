@@ -24,7 +24,203 @@ $(document).ready(function () {
 
     $("#btn-search").on('click', showDataSearch);
 
+    $("#btn-export").on('click', exportGananciasExcel);
+
+    $("#btn-export-detallado").on('click', exportGananciasVentasDetalladoExcel);
+
 });
+
+/* ===========================
+   EXPORT EXCEL + OVERLAY
+   =========================== */
+function exportGananciasVentasDetalladoExcel(e) {
+    e.preventDefault();
+
+    var $btn = $('#btn-export-detallado');
+    var $overlay = $('#export-overlay');
+
+    if ($btn.data('loading')) return;
+    $btn.data('loading', true);
+
+    var originalHtml = $btn.html();
+    $btn.prop('disabled', true).addClass('disabled');
+    $btn.html('<i class="fa fa-spinner fa-spin"></i> Descargando...');
+    $overlay.fadeIn(150);
+
+    var creator = $('#creator').val();
+    var startDate = $('#start').val();
+    var endDate = $('#end').val();
+
+    var url = '/dashboard/export/ganancia/ventas-detallado'
+        + '?creator=' + encodeURIComponent(creator || '')
+        + '&startDate=' + encodeURIComponent(startDate || '')
+        + '&endDate=' + encodeURIComponent(endDate || '');
+
+    fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+    })
+        .then(async function (response) {
+            if (!response.ok) {
+                let msg = 'Error al generar el Excel.';
+                try {
+                    const data = await response.json();
+                    msg = data.message || msg;
+                } catch (err) {
+                    try {
+                        const txt = await response.text();
+                        if (txt) msg = txt;
+                    } catch (e) {}
+                }
+                throw new Error(msg);
+            }
+
+            const blob = await response.blob();
+
+            const disposition = response.headers.get('content-disposition') || '';
+            const filename = getFilenameFromDisposition(disposition)
+                || ('ganancia_ventas_detallado_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.xlsx');
+
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        })
+        .catch(function (err) {
+            console.error(err);
+            if (typeof toastr !== 'undefined') {
+                toastr.error(err.message || 'Error al descargar el Excel.', 'Error', {
+                    closeButton: true,
+                    progressBar: true,
+                    positionClass: "toast-top-right",
+                    timeOut: 2500
+                });
+            } else {
+                alert(err.message || 'Error al descargar el Excel.');
+            }
+        })
+        .finally(function () {
+            $overlay.fadeOut(150);
+            $btn.html(originalHtml);
+            $btn.prop('disabled', false).removeClass('disabled');
+            $btn.data('loading', false);
+        });
+}
+
+
+function exportGananciasExcel(e) {
+    e.preventDefault();
+
+    var $btn = $('#btn-export');
+    var $overlay = $('#export-overlay');
+
+    if ($btn.data('loading')) return;
+    $btn.data('loading', true);
+
+    var originalHtml = $btn.html();
+    $btn.prop('disabled', true).addClass('disabled');
+    $btn.html('<i class="fa fa-spinner fa-spin"></i> Descargando...');
+    $overlay.fadeIn(150);
+
+    var creator = $('#creator').val();
+    var startDate = $('#start').val();
+    var endDate = $('#end').val();
+
+    var url = '/dashboard/export/ganancias/trabajador'
+        + '?creator=' + encodeURIComponent(creator || '')
+        + '&startDate=' + encodeURIComponent(startDate || '')
+        + '&endDate=' + encodeURIComponent(endDate || '');
+
+    fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin', // ✅ importante si estás autenticada por sesión/cookies
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+    })
+        .then(async function (response) {
+            if (!response.ok) {
+                // Intentar leer error JSON si el backend lo devuelve
+                let msg = 'Error al generar el Excel.';
+                try {
+                    const data = await response.json();
+                    msg = data.message || msg;
+                } catch (err) {
+                    // si no es JSON, intentar texto
+                    try {
+                        const txt = await response.text();
+                        if (txt) msg = txt;
+                    } catch (e) {}
+                }
+                throw new Error(msg);
+            }
+
+            const blob = await response.blob();
+
+            // ✅ Obtener nombre desde Content-Disposition (si existe)
+            const disposition = response.headers.get('content-disposition') || '';
+            const filename = getFilenameFromDisposition(disposition) || ('ganancias_trabajador_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.xlsx');
+
+            // ✅ Descargar blob
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        })
+        .catch(function (err) {
+            console.error(err);
+
+            // toastr (si lo usas)
+            if (typeof toastr !== 'undefined') {
+                toastr.error(err.message || 'Error al descargar el Excel.', 'Error', {
+                    closeButton: true,
+                    progressBar: true,
+                    positionClass: "toast-top-right",
+                    timeOut: 2500
+                });
+            } else {
+                alert(err.message || 'Error al descargar el Excel.');
+            }
+        })
+        .finally(function () {
+            $overlay.fadeOut(150);
+            $btn.html(originalHtml);
+            $btn.prop('disabled', false).removeClass('disabled');
+            $btn.data('loading', false);
+        });
+}
+
+// Extrae filename de Content-Disposition
+function getFilenameFromDisposition(disposition) {
+    // Ej: attachment; filename="reporte.xlsx"
+    // o: attachment; filename*=UTF-8''reporte%20final.xlsx
+    let filename = null;
+
+    const utf8Match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+    if (utf8Match && utf8Match[1]) {
+        try { return decodeURIComponent(utf8Match[1].trim().replace(/(^"|"$)/g, '')); } catch (e) {}
+    }
+
+    const asciiMatch = disposition.match(/filename\s*=\s*([^;]+)/i);
+    if (asciiMatch && asciiMatch[1]) {
+        filename = asciiMatch[1].trim().replace(/(^"|"$)/g, '');
+    }
+
+    return filename;
+}
 
 function showDataSearch() {
     getDataGanancias(1)

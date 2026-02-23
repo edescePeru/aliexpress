@@ -475,6 +475,9 @@ return [
     'listCashMovementAdmin_cashBox' => 'Listar movimientos admin de Cajas de efectivo',
     'showFinancialSummary_cashBox' => 'Ver resumen financiero de Cajas de efectivo',
 
+    'export_gananciaDiaria' => 'Exportar excel Ganancia Diaria',
+    'exportDetail_gananciaDiaria' => 'Exportar excel detallado Ganancia Diaria',
+
     'enableAdmin_caja' => 'Habilitar Caja Administrador',
-    'regularize_caja' => 'Regularizar movimientos de caja'
+    'regularize_caja' => 'Regularizar movimientos de caja',
 ];
