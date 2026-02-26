@@ -84,6 +84,7 @@ class GananciaDiariaController extends Controller
         // ==========================
         if ($startDate == "" || $endDate == "") {
             $query = Sale::with(['worker', 'details.material'])
+                ->where('state_annulled', false)
                 ->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
@@ -92,6 +93,7 @@ class GananciaDiariaController extends Controller
             $query = Sale::with(['worker', 'details.material'])
                 ->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
+                ->where('state_annulled', false)
                 ->orderBy('created_at', 'DESC');
         }
 

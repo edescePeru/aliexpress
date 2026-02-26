@@ -47,7 +47,9 @@ class CalculateResumenDiarioGanancia extends Command
         $total_utility = 0;
 
         // Obtener las ventas del día
-        $sales = Sale::with('details.material')->whereDate('date_sale', $date_resumen)->get();
+        $sales = Sale::with('details.material')
+            ->where('state_annulled', false)
+            ->whereDate('date_sale', $date_resumen)->get();
 
         // Guardar GananciaDiaria
         foreach ($sales as $sale) {
