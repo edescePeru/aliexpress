@@ -990,7 +990,7 @@ class EntryController extends Controller
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1007,7 +1007,7 @@ class EntryController extends Controller
                                     'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1036,7 +1036,7 @@ class EntryController extends Controller
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1053,7 +1053,7 @@ class EntryController extends Controller
                                     'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1088,7 +1088,7 @@ class EntryController extends Controller
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1106,7 +1106,7 @@ class EntryController extends Controller
                                     'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1135,7 +1135,7 @@ class EntryController extends Controller
                                     'percentage' => 1,
                                     'typescrap_id' => $detail_entry->material->typeScrap->id,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
@@ -1152,7 +1152,7 @@ class EntryController extends Controller
                                     'price' => $priceForItem,
                                     'percentage' => 1,
                                     'location_id' => $items[$i]->id_location,
-                                    'state' => $items[$i]->state,
+                                    'state' => 'good',
                                     'state_item' => 'entered'
                                 ]);
                             }
