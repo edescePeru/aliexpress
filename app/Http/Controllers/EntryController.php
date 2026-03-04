@@ -1943,6 +1943,24 @@ class EntryController extends Controller
                 throw new \Exception("Material no encontrado: {$detail->material_id}");
             }
 
+            $qty = $detail->entered_quantity;
+            if ((float)$material->stock_current < $qty) {
+                return response()->json([
+                    'message' => "No se puede eliminar este ingreso: ya fue consumido por salidas/ventas. Stock actual {$material->stock_current}, intenta eliminar {$qty}."
+                ], 422);
+            }
+
+            $itemsTotal = Item::where('detail_entry_id', $detail->id)->count();
+            $itemsDisponibles = Item::where('detail_entry_id', $detail->id)
+                ->whereIn('state_item', ['entered']) // el estado que represente “en almacén”
+                ->count();
+
+            if ($itemsTotal > 0 && $itemsDisponibles < $itemsTotal) {
+                return response()->json([
+                    'message' => 'No se puede eliminar: hay items de este ingreso que ya fueron consumidos/salieron.'
+                ], 422);
+            }
+
             // ===========================
             // ✅ Validación: no permitir eliminar si hay items reservados o en salida
             // ===========================
