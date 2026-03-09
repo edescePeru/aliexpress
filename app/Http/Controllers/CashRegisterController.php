@@ -690,7 +690,30 @@ class CashRegisterController extends Controller
         return response()->json(['data' => $array, 'pagination' => $pagination]);
     }
 
-    public function income(Request $request)
+    private function hasRecentDuplicateMovement(
+        int $cashRegisterId,
+        string $type,
+        float $amount,
+        string $observation,
+        ?int $subtypeId = null,
+        int $seconds = 3
+    ): bool {
+        $query = CashMovement::where('cash_register_id', $cashRegisterId)
+            ->where('type', $type)
+            ->where('amount', $amount)
+            ->where('observation', $observation)
+            ->where('created_at', '>=', now()->subSeconds($seconds));
+
+        if ($subtypeId) {
+            $query->where('cash_box_subtype_id', $subtypeId);
+        } else {
+            $query->whereNull('cash_box_subtype_id');
+        }
+
+        return $query->exists();
+    }
+
+    public function incomeO(Request $request)
     {
         DB::beginTransaction();
         try {
@@ -807,8 +830,136 @@ class CashRegisterController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+    public function income(Request $request)
+    {
+        DB::beginTransaction();
 
-    public function expense(Request $request)
+        try {
+            $data = $request->validate(
+                [
+                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
+                    'amount'               => 'required|numeric|min:0.01',
+                    'description'          => 'required|string|max:255',
+                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
+                ],
+                [
+                    'cash_register_id.required' => 'Debe seleccionar una caja.',
+                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
+                    'cash_register_id.exists'   => 'La caja seleccionada no existe o no está activa.',
+
+                    'amount.required' => 'Debe ingresar un monto.',
+                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
+                    'amount.min'      => 'El monto debe ser mayor a 0.',
+
+                    'description.required' => 'Debe ingresar una descripción del movimiento.',
+                    'description.string'   => 'La descripción no es válida.',
+                    'description.max'      => 'La descripción no debe superar los 255 caracteres.',
+
+                    'cash_box_subtype_id.exists' => 'El canal / subtipo seleccionado no es válido.',
+                ]
+            );
+
+            /** @var CashRegister $cashRegister */
+            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
+
+            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['No autorizado para operar esta caja.']
+                ]);
+            }
+
+            if ((int)$cashRegister->status !== 1) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['No se puede hacer un ingreso a una caja cerrada.']
+                ]);
+            }
+
+            $cashBox = $cashRegister->cashBox;
+            if (!$cashBox) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['La sesión no tiene caja asociada.']
+                ]);
+            }
+
+            $amount = round((float)$data['amount'], 2);
+            $description = trim($data['description']);
+            $subtypeId = $data['cash_box_subtype_id'] ?? null;
+            $regularize = 1;
+
+            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+                if (!$subtypeId) {
+                    throw ValidationException::withMessages([
+                        'cash_box_subtype_id' => ['Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).']
+                    ]);
+                }
+
+                $subtype = CashBoxSubtype::findOrFail($subtypeId);
+                $regularize = $subtype->is_deferred ? 0 : 1;
+            } else {
+                $subtypeId = null;
+                $regularize = 1;
+            }
+
+            // Protección anti-duplicado
+            $alreadyExists = $this->hasRecentDuplicateMovement(
+                $cashRegister->id,
+                'income',
+                $amount,
+                $description,
+                $subtypeId,
+                3
+            );
+
+            if ($alreadyExists) {
+                throw ValidationException::withMessages([
+                    'duplicate' => ['Ya se registró un ingreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.']
+                ]);
+            }
+
+            CashMovement::create([
+                'cash_register_id'     => $cashRegister->id,
+                'type'                 => 'income',
+                'amount'               => $amount,
+                'description'          => 'Ingreso manual',
+                'observation'          => $description,
+                'cash_box_subtype_id'  => $subtypeId,
+                'regularize'           => $regularize,
+            ]);
+
+            if ($regularize == 1) {
+                $cashRegister->current_balance = (float)$cashRegister->current_balance + $amount;
+                $cashRegister->total_incomes   = (float)$cashRegister->total_incomes + $amount;
+                $cashRegister->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => $regularize == 1
+                    ? 'Ingreso registrado con éxito.'
+                    : 'Ingreso registrado como pendiente (diferido).',
+                'balance_total' => $cashRegister->current_balance,
+            ], 200);
+
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Validación fallida.',
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Ocurrió un error al registrar el ingreso.',
+                //'error' => $e->getMessage(), // solo si estás en desarrollo
+            ], 500);
+        }
+    }
+
+    public function expenseO(Request $request)
     {
         DB::beginTransaction();
         try {
@@ -918,6 +1069,131 @@ class CashRegisterController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+    public function expense(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->validate(
+                [
+                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
+                    'amount'               => 'required|numeric|min:0.01',
+                    'description'          => 'required|string|max:255',
+                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
+                ],
+                [
+                    'cash_register_id.required' => 'Debe seleccionar una caja abierta.',
+                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
+                    'cash_register_id.exists'   => 'La caja seleccionada no existe o fue cerrada.',
+
+                    'amount.required' => 'Debe ingresar un monto.',
+                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
+                    'amount.min'      => 'El monto debe ser mayor a 0.',
+
+                    'description.required' => 'Debe ingresar una descripción del movimiento.',
+                    'description.string'   => 'La descripción no es válida.',
+                    'description.max'      => 'La descripción no puede exceder los 255 caracteres.',
+
+                    'cash_box_subtype_id.exists' => 'El canal o subtipo seleccionado no es válido.',
+                ]
+            );
+
+            /** @var CashRegister $cashRegister */
+            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
+
+            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['No autorizado para operar esta caja.']
+                ]);
+            }
+
+            if ((int)$cashRegister->status !== 1) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['No se puede hacer un egreso de una caja cerrada.']
+                ]);
+            }
+
+            $cashBox = $cashRegister->cashBox;
+            if (!$cashBox) {
+                throw ValidationException::withMessages([
+                    'cash_register_id' => ['La sesión no tiene caja asociada.']
+                ]);
+            }
+
+            $amount = round((float)$data['amount'], 2);
+            $description = trim($data['description']);
+            $subtypeId = $data['cash_box_subtype_id'] ?? null;
+
+            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+                if (!$subtypeId) {
+                    throw ValidationException::withMessages([
+                        'cash_box_subtype_id' => ['Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).']
+                    ]);
+                }
+            } else {
+                $subtypeId = null;
+            }
+
+            if ((float)$cashRegister->current_balance < $amount) {
+                throw ValidationException::withMessages([
+                    'amount' => ['No hay suficiente saldo en la caja para realizar este egreso.']
+                ]);
+            }
+
+            // Protección anti-duplicado
+            $alreadyExists = $this->hasRecentDuplicateMovement(
+                $cashRegister->id,
+                'expense',
+                $amount,
+                $description,
+                $subtypeId,
+                3
+            );
+
+            if ($alreadyExists) {
+                throw ValidationException::withMessages([
+                    'duplicate' => ['Ya se registró un egreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.']
+                ]);
+            }
+
+            CashMovement::create([
+                'cash_register_id'     => $cashRegister->id,
+                'type'                 => 'expense',
+                'amount'               => $amount,
+                'description'          => 'Egreso manual',
+                'observation'          => $description,
+                'regularize'           => 1,
+                'cash_box_subtype_id'  => $subtypeId,
+            ]);
+
+            $cashRegister->current_balance = (float)$cashRegister->current_balance - $amount;
+            $cashRegister->total_expenses  = (float)$cashRegister->total_expenses + $amount;
+            $cashRegister->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Egreso registrado con éxito.',
+                'balance_total' => $cashRegister->current_balance,
+            ], 200);
+
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Validación fallida.',
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Ocurrió un error al registrar el egreso.',
+                //'error' => $e->getMessage(), // solo si estás en desarrollo
+            ], 500);
         }
     }
 

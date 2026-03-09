@@ -7,6 +7,8 @@ var $modalClose;
 var $modalIncome;
 var $modalExpense;
 var $modalRegularize;
+let isSubmittingIncome = false;
+let isSubmittingExpense = false;
 
 $(document).ready(function () {
     try {
@@ -222,7 +224,22 @@ function regularizeCashRegister(e) {
     $('#modalRegularize').modal('show');
 }
 
-function egresoCaja() {
+function setButtonLoading($btn, loading, loadingText = 'Procesando...') {
+    if (loading) {
+        $btn.data('original-html', $btn.html());
+        $btn.prop('disabled', true);
+        $btn.html(`
+            <span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+            ${loadingText}
+        `);
+    } else {
+        $btn.prop('disabled', false);
+        $btn.html($btn.data('original-html') || 'Guardar');
+    }
+}
+
+
+/*function egresoCaja() {
     event.preventDefault();
 
     let cash_register_id = $('#cash_register_id').val();
@@ -256,9 +273,9 @@ function egresoCaja() {
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(response) {
             toastr.success(response.message, 'Éxito');
-            /*$("#balance_total").val(response.balance_total);
+            /!*$("#balance_total").val(response.balance_total);
             $("#valueBalanceTotal").html("S/."+response.balance_total);
-            $("#arqueo_teorico").html("S/."+response.balance_total);*/
+            $("#arqueo_teorico").html("S/."+response.balance_total);*!/
             updateBalanceUI(response.balance_total);
 
             setTimeout(function () {
@@ -271,7 +288,66 @@ function egresoCaja() {
             showAjaxErrors(jqXHR, 'Error');
         }
     });
+}*/
+function egresoCaja(e) {
+    e.preventDefault();
+
+    if (isSubmittingExpense) return;
+    isSubmittingExpense = true;
+
+    const $btn = $("#btn_egreso");
+    setButtonLoading($btn, true, 'Guardando...');
+
+    let cash_register_id = $('#cash_register_id').val();
+    let amount = $('#expense_amount').val();
+    let description = $('#expense_description').val();
+
+    let cash_box_type = $('#cash_box_type').val();
+    let uses_subtypes = $('#cash_box_uses_subtypes').val() === '1';
+
+    let subtype_id = null;
+    if (cash_box_type === 'bank' && uses_subtypes) {
+        subtype_id = $('#expense_subtype_id').val();
+        if (!subtype_id) {
+            toastr.error('Debe seleccionar un subtipo bancario.', 'Error');
+            isSubmittingExpense = false;
+            setButtonLoading($btn, false);
+            return;
+        }
+    }
+
+    let packageData = {
+        cash_register_id: cash_register_id,
+        amount: amount,
+        description: description,
+        cash_box_subtype_id: subtype_id
+    };
+
+    $.ajax({
+        url: $("#formExpense").data('url'),
+        method: 'POST',
+        data: JSON.stringify(packageData),
+        contentType: 'application/json',
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function(response) {
+            toastr.success(response.message, 'Éxito');
+            updateBalanceUI(response.balance_total);
+
+            setTimeout(function () {
+                $modalExpense.modal('hide');
+                getDataMovements(1);
+            }, 700);
+        },
+        error: function(jqXHR) {
+            showAjaxErrors(jqXHR, 'Error');
+        },
+        complete: function() {
+            isSubmittingExpense = false;
+            setButtonLoading($btn, false);
+        }
+    });
 }
+
 
 /*function expenseCashRegister() {
     var balance_total = $("#balance_total").val();
@@ -297,7 +373,7 @@ function expenseCashRegister() {
     $modalExpense.modal('show');
 }
 
-function ingresoCaja() {
+/*function ingresoCaja() {
     event.preventDefault();
 
     let cash_register_id = $('#cash_register_id').val();
@@ -331,9 +407,9 @@ function ingresoCaja() {
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(response) {
             toastr.success(response.message, 'Éxito');
-            /*$("#balance_total").val(response.balance_total);
+            /!*$("#balance_total").val(response.balance_total);
             $("#valueBalanceTotal").html("S/."+response.balance_total);
-            $("#arqueo_teorico").html("S/."+response.balance_total);*/
+            $("#arqueo_teorico").html("S/."+response.balance_total);*!/
             updateBalanceUI(response.balance_total);
             setTimeout(function () {
                 $modalIncome.modal('hide');
@@ -343,6 +419,64 @@ function ingresoCaja() {
         error: function(jqXHR) {
             // 🟩 aquí ya se muestran todos los errores detallados
             showAjaxErrors(jqXHR, 'Error');
+        }
+    });
+}*/
+function ingresoCaja(e) {
+    e.preventDefault();
+
+    if (isSubmittingIncome) return;
+    isSubmittingIncome = true;
+
+    const $btn = $("#btn_ingreso");
+    setButtonLoading($btn, true, 'Guardando...');
+
+    let cash_register_id = $('#cash_register_id').val();
+    let amount = $('#income_amount').val();
+    let description = $('#income_description').val();
+
+    let cash_box_type = $('#cash_box_type').val(); // cash | bank
+    let uses_subtypes = $('#cash_box_uses_subtypes').val() === '1';
+
+    let subtype_id = null;
+    if (cash_box_type === 'bank' && uses_subtypes) {
+        subtype_id = $('#income_subtype_id').val();
+        if (!subtype_id) {
+            toastr.error('Debe seleccionar un subtipo bancario.', 'Error');
+            isSubmittingIncome = false;
+            setButtonLoading($btn, false);
+            return;
+        }
+    }
+
+    let packageData = {
+        cash_register_id: cash_register_id,
+        amount: amount,
+        description: description,
+        cash_box_subtype_id: subtype_id
+    };
+
+    $.ajax({
+        url: $("#formIncome").data('url'),
+        method: 'POST',
+        data: JSON.stringify(packageData),
+        contentType: 'application/json',
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function(response) {
+            toastr.success(response.message, 'Éxito');
+            updateBalanceUI(response.balance_total);
+
+            setTimeout(function () {
+                $modalIncome.modal('hide');
+                getDataMovements(1);
+            }, 700);
+        },
+        error: function(jqXHR) {
+            showAjaxErrors(jqXHR, 'Error');
+        },
+        complete: function() {
+            isSubmittingIncome = false;
+            setButtonLoading($btn, false);
         }
     });
 }
