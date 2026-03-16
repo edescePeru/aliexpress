@@ -647,9 +647,9 @@ function deleteItemOld() {
                             console.log(data);
                             $(this).parent().parent().remove();
                             $.alert(data.message);
-                            /*setTimeout( function () {
+                            setTimeout( function () {
                                 location.reload();
-                            }, 2000 )*/
+                            }, 2000 )
 
                         },
                         error: function (data) {
