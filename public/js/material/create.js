@@ -206,7 +206,9 @@ $(document).ready(function () {
     
     $('#btn-generate').on('click', generateNameProduct);
 
-    $('#btn-generateCode').on('click', generateCodeProduct);
+    $('.btn-generateCode').on('click', generateCodeProduct);
+
+    $('#btn-generate_variantes').on('click', generateVariants);
 
     $('#checkboxPack').on('change', checkInputPack);
 
@@ -251,6 +253,25 @@ $(document).ready(function () {
             $('#modalSubCategoria').modal('hide');
         }
     });
+
+    // Estado inicial
+    toggleSeccionesVariantes();
+
+    // Cuando cambie el radio
+    $('input[name="variantes"]').on('change', function () {
+        toggleSeccionesVariantes();
+    });
+
+    $('#description').on('keyup change', generateSku);
+
+    $('#brand, #exampler, #category, #subcategory, #genero, #talla, #color')
+        .on('change select2:select select2:clear', generateSku);
+
+    //generateSku();
+
+    $(document).on('click', '[data-delete]', function () {
+        $(this).closest('.item-variante').remove();
+    });
 });
 
 var $formCreate;
@@ -265,6 +286,241 @@ let $caracteres = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 let $longitud = 20;
 let $btnNewExampler = $('#btn-newExampler');
 let $btnNewSubCategoria = $('#btn-newSubCategoria');
+
+function generateVariants() {
+    let tallas = getSelectedOptionsData('#talla');
+    let colores = getSelectedOptionsData('#color');
+    let skuBase = generateSkuBase();
+
+    if (tallas.length === 0) {
+        toastr.warning('Debe seleccionar al menos una talla.');
+        return;
+    }
+
+    if (colores.length === 0) {
+        toastr.warning('Debe seleccionar al menos un color.');
+        return;
+    }
+
+    if (!skuBase) {
+        toastr.warning('Debe ingresar un SKU base.');
+        return;
+    }
+
+    let generatedCount = 0;
+
+    colores.forEach(function (color) {
+        tallas.forEach(function (talla) {
+            if (!existsVariant(talla.id, color.id)) {
+                appendVariantRow(talla, color, skuBase);
+                generatedCount++;
+            }
+        });
+    });
+
+    if (generatedCount === 0) {
+        toastr.warning('Todas las combinaciones seleccionadas ya fueron agregadas.');
+        return;
+    }
+
+    toastr.success('Se generaron ' + generatedCount + ' variantes correctamente.');
+}
+
+function getSelectedShortNameOrText(selector) {
+    let selected = $(selector).find('option:selected');
+    return selected.data('short-name') || selected.text() || '';
+}
+
+function cleanText(text) {
+    if (!text) return '';
+
+    return text
+        .toString()
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+}
+
+function getAbbr(text, length = 3) {
+    text = cleanText(text);
+
+    if (!text) return '';
+
+    let words = text.split(/\s+/).filter(Boolean);
+
+    // Si es una sola palabra → primeras 3 letras
+    if (words.length === 1) {
+        return words[0].substring(0, 3);
+    }
+
+    // Si son varias palabras → iniciales
+    return words.map(w => w.charAt(0)).join('');
+}
+
+function getSelectedText(selector) {
+    return $(selector).find('option:selected').text() || '';
+}
+
+function getSelectedOptionsData(selector) {
+    let items = [];
+
+    $(selector).find('option:selected').each(function () {
+        items.push({
+            id: $(this).val() || '',
+            text: ($(this).text() || '').trim(),
+            shortName: ($(this).data('short-name') || '').toString().trim()
+        });
+    });
+
+    return items;
+}
+
+function existsVariant(tallaId, colorId) {
+    let exists = false;
+
+    $('#body-variantes .item-variante').each(function () {
+        let currentTallaId = $(this).find('[data-talla_id]').val();
+        let currentColorId = $(this).find('[data-color_id]').val();
+
+        if (String(currentTallaId) === String(tallaId) && String(currentColorId) === String(colorId)) {
+            exists = true;
+            return false;
+        }
+    });
+
+    return exists;
+}
+
+function appendVariantRow(talla, color, skuBase) {
+    let tallaSku = cleanText(talla.shortName || talla.text);
+    let colorSku = cleanText(color.shortName || color.text);
+    let skuFinal = [skuBase, tallaSku, colorSku].filter(Boolean).join('-');
+
+    let template = document.querySelector('#template-variante').content.cloneNode(true);
+    let $template = $(template);
+
+    $template.find('[data-talla_text]').val(talla.text);
+    $template.find('[data-talla_id]').val(talla.id);
+
+    $template.find('[data-color_text]').val(color.text);
+    $template.find('[data-color_id]').val(color.id);
+
+    $template.find('[data-sku_sugerido]').val(skuFinal);
+    $template.find('[data-codigo_barras]').val('');
+    $template.find('[data-stock_minimo]').val('');
+    $template.find('[data-stock_maximo]').val('');
+
+    $('#body-variantes').append($template);
+
+    $("input[data-bootstrap-switch]").each(function(){
+        $(this).bootstrapSwitch();
+    });
+}
+
+function getSelectedOptionData(selector) {
+    let $selected = $(selector).find('option:selected');
+    return {
+        id: $selected.val() || '',
+        text: ($selected.text() || '').trim(),
+        shortName: ($selected.data('short-name') || '').toString().trim()
+    };
+}
+
+function getSwitchValue() {
+    return $('#is_active').is(':checked') ? 1 : 0;
+}
+
+function getSwitchText() {
+    return $('#is_active').is(':checked') ? 'SI' : 'NO';
+}
+
+function generateSkuBase() {
+    let brand        = getAbbr(getSelectedText('#brand'));
+    let exampler     = getAbbr(getSelectedText('#exampler'));
+    let subcategory  = getAbbr(getSelectedText('#subcategory'));
+    let genero       = getAbbr(getSelectedText('#genero'));
+
+    let parts = [
+        subcategory,
+        brand,
+        exampler,
+        genero
+
+    ].filter(part => part !== '');
+
+    let sku;
+    sku = parts.join('-');
+
+    return sku;
+}
+
+function generateSku() {
+    //let description  = getAbbr($('#description').val());
+    let brand        = getAbbr(getSelectedText('#brand'));
+    let exampler     = getAbbr(getSelectedText('#exampler'));
+    let category     = getAbbr(getSelectedText('#category'));
+    let subcategory  = getAbbr(getSelectedText('#subcategory'));
+    let genero       = getAbbr(getSelectedText('#genero'));
+
+    let talla = cleanText(getSelectedShortNameOrText('#talla'));
+    let color = cleanText(getSelectedShortNameOrText('#color'));
+
+    /*let parts = [
+        description,
+        brand,
+        exampler,
+        category,
+        subcategory,
+        genero,
+        talla,
+        color
+    ].filter(part => part !== '');*/
+
+    let parts = [
+        subcategory,
+        brand,
+        exampler,
+        genero,
+        talla,
+        color
+    ].filter(part => part !== '');
+
+    let sku = parts.join('-');
+
+    //$('#sku_con_variantes').val(sku);
+    $('#sku_sin_variantes').val(sku);
+}
+
+function toggleSeccionesVariantes() {
+    let tipo = $('input[name="variantes"]:checked').val();
+
+    if (tipo === '1') {
+        $('#seccion_sin_variantes').hide();
+        $('#seccion_con_variantes').show();
+        limpiarSeccionSinVariantes();
+    } else {
+        $('#seccion_con_variantes').hide();
+        $('#seccion_sin_variantes').show();
+        limpiarSeccionConVariantes();
+    }
+}
+
+function limpiarSeccionConVariantes() {
+    $('#talla').val(null).trigger('change');
+    $('#color').val(null).trigger('change');
+
+    $('#body-variantes').empty();
+}
+
+function limpiarSeccionSinVariantes() {
+    $('#sku_sin_variantes').val('');
+    $('#codigo_sin_variantes').val('');
+    $('#stock_max').val(0);
+    $('#stock_min').val(0);
+}
 
 function saveSubCategoria() {
     let $form = $('#formCreateSubCategoria');
@@ -640,7 +896,8 @@ function checkInputPack() {
 
 function generateCodeProduct() {
     let codigo = rand_code($caracteres, $longitud);
-    $('#codigo').val(codigo);
+    $('#codigo_sin_variantes').val(codigo);
+    $('#codigo_con_variantes').val(codigo);
 }
 
 function rand_code($caracteres, $longitud){
@@ -697,7 +954,7 @@ function generateNameProduct() {
     if (modelo !== 'Ninguno' && modelo !== '') partes.push(modelo);
     if (genero !== 'Ninguno' && genero !== '') partes.push(genero);
     if (talla !== 'Ninguno' && talla !== '') partes.push(talla);
-    if (subcategoria !== 'Ninguno' && subcategoria !== '') partes.push(subcategoria);
+    //if (subcategoria !== 'Ninguno' && subcategoria !== '') partes.push(subcategoria);
 
     // Unir las partes con un espacio y asignarlo al campo de nombre
     let name = partes.join(' ');
@@ -720,72 +977,191 @@ function deleteSpecification() {
     $(this).parent().parent().remove();
 }
 
-function storeMaterial() {
+function getCheckboxValue($element) {
+    return $element.is(':checked') ? 1 : 0;
+}
+
+function buildSingleVariantPayload() {
+    let pack = $('#checkboxPack').is(':checked') ? 1 : 0;
+    let cantidadPack = ($('#inputPack').val() || 1);
+
+    return [
+        {
+            talla_id: null,
+            color_id: null,
+            sku: ($('#sku_sin_variantes').val() || '').trim(),
+            codigo_barras: ($('#codigo_sin_variantes').val() || '').trim(),
+            stock_minimo: ($('#stock_min').val() || 0),
+            stock_maximo: ($('#stock_max').val() || 0),
+            is_active: 1,
+            pack: pack,
+            cantidad_pack: cantidadPack,
+            image_key: null
+        }
+    ];
+}
+
+function buildMultipleVariantsPayload(form) {
+    let variantes = [];
+    let pack = $('#checkboxPack').is(':checked') ? 1 : 0;
+    let cantidadPack = ($('#inputPack').val() || 1);
+
+    $('#body-variantes .item-variante').each(function (index) {
+        let $row = $(this);
+
+        let tallaId = $row.find('[data-talla_id]').val() || null;
+        let colorId = $row.find('[data-color_id]').val() || null;
+        let sku = ($row.find('[data-sku_sugerido]').val() || '').trim();
+        let codigoBarras = ($row.find('[data-codigo_barras]').val() || '').trim();
+        let stockMinimo = ($row.find('[data-stock_minimo]').val() || 0);
+        let stockMaximo = ($row.find('[data-stock_maximo]').val() || 0);
+
+        let $switch = $row.find('[data-is_active_variante]');
+        let isActive = $switch.is(':checked') ? 1 : 0;
+
+        let imageInput = $row.find('[data-image_variante]')[0];
+        let imageKey = null;
+
+        if (imageInput && imageInput.files && imageInput.files.length > 0) {
+            imageKey = 'variant_image_' + index;
+            form.append(imageKey, imageInput.files[0]);
+        }
+
+        variantes.push({
+            talla_id: tallaId,
+            color_id: colorId,
+            sku: sku,
+            codigo_barras: codigoBarras,
+            stock_minimo: stockMinimo,
+            stock_maximo: stockMaximo,
+            is_active: isActive,
+            pack: pack,
+            cantidad_pack: cantidadPack,
+            image_key: imageKey
+        });
+    });
+
+    return variantes;
+}
+
+function validateVariantes(tipo, variantes) {
+    if (tipo === '1') {
+        if (variantes.length === 0) {
+            toastr.warning('Debe ingresar la información del producto.');
+            return false;
+        }
+
+        if (!variantes[0].sku) {
+            toastr.warning('Debe ingresar el SKU.');
+            return false;
+        }
+
+        return true;
+    }
+
+    if (variantes.length === 0) {
+        toastr.warning('Debe generar al menos una variante.');
+        return false;
+    }
+
+    for (let i = 0; i < variantes.length; i++) {
+        if (!variantes[i].sku) {
+            toastr.warning('Todas las variantes deben tener SKU.');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function storeMaterial(event) {
     event.preventDefault();
+
     $("#btn-submit").attr("disabled", true);
-    // Obtener la URL
-    var createUrl = $formCreate.data('url');
-    var form = new FormData($('#formCreate')[0]);
+
+    let createUrl = $formCreate.data('url');
+    let form = new FormData($('#formCreate')[0]);
 
     if (uploadedImage) {
         form.append('image', uploadedImage);
     }
 
+    let tipo = $('input[name="variantes"]:checked').val();
+    let variantes_json = [];
+
+    if (tipo === '0') {
+        variantes_json = buildSingleVariantPayload();
+    } else {
+        variantes_json = buildMultipleVariantsPayload(form);
+    }
+
+    if (!validateVariantes(tipo, variantes_json)) {
+        $("#btn-submit").attr("disabled", false);
+        return;
+    }
+
+    form.append('tipo_variantes', tipo);
+    form.append('variantes_json', JSON.stringify(variantes_json));
+
     $.ajax({
         url: createUrl,
         method: 'POST',
         data: form,
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
             console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
+
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                debug: false,
+                newestOnTop: false,
+                progressBar: true,
+                positionClass: "toast-top-right",
+                preventDuplicates: false,
+                onclick: null,
+                showDuration: "300",
+                hideDuration: "1000",
+                timeOut: "2000",
+                extendedTimeOut: "1000",
+                showEasing: "swing",
+                hideEasing: "linear",
+                showMethod: "fadeIn",
+                hideMethod: "fadeOut"
+            });
+
+            setTimeout(function () {
                 $("#btn-submit").attr("disabled", false);
                 location.reload();
-            }, 2000 )
+            }, 2000);
         },
         error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "4000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
+            if (data.responseJSON && data.responseJSON.errors) {
+                for (var property in data.responseJSON.errors) {
+                    toastr.error(data.responseJSON.errors[property], 'Error', {
+                        closeButton: true,
+                        debug: false,
+                        newestOnTop: false,
+                        progressBar: true,
+                        positionClass: "toast-top-right",
+                        preventDuplicates: false,
+                        onclick: null,
+                        showDuration: "300",
+                        hideDuration: "1000",
+                        timeOut: "4000",
+                        extendedTimeOut: "1000",
+                        showEasing: "swing",
+                        hideEasing: "linear",
+                        showMethod: "fadeIn",
+                        hideMethod: "fadeOut"
                     });
+                }
+            } else {
+                toastr.error('Ocurrió un error al guardar el producto.', 'Error');
             }
-            $("#btn-submit").attr("disabled", false);
 
-        },
+            $("#btn-submit").attr("disabled", false);
+        }
     });
 }
 

@@ -30,6 +30,13 @@
         .select2-search__field{
             width: 100% !important;
         }
+        /*.bootstrap-switch {
+            width: 100% !important;
+        }
+
+        .bootstrap-switch-container {
+            width: 100% !important;
+        }*/
     </style>
 @endsection
 
@@ -57,7 +64,7 @@
     <form id="formCreate" class="form-horizontal" data-url="{{ route('material.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
-            <div class="col-md-8">
+            <div class="col-md-12">
                 <div class="card card-success">
                     <div class="card-header">
                         <h3 class="card-title">Datos generales</h3>
@@ -76,155 +83,133 @@
                         </div>
 
                         <div class="form-group row">
-                            @if(in_array('unit_measure', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="unit_measure">Unidad de medida </label>
-                                <div class="input-group">
-                                    <select id="unit_measure" name="unit_measure" class="form-control select2" style="width: 83%;">
-                                        <option></option>
-                                        @foreach($unitMeasures as $unitMeasure)
-                                            <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalUnitMeasure">
-                                            +
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
+
                             @if(in_array('brand', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="brand">Marca </label>
-                                <div class="input-group">
-                                    <select id="brand" name="brand" class="form-control select2" style="width: 83%;">
-                                        <option></option>
-                                        @foreach($brands as $brand)
-                                            <option value="{{ $brand->id }}">{{ $brand->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalBrand">
-                                            +
-                                        </button>
+                                <div class="col-md-3">
+                                    <label for="brand">Marca </label>
+                                    <div class="input-group">
+                                        <select id="brand" name="brand" class="form-control select2" style="width: 83%;">
+                                            <option></option>
+                                            @foreach($brands as $brand)
+                                                <option value="{{ $brand->id }}">{{ $brand->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalBrand">
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
                             @endif
                             @if(in_array('exampler', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="exampler">Modelo </label>
-                                <div class="input-group">
-                                    <select id="exampler" name="exampler" class="form-control select2" style="width: 83%;">
+                                <div class="col-md-3">
+                                    <label for="exampler">Modelo </label>
+                                    <div class="input-group">
+                                        <select id="exampler" name="exampler" class="form-control select2" style="width: 83%;">
 
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" id="btn-newExampler" class="btn btn-primary" data-toggle="modal" data-target="#modalExampler" style="display: none;">
-                                            +
-                                        </button>
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" id="btn-newExampler" class="btn btn-primary" data-toggle="modal" data-target="#modalExampler" style="display: none;">
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            @endif
+                            @if(in_array('category', $enabled, true))
+                                <div class="col-md-3">
+                                    <label for="category">Categorías </label>
+                                    <div class="input-group">
+                                        <select id="category" name="category" class="form-control select2" style="width: 83%;">
+                                            <option></option>
+                                            @foreach( $categories as $category )
+                                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoria">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            @endif
+                            @if(in_array('subcategory', $enabled, true))
+                                <div class="col-md-3">
+                                    <label for="subcategory">Subcategorías </label>
+                                    <div class="input-group">
+                                        <select id="subcategory" name="subcategory" class="form-control select2" style="width: 83%;">
+                                            <option></option>
+
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" id="btn-newSubCategoria" class="btn btn-primary" data-toggle="modal" data-target="#modalSubCategoria" style="display: none;">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             @endif
                         </div>
 
                         <div class="form-group row">
                             @if(in_array('genero', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="genero">Genero </label>
-                                <div class="input-group">
-                                    <select id="genero" name="genero" class="form-control select2" style="width: 83%;">
-                                        <option></option>
-                                        @foreach( $generos as $genero )
-                                            <option value="{{ $genero->id }}">{{ $genero->description }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalGenero">
-                                            +
-                                        </button>
+                                <div class="col-md-3">
+                                    <label for="genero">Genero </label>
+                                    <div class="input-group">
+                                        <select id="genero" name="genero" class="form-control select2" style="width: 83%;">
+                                            <option></option>
+                                            @foreach( $generos as $genero )
+                                                <option value="{{ $genero->id }}">{{ $genero->description }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalGenero">
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
                             @endif
-                            @if(in_array('talla', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="talla">Talla </label>
-                                <div class="input-group">
-                                    <select id="talla" name="talla" class="form-control select2" style="width: 83%;">
-                                        <option></option>
-                                        @foreach( $tallas as $talla )
-                                            <option value="{{ $talla->id }}">{{ $talla->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalTalla">
-                                            +
-                                        </button>
+                            @if(in_array('unit_measure', $enabled, true))
+                                <div class="col-md-3">
+                                    <label for="unit_measure">Unidad de medida </label>
+                                    <div class="input-group">
+                                        <select id="unit_measure" name="unit_measure" class="form-control select2" style="width: 83%;">
+                                            <option></option>
+                                            @foreach($unitMeasures as $unitMeasure)
+                                                <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalUnitMeasure">
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
                             @endif
-                            @if(in_array('perecible', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="perecible">Perecible </label>
-                                <select id="perecible" name="perecible" class="form-control select2" style="width: 100%;">
+                            <div class="col-md-3">
+                                <label for="tipo_venta">Tipo de Venta </label>
+                                <select id="tipo_venta" name="tipo_venta" class="form-control select2" style="width: 100%;">
                                     <option></option>
-                                    <option value="s">SI</option>
-                                    <option value="n">NO</option>
+                                    @foreach( $tipoVentas as $tipo )
+                                        <option value="{{$tipo->id}}">{{ $tipo->description }}</option>
+                                    @endforeach
                                 </select>
                             </div>
-                            @endif
-                        </div>
-
-                        <div class="form-group row">
-                            @if(in_array('category', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="category">Categorías </label>
-                                <div class="input-group">
-                                    <select id="category" name="category" class="form-control select2" style="width: 83%;">
+                            @if(in_array('perecible', $enabled, true))
+                                <div class="col-md-3">
+                                    <label for="perecible">Perecible </label>
+                                    <select id="perecible" name="perecible" class="form-control select2" style="width: 100%;">
                                         <option></option>
-                                        @foreach( $categories as $category )
-                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                        @endforeach
+                                        <option value="s">SI</option>
+                                        <option value="n">NO</option>
                                     </select>
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoria">
-                                            +
-                                        </button>
-                                    </div>
                                 </div>
-
-                            </div>
                             @endif
-                            @if(in_array('subcategory', $enabled, true))
-                            <div class="col-md-4">
-                                <label for="subcategory">Subcategorías </label>
-                                <div class="input-group">
-                                    <select id="subcategory" name="subcategory" class="form-control select2" style="width: 83%;">
-                                        <option></option>
-
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button type="button" id="btn-newSubCategoria" class="btn btn-primary" data-toggle="modal" data-target="#modalSubCategoria" style="display: none;">
-                                            +
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            <div class="col-md-4">
-                                <label for="subcategory">Cantidad por paquete </label>
-                                <div class="form-group clearfix">
-                                    <div class="icheck-primary d-inline">
-                                        <input type="checkbox" name="pack" id="checkboxPack">
-                                        <label for="checkboxPack">Es paquete</label>
-                                        <input type="number" class="form-control form-control-sm d-inline ml-2" style="width: 70px;" id="inputPack" name="inputPack" value="1" min="0">
-                                    </div>
-                                </div>
-
-                            </div>
                         </div>
 
                         <div class="form-group">
@@ -236,49 +221,88 @@
                                 </span>
                             </div>
                         </div>
-
-
                         <div class="form-group row">
-                            <div class="col-md-4">
-                                <label for="unit_price">Precio Unitario </label>
-                                <input type="number" id="unit_price" name="unit_price" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" readonly>
+                            <div class="col-md-8">
+                                <label for="image">Imagen del material</label>
+                                <div class="dropzone" id="image-dropzone"></div>
                             </div>
                             <div class="col-md-4">
-                                <label for="codigo">Código del producto </label>
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control rounded-0" id="codigo" name="codigo">
-                                    <span class="input-group-append">
-                                        <button type="button" class="btn btn-info btn-flat" id="btn-generateCode"> <i class="fas fa-random"></i></button>
-                                    </span>
+                                <label>Variantes</label>
+                                <div class="form-group">
+                                    <div class="icheck-primary">
+                                        <input type="radio" id="sin_variantes" name="variantes" value="0" checked>
+                                        <label for="sin_variantes">Sin Variantes</label>
+                                    </div>
+
+                                    <div class="icheck-primary">
+                                        <input type="radio" id="con_variantes" name="variantes" value="1">
+                                        <label for="con_variantes">Con Variantes</label>
+                                    </div>
+
+                                    <div class="icheck-danger">
+                                        <input type="checkbox" id="afecto_inventario" name="afecto_inventario" checked>
+                                        <label for="afecto_inventario">¿Afecto a inventario?</label>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="tipo_venta">Tipo de Venta </label>
-                                <select id="tipo_venta" name="tipo_venta" class="form-control select2" style="width: 100%;">
-                                    <option></option>
-                                    @foreach( $tipoVentas as $tipo )
-                                        <option value="{{$tipo->id}}">{{ $tipo->description }}</option>
-                                    @endforeach
-                                </select>
+                        </div>
+
+                        {{--SECCION SIN VARIANES--}}
+                        <div id="seccion_sin_variantes">
+                            <div class="form-group row">
+
+                                <div class="col-md-3">
+                                    <label for="sku_sin_variantes">SKU</label>
+                                    <input type="text" id="sku_sin_variantes" name="sku_sin_variantes" class="form-control">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label for="codigo_sin_variantes">Código de barras </label>
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control rounded-0" id="codigo_sin_variantes" name="codigo_sin_variantes">
+                                        <span class="input-group-append">
+                                            <button type="button" class="btn btn-info btn-flat btn-generateCode" id="btn-generateCodeSinVariantes"> <i class="fas fa-random"></i></button>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label for="inputPack">Cantidad por paquete </label>
+                                    <div class="form-group clearfix">
+                                        <div class="icheck-primary d-inline">
+                                            <input type="checkbox" name="pack" id="checkboxPack">
+                                            <label for="checkboxPack">Es paquete</label>
+                                            <input type="number" class="form-control form-control-sm d-inline ml-2" style="width: 50px;" id="inputPack" name="inputPack" value="1" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label for="stock_min">Stock Mínimo <span class="right badge badge-danger">(*)</span></label>
+                                    <input type="number" id="stock_min" name="stock_min" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                        ">
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label for="stock_max">Stock Máximo <span class="right badge badge-danger">(*)</span></label>
+                                    <input type="number" id="stock_max" name="stock_max" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                                        ">
+                                </div>
                             </div>
-
                         </div>
-
-
-                        <div class="form-group">
-                            <label for="image">Imagen del material</label>
-                            <div class="dropzone" id="image-dropzone"></div>
-                        </div>
-
                     </div>
                     <!-- /.card-body -->
                 </div>
                 <!-- /.card -->
             </div>
-            <div class="col-md-4">
+            {{--SECCION CON VARIANES--}}
+
+            <div class="col-md-12" id="seccion_con_variantes" style="display: none;">
                 <div class="card card-warning">
                     <div class="card-header">
-                        <h3 class="card-title">Stocks</h3>
+                        <h3 class="card-title">Configuración de Variantes</h3>
 
                         <div class="card-tools">
                             <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
@@ -286,49 +310,162 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="form-group">
-                            <label for="stock_max">Stock Máximo <span class="right badge badge-danger">(*)</span></label>
-                            <input type="number" id="stock_max" name="stock_max" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                    this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                    ">
-                        </div>
-                        <div class="form-group">
-                            <label for="stock_min">Stock Mínimo <span class="right badge badge-danger">(*)</span></label>
-                            <input type="number" id="stock_min" name="stock_min" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                    this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                    ">
-                        </div>
+                        <div class="form-group row">
+                            @if(in_array('talla', $enabled, true))
+                                <div class="col-md-5">
+                                    <label for="talla">Talla </label>
+                                    <div class="input-group">
+                                        <select id="talla" name="talla[]" class="form-control select2" multiple="multiple" style="width:83%;">
+                                            @foreach($tallas as $talla)
+                                                <option value="{{ $talla->id }}" data-short-name="{{ $talla->short_name }}">
+                                                    {{ $talla->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalTalla">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
 
+                            {{--@if(in_array('talla', $enabled, true))--}}
+                                <div class="col-md-5">
+                                    <label for="color">Colores </label>
+                                    <div class="input-group">
+                                        <select id="color" name="color[]" class="form-control select2" multiple="multiple" style="width:83%;">
+                                            @foreach($colors as $color)
+                                                <option value="{{ $color->id }}" data-short-name="{{ $color->short_name }}">
+                                                    {{ $color->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalColor">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {{--@endif--}}
+
+                            <div class="col-md-2">
+                                <label for="">&nbsp;</label><br>
+                                <button type="button" id="btn-generate_variantes" class="btn btn-success btn-block">Generar variantes</button>
+                            </div>
+
+                            {{--<div class="col-md-3">
+                                <label for="sku_con_variantes">SKU</label>
+                                <input type="text" id="sku_con_variantes" name="sku_con_variantes" class="form-control">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="codigo_con_variantes">Código barras </label>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control rounded-0" id="codigo_con_variantes" name="codigo_con_variantes">
+                                    <span class="input-group-append">
+                                    <button type="button" class="btn btn-info btn-flat btn-generateCode" id="btn-generateCodeConVariantes"> <i class="fas fa-random"></i></button>
+                                </span>
+                                </div>
+                            </div>--}}
+                        </div>
+                        {{--<div class="form-group row">
+
+                            <div class="col-md-2">
+                                <label for="stock_min_con_variantes">Stock Mínimo <span class="right badge badge-danger">(*)</span></label>
+                                <input type="number" id="stock_min_con_variantes" name="stock_min_con_variantes" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                            ">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="stock_max_con_variantes">Stock Máximo <span class="right badge badge-danger">(*)</span></label>
+                                <input type="number" id="stock_max_con_variantes" name="stock_max_con_variantes" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
+                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
+                            ">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="is_active">Activo</label><br>
+
+                                <input id="is_active"
+                                       type="checkbox"
+                                       name="is_active"
+                                       data-bootstrap-switch
+                                       data-size="large"
+                                       data-off-color="danger"
+                                       data-on-text="SI"
+                                       data-off-text="NO"
+                                       data-on-color="success"
+                                       checked>
+                            </div>
+
+                            <div class="col-md-2">
+                                <button type="button" id="btn-generate_variantes" class="btn btn-success btn-block">Generar variantes</button>
+                            </div>
+                        </div>--}}
+                        <hr>
+                        <div class="form-group row">
+
+                            <!-- Aqui iran las variantes que seran como una tabla -->
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Talla</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Color</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <strong>SKU Sugerido</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <strong>Código Barras</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <strong>Imagen</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Activo</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Stock Mínino</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Stock Máximo</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Acción</strong>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="form-group row">
+                            <div id="body-variantes">
+
+                            </div>
+                        </div>
 
                     </div>
                     <!-- /.card-body -->
                 </div>
-                <!-- /.card -->
-                {{--<div class="card card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title">Promociones</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        @foreach( $discountQuantities as $discountQuantity )
-                        <div class="form-group clearfix">
-                            <div class="icheck-primary d-inline">
-                                <input type="checkbox" name="discount[{{$discountQuantity->id}}]" id="checkboxPrimary{{$discountQuantity->id}}">
-                                <label for="checkboxPrimary{{$discountQuantity->id}}">
-                                    {{$discountQuantity->description}} - {{ $discountQuantity->percentage }}%
-                                </label>
-                                <input type="number" class="form-control form-control-sm d-inline ml-2" style="width: 70px;" id="percentageInput{{$discountQuantity->id}}" name="percentage[{{$discountQuantity->id}}]" value="{{ $discountQuantity->percentage }}" min="0" max="100"> %
-                            </div>
-                        </div>
-                        @endforeach
-
-                    </div>
-
-                </div>--}}
             </div>
 
         </div>
@@ -588,6 +725,70 @@
         </div>
     </div>
 
+    <template id="template-variante">
+        <div class="row item-variante mb-2">
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-talla_text readonly>
+                    <input type="hidden" data-talla_id>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-color_text readonly>
+                    <input type="hidden" data-color_id>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-sku_sugerido>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="text" class="form-control form-control-sm" data-codigo_barras>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="form-group">
+                    <input type="file" class="form-control form-control-sm" data-image_variante>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <input type="checkbox"
+                       data-is_active_variante
+                       data-bootstrap-switch
+                       data-size="normal"
+                       data-off-color="danger"
+                       data-on-text="SI"
+                       data-off-text="NO"
+                       data-on-color="success"
+                       checked>
+            </div>
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm" data-stock_minimo min="0" step="0.01">
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <div class="form-group">
+                    <input type="number" class="form-control form-control-sm" data-stock_maximo min="0" step="0.01">
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <button type="button" data-delete class="btn btn-block btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </template>
 @endsection
 
 @section('plugins')
@@ -651,8 +852,13 @@
                 allowClear: true,
             });
             $('#talla').select2({
-                placeholder: "Seleccione talla",
-                allowClear: true,
+                placeholder: 'Seleccione tallas',
+                allowClear: true
+            });
+
+            $('#color').select2({
+                placeholder: 'Seleccione colores',
+                allowClear: true
             });
             $('#tipo_venta').select2({
                 placeholder: "Seleccione Tipo Venta",

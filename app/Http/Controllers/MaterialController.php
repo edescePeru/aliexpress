@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Brand;
 use App\Category;
 use App\CategoryInvoice;
+use App\Color;
 use App\DataGeneral;
 use App\DiscountQuantity;
 use App\Exampler;
@@ -24,6 +25,7 @@ use App\Shelf;
 use App\Specification;
 use App\Item;
 use APP\DetailEntry;
+use App\StockItem;
 use App\StoreMaterial;
 use App\StoreMaterialLocation;
 use App\StoreMaterialVencimiento;
@@ -33,6 +35,7 @@ use App\Talla;
 use App\TipoVenta;
 use App\Typescrap;
 use App\UnitMeasure;
+use App\Variant;
 use App\Warrant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -107,6 +110,11 @@ class MaterialController extends Controller
             ? Talla::orderBy('name', 'asc')->get()
             : collect();
 
+        /*$colors = in_array('color', $enabled, true)
+            ? Color::orderBy('name', 'asc')->get()
+            : collect();*/
+        $colors = Color::orderBy('name', 'asc')->get();
+
         // Si luego agregas modelo/subcategoría, haces lo mismo:
         // $examplers = in_array('exampler', $enabled, true) ? Exampler::orderBy(...) : collect();
         // $subcategories = in_array('subcategory', $enabled, true) ? Subcategory::orderBy(...) : collect();
@@ -122,13 +130,209 @@ class MaterialController extends Controller
             'brands',
             'qualities',
             'typescraps',
-            'unitMeasures'
+            'unitMeasures',
+            'colors'
         ));
     }
 
     public function store(StoreMaterialRequest $request)
     {
-        //dd($request);
+        dd($request);
+        DB::beginTransaction();
+
+        try {
+            // 0 = sin variantes | 1 = con variantes
+            $tipoVariantes = (int) $request->input('tipo_variantes', 0);
+
+            // checkbox HTML: si no está marcado, no existe en el request
+            $tracksInventory = $request->has('afecto_inventario') ? 1 : 0;
+
+            $variantes = json_decode($request->input('variantes_json', '[]'), true);
+
+            if (!is_array($variantes)) {
+                throw new \Exception('El formato de variantes_json es inválido.');
+            }
+
+            if (count($variantes) === 0) {
+                throw new \Exception('Debe enviar al menos un registro de variante.');
+            }
+
+            $material = Material::create([
+                'description'       => $request->input('description'),
+                'unit_measure_id'   => $request->input('unit_measure'),
+                'stock_max'         => 0,
+                'stock_min'         => 0,
+                'stock_current'     => 0,
+                'stock_reserved'    => 0,
+                'priority'          => 'Aceptable',
+                'unit_price'        => $request->input('unit_price', 0),
+                'category_id'       => $request->input('category'),
+                'subcategory_id'    => $request->input('subcategory'),
+                'brand_id'          => $request->input('brand'),
+                'exampler_id'       => $request->input('exampler'),
+                'typescrap_id'      => $request->input('typescrap'),
+                'enable_status'     => 1,
+                'full_name'         => $request->input('name'),
+                'genero_id'         => $request->input('genero'),
+                'tipo_venta_id'     => $request->input('tipo_venta'),
+                'perecible'         => $request->input('perecible'),
+                'type_tax_id'       => $request->input('type_tax_id'),
+                'list_price'        => (float) $request->input('unit_price', 0),
+                'inventory'         => $tracksInventory,
+                'image'             => 'no_image.png',
+
+                // se completan luego si corresponde
+                'quality_id'        => null,
+                'codigo'            => null,
+                'isPack'            => 0,
+                'quantityPack'      => 0,
+                'stock_unPack'      => 0,
+            ]);
+
+            $material->code = 'P-' . str_pad($material->id, 5, '0', STR_PAD_LEFT);
+            $material->save();
+
+            // Imagen general del producto padre
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $filename = $material->id . '.' . $image->getClientOriginalExtension();
+                $path = public_path('images/material/' . $filename);
+
+                Image::make($image)->save($path);
+
+                $material->image = $filename;
+                $material->save();
+            }
+
+            foreach ($variantes as $index => $item) {
+                $tallaId      = $item['talla_id'] ?? null;
+                $colorId      = $item['color_id'] ?? null;
+                $sku          = trim($item['sku'] ?? '');
+                $barcode      = trim($item['codigo_barras'] ?? '');
+                $stockMinimo  = ($item['stock_minimo'] ?? '') !== '' ? (float) $item['stock_minimo'] : 0;
+                $stockMaximo  = ($item['stock_maximo'] ?? '') !== '' ? (float) $item['stock_maximo'] : 0;
+                $isActive     = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                $isPack       = isset($item['pack']) ? (int) $item['pack'] : 0;
+                $cantidadPack = isset($item['cantidad_pack']) ? (float) $item['cantidad_pack'] : 1;
+                $imageKey     = $item['image_key'] ?? null;
+
+                if ($sku === '') {
+                    throw new \Exception('Uno de los registros no tiene SKU.');
+                }
+
+                $variantId = null;
+                $displayName = $material->full_name;
+
+                // CON VARIANTES
+                if ($tipoVariantes === 1) {
+                    $talla = $tallaId ? Quality::find($tallaId) : null;
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                    $colorTexto = $color ? $color->name : '';
+
+                    $attributeSummary = collect([$tallaTexto, $colorTexto])
+                        ->filter()
+                        ->implode(' / ');
+
+                    $displayName = trim(
+                        $material->full_name . ' - ' .
+                        collect([$tallaTexto, $colorTexto])->filter()->implode(' - ')
+                    );
+
+                    $variantImageName = null;
+
+                    if ($imageKey && $request->hasFile($imageKey)) {
+                        $variantImage = $request->file($imageKey);
+                        $variantImageName = 'variant_' . $material->id . '_' . uniqid() . '.' . $variantImage->getClientOriginalExtension();
+                        $variantPath = public_path('images/material/variants/' . $variantImageName);
+
+                        Image::make($variantImage)->save($variantPath);
+                    }
+
+                    $variant = Variant::create([
+                        'material_id'       => $material->id,
+                        'quality_id'        => $tallaId,
+                        'color_id'          => $colorId,
+                        'attribute_summary' => $attributeSummary,
+                        'image'             => $variantImageName,
+                        'is_active'         => $isActive,
+                    ]);
+
+                    $variantId = $variant->id;
+                }
+
+                // SIN VARIANTES
+                else {
+                    $material->update([
+                        'quality_id'   => $tallaId,
+                        'codigo'       => $barcode !== '' ? $barcode : null,
+                        'stock_min'    => $stockMinimo,
+                        'stock_max'    => $stockMaximo,
+                        'isPack'       => $isPack,
+                        'quantityPack' => $isPack ? $cantidadPack : 0,
+                    ]);
+
+                    if ($tallaId || $colorId) {
+                        $talla = $tallaId ? Quality::find($tallaId) : null;
+                        $color = $colorId ? Color::find($colorId) : null;
+
+                        $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                        $colorTexto = $color ? $color->name : '';
+
+                        $extra = collect([$tallaTexto, $colorTexto])->filter()->implode(' - ');
+
+                        if ($extra !== '') {
+                            $displayName = trim($material->full_name . ' - ' . $extra);
+                        }
+                    }
+                }
+
+                StockItem::create([
+                    'material_id'      => $material->id,
+                    'variant_id'       => $variantId,
+                    'sku'              => $sku,
+                    'barcode'          => $barcode !== '' ? $barcode : null,
+                    'display_name'     => $displayName,
+                    'unit_measure_id'  => $material->unit_measure_id,
+                    'tracks_inventory' => $tracksInventory,
+                    'is_active'        => $isActive,
+                ]);
+            }
+
+            $discounts = $request->input('discount', []);
+            $percentages = $request->input('percentage', []);
+
+            foreach ($discounts as $discountId => $value) {
+                if (isset($value)) {
+                    $percentage = $percentages[$discountId] ?? null;
+
+                    MaterialDiscountQuantity::create([
+                        'material_id' => $material->id,
+                        'discount_quantity_id' => $discountId,
+                        'percentage' => $percentage
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Material guardado con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    public function storeO(StoreMaterialRequest $request)
+    {
+        dd($request);
         $validated = $request->validated();
         $mat = null;
         DB::beginTransaction();
