@@ -1613,14 +1613,14 @@ class EntryController extends Controller
                     $affectedMaterialIds[] = (int)$material->id;
 
                     // Output por cada detalle
-                    $output = Output::create([
+                    /*$output = Output::create([
                         'execution_order'  => 'SALIDA POR ANULACIÓN DE INGRESO (ENTRY #' . $entry->id . ')',
                         'request_date'     => $now,
                         'requesting_user'  => Auth::id(),
                         'responsible_user' => Auth::id(),
                         'state'            => 'confirmed',
                         'indicator'        => 'or',
-                    ]);
+                    ]);*/
 
                     // Costo promedio vigente ANTES de registrar la salida (auditoría)
                     $unitCostBefore = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
@@ -1635,7 +1635,7 @@ class EntryController extends Controller
                         if ($itemsToDelete && $itemsToDelete->count() > 0) {
                             foreach ($itemsToDelete as $item) {
 
-                                OutputDetail::create([
+                                /*OutputDetail::create([
                                     'output_id'      => $output->id,
                                     'sale_detail_id' => null,
                                     'item_id'        => $item->id,
@@ -1651,7 +1651,7 @@ class EntryController extends Controller
 
                                     'unit_cost'      => $unitCostBefore,
                                     'total_cost'     => $unitCostBefore,
-                                ]);
+                                ]);*/
 
                                 // rollback de stock por item
                                 $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
@@ -1663,7 +1663,7 @@ class EntryController extends Controller
                             // fallback: si no hay items, salimos por entered_quantity
                             $qty = (float)$detail->entered_quantity;
 
-                            OutputDetail::create([
+                            /*OutputDetail::create([
                                 'output_id'      => $output->id,
                                 'sale_detail_id' => null,
                                 'item_id'        => null,
@@ -1679,7 +1679,7 @@ class EntryController extends Controller
 
                                 'unit_cost'      => $unitCostBefore,
                                 'total_cost'     => $qty * $unitCostBefore,
-                            ]);
+                            ]);*/
 
                             $material->stock_current = (float)$material->stock_current - $qty;
                             $material->save();
@@ -1689,7 +1689,7 @@ class EntryController extends Controller
                         // NO ITEMEABLE: 1 output_detail por cantidad del detalle
                         $qty = (float)$detail->entered_quantity;
 
-                        OutputDetail::create([
+                        /*OutputDetail::create([
                             'output_id'      => $output->id,
                             'sale_detail_id' => null,
                             'item_id'        => null,
@@ -1705,7 +1705,7 @@ class EntryController extends Controller
 
                             'unit_cost'      => $unitCostBefore,
                             'total_cost'     => $qty * $unitCostBefore,
-                        ]);
+                        ]);*/
 
                         $material->stock_current = (float)$material->stock_current - $qty;
                         $material->save();
@@ -1977,14 +1977,14 @@ class EntryController extends Controller
             // ===========================
             $now = now();
 
-            $output = Output::create([
+            /*$output = Output::create([
                 'execution_order'  => 'SALIDA POR ELIMINACIÓN DE INGRESO',
                 'request_date'     => $now,
                 'requesting_user'  => Auth::id(),
                 'responsible_user' => Auth::id(),
                 'state'            => 'confirmed',
                 'indicator'        => 'or',
-            ]);
+            ]);*/
 
             // ===========================
             // ✅ Costo promedio vigente ANTES de registrar esta salida (para auditar unit_cost aplicado)
@@ -2001,7 +2001,7 @@ class EntryController extends Controller
                 // Si no hay items, igual registramos la salida por cantidad del detalle (fallback)
                 if ($itemsToDelete && $itemsToDelete->count() > 0) {
                     foreach ($itemsToDelete as $item) {
-                        OutputDetail::create([
+                        /*OutputDetail::create([
                             'output_id'      => $output->id,
                             'sale_detail_id' => null,
                             'item_id'        => $item->id,
@@ -2018,7 +2018,7 @@ class EntryController extends Controller
                             // costo aplicado
                             'unit_cost'      => $unitCostBefore,
                             'total_cost'     => $unitCostBefore,
-                        ]);
+                        ]);*/
 
                         // actualizar stock (rollback) + borrar item
                         $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
@@ -2030,7 +2030,7 @@ class EntryController extends Controller
                     // Fallback si por alguna razón no existen items asociados
                     $qty = (float)$detail->entered_quantity;
 
-                    OutputDetail::create([
+                    /*OutputDetail::create([
                         'output_id'      => $output->id,
                         'sale_detail_id' => null,
                         'item_id'        => null,
@@ -2046,7 +2046,7 @@ class EntryController extends Controller
 
                         'unit_cost'      => $unitCostBefore,
                         'total_cost'     => $qty * $unitCostBefore,
-                    ]);
+                    ]);*/
 
                     $material->stock_current = (float)$material->stock_current - $qty;
                     $material->save();
@@ -2055,8 +2055,7 @@ class EntryController extends Controller
             } else {
                 // NO ITEMEABLE: 1 output_detail por cantidad del detalle
                 $qty = (float)$detail->entered_quantity;
-
-                OutputDetail::create([
+                /*OutputDetail::create([
                     'output_id'      => $output->id,
                     'sale_detail_id' => null,
                     'item_id'        => null,
@@ -2072,11 +2071,12 @@ class EntryController extends Controller
 
                     'unit_cost'      => $unitCostBefore,
                     'total_cost'     => $qty * $unitCostBefore,
-                ]);
+                ]);*/
 
                 // actualizar stock (rollback)
-                $material->stock_current = (float)$material->stock_current - $qty;
+                $material->stock_current = $material->stock_current - $qty;
                 $material->save();
+
             }
 
             // ===========================
@@ -2111,6 +2111,7 @@ class EntryController extends Controller
 
             DB::commit();
 
+            //dd();
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
