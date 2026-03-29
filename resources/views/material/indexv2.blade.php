@@ -267,80 +267,44 @@
             <label class="custom-control-label" for="customSwitch2">Descripcion</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="medida" class="custom-control-input" id="customSwitch3">
-            <label class="custom-control-label" for="customSwitch3">Medida</label>
+            <input type="checkbox" checked data-column="unidad_medida" class="custom-control-input" id="customSwitch3">
+            <label class="custom-control-label" for="customSwitch3">Unidad Medida</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="unidad_medida" class="custom-control-input" id="customSwitch4">
-            <label class="custom-control-label" for="customSwitch4">Unidad Medida</label>
+            <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch4">
+            <label class="custom-control-label" for="customSwitch4">Stock Actual</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="stock_max" class="custom-control-input" id="customSwitch5">
-            <label class="custom-control-label" for="customSwitch5">Stock Max</label>
+            <input type="checkbox" checked data-column="precio_unitario" class="custom-control-input" id="customSwitch5">
+            <label class="custom-control-label" for="customSwitch5">Precio Costo</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="stock_min" class="custom-control-input" id="customSwitch6">
-            <label class="custom-control-label" for="customSwitch6">Stock Min</label>
+            <input type="checkbox" checked data-column="precio_lista" class="custom-control-input" id="customSwitch6">
+            <label class="custom-control-label" for="customSwitch6">Precio Venta</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch7">
-            <label class="custom-control-label" for="customSwitch7">Stock Actual</label>
+            <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch7">
+            <label class="custom-control-label" for="customSwitch7">Categoría</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="prioridad" class="custom-control-input" id="customSwitch8">
-            <label class="custom-control-label" for="customSwitch8">Prioridad</label>
+            <input type="checkbox" checked data-column="sub_categoria" class="custom-control-input" id="customSwitch8">
+            <label class="custom-control-label" for="customSwitch8">SubCategoría</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="precio_unitario" class="custom-control-input" id="customSwitch9">
-            <label class="custom-control-label" for="customSwitch9">Precio Costo</label>
+            <input type="checkbox" checked data-column="marca" class="custom-control-input" id="customSwitch9">
+            <label class="custom-control-label" for="customSwitch9">Marca</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="precio_lista" class="custom-control-input" id="customSwitch10">
-            <label class="custom-control-label" for="customSwitch10">Precio Venta</label>
+            <input type="checkbox" checked data-column="modelo" class="custom-control-input" id="customSwitch10">
+            <label class="custom-control-label" for="customSwitch10">Modelo</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch11">
-            <label class="custom-control-label" for="customSwitch11">Categoría</label>
+            <input type="checkbox" checked data-column="imagen" class="custom-control-input" id="customSwitch11">
+            <label class="custom-control-label" for="customSwitch11">Imagen</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="sub_categoria" class="custom-control-input" id="customSwitch12">
-            <label class="custom-control-label" for="customSwitch12">SubCategoría</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="tipo" class="custom-control-input" id="customSwitch13">
-            <label class="custom-control-label" for="customSwitch13">Tipo</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="sub_tipo" class="custom-control-input" id="customSwitch14">
-            <label class="custom-control-label" for="customSwitch14">SubTipo</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="cedula" class="custom-control-input" id="customSwitch15">
-            <label class="custom-control-label" for="customSwitch15">Cédula</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="calidad" class="custom-control-input" id="customSwitch16">
-            <label class="custom-control-label" for="customSwitch16">Calidad</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="marca" class="custom-control-input" id="customSwitch17">
-            <label class="custom-control-label" for="customSwitch17">Marca</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="modelo" class="custom-control-input" id="customSwitch18">
-            <label class="custom-control-label" for="customSwitch18">Modelo</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" data-column="retaceria" class="custom-control-input" id="customSwitch19">
-            <label class="custom-control-label" for="customSwitch19">Retacería</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="imagen" class="custom-control-input" id="customSwitch20">
-            <label class="custom-control-label" for="customSwitch20">Imagen</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="rotation" class="custom-control-input" id="customSwitch21">
-            <label class="custom-control-label" for="customSwitch21">Rotación</label>
+            <input type="checkbox" checked data-column="rotation" class="custom-control-input" id="customSwitch12">
+            <label class="custom-control-label" for="customSwitch12">Rotación</label>
         </div>
     </div>
 
@@ -363,27 +327,6 @@
         <div class="table-responsive">
             <table class="table table-bordered letraTabla table-hover table-sm mb-5">
                 <thead id="header-table">
-                {{--<tr class="normal-title">
-                    <th>Código</th>
-                    <th>Descripcion</th>
-                    <th>Medida</th>
-                    <th>Unidad Medida</th>
-                    <th>Stock Max</th>
-                    <th>Stock Min</th>
-                    <th>Stock Actual</th>
-                    <th>Prioridad</th>
-                    <th>Precio Unitario</th>
-                    <th>Categoría</th>
-                    <th>SubCategoría</th>
-                    <th>Tipo</th>
-                    <th>SubTipo</th>
-                    <th>Cédula</th>
-                    <th>Calidad</th>
-                    <th>Marca</th>
-                    <th>Modelo</th>
-                    <th>Retacería</th>
-                    <th></th>
-                </tr>--}}
                 </thead>
                 <tbody id="body-table">
 
@@ -408,23 +351,14 @@
         <tr class="normal-title">
             <th data-column="codigo" data-codigo>Código</th>
             <th data-column="descripcion" data-descripcion>Descripcion</th>
-            <th data-column="medida" data-medida>Medida</th>
             <th data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
-            <th data-column="stock_max" data-stock_max>Stock Max</th>
-            <th data-column="stock_min" data-stock_min>Stock Min</th>
             <th data-column="stock_actual" data-stock_actual>Stock Actual</th>
-            <th data-column="prioridad" data-prioridad>Prioridad</th>
             <th data-column="precio_unitario" data-precio_unitario>Precio Costo</th>
             <th data-column="precio_lista" data-precio_lista>Precio Venta</th>
             <th data-column="categoria" data-categoria>Categoría</th>
             <th data-column="sub_categoria" data-sub_categoria>SubCategoría</th>
-            <th data-column="tipo" data-tipo>Tipo</th>
-            <th data-column="sub_tipo" data-sub_tipo>SubTipo</th>
-            <th data-column="cedula" data-cedula>Cédula</th>
-            <th data-column="calidad" data-calidad>Calidad</th>
             <th data-column="marca" data-marca>Marca</th>
             <th data-column="modelo" data-modelo>Modelo</th>
-            <th data-column="retaceria" data-retaceria>Retacería</th>
             <th data-column="imagen" data-imagen>Imagen</th>
             <th data-column="rotation" data-rotation>Rotación</th>
             <th></th>
@@ -465,23 +399,14 @@
         <tr>
             <td data-column="codigo" data-codigo></td>
             <td data-column="descripcion" data-descripcion></td>
-            <td data-column="medida" data-medida></td>
             <td data-column="unidad_medida" data-unidad_medida></td>
-            <td data-column="stock_max" data-stock_max></td>
-            <td data-column="stock_min" data-stock_min></td>
             <td data-column="stock_actual" data-stock_actual></td>
-            <td data-column="prioridad" data-prioridad></td>
             <td data-column="precio_unitario" data-precio_unitario></td>
             <td data-column="precio_lista" data-precio_lista></td>
             <td data-column="categoria" data-categoria></td>
             <td data-column="sub_categoria" data-sub_categoria></td>
-            <td data-column="tipo" data-tipo></td>
-            <td data-column="sub_tipo" data-sub_tipo></td>
-            <td data-column="cedula" data-cedula></td>
-            <td data-column="calidad" data-calidad></td>
             <td data-column="marca" data-marca></td>
             <td data-column="modelo" data-modelo></td>
-            <td data-column="retaceria" data-retaceria></td>
             <td data-column="imagen" data-imagen>
                 <button data-ver_imagen data-src="{{--'+document.location.origin+ '/images/material/'+item.image+'--}}" data-image="{{--'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>
             </td>
@@ -489,17 +414,14 @@
             <td>
                 <a data-editar_material href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>
                 <button data-deshabilitar data-delete="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" data-measure="{{--'+item.measure+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Deshabilitar"><i class="fas fa-bell-slash"></i> </button>
-                <a data-ver_items href="{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver items"><i class="fa fa-eye"></i> </a>
-                {{--<button data-precioPorcentaje data-material="--}}{{--'+item.id+'--}}{{--" data-description="--}}{{--'+item.full_description+'--}}{{--" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Precio Lista Porcentaje"><i class="fas fa-percent"></i> </button>
+                {{--<a data-ver_items href="--}}{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver items"><i class="fa fa-eye"></i> </a>
                 --}}
+                <a data-ver_variants href="{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver variantes"><i class="fa fa-eye"></i> </a>
                 <button data-precioDirecto data-material="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Gestionar precios"><i class="fas fa-tag"></i> </button>
                 <button data-separate data-material="" data-quantity data-description="" data-measure="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Separar Paquete"><i class="far fa-object-ungroup"></i></button>
                 <button data-assign_child data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Asignar Hijos"><i class="fas fa-boxes"></i></button>
                 <button data-show_vencimiento data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver fechas"><i class="fas fa-calendar-alt"></i></button>
                 <button data-manage_presentations data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Configurar presentaciones"><i class="fas fa-cubes"></i></button>
-
-                {{--<a data-send_store href="" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Enviar a tienda"><i class="fas fa-share"></i> </a>
---}}
             </td>
         </tr>
     </template>

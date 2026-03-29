@@ -43,7 +43,10 @@ $(document).ready(function () {
         $btnNewSubCategoria.show();
 
         $.get( "/dashboard/get/subcategories/"+category, function( data ) {
-
+            $selectSubCategory.append($("<option>", {
+                value: "",
+                text: ""
+            }));
             for ( var i=0; i<data.length; i++ )
             {
                 $selectSubCategory.append($("<option>", {
@@ -382,6 +385,25 @@ $(document).ready(function () {
     $selectExampler.select2({
         placeholder: "Selecione un modelo",
     });
+
+    if (tieneVariantes) {
+        $('#con_variantes').prop('checked', true);
+        $('#seccion_con_variantes').show();
+        $('#seccion_sin_variantes').hide();
+
+        loadVariantsEdit();
+    } else {
+        $('#sin_variantes').prop('checked', true);
+        $('#seccion_con_variantes').hide();
+        $('#seccion_sin_variantes').show();
+
+        loadSingleVariantSection();
+    }
+
+    $(document).on('click', '#btn-generate_variantes', function () {
+        generateVariantsEdit();
+    });
+
 });
 
 var $formEdit;
@@ -395,6 +417,487 @@ let $caracteres = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 let $longitud = 20;
 let $btnNewExampler = $('#btn-newExampler');
 let $btnNewSubCategoria = $('#btn-newSubCategoria');
+
+function generateVariantsEdit() {
+    let tallas = getSelectedOptionsData('#talla');
+    let colores = getSelectedOptionsData('#color');
+    let skuBase = generateSkuBase();
+
+    if (tallas.length === 0) {
+        toastr.warning('Debe seleccionar al menos una talla.');
+        return;
+    }
+
+    if (colores.length === 0) {
+        toastr.warning('Debe seleccionar al menos un color.');
+        return;
+    }
+
+    if (!skuBase) {
+        toastr.warning('No se pudo generar el SKU base. Verifique marca, modelo, subcategoría o género.');
+        return;
+    }
+
+    let generatedCount = 0;
+    let repeatedCount = 0;
+
+    colores.forEach(function (color) {
+        tallas.forEach(function (talla) {
+            if (existsVariant(talla.id, color.id)) {
+                repeatedCount++;
+                return;
+            }
+
+            const sku = generateVariantSku(skuBase, talla, color);
+
+            let item = {
+                variant_id: null,
+                talla_id: talla.id,
+                talla_text: talla.text,
+                talla_short_name: talla.shortName,
+                color_id: color.id,
+                color_text: color.text,
+                color_short_name: color.shortName,
+                attribute_summary: buildAttributeSummary(talla.text, color.text),
+                image: null,
+                is_active: 1,
+                tracks_inventory: 1,
+                sku: sku,
+                barcode: '',
+                display_name: '',
+                inventory_levels: buildDefaultInventoryLevels()
+            };
+
+            renderVariantRowEdit(item);
+            generatedCount++;
+        });
+    });
+
+    if (generatedCount === 0) {
+        toastr.warning('Todas las combinaciones seleccionadas ya fueron agregadas.');
+        return;
+    }
+
+    toastr.success('Se generaron ' + generatedCount + ' variante(s) correctamente.');
+
+    if (repeatedCount > 0) {
+        toastr.info(repeatedCount + ' combinación(es) ya existían y no se duplicaron.');
+    }
+}
+
+function generateVariantSku(skuBase, tallaData, colorData) {
+    const tallaCode = (tallaData.shortName || tallaData.text || '').toString().trim().toUpperCase();
+    const colorCode = (colorData.shortName || colorData.text || '').toString().trim().toUpperCase();
+
+    let parts = [
+        skuBase,
+        tallaCode,
+        colorCode
+    ].filter(part => part !== '');
+
+    return parts.join('-');
+}
+
+function existsVariant(tallaId, colorId) {
+    let exists = false;
+
+    $('#body-variantes .item-variante').each(function () {
+        let $row = $(this);
+
+        let currentTallaId = ($row.find('[data-talla_id]').val() || '').toString();
+        let currentColorId = ($row.find('[data-color_id]').val() || '').toString();
+
+        if (currentTallaId === String(tallaId) && currentColorId === String(colorId)) {
+            exists = true;
+            return false;
+        }
+    });
+
+    return exists;
+}
+
+function buildAttributeSummary(tallaText, colorText) {
+    let parts = [];
+
+    if (tallaText) {
+        parts.push(tallaText);
+    }
+
+    if (colorText) {
+        parts.push(colorText);
+    }
+
+    return parts.join(' / ');
+}
+
+function getSelectedOptionsData(selector) {
+    let results = [];
+
+    $(`${selector} option:selected`).each(function () {
+        let $option = $(this);
+
+        results.push({
+            id: $option.val(),
+            text: $option.text().trim(),
+            shortName: ($option.data('short-name') || '').toString().trim()
+        });
+    });
+
+    return results;
+}
+
+function generateSkuBase() {
+    let brand = getAbbr(getSelectedText('#brand'));
+    let exampler = getAbbr(getSelectedText('#exampler'));
+    let subcategory = getAbbr(getSelectedText('#subcategory'));
+    let genero = getAbbr(getSelectedText('#genero'));
+
+    let parts = [
+        subcategory,
+        brand,
+        exampler,
+        genero
+    ].filter(part => part !== '');
+
+    return parts.join('-');
+}
+
+function getSelectedText(selector) {
+    const $select = $(selector);
+    const value = $select.val();
+
+    if (!value) {
+        return '';
+    }
+
+    return $select.find('option:selected').first().text().trim();
+}
+
+function getAbbr(text) {
+    if (!text) {
+        return '';
+    }
+
+    text = text.toString().trim();
+
+    if (text === '') {
+        return '';
+    }
+
+    // Limpia espacios duplicados
+    text = text.replace(/\s+/g, ' ');
+
+    const words = text.split(' ').filter(Boolean);
+
+    // Si es una sola palabra, toma hasta 3 caracteres
+    if (words.length === 1) {
+        return words[0].substring(0, 3).toUpperCase();
+    }
+
+    // Si son varias palabras, toma iniciales
+    return words.map(word => word.charAt(0).toUpperCase()).join('');
+}
+
+function buildDefaultInventoryLevels() {
+    return warehousesActivos.map(function(warehouse) {
+        return {
+            inventory_level_id: null,
+            warehouse_id: warehouse.id,
+            warehouse_name: warehouse.name,
+            qty_on_hand: 0,
+            qty_reserved: 0,
+            min_alert: 0,
+            max_alert: 0,
+            average_cost: 0,
+            last_cost: 0
+        };
+    });
+}
+
+function loadSingleVariantSection() {
+    if (!Array.isArray(variantesEdit) || variantesEdit.length === 0) {
+        return;
+    }
+
+    let item = variantesEdit[0];
+
+    $('#stock_item_id').val(item.stock_item_id || '');
+    $('#display_name').val(item.display_name || '');
+    $('#sku_sin_variantes').val(item.sku || '');
+    $('#codigo_sin_variantes').val(item.barcode || '');
+    $('#stock_min').val(item.stock_minimo ?? '');
+    $('#stock_max').val(item.stock_maximo ?? '');
+
+    let tracksInventory = parseInt(item.tracks_inventory) === 1;
+
+    let $switch = $('#afecto_inventario_sin_variantes');
+
+    $switch.prop('checked', tracksInventory);
+
+    let isActive = parseInt(item.is_active) === 1;
+
+    let $switchActive = $('#is_active_sin_variante');
+
+    $switchActive.prop('checked', isActive);
+
+    if (typeof $switch.bootstrapSwitch === 'function') {
+        $switch.bootstrapSwitch('state', tracksInventory, true);
+        $switchActive.bootstrapSwitch('state', isActive, true);
+    }
+
+    renderInventoryLevelsSingle(item.inventory_levels || []);
+}
+
+function renderInventoryLevelsSingle(levels) {
+    const $tbody = $('#tbody-inventory-levels-single');
+    $tbody.empty();
+
+    if (!Array.isArray(levels) || levels.length === 0) {
+        $tbody.append(`
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    No hay niveles de inventario registrados.
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    levels.forEach((level, index) => {
+        $tbody.append(`
+            <tr>
+                <td>
+                    <input type="hidden" name="inventory_levels[${index}][id]" value="${level.inventory_level_id || ''}">
+                    <input type="hidden" name="inventory_levels[${index}][warehouse_id]" value="${level.warehouse_id || ''}">
+                    <input type="text" class="form-control form-control-sm" value="${level.warehouse_name || ''}" readonly>
+                </td>
+
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${level.qty_on_hand ?? 0}" readonly>
+                </td>
+
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${level.qty_reserved ?? 0}" readonly>
+                </td>
+
+                <td>
+                    <input type="number"
+                           name="inventory_levels[${index}][min_alert]"
+                           class="form-control form-control-sm"
+                           value="${level.min_alert ?? 0}"
+                           min="0" step="0.01">
+                </td>
+
+                <td>
+                    <input type="number"
+                           name="inventory_levels[${index}][max_alert]"
+                           class="form-control form-control-sm"
+                           value="${level.max_alert ?? 0}"
+                           min="0" step="0.01">
+                </td>
+
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${level.average_cost ?? 0}" readonly>
+                </td>
+
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${level.last_cost ?? 0}" readonly>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function renderInventoryLevelsVariant($row, item) {
+    const levels = Array.isArray(item.inventory_levels) ? item.inventory_levels : [];
+    const $tbody = $row.find('[data-inventory_levels_body]');
+    $tbody.empty();
+
+    const variantKey = item.variant_id || item.id || 'new';
+
+    if (levels.length === 0) {
+        $tbody.append(`
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    No hay niveles de inventario registrados.
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    levels.forEach(function(level, index) {
+        $tbody.append(`
+            <tr>
+                <td>
+                    <input type="hidden"
+                           name="variantes_inventory[${variantKey}][${index}][id]"
+                           value="${escapeHtml(level.inventory_level_id || '')}">
+
+                    <input type="hidden"
+                           name="variantes_inventory[${variantKey}][${index}][warehouse_id]"
+                           value="${escapeHtml(level.warehouse_id || '')}">
+
+                    <input type="text"
+                           class="form-control form-control-sm"
+                           value="${escapeHtml(level.warehouse_name || '')}"
+                           readonly>
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           value="${normalizeNumber(level.qty_on_hand)}"
+                           readonly>
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           value="${normalizeNumber(level.qty_reserved)}"
+                           readonly>
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="variantes_inventory[${variantKey}][${index}][min_alert]"
+                           value="${normalizeNumber(level.min_alert)}"
+                           min="0"
+                           step="0.01">
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="variantes_inventory[${variantKey}][${index}][max_alert]"
+                           value="${normalizeNumber(level.max_alert)}"
+                           min="0"
+                           step="0.01">
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           value="${normalizeNumber(level.average_cost)}"
+                           readonly>
+                </td>
+
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           value="${normalizeNumber(level.last_cost)}"
+                           readonly>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function getStockTotalFromLevels(levels) {
+    if (!Array.isArray(levels) || levels.length === 0) {
+        return 0;
+    }
+
+    return levels.reduce(function(total, level) {
+        return total + parseFloat(level.qty_on_hand || 0);
+    }, 0);
+}
+
+function normalizeNumber(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderVariantRowEdit(item) {
+    let template = document.querySelector('#template-variante').content.cloneNode(true);
+    let $template = $(template);
+
+    // Datos principales de la variante
+    $template.find('[data-variant_id]').val(item.variant_id || item.id || '');
+
+    $template.find('[data-talla_text]').val(item.talla_text || '');
+    $template.find('[data-talla_id]').val(item.talla_id || '');
+
+    $template.find('[data-color_text]').val(item.color_text || '');
+    $template.find('[data-color_id]').val(item.color_id || '');
+
+    $template.find('[data-sku_sugerido]').val(item.sku || '');
+    $template.find('[data-codigo_barras]').val(item.barcode || '');
+
+    if (item.image) {
+        $template.find('[data-image_label]').text('Imagen actual: ' + item.image);
+    } else {
+        $template.find('[data-image_label]').text('');
+    }
+
+    // Agregar primero al DOM para poder trabajar sobre la fila final
+    $('#body-variantes').append($template);
+
+    let $row = $('#body-variantes .item-variante').last();
+
+    // Switch activo
+    let isActive = parseInt(item.is_active) === 1;
+    let $activeSwitch = $row.find('[data-is_active_variante]');
+
+    $activeSwitch.prop('checked', isActive);
+
+    if (typeof $activeSwitch.bootstrapSwitch === 'function') {
+        $activeSwitch.bootstrapSwitch();
+        $activeSwitch.bootstrapSwitch('state', isActive, true);
+    }
+
+    // Switch afecto inventario
+    let tracksInventory = parseInt(item.tracks_inventory) === 1;
+    let $tracksSwitch = $row.find('[data-afecto_inventario_variante]');
+
+    if ($tracksSwitch.length) {
+        $tracksSwitch.prop('checked', tracksInventory);
+
+        if (typeof $tracksSwitch.bootstrapSwitch === 'function') {
+            $tracksSwitch.bootstrapSwitch();
+            $tracksSwitch.bootstrapSwitch('state', tracksInventory, true);
+        }
+    }
+
+    // Stock total = suma de qty_on_hand de todos los inventory levels
+    let stockTotal = getStockTotalFromLevels(item.inventory_levels || []);
+    $row.find('[data-stock_total]').val(stockTotal);
+
+    // Pintar inventory levels
+    renderInventoryLevelsVariant($row, item);
+
+    // Mostrar/ocultar bloque inventario
+    $row.find('[data-toggle_inventory_levels]').on('click', function () {
+        const $wrapper = $row.find('[data-inventory_levels_wrapper]');
+        $wrapper.toggleClass('d-none');
+    });
+}
+
+function loadVariantsEdit() {
+    $('#body-variantes').empty();
+
+    if (!Array.isArray(variantesEdit) || variantesEdit.length === 0) {
+        return;
+    }
+
+    variantesEdit.forEach(function(item) {
+        renderVariantRowEdit(item);
+    });
+}
 
 function saveSubCategoria() {
     let $form = $('#formCreateSubCategoria');
@@ -911,68 +1414,240 @@ function getExampler() {
 
 }
 
-function updateMaterial() {
+function validateVariantes(tipo, variantes) {
+    console.log(tipo);
+    if (!Array.isArray(variantes) || variantes.length === 0) {
+        toastr.warning('Debe existir al menos un registro.');
+        return false;
+    }
+
+    if (tipo === '0') {
+        let item = variantes[0];
+
+        if (!item.sku) {
+            toastr.warning('Debe ingresar el SKU.');
+            return false;
+        }
+
+        return true;
+    }
+
+    for (let i = 0; i < variantes.length; i++) {
+        if (!variantes[i].sku) {
+            toastr.warning('Todas las variantes deben tener SKU.');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function updateMaterial(event) {
     event.preventDefault();
+
     $("#btn-submit").attr("disabled", true);
-    // Obtener la URL
-    var editUrl = $formEdit.data('url');
-    var form = new FormData($('#formEdit')[0]);
+
+    let editUrl = $formEdit.data('url');
+    let form = new FormData($('#formEdit')[0]);
+
+    let tipo = $('input[name="variantes"]:checked').val();
+    let variantes_json = [];
+
+    if (tipo === '0') {
+        variantes_json = buildSingleVariantPayloadEdit();
+    } else {
+        variantes_json = buildMultipleVariantsPayloadEdit(form);
+    }
+
+    if (!validateVariantes(tipo, variantes_json)) {
+        $("#btn-submit").attr("disabled", false);
+        return;
+    }
+
+    form.append('tipo_variantes', tipo);
+    form.append('variantes_json', JSON.stringify(variantes_json));
+
     $.ajax({
         url: editUrl,
         method: 'POST',
         data: form,
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                debug: false,
+                newestOnTop: false,
+                progressBar: true,
+                positionClass: "toast-top-right",
+                preventDuplicates: false,
+                onclick: null,
+                showDuration: "300",
+                hideDuration: "1000",
+                timeOut: "2000",
+                extendedTimeOut: "1000",
+                showEasing: "swing",
+                hideEasing: "linear",
+                showMethod: "fadeIn",
+                hideMethod: "fadeOut"
+            });
+
+            setTimeout(function () {
                 $("#btn-submit").attr("disabled", false);
                 location.reload();
-            }, 2000 )
+            }, 2000);
         },
         error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "4000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
+            if (data.responseJSON && data.responseJSON.errors) {
+                for (let property in data.responseJSON.errors) {
+                    toastr.error(data.responseJSON.errors[property], 'Error', {
+                        closeButton: true,
+                        debug: false,
+                        newestOnTop: false,
+                        progressBar: true,
+                        positionClass: "toast-top-right",
+                        preventDuplicates: false,
+                        onclick: null,
+                        showDuration: "300",
+                        hideDuration: "1000",
+                        timeOut: "4000",
+                        extendedTimeOut: "1000",
+                        showEasing: "swing",
+                        hideEasing: "linear",
+                        showMethod: "fadeIn",
+                        hideMethod: "fadeOut"
                     });
+                }
+            } else {
+                toastr.error('Ocurrió un error al actualizar el producto.', 'Error');
             }
 
             $("#btn-submit").attr("disabled", false);
-        },
+        }
     });
+}
+
+function buildSingleVariantPayloadEdit() {
+    let tracksInventory = $('#afecto_inventario_sin_variantes').is(':checked') ? 1 : 0;
+    let isActive = $('#is_active_sin_variante').is(':checked') ? 1 : 0;
+    let pack = $('#checkboxPack').is(':checked') ? 1 : 0;
+    let cantidadPack = ($('#inputPack').val() || 1);
+
+    return [
+        {
+            variant_id: null,
+            stock_item_id: $('#stock_item_id').val() || null,
+            talla_id: null,
+            color_id: null,
+            sku: ($('#sku_sin_variantes').val() || '').trim(),
+            codigo_barras: ($('#codigo_sin_variantes').val() || '').trim(),
+            is_active: isActive,
+            afecto_inventario: tracksInventory,
+            pack: pack,
+            cantidad_pack: cantidadPack,
+            image_key: null,
+            inventory_levels: buildSingleInventoryLevelsPayload()
+        }
+    ];
+}
+
+function buildSingleInventoryLevelsPayload() {
+    let levels = [];
+    let isActive = $('#is_active_sin_variante').is(':checked') ? 1 : 0;
+
+    $('#tbody-inventory-levels-single tr').each(function () {
+        let $row = $(this);
+
+        let id = $row.find('[name$="[id]"]').val() || null;
+        let warehouseId = $row.find('[name$="[warehouse_id]"]').val() || null;
+        let minAlert = $row.find('[name$="[min_alert]"]').val();
+        let maxAlert = $row.find('[name$="[max_alert]"]').val();
+
+        if (!warehouseId) {
+            return;
+        }
+
+        levels.push({
+            id: id,
+            warehouse_id: warehouseId,
+            isActive: isActive,
+            min_alert: (minAlert !== '' ? minAlert : 0),
+            max_alert: (maxAlert !== '' ? maxAlert : 0)
+        });
+    });
+
+    return levels;
+}
+
+function buildMultipleVariantsPayloadEdit(form) {
+    let variantes = [];
+
+    $('#body-variantes .item-variante').each(function (index) {
+        let $row = $(this);
+
+        let variantId = $row.find('[data-variant_id]').val() || null;
+        let tallaId = $row.find('[data-talla_id]').val() || null;
+        let colorId = $row.find('[data-color_id]').val() || null;
+        let sku = ($row.find('[data-sku_sugerido]').val() || '').trim();
+        let codigoBarras = ($row.find('[data-codigo_barras]').val() || '').trim();
+        let isActive = $row.find('[data-is_active_variante]').is(':checked') ? 1 : 0;
+
+        let tracksInventory = 1;
+        let $tracksSwitch = $row.find('[data-afecto_inventario_variante]');
+        if ($tracksSwitch.length) {
+            tracksInventory = $tracksSwitch.is(':checked') ? 1 : 0;
+        }
+
+        let imageInput = $row.find('[data-image_variante]')[0];
+        let imageKey = null;
+
+        if (imageInput && imageInput.files && imageInput.files.length > 0) {
+            imageKey = 'variant_image_' + index;
+            form.append(imageKey, imageInput.files[0]);
+        }
+
+        variantes.push({
+            variant_id: variantId,
+            talla_id: tallaId,
+            color_id: colorId,
+            sku: sku,
+            codigo_barras: codigoBarras,
+            is_active: isActive,
+            afecto_inventario: tracksInventory,
+            pack: 0,
+            cantidad_pack: 1,
+            image_key: imageKey,
+            inventory_levels: buildVariantInventoryLevelsPayload($row)
+        });
+    });
+
+    return variantes;
+}
+
+function buildVariantInventoryLevelsPayload($row) {
+    let levels = [];
+
+    $row.find('[data-inventory_levels_body] tr').each(function () {
+        let $tr = $(this);
+
+        let id = $tr.find('[name$="[id]"]').val() || null;
+        let warehouseId = $tr.find('[name$="[warehouse_id]"]').val() || null;
+        let minAlert = $tr.find('[name$="[min_alert]"]').val();
+        let maxAlert = $tr.find('[name$="[max_alert]"]').val();
+
+        if (!warehouseId) {
+            return;
+        }
+
+        levels.push({
+            id: id,
+            warehouse_id: warehouseId,
+            min_alert: (minAlert !== '' ? minAlert : 0),
+            max_alert: (maxAlert !== '' ? maxAlert : 0)
+        });
+    });
+
+    return levels;
 }
 
 function renderTemplateItem(specification, content) {

@@ -40,6 +40,10 @@ $(document).ready(function () {
         $btnNewSubCategoria.show();
 
         $.get( "/dashboard/get/subcategories/"+category, function( data ) {
+            $selectSubCategory.append($("<option>", {
+                value: "",
+                text: ""
+            }));
             for ( var i=0; i<data.length; i++ )
             {
                 $selectSubCategory.append($("<option>", {
@@ -65,6 +69,10 @@ $(document).ready(function () {
 
         // Obtener modelos de la marca
         $.get("/dashboard/get/exampler/" + brandId, function (data) {
+            $selectExampler.append($("<option>", {
+                value: "",
+                text: ""
+            }));
             $.each(data, function (i, item) {
                 $selectExampler.append($("<option>", {
                     value: item.id,
@@ -105,76 +113,8 @@ $(document).ready(function () {
     });
 
     /*$selectSubCategory.change(function () {
-        let subcategory = $selectSubCategory.select2('data');
-        let option = $selectSubCategory.find(':selected');
 
-        console.log(option);
-        if(subcategory[0].text === 'INOX' || subcategory[0].text === 'FENE') {
-            $selectType.empty();
-            var subcategoria =  subcategory[0].id;
-            $.get( "/dashboard/get/types/"+subcategoria, function( data ) {
-                $selectType.append($("<option>", {
-                    value: '',
-                    text: 'Ninguno'
-                }));
-                for ( var i=0; i<data.length; i++ )
-                {
-                    $selectType.append($("<option>", {
-                        value: data[i].id,
-                        text: data[i].type
-                    }));
-                }
-            });
-            $('#feature-body').css("display","");
-        } else {
-            console.log(subcategory[0].text);
-            $('#feature-body').css("display","none");
-            $selectType.val('0');
-            $selectType.trigger('change');
-            $selectSubtype.val('0');
-            $selectSubtype.trigger('change');
-            $('#warrant').val('0');
-            $('#warrant').trigger('change');
-            $('#quality').val('0');
-            $('#quality').trigger('change');
-            $selectSubCategory.select2('close');
-        }
-        /!*switch(subcategory[0].text) {
-            case "INOX":
-                //alert('Metalico');
-                $selectType.empty();
-                var subcategoria =  subcategory[0].id;
-                $.get( "/dashboard/get/types/"+subcategoria, function( data ) {
-                    $selectType.append($("<option>", {
-                        value: '',
-                        text: 'Ninguno'
-                    }));
-                    for ( var i=0; i<data.length; i++ )
-                    {
-                        $selectType.append($("<option>", {
-                            value: data[i].id,
-                            text: data[i].type
-                        }));
-                    }
-                });
-                $('#feature-body').css("display","");
-
-                break;
-            default :
-                $('#feature-body').css("display","none");
-                $selectType.val('0');
-                $selectType.trigger('change');
-                $selectSubtype.val('0');
-                $selectSubtype.trigger('change');
-                $('#warrant').val('0');
-                $('#warrant').trigger('change');
-                $('#quality').val('0');
-                $('#quality').trigger('change');
-                $selectSubCategory.trigger('change');
-                generateNameProduct();
-                break;
-        }*!/
-    });
+    });*/
 
     $selectType.change(function () {
         $selectSubtype.empty();
@@ -198,7 +138,7 @@ $(document).ready(function () {
         }
 
 
-    });*/
+    });
 
     $selectExampler.select2({
         placeholder: "Selecione un modelo",
@@ -958,7 +898,7 @@ function generateNameProduct() {
 
     // Unir las partes con un espacio y asignarlo al campo de nombre
     let name = partes.join(' ');
-    $('#name').val(name);
+    $('#name').val(name.toLocaleUpperCase());
 
 }
 
@@ -984,7 +924,7 @@ function getCheckboxValue($element) {
 function buildSingleVariantPayload() {
     let pack = $('#checkboxPack').is(':checked') ? 1 : 0;
     let cantidadPack = ($('#inputPack').val() || 1);
-
+    let afecto_inventario = $('#afecto_inventario_sin_variantes').is(':checked') ? 1 : 0;
     return [
         {
             talla_id: null,
@@ -996,7 +936,8 @@ function buildSingleVariantPayload() {
             is_active: 1,
             pack: pack,
             cantidad_pack: cantidadPack,
-            image_key: null
+            image_key: null,
+            afecto_inventario: afecto_inventario
         }
     ];
 }
@@ -1019,6 +960,9 @@ function buildMultipleVariantsPayload(form) {
         let $switch = $row.find('[data-is_active_variante]');
         let isActive = $switch.is(':checked') ? 1 : 0;
 
+        let $switchInventory = $row.find('[data-afecto_inventario_variante]');
+        let isInventariable = $switchInventory.is(':checked') ? 1 : 0;
+
         let imageInput = $row.find('[data-image_variante]')[0];
         let imageKey = null;
 
@@ -1035,6 +979,7 @@ function buildMultipleVariantsPayload(form) {
             stock_minimo: stockMinimo,
             stock_maximo: stockMaximo,
             is_active: isActive,
+            afecto_inventario: isInventariable,
             pack: pack,
             cantidad_pack: cantidadPack,
             image_key: imageKey

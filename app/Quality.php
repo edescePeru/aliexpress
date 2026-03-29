@@ -11,7 +11,8 @@ class Quality extends Model
 
     protected $fillable = [
         'name',
-        'description'
+        'description',
+        'short_name'
     ];
 
     public function materials()

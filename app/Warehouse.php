@@ -10,6 +10,7 @@ class Warehouse extends Model
         'name',
         'comment',
         'area_id',
+        'is_default'
     ];
 
     public function area()

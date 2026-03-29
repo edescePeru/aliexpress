@@ -235,4 +235,14 @@ class Material extends Model
             ->groupBy('id', 'full_name')
             ->orderBy('full_name');
     }
+
+    public function variants()
+    {
+        return $this->hasMany(Variant::class, 'material_id');
+    }
+
+    public function stockItems()
+    {
+        return $this->hasMany(StockItem::class, 'material_id');
+    }
 }

@@ -13,6 +13,7 @@ use App\Genero;
 use App\Http\Requests\DeleteMaterialRequest;
 use App\Http\Requests\StoreMaterialRequest;
 use App\Http\Requests\UpdateMaterialRequest;
+use App\InventoryLevel;
 use App\Location;
 use App\Material;
 use App\MaterialDetailSetting;
@@ -36,6 +37,7 @@ use App\TipoVenta;
 use App\Typescrap;
 use App\UnitMeasure;
 use App\Variant;
+use App\Warehouse;
 use App\Warrant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -137,7 +139,7 @@ class MaterialController extends Controller
 
     public function store(StoreMaterialRequest $request)
     {
-        dd($request);
+        //dd($request);
         DB::beginTransaction();
 
         try {
@@ -145,7 +147,7 @@ class MaterialController extends Controller
             $tipoVariantes = (int) $request->input('tipo_variantes', 0);
 
             // checkbox HTML: si no está marcado, no existe en el request
-            $tracksInventory = $request->has('afecto_inventario') ? 1 : 0;
+            //$tracksInventory = $request->has('afecto_inventario') ? 1 : 0;
 
             $variantes = json_decode($request->input('variantes_json', '[]'), true);
 
@@ -173,12 +175,13 @@ class MaterialController extends Controller
                 'typescrap_id'      => $request->input('typescrap'),
                 'enable_status'     => 1,
                 'full_name'         => $request->input('name'),
-                'genero_id'         => $request->input('genero'),
+                'warrant_id'        => $request->get('genero'),
+                /*'quality_id'        => $request->get('talla'),*/
                 'tipo_venta_id'     => $request->input('tipo_venta'),
                 'perecible'         => $request->input('perecible'),
                 'type_tax_id'       => $request->input('type_tax_id'),
                 'list_price'        => (float) $request->input('unit_price', 0),
-                'inventory'         => $tracksInventory,
+                'inventory'         => 0,
                 'image'             => 'no_image.png',
 
                 // se completan luego si corresponde
@@ -212,6 +215,7 @@ class MaterialController extends Controller
                 $stockMinimo  = ($item['stock_minimo'] ?? '') !== '' ? (float) $item['stock_minimo'] : 0;
                 $stockMaximo  = ($item['stock_maximo'] ?? '') !== '' ? (float) $item['stock_maximo'] : 0;
                 $isActive     = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
                 $isPack       = isset($item['pack']) ? (int) $item['pack'] : 0;
                 $cantidadPack = isset($item['cantidad_pack']) ? (float) $item['cantidad_pack'] : 1;
                 $imageKey     = $item['image_key'] ?? null;
@@ -280,15 +284,15 @@ class MaterialController extends Controller
                         $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
                         $colorTexto = $color ? $color->name : '';
 
-                        $extra = collect([$tallaTexto, $colorTexto])->filter()->implode(' - ');
+                        $extra = collect([$tallaTexto, $colorTexto])->filter()->implode('-');
 
                         if ($extra !== '') {
-                            $displayName = trim($material->full_name . ' - ' . $extra);
+                            $displayName = trim($material->full_name . '-' . $extra);
                         }
                     }
                 }
 
-                StockItem::create([
+                $stockItem = StockItem::create([
                     'material_id'      => $material->id,
                     'variant_id'       => $variantId,
                     'sku'              => $sku,
@@ -297,6 +301,17 @@ class MaterialController extends Controller
                     'unit_measure_id'  => $material->unit_measure_id,
                     'tracks_inventory' => $tracksInventory,
                     'is_active'        => $isActive,
+                ]);
+
+                InventoryLevel::create([
+                    'stock_item_id'     => $stockItem->id,
+                    'location_id'       => null,
+                    'qty_on_hand'       => 0,
+                    'qty_reserved'      => 0,
+                    'min_alert'         => $stockMinimo,
+                    'max_alert'         => $stockMaximo,
+                    'average_cost'      => 0,
+                    'last_cost'         => 0
                 ]);
             }
 
@@ -424,32 +439,10 @@ class MaterialController extends Controller
         //
     }
 
-    public function edit($id)
+    public function editO($id)
     {
-        /*$specifications = Specification::where('material_id', $id)->get();
-        $brands = Brand::all();
-        $categories = Category::all();
-        $materialTypes = MaterialType::all();
-        $material = Material::with(['category', 'materialType', ])->find($id);
 
-        $typescraps = Typescrap::all();
-        $unitMeasures = UnitMeasure::all();
-        $generos = Genero::all();
-        $tallas = Talla::all();
-        $warrants = Warrant::all();
-        $qualities = Quality::all();
-        $tipoVentas = TipoVenta::all();
-        $discountQuantities = DiscountQuantity::all();
-        $materialsDiscounts = MaterialDiscountQuantity::where('material_id', $id)
-            ->get()
-            ->keyBy('discount_quantity_id')
-            ->map(function($item) {
-                return $item->percentage;
-            })
-            ->toArray();
-
-        return view('material.edit', compact('materialsDiscounts', 'discountQuantities', 'generos','tallas','tipoVentas','unitMeasures','typescraps','qualities','warrants','specifications', 'brands', 'categories', 'materialTypes', 'material'));*/
-// 1) Configuración global
+        // 1) Configuración global
         $setting = MaterialDetailSetting::first();
         $enabled = [];
         if ($setting && is_array($setting->enabled_sections)) {
@@ -457,7 +450,58 @@ class MaterialController extends Controller
         }
 
         // 2) Datos del material
-        $material = Material::with(['category', 'materialType'])->find($id);
+        $material = Material::with([
+            'category',
+            'materialType',
+            'variants.talla',
+            'variants.color',
+            'variants.stockItem',
+            'stockItems'
+        ])->findOrFail($id);
+
+        $tieneVariantes = $material->variants->isNotEmpty();
+
+        $variantesEdit = [];
+
+        if ($tieneVariantes) {
+            $variantesEdit = $material->variants->map(function ($variant) {
+                $stockItem = $variant->stockItem;
+
+                return [
+                    'variant_id'         => $variant->id,
+                    'talla_id'           => $variant->quality_id,
+                    'talla_text'         => optional($variant->talla)->name,
+                    'talla_short_name'   => optional($variant->talla)->short_name,
+                    'color_id'           => $variant->color_id,
+                    'color_text'         => optional($variant->color)->name,
+                    'color_short_name'   => optional($variant->color)->short_name,
+                    'attribute_summary'  => $variant->attribute_summary,
+                    'image'              => $variant->image,
+                    'is_active'          => (int) $variant->is_active,
+                    'sku'                => optional($stockItem)->sku,
+                    'barcode'            => optional($stockItem)->barcode,
+                    'display_name'       => optional($stockItem)->display_name,
+                ];
+            })->values()->toArray();
+        } else {
+            $stockItem = $material->stockItems->first();
+
+            $variantesEdit = [[
+                'variant_id'         => null,
+                'talla_id'           => $material->quality_id,
+                'talla_text'         => optional($tallas->firstWhere('id', $material->quality_id))->name,
+                'talla_short_name'   => optional($tallas->firstWhere('id', $material->quality_id))->short_name,
+                'color_id'           => null,
+                'color_text'         => null,
+                'color_short_name'   => null,
+                'attribute_summary'  => null,
+                'image'              => $material->image,
+                'is_active'          => 1,
+                'sku'                => optional($stockItem)->sku,
+                'barcode'            => optional($stockItem)->barcode,
+                'display_name'       => optional($stockItem)->display_name,
+            ]];
+        }
 
         $specifications = Specification::where('material_id', $id)->get();
 
@@ -469,6 +513,8 @@ class MaterialController extends Controller
         $unitMeasures = in_array('unit_measure', $enabled, true) ? UnitMeasure::orderBy('name', 'asc')->get() : collect();
         $generos = in_array('genero', $enabled, true) ? Genero::orderBy('description', 'asc')->get() : collect();
         $tallas = in_array('talla', $enabled, true) ? Talla::orderBy('name', 'asc')->get() : collect();
+
+        $colors = Color::orderBy('name', 'asc')->get();
 
         // 4) Dependientes para EDIT (para que venga preseleccionado)
         $examplers = collect();
@@ -533,11 +579,213 @@ class MaterialController extends Controller
             'materialTypes',
             'material',
             'examplers',
-            'subcategories'
+            'subcategories',
+            'colors',
+            'tieneVariantes',
+            'variantesEdit'
         ));
     }
 
-    public function update(UpdateMaterialRequest $request)
+    public function edit($id)
+    {
+        // 1) Configuración global
+        $setting = MaterialDetailSetting::first();
+        $enabled = [];
+        if ($setting && is_array($setting->enabled_sections)) {
+            $enabled = $setting->enabled_sections;
+        }
+
+        // 2) Datos del material
+        $material = Material::with([
+            'category',
+            'materialType',
+            'variants.talla',
+            'variants.color',
+            'variants.stockItem.inventoryLevels.warehouse',
+            'stockItems.inventoryLevels.warehouse',
+        ])->findOrFail($id);
+
+        $specifications = Specification::where('material_id', $id)->get();
+        $materialTypes = MaterialType::all();
+
+        // 3) Listas condicionales
+        $brands = in_array('brand', $enabled, true)
+            ? Brand::orderBy('name', 'asc')->get()
+            : collect();
+
+        $categories = in_array('category', $enabled, true)
+            ? Category::orderBy('name', 'asc')->get()
+            : collect();
+
+        $unitMeasures = in_array('unit_measure', $enabled, true)
+            ? UnitMeasure::orderBy('name', 'asc')->get()
+            : collect();
+
+        $generos = in_array('genero', $enabled, true)
+            ? Genero::orderBy('description', 'asc')->get()
+            : collect();
+
+        $tallas = in_array('talla', $enabled, true)
+            ? Talla::orderBy('name', 'asc')->get()
+            : collect();
+
+        $colors = Color::orderBy('name', 'asc')->get();
+
+        // 4) Dependientes para EDIT
+        $examplers = collect();
+        if (in_array('exampler', $enabled, true)) {
+            $brandId = null;
+
+            if ($material) {
+                if (isset($material->brand_id)) {
+                    $brandId = $material->brand_id;
+                } elseif (isset($material->brand)) {
+                    $brandId = $material->brand;
+                }
+            }
+
+            if (!empty($brandId)) {
+                $examplers = Exampler::where('brand_id', $brandId)
+                    ->orderBy('name', 'asc')
+                    ->get();
+            }
+        }
+
+        $subcategories = collect();
+        if (in_array('subcategory', $enabled, true)) {
+            $categoryId = null;
+
+            if ($material) {
+                if (isset($material->category_id)) {
+                    $categoryId = $material->category_id;
+                } elseif (isset($material->category)) {
+                    $categoryId = $material->category;
+                }
+            }
+
+            if (!empty($categoryId)) {
+                $subcategories = Subcategory::where('category_id', $categoryId)
+                    ->orderBy('name', 'asc')
+                    ->get();
+            }
+        }
+
+        // 5) Otras listas
+        $typescraps = Typescrap::all();
+        $warrants = Warrant::all();
+        $qualities = Quality::all();
+        $tipoVentas = TipoVenta::all();
+        $discountQuantities = DiscountQuantity::all();
+
+        $warehousesActivos = Warehouse::where('is_default', true)->get();
+
+        $materialsDiscounts = MaterialDiscountQuantity::where('material_id', $id)
+            ->get()
+            ->keyBy('discount_quantity_id')
+            ->map(function ($item) {
+                return $item->percentage;
+            })
+            ->toArray();
+
+        // 6) Detectar si tiene variantes
+        $tieneVariantes = $material->variants->isNotEmpty();
+
+        // 7) Preparar datos para edición
+        $variantesEdit = [];
+
+        if ($tieneVariantes) {
+            $variantesEdit = $material->variants->map(function ($variant) {
+                $stockItem = $variant->stockItem;
+
+                return [
+                    'variant_id'        => $variant->id,
+                    'talla_id'          => $variant->quality_id,
+                    'talla_text'        => optional($variant->talla)->name,
+                    'talla_short_name'  => optional($variant->talla)->short_name,
+                    'color_id'          => $variant->color_id,
+                    'color_text'        => optional($variant->color)->name,
+                    'color_short_name'  => optional($variant->color)->short_name,
+                    'attribute_summary' => $variant->attribute_summary,
+                    'image'             => $variant->image,
+                    'is_active'         => (int) $variant->is_active,
+                    'tracks_inventory'  => optional($stockItem)->tracks_inventory,
+                    'sku'               => optional($stockItem)->sku,
+                    'barcode'           => optional($stockItem)->barcode,
+                    'display_name'      => optional($stockItem)->display_name,
+                    'inventory_levels'  => $this->mapInventoryLevels($stockItem),
+                ];
+            })->values()->toArray();
+        } else {
+            $stockItem = $material->stockItems->first();
+            $talla = $tallas->firstWhere('id', $material->quality_id);
+
+            $variantesEdit = [[
+                'variant_id'        => null,
+                'talla_id'          => $material->quality_id,
+                'talla_text'        => optional($talla)->name,
+                'talla_short_name'  => optional($talla)->short_name,
+                'color_id'          => null,
+                'color_text'        => null,
+                'color_short_name'  => null,
+                'attribute_summary' => null,
+                'image'             => $material->image,
+                'stock_item_id'     => optional($stockItem)->id,
+                'is_active'         => optional($stockItem)->is_active,
+                'tracks_inventory'  => optional($stockItem)->tracks_inventory,
+                'sku'               => optional($stockItem)->sku,
+                'barcode'           => optional($stockItem)->barcode,
+                'display_name'      => optional($stockItem)->display_name,
+                'inventory_levels'  => $this->mapInventoryLevels($stockItem),
+            ]];
+        }
+
+        return view('material.edit', compact(
+            'enabled',
+            'materialsDiscounts',
+            'discountQuantities',
+            'generos',
+            'tallas',
+            'tipoVentas',
+            'unitMeasures',
+            'typescraps',
+            'qualities',
+            'warrants',
+            'specifications',
+            'brands',
+            'categories',
+            'materialTypes',
+            'material',
+            'examplers',
+            'subcategories',
+            'colors',
+            'tieneVariantes',
+            'variantesEdit',
+            'warehousesActivos'
+        ));
+    }
+
+    private function mapInventoryLevels($stockItem)
+    {
+        if (!$stockItem) {
+            return [];
+        }
+
+        return $stockItem->inventoryLevels->map(function ($level) {
+            return [
+                'inventory_level_id' => $level->id,
+                'warehouse_id'       => $level->warehouse_id,
+                'warehouse_name'     => optional($level->warehouse)->name,
+                'qty_on_hand'        => (float) $level->qty_on_hand,
+                'qty_reserved'       => (float) $level->qty_reserved,
+                'min_alert'          => (float) $level->min_alert,
+                'max_alert'          => (float) $level->max_alert,
+                'average_cost'       => (float) $level->average_cost,
+                'last_cost'          => (float) $level->last_cost,
+            ];
+        })->values()->toArray();
+    }
+
+    public function updateO(UpdateMaterialRequest $request)
     {
         //dd($request->get('typescrap'));
         $validated = $request->validated();
@@ -642,6 +890,672 @@ class MaterialController extends Controller
 
         return response()->json(['message' => 'Cambios guardados con éxito.'], 200);
 
+    }
+
+    public function update2(UpdateMaterialRequest $request)
+    {
+        dd($request);
+        DB::beginTransaction();
+
+        try {
+            $material = Material::with([
+                'variants.stockItem.inventoryLevel',
+                'stockItems.inventoryLevel'
+            ])->findOrFail($request->input('material_id'));
+
+            // 0 = sin variantes | 1 = con variantes
+            $tipoVariantes = (int) $request->input('tipo_variantes', 0);
+
+            $variantes = json_decode($request->input('variantes_json', '[]'), true);
+
+            if (!is_array($variantes)) {
+                throw new \Exception('El formato de variantes_json es inválido.');
+            }
+
+            if (count($variantes) === 0) {
+                throw new \Exception('Debe enviar al menos un registro de variante.');
+            }
+
+            $oldTypescrapId = $material->typescrap_id;
+            $oldUnitPrice = $material->unit_price;
+
+            // =========================
+            // 1. ACTUALIZAR MATERIAL PADRE
+            // =========================
+            $material->full_name = $request->input('name');
+            $material->description = $request->input('description');
+            $material->unit_measure_id = $request->input('unit_measure');
+            $material->unit_price = $request->input('unit_price', 0);
+            $material->category_id = $request->input('category');
+            $material->subcategory_id = $request->input('subcategory');
+            $material->brand_id = $request->input('brand');
+            $material->exampler_id = $request->input('exampler');
+            $material->typescrap_id = $request->input('typescrap');
+            $material->warrant_id = $request->input('genero');
+            $material->tipo_venta_id = $request->input('tipo_venta');
+            $material->perecible = $request->input('perecible');
+            $material->type_tax_id = $request->input('type_tax_id');
+            $material->list_price = (float) $request->input('unit_price', 0);
+
+            // defaults; luego se ajustan si es sin variantes
+            if ($tipoVariantes === 1) {
+                $material->quality_id = null;
+                $material->codigo = null;
+                $material->stock_min = 0;
+                $material->stock_max = 0;
+                $material->isPack = 0;
+                $material->quantityPack = 0;
+            }
+
+            $material->save();
+
+            // =========================
+            // 2. IMAGEN PADRE
+            // =========================
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $filename = $material->id . '.' . $image->getClientOriginalExtension();
+                $path = public_path('images/material/' . $filename);
+
+                Image::make($image)->save($path);
+
+                $material->image = $filename;
+                $material->save();
+            } elseif (!$material->image) {
+                $material->image = 'no_image.png';
+                $material->save();
+            }
+
+            // =========================
+            // 3. REGLAS ESPECIALES
+            // =========================
+            if ($oldTypescrapId != $material->typescrap_id && $request->input('typescrap')) {
+                $typeScrap = Typescrap::find($request->input('typescrap'));
+                $items = Item::where('material_id', $material->id)
+                    ->whereIn('state_item', ['entered', 'exited'])
+                    ->get();
+
+                foreach ($items as $item) {
+                    $item->length = (float) $typeScrap->length;
+                    $item->width = (float) $typeScrap->width;
+                    $item->typescrap_id = $typeScrap->id;
+                    $item->save();
+                }
+            }
+
+            if ((float)$oldUnitPrice !== (float)$material->unit_price) {
+                $material->date_update_price = Carbon::now("America/Lima");
+                $material->state_update_price = 1;
+                $material->save();
+            }
+
+            // =========================
+            // 4. ACTUALIZAR SEGÚN TIPO
+            // =========================
+            if ($tipoVariantes === 1) {
+                // CON VARIANTES
+                $existingVariants = $material->variants->keyBy('id');
+                $processedVariantIds = [];
+
+                foreach ($variantes as $index => $item) {
+                    $variantId       = $item['variant_id'] ?? null;
+                    $tallaId         = $item['talla_id'] ?? null;
+                    $colorId         = $item['color_id'] ?? null;
+                    $sku             = trim($item['sku'] ?? '');
+                    $barcode         = trim($item['codigo_barras'] ?? '');
+                    $stockMinimo     = ($item['stock_minimo'] ?? '') !== '' ? (float) $item['stock_minimo'] : 0;
+                    $stockMaximo     = ($item['stock_maximo'] ?? '') !== '' ? (float) $item['stock_maximo'] : 0;
+                    $isActive        = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                    $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
+                    $imageKey        = $item['image_key'] ?? null;
+
+                    if ($sku === '') {
+                        throw new \Exception('Una de las variantes no tiene SKU.');
+                    }
+
+                    $talla = $tallaId ? Quality::find($tallaId) : null;
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                    $colorTexto = $color ? $color->name : '';
+
+                    $attributeSummary = collect([$tallaTexto, $colorTexto])
+                        ->filter()
+                        ->implode(' / ');
+
+                    $displayName = trim(
+                        $material->full_name . ' - ' .
+                        collect([$tallaTexto, $colorTexto])->filter()->implode(' - ')
+                    );
+
+                    // Crear o actualizar variant
+                    if ($variantId && $existingVariants->has($variantId)) {
+                        $variant = $existingVariants->get($variantId);
+                    } else {
+                        $variant = new Variant();
+                        $variant->material_id = $material->id;
+                    }
+
+                    $variant->quality_id = $tallaId;
+                    $variant->color_id = $colorId;
+                    $variant->attribute_summary = $attributeSummary;
+                    $variant->is_active = $isActive;
+
+                    if ($imageKey && $request->hasFile($imageKey)) {
+                        $variantImage = $request->file($imageKey);
+                        $variantImageName = 'variant_' . $material->id . '_' . uniqid() . '.' . $variantImage->getClientOriginalExtension();
+                        $variantPath = public_path('images/material/variants/' . $variantImageName);
+
+                        Image::make($variantImage)->save($variantPath);
+
+                        $variant->image = $variantImageName;
+                    }
+
+                    $variant->save();
+                    $processedVariantIds[] = $variant->id;
+
+                    // Stock item de la variante
+                    $stockItem = StockItem::firstOrNew([
+                        'material_id' => $material->id,
+                        'variant_id'  => $variant->id,
+                    ]);
+
+                    $stockItem->sku = $sku;
+                    $stockItem->barcode = $barcode !== '' ? $barcode : null;
+                    $stockItem->display_name = $displayName;
+                    $stockItem->unit_measure_id = $material->unit_measure_id;
+                    $stockItem->tracks_inventory = $tracksInventory;
+                    $stockItem->is_active = $isActive;
+                    $stockItem->save();
+
+                    // Inventory level
+                    $inventoryLevel = InventoryLevel::firstOrNew([
+                        'stock_item_id' => $stockItem->id,
+                    ]);
+
+                    if (!$inventoryLevel->exists) {
+                        $inventoryLevel->location_id = null;
+                        $inventoryLevel->qty_on_hand = 0;
+                        $inventoryLevel->qty_reserved = 0;
+                        $inventoryLevel->average_cost = 0;
+                        $inventoryLevel->last_cost = 0;
+                    }
+
+                    $inventoryLevel->min_alert = $stockMinimo;
+                    $inventoryLevel->max_alert = $stockMaximo;
+                    $inventoryLevel->save();
+                }
+
+                // Eliminar variantes removidas del formulario
+                $variantsToDelete = Variant::where('material_id', $material->id)
+                    ->whereNotIn('id', $processedVariantIds)
+                    ->get();
+
+                foreach ($variantsToDelete as $variantToDelete) {
+                    $stockItem = StockItem::where('material_id', $material->id)
+                        ->where('variant_id', $variantToDelete->id)
+                        ->first();
+
+                    if ($stockItem) {
+                        InventoryLevel::where('stock_item_id', $stockItem->id)->delete();
+                        $stockItem->delete();
+                    }
+
+                    $variantToDelete->delete();
+                }
+
+                // Por seguridad, si hubiera quedado algún stockItem sin variant_id en un material con variantes
+                StockItem::where('material_id', $material->id)
+                    ->whereNull('variant_id')
+                    ->delete();
+            } else {
+                // SIN VARIANTES
+                $item = $variantes[0];
+
+                $tallaId         = $item['talla_id'] ?? null;
+                $colorId         = $item['color_id'] ?? null;
+                $sku             = trim($item['sku'] ?? '');
+                $barcode         = trim($item['codigo_barras'] ?? '');
+                $stockMinimo     = ($item['stock_minimo'] ?? '') !== '' ? (float) $item['stock_minimo'] : 0;
+                $stockMaximo     = ($item['stock_maximo'] ?? '') !== '' ? (float) $item['stock_maximo'] : 0;
+                $isActive        = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
+                $isPack          = isset($item['pack']) ? (int) $item['pack'] : 0;
+                $cantidadPack    = isset($item['cantidad_pack']) ? (float) $item['cantidad_pack'] : 1;
+
+                $displayName = $material->full_name;
+
+                if ($tallaId || $colorId) {
+                    $talla = $tallaId ? Quality::find($tallaId) : null;
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                    $colorTexto = $color ? $color->name : '';
+
+                    $extra = collect([$tallaTexto, $colorTexto])->filter()->implode('-');
+
+                    if ($extra !== '') {
+                        $displayName = trim($material->full_name . '-' . $extra);
+                    }
+                }
+
+                $material->quality_id = $tallaId;
+                $material->codigo = $barcode !== '' ? $barcode : null;
+                $material->stock_min = $stockMinimo;
+                $material->stock_max = $stockMaximo;
+                $material->isPack = $isPack;
+                $material->quantityPack = $isPack ? $cantidadPack : 0;
+                $material->save();
+
+                $stockItem = StockItem::firstOrNew([
+                    'material_id' => $material->id,
+                    'variant_id'  => null,
+                ]);
+
+                $stockItem->sku = $sku;
+                $stockItem->barcode = $barcode !== '' ? $barcode : null;
+                $stockItem->display_name = $displayName;
+                $stockItem->unit_measure_id = $material->unit_measure_id;
+                $stockItem->tracks_inventory = $tracksInventory;
+                $stockItem->is_active = $isActive;
+                $stockItem->save();
+
+                $inventoryLevel = InventoryLevel::firstOrNew([
+                    'stock_item_id' => $stockItem->id,
+                ]);
+
+                if (!$inventoryLevel->exists) {
+                    $inventoryLevel->location_id = null;
+                    $inventoryLevel->qty_on_hand = 0;
+                    $inventoryLevel->qty_reserved = 0;
+                    $inventoryLevel->average_cost = 0;
+                    $inventoryLevel->last_cost = 0;
+                }
+
+                $inventoryLevel->min_alert = $stockMinimo;
+                $inventoryLevel->max_alert = $stockMaximo;
+                $inventoryLevel->save();
+
+                // Eliminar cualquier variante previa por seguridad
+                $variantsToDelete = Variant::where('material_id', $material->id)->get();
+                foreach ($variantsToDelete as $variantToDelete) {
+                    $stockItemVariant = StockItem::where('material_id', $material->id)
+                        ->where('variant_id', $variantToDelete->id)
+                        ->first();
+
+                    if ($stockItemVariant) {
+                        InventoryLevel::where('stock_item_id', $stockItemVariant->id)->delete();
+                        $stockItemVariant->delete();
+                    }
+
+                    $variantToDelete->delete();
+                }
+            }
+
+            // =========================
+            // 5. PROMOCIONES
+            // =========================
+            MaterialDiscountQuantity::where('material_id', $material->id)->delete();
+
+            $discounts = $request->input('discount', []);
+            $percentages = $request->input('percentage', []);
+
+            foreach ($discounts as $discountId => $value) {
+                if (isset($value)) {
+                    $percentage = $percentages[$discountId] ?? null;
+
+                    MaterialDiscountQuantity::create([
+                        'material_id' => $material->id,
+                        'discount_quantity_id' => $discountId,
+                        'percentage' => $percentage
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Cambios guardados con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    public function update(UpdateMaterialRequest $request)
+    {
+        //dd($request);
+        DB::beginTransaction();
+
+        try {
+            $material = Material::with([
+                'variants.stockItem.inventoryLevels',
+                'stockItems.inventoryLevels',
+            ])->findOrFail($request->input('material_id'));
+
+            // 0 = sin variantes | 1 = con variantes
+            $tipoVariantes = (int) $request->input('tipo_variantes', 0);
+
+            $variantes = json_decode($request->input('variantes_json', '[]'), true);
+
+            if (!is_array($variantes)) {
+                throw new \Exception('El formato de variantes_json es inválido.');
+            }
+
+            if (count($variantes) === 0) {
+                throw new \Exception('Debe enviar al menos un registro de variante.');
+            }
+
+            $oldTypescrapId = $material->typescrap_id;
+            $oldUnitPrice = $material->unit_price;
+
+            // =========================
+            // 1. ACTUALIZAR MATERIAL PADRE
+            // =========================
+            $material->full_name = $request->input('name');
+            $material->description = $request->input('description');
+            $material->unit_measure_id = $request->input('unit_measure');
+            $material->unit_price = $request->input('unit_price', 0);
+            $material->category_id = $request->input('category');
+            $material->subcategory_id = $request->input('subcategory');
+            $material->brand_id = $request->input('brand');
+            $material->exampler_id = $request->input('exampler');
+            $material->typescrap_id = $request->input('typescrap');
+            $material->warrant_id = $request->input('genero');
+            $material->tipo_venta_id = $request->input('tipo_venta');
+            $material->perecible = $request->input('perecible');
+            $material->type_tax_id = $request->input('type_tax_id');
+            $material->list_price = (float) $request->input('unit_price', 0);
+
+            // defaults; luego se ajustan si es sin variantes
+            if ($tipoVariantes === 1) {
+                $material->quality_id = null;
+                $material->codigo = null;
+                $material->stock_min = 0;
+                $material->stock_max = 0;
+                $material->isPack = 0;
+                $material->quantityPack = 0;
+            }
+
+            $material->save();
+
+            // =========================
+            // 2. IMAGEN PADRE
+            // =========================
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $filename = $material->id . '.' . $image->getClientOriginalExtension();
+                $path = public_path('images/material/' . $filename);
+
+                Image::make($image)->save($path);
+
+                $material->image = $filename;
+                $material->save();
+            } elseif (!$material->image) {
+                $material->image = 'no_image.png';
+                $material->save();
+            }
+
+            // =========================
+            // 3. REGLAS ESPECIALES
+            // =========================
+            if ($oldTypescrapId != $material->typescrap_id && $request->input('typescrap')) {
+                $typeScrap = Typescrap::find($request->input('typescrap'));
+
+                $items = Item::where('material_id', $material->id)
+                    ->whereIn('state_item', ['entered', 'exited'])
+                    ->get();
+
+                foreach ($items as $item) {
+                    $item->length = (float) $typeScrap->length;
+                    $item->width = (float) $typeScrap->width;
+                    $item->typescrap_id = $typeScrap->id;
+                    $item->save();
+                }
+            }
+
+            if ((float) $oldUnitPrice !== (float) $material->unit_price) {
+                $material->date_update_price = Carbon::now('America/Lima');
+                $material->state_update_price = 1;
+                $material->save();
+            }
+
+            // =========================
+            // 4. ACTUALIZAR SEGÚN TIPO
+            // =========================
+            if ($tipoVariantes === 1) {
+                // CON VARIANTES
+                $existingVariants = $material->variants->keyBy('id');
+
+                foreach ($variantes as $index => $item) {
+                    $variantId       = $item['variant_id'] ?? null;
+                    $tallaId         = $item['talla_id'] ?? null;
+                    $colorId         = $item['color_id'] ?? null;
+                    $sku             = trim($item['sku'] ?? '');
+                    $barcode         = trim($item['codigo_barras'] ?? '');
+                    $isActive        = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                    $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
+                    $imageKey        = $item['image_key'] ?? null;
+                    $inventoryLevels = $item['inventory_levels'] ?? [];
+
+                    if ($sku === '') {
+                        throw new \Exception('Una de las variantes no tiene SKU.');
+                    }
+
+                    $talla = $tallaId ? Quality::find($tallaId) : null;
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                    $colorTexto = $color ? $color->name : '';
+
+                    $attributeSummary = collect([$tallaTexto, $colorTexto])
+                        ->filter()
+                        ->implode(' / ');
+
+                    $displayName = trim(
+                        $material->full_name . ' - ' .
+                        collect([$tallaTexto, $colorTexto])->filter()->implode(' - ')
+                    );
+
+                    // Crear o actualizar variant
+                    if ($variantId && $existingVariants->has($variantId)) {
+                        $variant = $existingVariants->get($variantId);
+                    } else {
+                        $variant = new Variant();
+                        $variant->material_id = $material->id;
+                    }
+
+                    $variant->quality_id = $tallaId;
+                    $variant->color_id = $colorId;
+                    $variant->attribute_summary = $attributeSummary;
+                    $variant->is_active = $isActive;
+
+                    if ($imageKey && $request->hasFile($imageKey)) {
+                        $variantImage = $request->file($imageKey);
+                        $variantImageName = 'variant_' . $material->id . '_' . uniqid() . '.' . $variantImage->getClientOriginalExtension();
+                        $variantPath = public_path('images/material/variants/' . $variantImageName);
+
+                        Image::make($variantImage)->save($variantPath);
+
+                        $variant->image = $variantImageName;
+                    }
+
+                    $variant->save();
+
+                    // Stock item de la variante
+                    $stockItem = StockItem::firstOrNew([
+                        'material_id' => $material->id,
+                        'variant_id'  => $variant->id,
+                    ]);
+
+                    $stockItem->sku = $sku;
+                    $stockItem->barcode = $barcode !== '' ? $barcode : null;
+                    $stockItem->display_name = $displayName;
+                    $stockItem->unit_measure_id = $material->unit_measure_id;
+                    $stockItem->tracks_inventory = $tracksInventory;
+                    $stockItem->is_active = $isActive;
+                    $stockItem->save();
+
+                    // Inventory levels por almacén/ubicación
+                    $this->syncInventoryLevels($stockItem, $inventoryLevels);
+                }
+
+                // IMPORTANTE:
+                // Ya no borramos variantes removidas.
+                // Si una variante no vino en el request, simplemente no la tocamos.
+                // Si quieres desactivarla, debe venir con is_active = 0.
+            } else {
+                // SIN VARIANTES
+                $item = $variantes[0];
+
+                $tallaId         = $item['talla_id'] ?? null;
+                $colorId         = $item['color_id'] ?? null;
+                $stockItemId     = $item['stock_item_id'] ?? null;
+                $sku             = trim($item['sku'] ?? '');
+                $barcode         = trim($item['codigo_barras'] ?? '');
+                $isActive        = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+                $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
+                $isPack          = isset($item['pack']) ? (int) $item['pack'] : 0;
+                $cantidadPack    = isset($item['cantidad_pack']) ? (float) $item['cantidad_pack'] : 1;
+                $inventoryLevels = $item['inventory_levels'] ?? [];
+
+                $displayName = $material->full_name;
+
+                if ($tallaId || $colorId) {
+                    $talla = $tallaId ? Quality::find($tallaId) : null;
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    $tallaTexto = $talla ? ($talla->short_name ?: $talla->name) : '';
+                    $colorTexto = $color ? $color->name : '';
+
+                    $extra = collect([$tallaTexto, $colorTexto])->filter()->implode('-');
+
+                    if ($extra !== '') {
+                        $displayName = trim($material->full_name . '-' . $extra);
+                    }
+                }
+
+                // Compatibilidad con tu estructura actual
+                $material->quality_id = $tallaId;
+                $material->codigo = $barcode !== '' ? $barcode : null;
+                $material->stock_min = 0;
+                $material->stock_max = 0;
+                $material->isPack = $isPack;
+                $material->quantityPack = $isPack ? $cantidadPack : 0;
+                $material->save();
+
+                if ($stockItemId) {
+                    $stockItem = StockItem::where('material_id', $material->id)
+                        ->where('id', $stockItemId)
+                        ->first();
+                } else {
+                    $stockItem = null;
+                }
+
+                if (!$stockItem) {
+                    $stockItem = StockItem::firstOrNew([
+                        'material_id' => $material->id,
+                        'variant_id'  => null,
+                    ]);
+                }
+
+                $stockItem->sku = $sku;
+                $stockItem->barcode = $barcode !== '' ? $barcode : null;
+                $stockItem->display_name = $displayName;
+                $stockItem->unit_measure_id = $material->unit_measure_id;
+                $stockItem->tracks_inventory = $tracksInventory;
+                $stockItem->is_active = $isActive;
+                $stockItem->save();
+
+                $this->syncInventoryLevels($stockItem, $inventoryLevels);
+
+                // IMPORTANTE:
+                // Tampoco borramos variantes previas automáticamente.
+                // Si venías de un producto con variantes y quieres dejarlo "simple",
+                // la recomendación es desactivar esas variantes/stock_items en un flujo controlado.
+            }
+
+            // =========================
+            // 5. PROMOCIONES
+            // =========================
+            MaterialDiscountQuantity::where('material_id', $material->id)->delete();
+
+            $discounts = $request->input('discount', []);
+            $percentages = $request->input('percentage', []);
+
+            foreach ($discounts as $discountId => $value) {
+                if (isset($value)) {
+                    $percentage = $percentages[$discountId] ?? null;
+
+                    MaterialDiscountQuantity::create([
+                        'material_id' => $material->id,
+                        'discount_quantity_id' => $discountId,
+                        'percentage' => $percentage,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Cambios guardados con éxito.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    private function syncInventoryLevels(StockItem $stockItem, array $inventoryLevelsData = [])
+    {
+        foreach ($inventoryLevelsData as $levelData) {
+            $inventoryLevelId = $levelData['id'] ?? null;
+            $warehouseId = $levelData['warehouse_id'] ?? null;
+            $minAlert = ($levelData['min_alert'] ?? '') !== '' ? (float) $levelData['min_alert'] : 0;
+            $maxAlert = ($levelData['max_alert'] ?? '') !== '' ? (float) $levelData['max_alert'] : 0;
+
+            if (!$warehouseId) {
+                continue;
+            }
+
+            $inventoryLevel = null;
+
+            if ($inventoryLevelId) {
+                $inventoryLevel = InventoryLevel::where('stock_item_id', $stockItem->id)
+                    ->where('id', $inventoryLevelId)
+                    ->first();
+            }
+
+            if (!$inventoryLevel) {
+                $inventoryLevel = InventoryLevel::firstOrNew([
+                    'stock_item_id' => $stockItem->id,
+                    'warehouse_id'  => $warehouseId,
+                ]);
+
+                if (!$inventoryLevel->exists) {
+                    $inventoryLevel->qty_on_hand = 0;
+                    $inventoryLevel->qty_reserved = 0;
+                    $inventoryLevel->average_cost = 0;
+                    $inventoryLevel->last_cost = 0;
+
+                    // si aún usas location_id en vez de warehouse_id, ajusta aquí
+                    // $inventoryLevel->location_id = null;
+                }
+            }
+
+            $inventoryLevel->min_alert = $minAlert;
+            $inventoryLevel->max_alert = $maxAlert;
+            $inventoryLevel->save();
+        }
     }
 
     public function destroy(DeleteMaterialRequest $request)
@@ -778,6 +1692,8 @@ class MaterialController extends Controller
                 $rotacion = '<span class="badge bg-danger text-md">BAJA</span>';
             }
 
+            $variants = Variant::where('material_id', $material->id)->count();
+
             array_push($array, [
                 "id" => $material->id,
                 "codigo" => $material->code,
@@ -802,7 +1718,8 @@ class MaterialController extends Controller
                 "image" => ($material->image == null || $material->image == "" ) ? 'no_image.png':$material->image,
                 "rotation" => $rotacion,
                 "update_price" => $material->state_update_price,
-                "isPack" => $material->isPack
+                "isPack" => $material->isPack,
+                "has_variants" => ($variants > 0) ? 1:0
             ]);
         }
 
@@ -1247,6 +2164,27 @@ class MaterialController extends Controller
             $material = Material::find($request->get('material_id'));
             $material->enable_status = 0;
             $material->save();
+
+            $variants = Variant::where('material_id', $material->id)->get();
+            if (isset( $variants ))
+            {
+                foreach ( $variants as $variant )
+                {
+                    $variant->is_active = false;
+                    $variant->save();
+                }
+            }
+
+            $stockItems = StockItem::where('material_id', $material->id)->get();
+            if (isset( $stockItems ))
+            {
+                foreach ( $stockItems as $stockItem )
+                {
+                    $stockItem->is_active = false;
+                    $stockItem->save();
+                }
+            }
+
             DB::commit();
 
         } catch ( \Throwable $e ) {

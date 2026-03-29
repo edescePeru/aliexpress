@@ -1095,6 +1095,7 @@
                                         <p>Listar materiales Almacen</p>
                                     </a>
                                 </li>
+
                                 @endcan
                                 {{--@can('listActive_material')
                                     <li class="nav-item">
@@ -1104,6 +1105,12 @@
                                         </a>
                                     </li>
                                 @endcan--}}
+                                    <li class="nav-item">
+                                        <a href="{{route('stockitems.index')}}" class="nav-link @yield('activeListStockItems')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Listar stocks items</p>
+                                        </a>
+                                    </li>
                                 @can('create_material')
                                 <li class="nav-item">
                                     <a href="{{ route('material.create') }}" class="nav-link @yield('activeCreateMaterial')">

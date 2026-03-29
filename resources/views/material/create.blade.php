@@ -215,12 +215,13 @@
                         <div class="form-group">
                             <label for="name">Nombre completo</label>
                             <div class="input-group mb-3">
-                                <input type="text" class="form-control rounded-0" id="name" {{--onkeyup="mayus(this);"--}} name="name" readonly>
+                                <input type="text" class="form-control rounded-0" id="name" onkeyup="mayus(this);" name="name" >
                                 <span class="input-group-append">
                                     <button type="button" class="btn btn-info btn-flat" id="btn-generate"> <i class="fa fa-redo"></i> Actualizar</button>
                                 </span>
                             </div>
                         </div>
+
                         <div class="form-group row">
                             <div class="col-md-8">
                                 <label for="image">Imagen del material</label>
@@ -239,19 +240,20 @@
                                         <label for="con_variantes">Con Variantes</label>
                                     </div>
 
-                                    <div class="icheck-danger">
+                                    {{--<div class="icheck-danger">
                                         <input type="checkbox" id="afecto_inventario" name="afecto_inventario" checked>
                                         <label for="afecto_inventario">¿Afecto a inventario?</label>
-                                    </div>
+                                    </div>--}}
                                 </div>
                             </div>
                         </div>
 
                         {{--SECCION SIN VARIANES--}}
+
                         <div id="seccion_sin_variantes">
                             <div class="form-group row">
 
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label for="sku_sin_variantes">SKU</label>
                                     <input type="text" id="sku_sin_variantes" name="sku_sin_variantes" class="form-control">
                                 </div>
@@ -275,6 +277,21 @@
                                             <input type="number" class="form-control form-control-sm d-inline ml-2" style="width: 50px;" id="inputPack" name="inputPack" value="1" min="0">
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="col-md-1">
+                                    <label for="afecto_inventario_sin_variantes">Inentariable </label><br>
+                                    <input type="checkbox"
+                                           name="afecto_inventario_sin_variantes"
+                                           id="afecto_inventario_sin_variantes"
+                                           data-tracks_inventory_sin_variantes
+                                           data-bootstrap-switch
+                                           data-size="normal"
+                                           data-off-color="danger"
+                                           data-on-text="SI"
+                                           data-off-text="NO"
+                                           data-on-color="success"
+                                           checked>
                                 </div>
 
                                 <div class="col-md-2">
@@ -356,56 +373,7 @@
                                 <button type="button" id="btn-generate_variantes" class="btn btn-success btn-block">Generar variantes</button>
                             </div>
 
-                            {{--<div class="col-md-3">
-                                <label for="sku_con_variantes">SKU</label>
-                                <input type="text" id="sku_con_variantes" name="sku_con_variantes" class="form-control">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label for="codigo_con_variantes">Código barras </label>
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control rounded-0" id="codigo_con_variantes" name="codigo_con_variantes">
-                                    <span class="input-group-append">
-                                    <button type="button" class="btn btn-info btn-flat btn-generateCode" id="btn-generateCodeConVariantes"> <i class="fas fa-random"></i></button>
-                                </span>
-                                </div>
-                            </div>--}}
                         </div>
-                        {{--<div class="form-group row">
-
-                            <div class="col-md-2">
-                                <label for="stock_min_con_variantes">Stock Mínimo <span class="right badge badge-danger">(*)</span></label>
-                                <input type="number" id="stock_min_con_variantes" name="stock_min_con_variantes" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            ">
-                            </div>
-
-                            <div class="col-md-2">
-                                <label for="stock_max_con_variantes">Stock Máximo <span class="right badge badge-danger">(*)</span></label>
-                                <input type="number" id="stock_max_con_variantes" name="stock_max_con_variantes" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            ">
-                            </div>
-
-                            <div class="col-md-2">
-                                <label for="is_active">Activo</label><br>
-
-                                <input id="is_active"
-                                       type="checkbox"
-                                       name="is_active"
-                                       data-bootstrap-switch
-                                       data-size="large"
-                                       data-off-color="danger"
-                                       data-on-text="SI"
-                                       data-off-text="NO"
-                                       data-on-color="success"
-                                       checked>
-                            </div>
-
-                            <div class="col-md-2">
-                                <button type="button" id="btn-generate_variantes" class="btn btn-success btn-block">Generar variantes</button>
-                            </div>
-                        </div>--}}
                         <hr>
                         <div class="form-group row">
 
@@ -425,7 +393,7 @@
                                     <strong>SKU Sugerido</strong>
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-1">
                                 <div class="form-group">
                                     <strong>Código Barras</strong>
                                 </div>
@@ -438,6 +406,11 @@
                             <div class="col-md-1">
                                 <div class="form-group">
                                     <strong>Activo</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <strong>Inventariable</strong>
                                 </div>
                             </div>
                             <div class="col-md-1">
@@ -747,7 +720,7 @@
                 </div>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <div class="form-group">
                     <input type="text" class="form-control form-control-sm" data-codigo_barras>
                 </div>
@@ -770,6 +743,19 @@
                        data-on-color="success"
                        checked>
             </div>
+
+            <div class="col-md-1">
+                <input type="checkbox"
+                       data-afecto_inventario_variante
+                       data-bootstrap-switch
+                       data-size="normal"
+                       data-off-color="danger"
+                       data-on-text="SI"
+                       data-off-text="NO"
+                       data-on-color="success"
+                       checked>
+            </div>
+
             <div class="col-md-1">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm" data-stock_minimo min="0" step="0.01">

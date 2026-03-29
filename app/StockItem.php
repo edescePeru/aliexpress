@@ -16,4 +16,24 @@ class StockItem extends Model
         'tracks_inventory', // afecto_inventario como envia on o off el on significa true y el off false
         'is_active' // El is_active de cada variante
     ];
+
+    public function material()
+    {
+        return $this->belongsTo(Material::class, 'material_id');
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(Variant::class, 'variant_id');
+    }
+
+    public function unitMeasure()
+    {
+        return $this->belongsTo(UnitMeasure::class, 'unit_measure_id');
+    }
+
+    public function inventoryLevels()
+    {
+        return $this->hasMany(InventoryLevel::class, 'stock_item_id');
+    }
 }

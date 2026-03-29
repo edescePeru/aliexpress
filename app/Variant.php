@@ -14,4 +14,24 @@ class Variant extends Model
         'image',   // imagen de la variante
         'is_active'  // si es activo o no la variante
     ];
+
+    public function stockItem()
+    {
+        return $this->hasOne(StockItem::class, 'variant_id');
+    }
+
+    public function talla()
+    {
+        return $this->belongsTo(Talla::class, 'quality_id');
+    }
+
+    public function color()
+    {
+        return $this->belongsTo(Color::class, 'color_id');
+    }
+
+    public function material()
+    {
+        return $this->belongsTo(Material::class, 'material_id');
+    }
 }

@@ -1516,23 +1516,23 @@ function renderDataTable(data, activeColumns) {
         clone.querySelector("[data-descripcion]").innerHTML = data.descripcion;
     }
 
-    clone.querySelector("[data-medida]").innerHTML = data.medida;
+    /*clone.querySelector("[data-medida]").innerHTML = data.medida;*/
     clone.querySelector("[data-unidad_medida]").innerHTML = data.unidad_medida;
-    clone.querySelector("[data-stock_max]").innerHTML = data.stock_max;
-    clone.querySelector("[data-stock_min]").innerHTML = data.stock_min;
+    /*clone.querySelector("[data-stock_max]").innerHTML = data.stock_max;
+    clone.querySelector("[data-stock_min]").innerHTML = data.stock_min;*/
     clone.querySelector("[data-stock_actual]").innerHTML = data.stock_actual;
-    clone.querySelector("[data-prioridad]").innerHTML = data.prioridad;
+    /*clone.querySelector("[data-prioridad]").innerHTML = data.prioridad;*/
     clone.querySelector("[data-precio_unitario]").innerHTML = data.precio_unitario;
     clone.querySelector("[data-precio_lista]").innerHTML = data.precio_lista;
     clone.querySelector("[data-categoria]").innerHTML = data.categoria;
     clone.querySelector("[data-sub_categoria]").innerHTML = data.sub_categoria;
-    clone.querySelector("[data-tipo]").innerHTML = data.tipo;
+    /*clone.querySelector("[data-tipo]").innerHTML = data.tipo;
     clone.querySelector("[data-sub_tipo]").innerHTML = data.sub_tipo;
     clone.querySelector("[data-cedula]").innerHTML = data.cedula;
-    clone.querySelector("[data-calidad]").innerHTML = data.calidad;
+    clone.querySelector("[data-calidad]").innerHTML = data.calidad;*/
     clone.querySelector("[data-marca]").innerHTML = data.marca;
     clone.querySelector("[data-modelo]").innerHTML = data.modelo;
-    clone.querySelector("[data-retaceria]").innerHTML = data.retaceria;
+    /*clone.querySelector("[data-retaceria]").innerHTML = data.retaceria;*/
 
     let url_image = document.location.origin + '/images/material/' + data.image;
     clone.querySelector("[data-ver_imagen]").setAttribute("data-src", url_image);
@@ -1568,9 +1568,16 @@ function renderDataTable(data, activeColumns) {
     clone.querySelector("[data-precioDirecto]").setAttribute("data-material", data.id);
     clone.querySelector("[data-precioDirecto]").setAttribute("data-description", data.descripcion);
 
-
-    let url2 = document.location.origin + '/dashboard/view/material/items/' + data.id;
-    clone.querySelector("[data-ver_items]").setAttribute("href", url2);
+    if ( data.has_variants == 1 )
+    {
+        let url2 = document.location.origin + '/dashboard/view/material/variants/' + data.id;
+        clone.querySelector("[data-ver_variants]").setAttribute("href", url2);
+    } else {
+        let element = clone.querySelector("[data-ver_variants]");
+        if (element) {
+            element.style.display = 'none';
+        }
+    }
 
     clone.querySelector("[data-show_vencimiento]").setAttribute("data-material", data.id);
     clone.querySelector("[data-show_vencimiento]").setAttribute("data-description", data.descripcion);

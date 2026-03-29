@@ -3092,6 +3092,14 @@ Route::middleware('auth')->group(function (){
         Route::get('ubigeo/districts/select2', 'UbigeoController@districtsSelect2')->name('ubigeo.districts.select2');
 
         Route::get('/materials/select2', 'MaterialController@select2')->name('materials.select2');
+
+        Route::get('/stock-items/list', 'StockItemController@list')->name('stockitems.list');
+        Route::get('/stock-items', 'StockItemController@index')->name('stockitems.index');
+        Route::post('/stock-items/{id}/toggle-inventory', 'StockItemController@toggleInventory');
+        Route::post('/stock-items/{id}/toggle-active', 'StockItemController@toggleActive');
+        Route::get('/view/material/variants/{id}', 'StockItemController@viewMaterialVariants')->name('stockitems.view.variants');
+        Route::get('/view/material/all/variants/{id}', 'StockItemController@getItemsMaterial')->name('stockitems.getItemsMaterial');
+
     });
 });
 
