@@ -275,12 +275,13 @@
                     <th>Cliente</th>
                     <th>Orden Servicio</th>
                     <th>Total SUNAT</th>
+                    <th>Sercicios Ad.</th>
                     <th>Total CLIENTE</th>
                     <th>Moneda</th>
                     <th>Estado</th>
                     {{--<th>Fecha Creación</th>--}}
                     <th>Creador</th>
-                    <th>Decimales</th>
+                    {{--<th>Decimales</th>--}}
                     <th></th>
                 </tr>
                 </thead>
@@ -347,12 +348,13 @@
 
             <td data-order></td>
             <td data-total_sunat></td>
+            <td data-services_add></td>
             <td data-total></td>
             <td data-currency></td>
             <td data-state></td>
             {{--<td data-created_at></td>--}}
             <td data-creator></td>
-            <td data-decimals></td>
+            {{--<td data-decimals></td>--}}
             <td data-buttons></td>
         </tr>
     </template>

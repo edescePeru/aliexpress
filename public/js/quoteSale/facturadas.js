@@ -1345,13 +1345,14 @@ function renderDataTable(data) {
     clone.querySelector("[data-time_delivery]").innerHTML = data.time_delivery;
     clone.querySelector("[data-customer]").innerHTML = data.customer;
     clone.querySelector("[data-order]").innerHTML = data.order;
-    clone.querySelector("[data-total_igv]").innerHTML = data.total_igv;
-    clone.querySelector("[data-total]").innerHTML = data.total;
+    clone.querySelector("[data-total_sunat]").innerHTML = data.total_sunat;
+    clone.querySelector("[data-total]").innerHTML = data.total_cliente;
+    clone.querySelector("[data-services_add]").innerHTML = data.total_services;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
     clone.querySelector("[data-state]").innerHTML = data.stateText;
     //clone.querySelector("[data-created_at]").innerHTML = data.created_at;
     clone.querySelector("[data-creator]").innerHTML = data.creator;
-    clone.querySelector("[data-decimals]").innerHTML = data.decimals;
+    /*clone.querySelector("[data-decimals]").innerHTML = data.decimals;*/
 
     var botones = clone.querySelector("[data-buttons]");
 

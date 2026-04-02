@@ -1170,6 +1170,7 @@ class QuoteSaleController extends Controller
                 "customer" => empty($quote->customer_id) ? "" : ($quote->customer->business_name ?? ""),
                 "total_sunat" => number_format($quote->total_importe, 2),
                 "total_cliente" => number_format($quote->total_importe+$total_workforce, 2),
+                "total_services" => number_format($total_workforce, 2),
                 "currency" => ($quote->currency_invoice == null || $quote->currency_invoice == "") ? '': $quote->currency_invoice,
                 "state" => $state,
                 "stateText" => $stateText,
@@ -1364,6 +1365,20 @@ class QuoteSaleController extends Controller
             } else {
                 $stateDecimals = '<span class="badge bg-danger">Ocultar</span>';
             }
+
+            $total_workforce  = 0;
+            foreach($quote->equipments as $equipment)
+            {
+                foreach($equipment->workforces as $workforce)
+                {
+                    if ( $workforce->billable == false )
+                    {
+                        $total_workforce = $total_workforce + $workforce->total;
+                    }
+
+                }
+            }
+
             array_push($array, [
                 "id" => $quote->id,
                 "year" => ( $quote->date_quote == null || $quote->date_quote == "") ? '':$quote->date_quote->year,
@@ -1377,6 +1392,9 @@ class QuoteSaleController extends Controller
                 "customer" => ($quote->customer_id == "" || $quote->customer_id == null) ? "" : $quote->customer->business_name,
                 "total_igv" => number_format($quote->total_importe/1.18, 2),
                 "total" => number_format($quote->total_importe, 2),
+                "total_sunat" => number_format($quote->total_importe, 2),
+                "total_cliente" => number_format($quote->total_importe+$total_workforce, 2),
+                "total_services" => number_format($total_workforce, 2),
                 "currency" => ($quote->currency_invoice == null || $quote->currency_invoice == "") ? '': $quote->currency_invoice,
                 "state" => $state,
                 "stateText" => $stateText,
