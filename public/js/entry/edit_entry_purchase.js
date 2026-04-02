@@ -7,7 +7,7 @@ let $material;
 
 $(document).ready(function () {
     $.ajax({
-        url: "/dashboard/get/materials/entry",
+        url: "/dashboard/get/materials/stock/items/entry",
         type: 'GET',
         dataType: 'json',
         success: function (json) {

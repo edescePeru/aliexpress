@@ -254,7 +254,7 @@
                                         <tbody id="body-materials">
                                         @foreach( $entry->details as $detail )
                                             <tr>
-                                                <td data-code>{{$detail->material->code}}</td>
+                                                <td data-code>{{$detail->material_code}}</td>
                                                 <td data-description>{{$detail->material_description}}</td>
                                                 <td data-quantity>{{$detail->entered_quantity}}</td>
                                                 <td data-unit>{{$detail->unit}}</td>
@@ -553,6 +553,6 @@
             allowClear: true
         })
     </script>
-    <script src="{{ asset('js/entry/edit_entry_purchase.js') }}"></script>
+    <script src="{{ asset('js/entry/edit_entry_purchase.js') }}?v={{ time() }}"></script>
 
 @endsection

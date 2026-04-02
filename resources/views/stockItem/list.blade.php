@@ -145,8 +145,6 @@
                 <th>Activo</th>
                 <th>Stock actual</th>
                 <th>Reservado</th>
-                <th>Min</th>
-                <th>Max</th>
                 <th>Acción</th>
             </tr>
             </thead>
@@ -158,6 +156,67 @@
     <div class="d-flex justify-content-between align-items-center mt-2">
         <div id="stock-items-info"></div>
         <div id="stock-items-pagination"></div>
+    </div>
+
+    <div class="modal fade" id="modalInventoryLevels" tabindex="-1" role="dialog" aria-labelledby="modalInventoryLevelsLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <form id="formInventoryLevels">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalInventoryLevelsLabel">Inventario por almacén</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" id="modal_stock_item_id">
+
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label>SKU</label>
+                                <input type="text" class="form-control form-control-sm" id="modal_sku" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label>Barcode</label>
+                                <input type="text" class="form-control form-control-sm" id="modal_barcode" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Nombre visible</label>
+                                <input type="text" class="form-control form-control-sm" id="modal_display_name" readonly>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                <tr>
+                                    <th>Almacén</th>
+                                    <th>Ubicación</th>
+                                    <th>Stock actual</th>
+                                    <th>Reservado</th>
+                                    <th>Min</th>
+                                    <th>Max</th>
+                                    <th>Promedio</th>
+                                    <th>Últ. costo</th>
+                                </tr>
+                                </thead>
+                                <tbody id="tbody-modal-inventory-levels">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-inventory-levels">
+                            Guardar cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 @endsection
 
@@ -178,6 +237,10 @@
 @endsection
 
 @section('scripts')
+    <script>
+        window.stockItemInventoryLevelsUrl = "{{ route('stockitems.inventory-levels', ':id') }}";
+        window.stockItemInventoryLevelsUpdateUrl = "{{ route('stockitems.inventory-levels.update', ':id') }}";
+    </script>
     <script>
         window.APP = {
             URLS: {

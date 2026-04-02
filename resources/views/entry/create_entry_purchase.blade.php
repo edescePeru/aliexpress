@@ -164,13 +164,21 @@
                     <div class="card-body">
 
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="material_search">Buscar material <span class="right badge badge-danger">(*)</span></label>
                                     <input type="text" id="material_search" class="form-control rounded-0 typeahead">
 
                                 </div>
                             </div>
+
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <label for="lot">Lote </label>
+                                    <input type="text" id="lot" name="lot" class="form-control">
+                                </div>
+                            </div>
+
                             <div class="col-md-2">
                                 <div class="form-group" id="sandbox-container2">
                                     <label for="quantity">F. Vence </label>

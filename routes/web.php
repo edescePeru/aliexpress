@@ -662,6 +662,9 @@ Route::middleware('auth')->group(function (){
         Route::post('entry_scrap/store', 'EntryController@storeEntryScrap')->name('entry.scrap.store')
             ->middleware('permission:create_entryScrap');
         Route::get('/get/materials/entry', 'MaterialController@getJsonMaterialsEntry');
+
+        Route::get('/get/materials/stock/items/entry', 'MaterialController@getJsonMaterialStockItemsEntry');
+
         Route::get('/get/materials', 'MaterialController@getJsonMaterials');
         Route::get('/get/materials/transfer', 'MaterialController@getJsonMaterialsTransfer');
         Route::get('/get/materials/quote', 'MaterialController@getJsonMaterialsQuote');
@@ -3100,6 +3103,11 @@ Route::middleware('auth')->group(function (){
         Route::get('/view/material/variants/{id}', 'StockItemController@viewMaterialVariants')->name('stockitems.view.variants');
         Route::get('/view/material/all/variants/{id}', 'StockItemController@getItemsMaterial')->name('stockitems.getItemsMaterial');
 
+        Route::get('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@getInventoryLevels')
+            ->name('stockitems.inventory-levels');
+
+        Route::post('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
+            ->name('stockitems.inventory-levels.update');
     });
 });
 

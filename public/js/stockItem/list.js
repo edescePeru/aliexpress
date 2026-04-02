@@ -36,7 +36,169 @@ $(document).ready(function () {
 
         updateActiveToggle(id, variantId, current);
     });
+
+    $(document).on('click', '[data-ver_inventario]', function () {
+        const stockItemId = $(this).data('id');
+
+        if (!stockItemId) {
+            toastr.error('No se encontró el stock item.');
+            return;
+        }
+
+        openInventoryLevelsModal(stockItemId);
+    });
+
+    $('#formInventoryLevels').on('submit', function (e) {
+        e.preventDefault();
+
+        const stockItemId = $('#modal_stock_item_id').val();
+
+        if (!stockItemId) {
+            toastr.error('No se encontró el stock item.');
+            return;
+        }
+
+        const url = window.stockItemInventoryLevelsUpdateUrl.replace(':id', stockItemId);
+        const formData = $(this).serialize();
+
+        $('#btn-save-inventory-levels').prop('disabled', true);
+
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: formData,
+            success: function (response) {
+                toastr.success(response.message || 'Cambios guardados correctamente.');
+                $('#modalInventoryLevels').modal('hide');
+
+                // Recargar listado actual si ya tienes una función de refresh
+                /*if (typeof loadStockItems === 'function') {
+                    loadStockItems(currentStockItemsPage || 1);
+                }*/
+            },
+            error: function (xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    Object.keys(xhr.responseJSON.errors).forEach(function (key) {
+                        toastr.error(xhr.responseJSON.errors[key][0]);
+                    });
+                } else {
+                    toastr.error(
+                        (xhr.responseJSON && xhr.responseJSON.message)
+                            ? xhr.responseJSON.message
+                            : 'Ocurrió un error al guardar.'
+                    );
+                }
+            },
+            complete: function () {
+                $('#btn-save-inventory-levels').prop('disabled', false);
+            }
+        });
+    });
 });
+
+function openInventoryLevelsModal(stockItemId) {
+    const url = window.stockItemInventoryLevelsUrl.replace(':id', stockItemId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        beforeSend: function () {
+            $('#tbody-modal-inventory-levels').html(`
+                <tr>
+                    <td colspan="8" class="text-center">Cargando...</td>
+                </tr>
+            `);
+            $('#modalInventoryLevels').modal('show');
+        },
+        success: function (response) {
+            fillInventoryLevelsModal(response);
+        },
+        error: function (xhr) {
+            let message = 'No se pudo cargar el inventario.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            toastr.error(message);
+        }
+    });
+}
+
+function fillInventoryLevelsModal(response) {
+    const stockItem = response.stock_item || {};
+    const levels = Array.isArray(response.inventory_levels) ? response.inventory_levels : [];
+
+    $('#modal_stock_item_id').val(stockItem.id || '');
+    $('#modal_sku').val(stockItem.sku || '');
+    $('#modal_barcode').val(stockItem.barcode || '');
+    $('#modal_display_name').val(stockItem.display_name || '');
+
+    renderInventoryLevelsModalRows(levels);
+}
+
+function renderInventoryLevelsModalRows(levels) {
+    const $tbody = $('#tbody-modal-inventory-levels');
+    $tbody.empty();
+
+    if (!levels.length) {
+        $tbody.html(`
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    No hay inventory levels registrados.
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    levels.forEach(function (level, index) {
+        $tbody.append(`
+            <tr>
+                <td>
+                    <input type="hidden" name="inventory_levels[${index}][id]" value="${escapeHtml(level.id || '')}">
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.warehouse_name || '')}" readonly>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.location_name || '')}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_on_hand)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_reserved)}" readonly>
+                </td>
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="inventory_levels[${index}][min_alert]"
+                           value="${normalizeNumber(level.min_alert)}"
+                           min="0" step="0.01">
+                </td>
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="inventory_levels[${index}][max_alert]"
+                           value="${normalizeNumber(level.max_alert)}"
+                           min="0" step="0.01">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.average_cost)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.last_cost)}" readonly>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function normalizeNumber(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+}
 
 function updateInventoryToggle(id, current) {
     $.ajax({
@@ -131,10 +293,18 @@ function renderStockItemsTable(items) {
             ? '<span class="badge badge-success">Activo</span>'
             : '<span class="badge badge-secondary">Inactivo</span>';
 
-        let stockActual = item.inventory_level ? (item.inventory_level.qty_on_hand ?? 0) : 0;
-        let stockReservado = item.inventory_level ? (item.inventory_level.qty_reserved ?? 0) : 0;
-        let stockMin = item.inventory_level ? (item.inventory_level.min_alert ?? 0) : 0;
-        let stockMax = item.inventory_level ? (item.inventory_level.max_alert ?? 0) : 0;
+        //let stockActual = item.inventory_level ? (item.inventory_level.qty_on_hand ?? 0) : 0;
+        //let stockReservado = item.inventory_level ? (item.inventory_level.qty_reserved ?? 0) : 0;
+        let stockActual = 0;
+        let stockReservado = 0;
+
+        if (Array.isArray(item.inventory_levels)) {
+            item.inventory_levels.forEach(function(level) {
+                stockActual += parseFloat(level.qty_on_hand || 0);
+                stockReservado += parseFloat(level.qty_reserved || 0);
+            });
+        }
+
         let unitMeasure = item.unit_measure ? (item.unit_measure.name || '') : '';
 
         html += `
@@ -149,20 +319,25 @@ function renderStockItemsTable(items) {
                     <td>${activo}</td>
                     <td>${stockActual}</td>
                     <td>${stockReservado}</td>
-                    <td>${stockMin}</td>
-                    <td>${stockMax}</td>
                     <td>
                         <button class="btn btn-sm btn-warning btn-toggle-inventory"
                             data-id="${item.id}"
                             data-value="${item.tracks_inventory}">
-                            Inv
+                            Config. Inv
                         </button>
                     
                         <button class="btn btn-sm btn-secondary btn-toggle-active"
                             data-id="${item.id}"
                             data-variant="${item.variant_id || ''}"
                             data-value="${item.is_active}">
-                            Act
+                            Config. Act
+                        </button>
+                        
+                        <button class="btn btn-sm btn-outline-primary"
+                            data-id="${item.id}"
+                            data-variant="${item.variant_id || ''}"
+                            data-ver_inventario>
+                            Ver Inventario
                         </button>
                     </td>
                 </tr>

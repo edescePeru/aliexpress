@@ -7,7 +7,7 @@ let $material;
 
 $(document).ready(function () {
     $.ajax({
-        url: "/dashboard/get/materials/entry",
+        url: "/dashboard/get/materials/stock/items/entry",
         type: 'GET',
         dataType: 'json',
         success: function (json) {
@@ -298,7 +298,20 @@ function saveTableItems() {
         for ( var i=0; i<series_selected.length; i++ )
         {
             const result = $materialsComplete.find( material => material.material === material_name );
-            $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(material_quantity)).toFixed(4), 'quantity':1, 'material': material_name, 'id_material': result.id, 'item': series_selected[i], 'location': locations_selected[i].location, 'id_location':locations_selected[i].id, 'state': states_selected[i].state, 'state_description': states_selected[i].description });
+            $items.push({
+                'id': $items.length+1,
+                'price': parseFloat(parseFloat(material_price)/parseFloat(material_quantity)).toFixed(4),
+                'quantity':1,
+                'material': material_name,
+                //'id_material': result.id,
+                'item': series_selected[i],
+                'location': locations_selected[i].location,
+                'id_location':locations_selected[i].id,
+                'state': states_selected[i].state,
+                'state_description': states_selected[i].description,
+                'id_material': result.material_id,
+                'stock_item_id': result.stock_item_id,
+            });
             //renderTemplateMaterial($items.length, material_price, material_name, series_selected[i],  locations_selected[i].location, states_selected[i].description);
             $('.select2').select2();
         }
@@ -408,6 +421,7 @@ function addItems() {
         //let material_location = $('#locationGroup').val();
         let material_location = $('#almacen').val();
         let material_vence = $("#date_vence").val();
+        let material_lote = $("#lot").val();
         let location = $locationsComplete.find( location => location.location === material_location );
 
         for ( var j=0; j<quantity; j++ )
@@ -420,10 +434,12 @@ function addItems() {
                 'price': parseFloat(parseFloat(material_price)/parseFloat(quantity)).toFixed(4),
                 'quantity':1 ,
                 'material': material_name,
-                'id_material': material.id,
+                'id_material': material.material_id,
+                'stock_item_id': material.stock_item_id,
                 'item': code,
                 'id_location':location.id,
                 'date_vence': material_vence,
+                'material_lote': material_lote,
                 'state': 'good'
             });
             //renderTemplateMaterial($items.length, material_price, material_name, code,  location.location, state_description);

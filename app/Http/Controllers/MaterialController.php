@@ -3109,4 +3109,63 @@ class MaterialController extends Controller
             'pagination' => ['more' => ($page * $perPage) < $total],
         ]);
     }
+
+    public function getJsonMaterialStockItemsEntry()
+    {
+        $stockItems = StockItem::with([
+            'material.category',
+            'material.materialType',
+            'material.unitMeasure',
+            'material.subcategory',
+            'material.subType',
+            'material.exampler',
+            'material.brand',
+            'material.warrant',
+            'material.quality',
+            'material.typeScrap',
+            'inventoryLevels',
+        ])
+            ->where('is_active', 1)
+            ->get();
+
+        $array = [];
+
+        foreach ($stockItems as $stockItem) {
+            $material = $stockItem->material;
+
+            if (!$material) {
+                continue;
+            }
+
+            $stockCurrent = $stockItem->inventoryLevels->sum('qty_on_hand');
+
+            $array[] = [
+                // importante: ahora el id principal es stock_item_id
+                'id' => $stockItem->id,
+                'stock_item_id' => $stockItem->id,
+                'material_id' => $material->id,
+
+                // display operativo
+                'material' => $stockItem->display_name ?: $material->full_name,
+
+                // compatibilidad
+                'unit' => optional($stockItem->unitMeasure ?? $material->unitMeasure)->name ?? '',
+                'code' => $stockItem->sku, // antes era material->code
+                'barcode' => $stockItem->barcode,
+                'price' => $material->price_final, // o desde price list si luego migras eso
+                'typescrap' => $material->typescrap_id,
+                'full_typescrap' => $material->typeScrap,
+                'stock_current' => $stockCurrent,
+                'category' => $material->category_id,
+                'enable_status' => $material->enable_status,
+                'tipo_venta_id' => $material->tipo_venta_id,
+                'perecible' => $material->perecible ?? 'n',
+
+                // nuevos flags útiles para ingreso
+                'tracks_inventory' => (int) $stockItem->tracks_inventory,
+            ];
+        }
+
+        return $array;
+    }
 }

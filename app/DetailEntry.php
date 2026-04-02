@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class DetailEntry extends Model
 {
-    protected $appends = ['sub_total', 'taxes', 'total', 'unit', 'material_description'];
+    protected $appends = ['sub_total', 'taxes', 'total', 'unit', 'material_description', 'material_code'];
 
     protected $fillable = [
         'entry_id',
         'material_id',
+        'stock_item_id',
+        // 'location_id'
+        // 'warehouse_id'
         'ordered_quantity',
         'entered_quantity',
         'isComplete',
@@ -23,7 +26,36 @@ class DetailEntry extends Model
 
     protected $dates = ['date_vence'];
 
+    public function getMaterialCodeAttribute()
+    {
+        $codeMaterial = "";
+
+        if ( is_null($this->stock_item_id ) )
+        {
+            $nameMaterial = is_null($this->material) ? "N/N" : $this->material->code;
+        } else {
+            $stockItem = StockItem::find($this->stock_item_id);
+            $nameMaterial = $stockItem->sku;
+        }
+        return $nameMaterial;
+    }
+
     public function getMaterialDescriptionAttribute()
+    {
+        $nameMaterial = "";
+
+        if ( is_null($this->stock_item_id ) )
+        {
+            $nameMaterial = is_null($this->material) ? $this->material_name : $this->material->full_name;
+        } else {
+            $stockItem = StockItem::find($this->stock_item_id);
+            $nameMaterial = $stockItem->display_name;
+        }
+        return $nameMaterial;
+    }
+
+
+    public function getMaterialDescriptioneAttribute()
     {
         return (is_null($this->material)) ? $this->material_name : $this->material->full_description;
     }
@@ -82,5 +114,10 @@ class DetailEntry extends Model
     public function items()
     {
         return $this->hasMany('App\Item');
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo('App\StockItem', 'stock_item_id');
     }
 }

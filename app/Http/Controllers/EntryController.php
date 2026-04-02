@@ -13,7 +13,9 @@ use App\Http\Requests\StoreEntryPurchaseOrderRequest;
 use App\Http\Requests\StoreEntryPurchaseRequest;
 use App\Http\Requests\StoreOrderPurchaseRequest;
 use App\Http\Requests\UpdateEntryPurchaseRequest;
+use App\InventoryLevel;
 use App\Item;
+use App\Location;
 use App\Material;
 use App\MaterialOrder;
 use App\MaterialVencimiento;
@@ -27,6 +29,8 @@ use App\PaymentDeadline;
 use App\Quote;
 use App\Services\InventoryCostService;
 use App\Services\TipoCambioService;
+use App\StockItem;
+use App\StockLot;
 use App\Supplier;
 use App\SupplierCredit;
 use App\Typescrap;
@@ -750,7 +754,7 @@ class EntryController extends Controller
 
     }
 
-    public function storeEntryPurchase(StoreEntryPurchaseRequest $request)
+    public function storeEntryPurchaseO(StoreEntryPurchaseRequest $request)
     {
         $begin = microtime(true);
         $validated = $request->validated();
@@ -802,7 +806,8 @@ class EntryController extends Controller
             if (!$request->file('image')) {
                 $entry->image = 'no_image.png';
                 $entry->save();
-            } else {
+            }
+            else {
                 $path = public_path() . '/images/entries/';
                 $image = $request->file('image');
                 $extension = $request->file('image')->getClientOriginalExtension();
@@ -826,7 +831,8 @@ class EntryController extends Controller
             if (!$request->file('imageOb')) {
                 $entry->imageOb = 'no_image.png';
                 $entry->save();
-            } else {
+            }
+            else {
                 $path = public_path() . '/images/entries/observations/';
                 $image = $request->file('imageOb');
                 $extension = $image->getClientOriginalExtension();
@@ -1244,6 +1250,553 @@ class EntryController extends Controller
         }
 
         return response()->json(['message' => 'Ingreso por compra guardado con éxito.'], 200);
+    }
+
+    public function storeEntryPurchase(StoreEntryPurchaseRequest $request)
+    {
+        $begin = microtime(true);
+        $validated = $request->validated();
+
+        $fecha = Carbon::createFromFormat('d/m/Y', $request->get('date_invoice'));
+        $fechaFormato = $fecha->format('Y-m-d');
+
+        $precioCompra = 1;
+        $precioVenta = 1;
+
+        $tipoMoneda = ($request->has('currency_invoice')) ? 'USD' : 'PEN';
+        if ($tipoMoneda == 'USD') {
+            $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
+            $precioCompra = (float) $tipoCambioSunat->precioCompra;
+            $precioVenta = (float) $tipoCambioSunat->precioVenta;
+        }
+
+        $flag = DataGeneral::where('name', 'type_current')->first();
+
+        if ($request->get('purchase_order') != '' || $request->get('purchase_order') != null) {
+            $order_purchase1 = OrderPurchase::where('code', $request->get('purchase_order'))->first();
+
+            if (isset($order_purchase1)) {
+                return response()->json([
+                    'message' => "No se encontró la orden de compra indicada"
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $entry = Entry::create([
+                'referral_guide'   => $request->get('referral_guide'),
+                'purchase_order'   => $request->get('purchase_order'),
+                'invoice'          => $request->get('invoice'),
+                'deferred_invoice' => ($request->has('deferred_invoice')) ? $request->get('deferred_invoice') : 'off',
+                'currency_invoice' => ($request->has('currency_invoice')) ? 'USD' : 'PEN',
+                'supplier_id'      => $request->get('supplier_id'),
+                'entry_type'       => $request->get('entry_type'),
+                'date_entry'       => Carbon::createFromFormat('d/m/Y', $request->get('date_invoice')),
+                'finance'          => false,
+                'currency_compra'  => $precioCompra,
+                'currency_venta'   => $precioVenta,
+                'observation'      => $request->get('observation'),
+            ]);
+
+            // =========================
+            // IMAGEN PRINCIPAL
+            // =========================
+            if (!$request->file('image')) {
+                $entry->image = 'no_image.png';
+                $entry->save();
+            }
+            else {
+                $path = public_path() . '/images/entries/';
+                $image = $request->file('image');
+                $extension = $request->file('image')->getClientOriginalExtension();
+
+                if (strtoupper($extension) != "PDF") {
+                    $filename = $entry->id . '.JPG';
+                    $img = Image::make($image);
+                    $img->orientate();
+                    $img->save($path . $filename, 80, 'JPG');
+                    $entry->image = $filename;
+                    $entry->save();
+                } else {
+                    $filename = 'pdf' . $entry->id . '.' . $extension;
+                    $request->file('image')->move($path, $filename);
+                    $entry->image = $filename;
+                    $entry->save();
+                }
+            }
+
+            // =========================
+            // IMAGEN OBSERVACIÓN
+            // =========================
+            if (!$request->file('imageOb')) {
+                $entry->imageOb = 'no_image.png';
+                $entry->save();
+            }
+            else {
+                $path = public_path() . '/images/entries/observations/';
+                $image = $request->file('imageOb');
+                $extension = $image->getClientOriginalExtension();
+
+                if (strtoupper($extension) != "PDF") {
+                    $filename = $entry->id . '.JPG';
+                    $img = Image::make($image);
+                    $img->orientate();
+                    $img->save($path . $filename, 80, 'JPG');
+                    $entry->imageOb = $filename;
+                    $entry->save();
+                } else {
+                    $filename = 'pdf' . $entry->id . '.' . $extension;
+                    $request->file('imageOb')->move($path, $filename);
+                    $entry->imageOb = $filename;
+                    $entry->save();
+                }
+            }
+
+            // =========================
+            // ITEMS (JSON)
+            // =========================
+            $items = json_decode($request->get('items'));
+
+            if (!is_array($items) && !($items instanceof \Traversable)) {
+                throw new \Exception('El formato de items es inválido.');
+            }
+
+            /**
+             * Agrupar por:
+             * stock_item_id + id_location + lote + fecha_vencimiento + price
+             */
+            $grouped = [];
+
+            foreach ($items as $it) {
+                $materialId  = (int) ($it->id_material ?? 0);
+                $stockItemId = (int) ($it->stock_item_id ?? 0);
+                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
+
+                $location = Location::find($locationId);
+
+                $warehouseId = (isset($location)) ? $location->warehouse_id:null;
+
+                $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
+                $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
+                $unitPrice = (float) ($it->price ?? 0);
+
+                if (!$stockItemId) {
+                    throw new \Exception("Uno de los items no tiene stock_item_id.");
+                }
+
+                if (!$materialId) {
+                    throw new \Exception("Uno de los items no tiene id_material.");
+                }
+
+                $dateKey = ($dateStr === '') ? '__NULL__' : $dateStr;
+                $lotKey  = ($lotCode === '') ? '__NOLOT__' : $lotCode;
+
+                $groupKey = implode('|', [
+                    $stockItemId,
+                    $warehouseId ?: 'null',
+                    $lotKey,
+                    $dateKey,
+                    number_format($unitPrice, 4, '.', '')
+                ]);
+
+                if (!isset($grouped[$groupKey])) {
+                    $grouped[$groupKey] = [
+                        'material_id'   => $materialId,
+                        'stock_item_id' => $stockItemId,
+                        'location_id' => $locationId,
+                        'warehouse_id'  => $warehouseId,
+                        'lot_code'      => $lotCode,
+                        'date_vence'    => $dateStr,
+                        'unit_price'    => $unitPrice,
+                        'count'         => 0,
+                    ];
+                }
+
+                $grouped[$groupKey]['count'] += (float) ($it->quantity ?? 1);
+            }
+
+            // Mapa de DetailEntry por groupKey
+            $detailEntryMap = [];
+
+            // =========================
+            // 1) Crear DetailEntry por grupo
+            //    + actualizar inventory_levels
+            //    + crear/actualizar stock_lots
+            // =========================
+            foreach ($grouped as $groupKey => $group) {
+                $material = Material::find($group['material_id']);
+                if (!$material) {
+                    throw new \Exception("Material no encontrado: " . $group['material_id']);
+                }
+
+                $stockItem = StockItem::with('material')->find($group['stock_item_id']);
+                if (!$stockItem) {
+                    throw new \Exception("StockItem no encontrado: " . $group['stock_item_id']);
+                }
+
+                $date = null;
+                if (!empty($group['date_vence']) && $group['date_vence'] !== '__NULL__') {
+                    $date = Carbon::createFromFormat('d/m/Y', $group['date_vence']);
+                }
+
+                $detailEntry = DetailEntry::create([
+                    'entry_id'          => $entry->id,
+                    'material_id'       => $group['material_id'], // compatibilidad temporal
+                    'ordered_quantity'  => $group['count'],
+                    'entered_quantity'  => $group['count'],
+                    'unit_price'        => round((float) $group['unit_price'], 2),
+                    'date_vence'        => $date,
+                    'stock_item_id'     => $group['stock_item_id'],
+                    //'location_id'       => $group['location_id'],
+                    //'lot_code'          => $group['lot_code'] !== '' ? $group['lot_code'] : null,
+                ]);
+
+                $detailEntryMap[$groupKey] = $detailEntry;
+
+                // Si sigue aplicando para perecibles en tu lógica actual
+                if ($material->perecible == 's' && $date) {
+                    MaterialVencimiento::firstOrCreate([
+                        'material_id' => $group['material_id'],
+                        'fecha_vencimiento' => $date
+                    ]);
+                }
+
+                // =========================
+                // Actualizar InventoryLevel
+                // =========================
+                $this->increaseInventoryLevel(
+                    $group['stock_item_id'],
+                    $group['location_id'],
+                    $group['warehouse_id'],
+                    $group['count'],
+                    $group['unit_price']
+                );
+
+                // =========================
+                // Crear/actualizar lote si aplica
+                // =========================
+                if (($group['lot_code'] ?? '') !== '' || !empty($group['date_vence'])) {
+                    $this->increaseStockLot(
+                        $group['stock_item_id'],
+                        //$group['location_id'],
+                        $group['warehouse_id'],
+                        $detailEntry->id,
+                        $group['lot_code'],
+                        $date,
+                        $group['count'],
+                        $group['unit_price']
+                    );
+                }
+
+                // =========================
+                // FollowMaterial (igual que antes)
+                // =========================
+                $follows = FollowMaterial::where('material_id', $group['material_id'])->get();
+                if (!$follows->isEmpty()) {
+                    $notification = Notification::create([
+                        'content' => 'El material ' . $material->full_description . ' ha sido ingresado.',
+                        'reason_for_creation' => 'follow_material',
+                        'user_id' => Auth::user()->id,
+                        'url_go' => route('follow.index')
+                    ]);
+
+                    $users = User::role(['admin', 'owner'])->get();
+                    foreach ($users as $user) {
+                        $followUsers = FollowMaterial::where('material_id', $group['material_id'])
+                            ->where('user_id', $user->id)
+                            ->get();
+
+                        if (!$followUsers->isEmpty()) {
+                            foreach ($user->roles as $role) {
+                                NotificationUser::create([
+                                    'notification_id' => $notification->id,
+                                    'role_id' => $role->id,
+                                    'user_id' => $user->id,
+                                    'read' => false,
+                                    'date_read' => null,
+                                    'date_delete' => null
+                                ]);
+                            }
+                        }
+                    }
+
+                    foreach ($follows as $follow) {
+                        $follow->state = 'in_warehouse';
+                        $follow->save();
+                    }
+                }
+            }
+
+            // =========================
+            // 2) Crear Items unitarios y acumular total_detail
+            // =========================
+            $totalByDetailEntryId = [];
+
+            foreach ($items as $it) {
+                $materialId  = (int) ($it->id_material ?? 0);
+                $stockItemId = (int) ($it->stock_item_id ?? 0);
+                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
+
+                $location = Location::find($locationId);
+
+                $warehouseId = (isset($location)) ? $location->warehouse_id:null;
+
+                $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
+                $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
+                $unitPrice = (float) ($it->price ?? 0);
+
+                $dateKey = ($dateStr === '') ? '__NULL__' : $dateStr;
+                $lotKey  = ($lotCode === '') ? '__NOLOT__' : $lotCode;
+
+                $groupKey = implode('|', [
+                    $stockItemId,
+                    //$locationId ?: 'null',
+                    $warehouseId ?: 'null',
+                    $lotKey,
+                    $dateKey,
+                    number_format($unitPrice, 4, '.', '')
+                ]);
+
+                if (!isset($detailEntryMap[$groupKey])) {
+                    continue;
+                }
+
+                $detailEntry = $detailEntryMap[$groupKey];
+                $material = $detailEntry->material;
+
+                if (!isset($totalByDetailEntryId[$detailEntry->id])) {
+                    $totalByDetailEntryId[$detailEntry->id] = 0;
+                }
+
+                // =========================
+                // Conservamos tu lógica de moneda/costo unitario por item
+                // =========================
+                if ($flag->valueText == 'usd') {
+                    if ($entry->currency_invoice === 'PEN') {
+                        $detailEntry->unit_price = round((float) $it->price, 2);
+                        $detailEntry->save();
+                        $priceForItem = round((float) $it->price, 2);
+                    } else {
+                        $detailEntry->unit_price = round((float) $it->price, 2);
+                        $detailEntry->save();
+                        $priceForItem = round((float) $it->price, 2);
+                    }
+                }
+                elseif ($flag->valueText == 'pen') {
+                    if ($entry->currency_invoice === 'USD') {
+                        $detailEntry->unit_price = round((float) $it->price, 2);
+                        $detailEntry->save();
+                        $priceForItem = round((float) $it->price, 2);
+                    } else {
+                        $detailEntry->unit_price = round((float) $it->price, 2);
+                        $detailEntry->save();
+                        $priceForItem = round((float) $it->price, 2);
+                    }
+                }
+                else {
+                    $priceForItem = round((float) $it->price, 2);
+                }
+
+                // =========================
+                // Crear Item unitario
+                // =========================
+                if ($material->tipo_venta_id == 3) {
+                    if (isset($material->typeScrap)) {
+                        Item::create([
+                            'detail_entry_id' => $detailEntry->id,
+                            'material_id'     => $detailEntry->material_id, // compatibilidad temporal
+                            'stock_item_id'   => $detailEntry->stock_item_id,
+                            'code'            => $it->item,
+                            'length'          => (float) $material->typeScrap->length,
+                            'width'           => (float) $material->typeScrap->width,
+                            'weight'          => 0,
+                            'price'           => $priceForItem,
+                            'percentage'      => 1,
+                            'typescrap_id'    => $material->typeScrap->id,
+                            'location_id'     => $it->id_location,
+                            'state'           => $it->state ?? 'good',
+                            'state_item'      => 'entered'
+                        ]);
+                    }
+                    else {
+                        Item::create([
+                            'detail_entry_id' => $detailEntry->id,
+                            'material_id'     => $detailEntry->material_id,
+                            'stock_item_id'   => $detailEntry->stock_item_id,
+                            'code'            => $it->item,
+                            'length'          => 0,
+                            'width'           => 0,
+                            'weight'          => 0,
+                            'price'           => $priceForItem,
+                            'percentage'      => 1,
+                            'location_id'     => $it->id_location,
+                            'state'           => $it->state ?? 'good',
+                            'state_item'      => 'entered'
+                        ]);
+                    }
+                }
+
+                $totalByDetailEntryId[$detailEntry->id] += (float) $it->price;
+            }
+
+            // =========================
+            // 3) Guardar total_detail por detail_entry
+            // =========================
+            foreach ($totalByDetailEntryId as $detailEntryId => $total) {
+                DetailEntry::where('id', $detailEntryId)->update([
+                    'total_detail' => round($total, 2)
+                ]);
+            }
+
+            // =========================
+            // 4) Recalcular costo promedio del material padre (compatibilidad temporal)
+            // =========================
+            $entryDate = $entry->date_entry instanceof Carbon
+                ? $entry->date_entry
+                : Carbon::parse($entry->date_entry);
+
+            $affectedMaterialIds = collect($grouped)
+                ->pluck('material_id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+
+            foreach ($affectedMaterialIds as $mid) {
+                $avg = (float) ($avgCosts[$mid] ?? 0.0);
+
+                Material::where('id', $mid)->update([
+                    'unit_price' => $avg
+                ]);
+            }
+
+            // =========================
+            // 5) BLOQUE ORIGINAL CREDITOS
+            // =========================
+            if (($entry->invoice != '' || $entry->invoice != null)) {
+                if ($entry->purchase_order != '' || $entry->purchase_order != null) {
+                    $order_purchase = OrderPurchase::where('code', $entry->purchase_order)->first();
+
+                    if (isset($order_purchase)) {
+                        if (isset($order_purchase->deadline)) {
+                            if ($order_purchase->deadline->credit == 1 || $order_purchase->deadline->credit == true) {
+                                $deadline = PaymentDeadline::find($order_purchase->deadline->id);
+                                $fecha_issue = Carbon::parse($entry->date_entry);
+                                $fecha_expiration = $fecha_issue->addDays($deadline->days);
+                                $dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
+
+                                SupplierCredit::create([
+                                    'supplier_id' => $order_purchase->supplier->id,
+                                    'invoice' => ($this->onlyZeros($entry->invoice) == true) ? null : $entry->invoice,
+                                    'image_invoice' => $entry->image,
+                                    'total_soles' => ($order_purchase->currency_order == 'PEN') ? (float) $entry->total : null,
+                                    'total_dollars' => ($order_purchase->currency_order == 'USD') ? (float) $entry->total : null,
+                                    'date_issue' => Carbon::parse($entry->date_entry),
+                                    'order_purchase_id' => $order_purchase->id,
+                                    'state_credit' => 'outstanding',
+                                    'order_service_id' => null,
+                                    'date_expiration' => $fecha_expiration,
+                                    'days_to_expiration' => $dias_to_expire,
+                                    'code_order' => $order_purchase->code,
+                                    'payment_deadline_id' => $order_purchase->payment_deadline_id,
+                                    'entry_id' => $entry->id
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Crear Ingreso Almacen',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => 'Ingreso por compra guardado con éxito.'], 200);
+    }
+
+    private function increaseStockLot(int $stockItemId,
+        //?int $locationId,
+        ?int $warehouseId,
+        int $detailEntryId,
+        ?string $lotCode,
+        $expirationDate,
+        float $quantity,
+        float $unitCost
+    ): void {
+        $lotCode = $lotCode !== '' ? $lotCode : null;
+
+        $lot = StockLot::firstOrNew([
+            'stock_item_id'   => $stockItemId,
+            'warehouse_id'    => $warehouseId,
+            'lot_code'        => $lotCode,
+            'expiration_date' => $expirationDate,
+        ]);
+
+        if (!$lot->exists) {
+            $lot->qty_on_hand = 0;
+            $lot->qty_reserved = 0;
+            $lot->unit_cost = $unitCost;
+        }
+
+        $lot->detail_entry_id = $detailEntryId;
+        $lot->qty_on_hand += $quantity;
+        $lot->unit_cost = $unitCost;
+        $lot->save();
+    }
+
+    private function increaseInventoryLevel(
+        int $stockItemId,
+        ?int $locationId,
+        ?int $warehouseId,
+        float $quantity,
+        float $unitCost
+    ): void {
+        $inventoryLevel = InventoryLevel::firstOrNew([
+            'stock_item_id' => $stockItemId,
+            'warehouse_id'   => $warehouseId,
+            'location_id'   => $locationId,
+        ]);
+
+        if (!$inventoryLevel->exists) {
+            $inventoryLevel->qty_on_hand = 0;
+            $inventoryLevel->qty_reserved = 0;
+            $inventoryLevel->average_cost = 0;
+            $inventoryLevel->last_cost = 0;
+            $inventoryLevel->min_alert = 0;
+            $inventoryLevel->max_alert = 0;
+        }
+
+        $stockAnterior = (float) $inventoryLevel->qty_on_hand;
+        $costoAnterior = (float) $inventoryLevel->average_cost;
+
+        $inventoryLevel->qty_on_hand = $stockAnterior + $quantity;
+        $inventoryLevel->last_cost = $unitCost;
+
+        $totalQty = $stockAnterior + $quantity;
+
+        if ($totalQty > 0) {
+            $inventoryLevel->average_cost =
+                (($stockAnterior * $costoAnterior) + ($quantity * $unitCost)) / $totalQty;
+        }
+
+        $inventoryLevel->save();
     }
 
     public function storeEntryScrap(Request $request)
