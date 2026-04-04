@@ -3152,7 +3152,7 @@ class QuoteSaleController extends Controller
         ));
     }
 
-    public function buscarO(Request $request)
+    public function buscar(Request $request)
     {
         $query = Quote::query();
 
@@ -3185,7 +3185,7 @@ class QuoteSaleController extends Controller
         return response()->json($quotes);
     }
 
-    public function buscar(Request $request)
+    public function buscarO(Request $request)
     {
         if (!$request->filled('code') && !$request->filled('name')) {
             return response()->json([]);
