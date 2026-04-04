@@ -54,6 +54,38 @@ class Material extends Model
         'percentage_price'
     ];
 
+    public function getStockCurrentTotalAttribute()
+    {
+        $stockCurrent = 0;
+        $stockItems = StockItem::where('material_id', $this->id)
+            ->where('is_active', true)->get();
+
+        if ( count($stockItems) == 1 )
+        {
+            // Es un producto simple
+            $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItems[0])->get();
+            foreach ( $inventoryLevels as $inventoryLevel )
+            {
+                $stockCurrent = $stockCurrent + $inventoryLevel->qty_on_hand;
+            }
+
+        } else {
+            // Es un producto con variantes
+            foreach ( $stockItems as $stockItem )
+            {
+                $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)->get();
+                foreach ( $inventoryLevels as $inventoryLevel )
+                {
+                    $stockCurrent = $stockCurrent + $inventoryLevel->qty_on_hand;
+                }
+            }
+
+        }
+
+        return $stockCurrent;
+
+    }
+
     public function setNameProductAttribute($value)
     {
         $this->attributes['name_product'] = strtoupper($value);
