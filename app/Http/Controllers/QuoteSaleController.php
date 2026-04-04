@@ -3185,7 +3185,7 @@ class QuoteSaleController extends Controller
         return response()->json($quotes);
     }
 
-    public function buscar(Request $request)
+    public function buscarChat(Request $request)
     {
         if (!$request->filled('code') && !$request->filled('name')) {
             return response()->json([]);
@@ -3220,7 +3220,47 @@ class QuoteSaleController extends Controller
         return response()->json($quotes);
     }
 
-    public function getDataIndividual($id)
+    public function buscar(Request $request)
+    {
+        if (!$request->filled('code') && !$request->filled('name')) {
+            return response()->json([]);
+        }
+
+        $query = Quote::with(['customer:id,business_name'])
+            ->select('id', 'code', 'description_quote', 'customer_id', 'date_quote', 'state')
+            ->where('state', 'confirmed')
+            ->whereDoesntHave('sales', function ($q) {
+                $q->where('state_annulled', 0);
+            });
+
+        if ($request->filled('code')) {
+            $query->where('code', 'LIKE', '%' . trim($request->code) . '%');
+        }
+
+        if ($request->filled('name')) {
+            $query->where('description_quote', 'LIKE', '%' . trim($request->name) . '%');
+        }
+
+        $quotes = $query->orderBy('id', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($quote) {
+                return [
+                    'id' => $quote->id,
+                    'code' => $quote->code,
+                    'description_quote' => $quote->description_quote,
+                    'customer_name' => optional($quote->customer)->business_name ?? '',
+                    'date_quote_format' => $quote->date_quote
+                        ? $quote->date_quote->format('d/m/Y')
+                        : '',
+                ];
+            })
+            ->values();
+
+        return response()->json($quotes);
+    }
+
+    public function getDataIndividualO($id)
     {
         $quote = Quote::with('customer')
             ->with('deadline')
@@ -3239,6 +3279,117 @@ class QuoteSaleController extends Controller
         $quote->contact_format = $quote->contact_id ? $quote->contact->name : "";
 
         return response()->json($quote);
+    }
+
+    public function getDataIndividual($id)
+    {
+        $quote = Quote::with([
+            'customer:id,business_name,RUC,address',
+            'contact:id,name',
+            'deadline:id,description',
+            'equipments' => function ($query) {
+                $query->select('id', 'quote_id', 'detail')
+                    ->with([
+                        'consumables' => function ($q) {
+                            $q->select(
+                                'id',
+                                'equipment_id',
+                                'material_id',
+                                'material_presentation_id',
+                                'discount',
+                                'type_promo',
+                                'units_per_pack',
+                                'quantity',
+                                'packs',
+                                'valor_unitario',
+                                'price',
+                                'total'
+                            )->with([
+                                'material' => function ($q) {
+                                    $q->select('id', 'full_name', 'unit_measure_id')
+                                        ->with('unitMeasure:id,name');
+                                }
+                            ]);
+                        },
+                        'workforces' => function ($q) {
+                            $q->select(
+                                'id',
+                                'equipment_id',
+                                'description',
+                                'unit',
+                                'quantity',
+                                'price',
+                                'total',
+                                'billable'
+                            );
+                        }
+                    ]);
+            }
+        ])->findOrFail($id);
+
+        $response = [
+            'id' => $quote->id,
+            'code' => $quote->code,
+            'description_quote' => $quote->description_quote,
+            'date_quote_format' => $quote->date_quote ? $quote->date_quote->format('d/m/Y') : '',
+            'date_validate_format' => $quote->date_validate ? $quote->date_validate->format('d/m/Y') : '',
+            'deadline_format' => optional($quote->deadline)->description ?? '',
+            'customer_format' => optional($quote->customer)->business_name ?? '',
+            'contact_format' => optional($quote->contact)->name ?? '',
+            'delivery_time' => $quote->delivery_time,
+            'observations' => $quote->observations,
+            'descuento' => $quote->descuento ?? 0,
+            'gravada' => $quote->gravada ?? 0,
+            'igv_total' => $quote->igv_total ?? 0,
+            'total_importe' => $quote->total_importe ?? 0,
+            'discount_type' => $quote->discount_type,
+            'discount_input_mode' => $quote->discount_input_mode,
+            'discount_input_value' => $quote->discount_input_value,
+
+            'customer' => [
+                'RUC' => optional($quote->customer)->RUC ?? '',
+                'address' => optional($quote->customer)->address ?? '',
+            ],
+
+            'equipments' => $quote->equipments->map(function ($equipment) {
+                return [
+                    'id' => $equipment->id,
+                    'detail' => $equipment->detail,
+                    'consumables' => $equipment->consumables->map(function ($consumable) {
+                        return [
+                            'id' => $consumable->id,
+                            'discount' => $consumable->discount,
+                            'type_promo' => $consumable->type_promo,
+                            'material_presentation_id' => $consumable->material_presentation_id,
+                            'units_per_pack' => $consumable->units_per_pack,
+                            'quantity' => $consumable->quantity,
+                            'packs' => $consumable->packs,
+                            'valor_unitario' => $consumable->valor_unitario,
+                            'price' => $consumable->price,
+                            'total' => $consumable->total,
+                            'material' => [
+                                'full_description' => optional($consumable->material)->full_name ?? '',
+                                'name_unit' => optional(optional($consumable->material)->unitMeasure)->name ?? '',
+                            ],
+                        ];
+                    })->values(),
+
+                    'workforces' => $equipment->workforces->map(function ($wf) {
+                        return [
+                            'id' => $wf->id,
+                            'description' => $wf->description,
+                            'unit' => $wf->unit,
+                            'quantity' => $wf->quantity,
+                            'price' => $wf->price,
+                            'total' => $wf->total,
+                            'billable' => $wf->billable,
+                        ];
+                    })->values(),
+                ];
+            })->values(),
+        ];
+
+        return response()->json($response);
     }
 
     public function storeFromQuoteO(Request $request)
