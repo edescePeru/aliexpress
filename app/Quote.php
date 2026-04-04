@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Quote extends Model
 {
-    protected $appends = ['time_delivery','have_details', 'subtotal_utility', 'subtotal_letter', 'subtotal_rent', 'subtotal_rent_pdf', 'subtotal_utility_edit', 'subtotal_letter_edit', 'subtotal_rent_edit', 'total_quote', 'total_equipments', 'total_services'];
+    protected $appends = ['time_delivery','have_details', 'subtotal_utility', 'subtotal_letter', 'subtotal_rent', 'subtotal_rent_pdf', 'subtotal_utility_edit', 'subtotal_letter_edit', 'subtotal_rent_edit', 'total_quote', 'total_equipments'/*, 'total_services'*/];
 
     protected $fillable = [
         'code',
