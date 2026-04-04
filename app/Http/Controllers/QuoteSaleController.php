@@ -3152,7 +3152,7 @@ class QuoteSaleController extends Controller
         ));
     }
 
-    public function buscar(Request $request)
+    public function buscarO(Request $request)
     {
         $query = Quote::query();
 
@@ -3178,6 +3178,40 @@ class QuoteSaleController extends Controller
                 $quote->date_quote_format = $quote->date_quote
                     ? $quote->date_quote->format('d/m/Y')
                     : "";
+
+                return $quote;
+            });
+
+        return response()->json($quotes);
+    }
+
+    public function buscar(Request $request)
+    {
+        if (!$request->filled('code') && !$request->filled('name')) {
+            return response()->json([]);
+        }
+
+        $query = Quote::with(['customer:id,business_name']);
+
+        if ($request->filled('code')) {
+            $query->where('code', trim($request->code));
+        }
+
+        if ($request->filled('name')) {
+            $query->where('description_quote', 'LIKE', '%' . trim($request->name) . '%');
+        }
+
+        $quotes = $query->where('state', 'confirmed')
+            ->whereDoesntHave('sales', function ($q) {
+                $q->where('state_annulled', 0);
+            })
+            ->limit(20)
+            ->get()
+            ->map(function ($quote) {
+                $quote->customer_name = optional($quote->customer)->business_name ?? '';
+                $quote->date_quote_format = $quote->date_quote
+                    ? $quote->date_quote->format('d/m/Y')
+                    : '';
 
                 return $quote;
             });
