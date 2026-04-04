@@ -3152,7 +3152,7 @@ class QuoteSaleController extends Controller
         ));
     }
 
-    public function buscar(Request $request)
+    public function buscarO(Request $request)
     {
         $query = Quote::query();
 
@@ -3185,26 +3185,27 @@ class QuoteSaleController extends Controller
         return response()->json($quotes);
     }
 
-    public function buscarO(Request $request)
+    public function buscar(Request $request)
     {
         if (!$request->filled('code') && !$request->filled('name')) {
             return response()->json([]);
         }
 
-        $query = Quote::with(['customer:id,business_name']);
+        $query = Quote::with(['customer:id,business_name'])
+            ->where('state', 'confirmed')
+            ->whereDoesntHave('sales', function ($q) {
+                $q->where('state_annulled', 0);
+            });
 
         if ($request->filled('code')) {
-            $query->where('code', trim($request->code));
+            $query->where('code', 'LIKE', '%' . trim($request->code) . '%');
         }
 
         if ($request->filled('name')) {
             $query->where('description_quote', 'LIKE', '%' . trim($request->name) . '%');
         }
 
-        $quotes = $query->where('state', 'confirmed')
-            ->whereDoesntHave('sales', function ($q) {
-                $q->where('state_annulled', 0);
-            })
+        $quotes = $query->orderBy('id', 'desc')
             ->limit(20)
             ->get()
             ->map(function ($quote) {
