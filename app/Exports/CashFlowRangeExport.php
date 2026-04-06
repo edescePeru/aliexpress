@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Sale;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -122,15 +123,28 @@ class CashFlowRangeExport implements WithMultipleSheets
         // =========================
         // 6) SERVICIOS ADICIONALES SIN FACTURAR (Quote -> equipments -> workforces)
         // =========================
-        $this->quotes = Quote::with([
+
+        $sales = Sale::with([
+            'quote.equipments.workforces',
+        ])
+            ->whereBetween('created_at', [$this->start, $this->end])
+            ->where('state_annulled', 0)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        /*$this->quotes = Quote::with([
             'equipments.workforces'
         ])
             ->whereDate('date_quote', '>=', $this->start->toDateString())
             ->whereDate('date_quote', '<=', $this->end->toDateString())
-            ->get();
+            ->get();*/
 
-        $this->totalServiciosAdicionalesSinFacturar = (float) $this->quotes->sum(function ($quote) {
-            return $quote->equipments->sum(function ($equipment) {
+        $this->totalServiciosAdicionalesSinFacturar = (float) $sales->sum(function ($sale) {
+            if (!$sale->quote) {
+                return 0;
+            }
+
+            return $sale->quote->equipments->sum(function ($equipment) {
                 return $equipment->workforces
                     ->where('billable', false)
                     ->sum(function ($workforce) {
