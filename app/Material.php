@@ -56,33 +56,28 @@ class Material extends Model
 
     public function getStockCurrentTotalAttribute()
     {
-        $stockCurrent = 0;
         $stockItems = StockItem::where('material_id', $this->id)
-            ->where('is_active', true)->get();
+            ->where('is_active', true)
+            ->get(['id', 'variant_id']);
 
-        if ( count($stockItems) == 1 )
-        {
-            // Es un producto simple
-            $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItems[0])->get();
-            foreach ( $inventoryLevels as $inventoryLevel )
-            {
-                $stockCurrent = $stockCurrent + $inventoryLevel->qty_on_hand;
-            }
-
-        } else {
-            // Es un producto con variantes
-            foreach ( $stockItems as $stockItem )
-            {
-                $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)->get();
-                foreach ( $inventoryLevels as $inventoryLevel )
-                {
-                    $stockCurrent = $stockCurrent + $inventoryLevel->qty_on_hand;
-                }
-            }
-
+        if ($stockItems->count() !== 1) {
+            return null;
         }
 
-        return $stockCurrent;
+        $stockItem = $stockItems->first();
+
+        if ($stockItem->variant_id !== null) {
+            return null;
+        }
+
+        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
+            ->get(['id', 'qty_on_hand']);
+
+        if ($inventoryLevels->count() !== 1) {
+            return null;
+        }
+
+        return $inventoryLevels->first()->qty_on_hand;
 
     }
 
