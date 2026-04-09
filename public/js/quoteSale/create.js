@@ -57,7 +57,7 @@ $(document).ready(function () {
                     results: $.map(data, function (item) {
                         //console.log(item.full_description);
                         return {
-                            text: item.full_description,
+                            text: item.display_name,
                             id: item.id,
                         }
                     })

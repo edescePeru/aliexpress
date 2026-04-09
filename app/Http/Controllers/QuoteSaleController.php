@@ -131,7 +131,7 @@ class QuoteSaleController extends Controller
 
     }
 
-    public function getMaterials(Request $request)
+    public function getMaterialsO(Request $request)
     {
         $materials = [];
 
@@ -141,14 +141,89 @@ class QuoteSaleController extends Controller
             $materials = Material::where('enable_status', 1) // 👈 aquí filtras en la BD
             ->get()
                 ->filter(function ($item) use ($search) {
-                    return stripos($item->full_description, $search) !== false;
+                    return stripos($item->full_name, $search) !== false;
                 });
         }
 
         return json_encode($materials);
     }
 
-    public function getMaterialTotals()
+    public function getMaterials(Request $request)
+    {
+        $results = collect();
+
+        if ($request->has('q')) {
+            $search = trim($request->get('q'));
+
+            $materials = Material::with([
+                'unitMeasure',
+                'stockItems' => function ($query) {
+                    $query->where('is_active', true)
+                        ->with([
+                            'variant:id,material_id,attribute_summary,color_id',
+                            'variant.talla:id,name,short_name',
+                            'variant.color:id,name,short_name',
+                            'unitMeasure:id,name',
+                        ]);
+                }
+            ])
+                ->where('enable_status', 1)
+                ->get()
+                ->filter(function ($material) use ($search) {
+                    return stripos($material->full_name, $search) !== false;
+                });
+
+            foreach ($materials as $material) {
+                // Si no tiene stock items, devolver opción legacy temporal
+                if ($material->stockItems->isEmpty()) {
+                    $results->push([
+                        'id' => 'material_' . $material->id,
+                        'type' => 'legacy_material',
+                        'material_id' => $material->id,
+                        'stock_item_id' => null,
+                        'text' => $material->full_name,
+                        'full_name' => $material->full_name,
+                        'unit' => optional($material->unitMeasure)->name,
+                        'code' => $material->code,
+                        'stock_current' => $material->stock_current,
+                    ]);
+                    continue;
+                }
+
+                foreach ($material->stockItems as $stockItem) {
+                    $variantText = $this->getVariantText($stockItem);
+
+                    $text = $stockItem->display_name ?: $material->full_name;
+                    if ($variantText) {
+                        $text .= ' - ' . $variantText;
+                    }
+
+                    if (!empty($stockItem->sku)) {
+                        $text .= ' | SKU: ' . $stockItem->sku;
+                    }
+
+                    $results->push([
+                        'id' => $stockItem->id,
+                        'type' => 'stock_item',
+                        'material_id' => $material->id,
+                        'stock_item_id' => $stockItem->id,
+                        'text' => $text,
+                        'full_name' => $material->full_name,
+                        'display_name' => $stockItem->display_name,
+                        'variant_text' => $variantText,
+                        'unit' => optional($stockItem->unitMeasure)->name ?: optional($material->unitMeasure)->name,
+                        'code' => $material->code,
+                        'sku' => $stockItem->sku,
+                        'barcode' => $stockItem->barcode,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($results->values());
+    }
+
+    public function getMaterialTotalsO()
     {
         $materials = Material::with('unitMeasure','typeScrap')
             ->where('enable_status', 1)->get();
@@ -158,7 +233,7 @@ class QuoteSaleController extends Controller
         {
             array_push($array, [
                 'id'=> $material->id,
-                'full_description' => $material->full_description,
+                'full_description' => $material->full_name,
                 'unit' => ($material->unitMeasure == null) ? "":$material->unitMeasure->name,
                 'code' => $material->code,
                 'type_scrap' => $material->typeScrap,
@@ -171,6 +246,105 @@ class QuoteSaleController extends Controller
         }
 
         return $array;
+    }
+
+    public function getMaterialTotals()
+    {
+        $materials = Material::with([
+            'unitMeasure',
+            'typeScrap',
+            'stockItems' => function ($query) {
+                $query->where('is_active', true)
+                    ->with([
+                        'variant:id,material_id,attribute_summary,color_id',
+                        'variant.talla:id,name,short_name',
+                        'variant.color:id,name,short_name',
+                        'unitMeasure:id,name',
+                    ]);
+            }
+        ])->where('enable_status', 1)->get();
+
+        $array = [];
+
+        foreach ($materials as $material) {
+
+            // Legacy temporal: material sin stock items
+            if ($material->stockItems->isEmpty()) {
+                $array[] = [
+                    'id' => 'material_' . $material->id,
+                    'type' => 'legacy_material',
+                    'material_id' => $material->id,
+                    'stock_item_id' => null,
+                    'full_description' => $material->full_name,
+                    'display_name' => $material->full_name,
+                    'variant_text' => '',
+                    'unit' => optional($material->unitMeasure)->name ?: '',
+                    'code' => $material->code,
+                    'sku' => null,
+                    'barcode' => null,
+                    'type_scrap' => $material->typeScrap,
+                    'unit_measure' => $material->unitMeasure,
+                    'list_price' => $material->list_price,
+                    'enable_status' => $material->enable_status,
+                    'stock_current' => $material->stock_current,
+                    'state_update_price' => $material->state_update_price,
+                ];
+                continue;
+            }
+
+            foreach ($material->stockItems as $stockItem) {
+                $variantText = $this->getVariantText($stockItem);
+
+                $fullDescription = $stockItem->display_name ?: $material->full_name;
+                if ($variantText) {
+                    $fullDescription .= ' - ' . $variantText;
+                }
+
+                $array[] = [
+                    'id' => $stockItem->id,
+                    'type' => 'stock_item',
+                    'material_id' => $material->id,
+                    'stock_item_id' => $stockItem->id,
+                    'full_description' => $fullDescription,
+                    'display_name' => $stockItem->display_name,
+                    'variant_text' => $variantText,
+                    'unit' => optional($stockItem->unitMeasure)->name ?: optional($material->unitMeasure)->name ?: '',
+                    'code' => $material->code,
+                    'sku' => $stockItem->sku,
+                    'barcode' => $stockItem->barcode,
+                    'type_scrap' => $material->typeScrap,
+                    'unit_measure' => $stockItem->unitMeasure ?: $material->unitMeasure,
+                    'list_price' => $material->list_price, // temporal, luego cambiarás a price_list_items
+                    'enable_status' => $material->enable_status,
+                    'stock_current' => null, // luego esto debería salir del inventory level o accessor del stock item
+                    'state_update_price' => $material->state_update_price,
+                ];
+            }
+        }
+
+        return $array;
+    }
+
+    private function getVariantText($stockItem)
+    {
+        $variantText = '';
+
+        if ($stockItem->variant) {
+            if (!empty($stockItem->variant->attribute_summary)) {
+                $variantText = $stockItem->variant->attribute_summary;
+            } else {
+                $talla = optional($stockItem->variant->quality)->short_name
+                    ?: optional($stockItem->variant->quality)->name;
+
+                $color = optional($stockItem->variant->color)->name;
+
+                $variantText = collect([$talla, $color])
+                    ->filter()
+                    ->implode(' / ');
+            }
+        }
+
+        return $variantText;
     }
 
     public function create()
