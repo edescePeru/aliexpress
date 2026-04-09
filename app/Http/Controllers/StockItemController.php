@@ -214,4 +214,72 @@ class StockItemController extends Controller
             ], 422);
         }
     }
+
+    public function getInventoryLevelsByMaterial( Material $material )
+    {
+        $id = $material->id;
+        $material = Material::with([
+            'stockItems' => function ($query) {
+                $query->where('is_active', true)
+                    ->with([
+                        'material:id,full_name',
+                        'variant:id,material_id,attribute_summary,quality_id,color_id',
+                        'variant.talla:id,name,short_name',
+                        'variant.color:id,name,short_name',
+                        'inventoryLevels.location:id,description',
+                        'inventoryLevels.warehouse:id,name',
+                        'unitMeasure:id,name',
+                    ]);
+            }
+        ])->findOrFail($id);
+
+        $inventoryLevels = collect();
+
+        foreach ($material->stockItems as $stockItem) {
+            $variantText = '';
+
+            if ($stockItem->variant) {
+                if (!empty($stockItem->variant->attribute_summary)) {
+                    $variantText = $stockItem->variant->attribute_summary;
+                } else {
+                    $talla = optional($stockItem->variant->talla)->short_name ?: optional($stockItem->variant->talla)->name;
+                    $color = optional($stockItem->variant->color)->name;
+                    $variantText = collect([$talla, $color])->filter()->implode(' / ');
+                }
+            }
+
+            $levels = $stockItem->inventoryLevels->map(function ($level) use ($stockItem, $variantText) {
+                return [
+                    'id'               => $level->id,
+                    'stock_item_id'    => $stockItem->id,
+                    'stock_item_sku'   => $stockItem->sku,
+                    'stock_item_barcode' => $stockItem->barcode,
+                    'stock_item_name'  => $stockItem->display_name,
+                    'variant_text'     => $variantText,
+                    'unit_measure'     => optional($stockItem->unitMeasure)->name,
+
+                    'warehouse_id'     => $level->warehouse_id,
+                    'warehouse_name'   => optional($level->warehouse)->name,
+                    'location_id'      => $level->location_id,
+                    'location_name'    => optional($level->location)->description,
+                    'qty_on_hand'      => (float) $level->qty_on_hand,
+                    'qty_reserved'     => (float) $level->qty_reserved,
+                    'min_alert'        => (float) $level->min_alert,
+                    'max_alert'        => (float) $level->max_alert,
+                    'average_cost'     => (float) $level->average_cost,
+                    'last_cost'        => (float) $level->last_cost,
+                ];
+            });
+
+            $inventoryLevels = $inventoryLevels->merge($levels);
+        }
+
+        return response()->json([
+            'material' => [
+                'id' => $material->id,
+                'full_name' => $material->full_name,
+            ],
+            'inventory_levels' => $inventoryLevels->values()->toArray(),
+        ]);
+    }
 }

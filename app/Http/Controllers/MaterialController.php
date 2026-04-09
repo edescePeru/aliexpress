@@ -21,7 +21,10 @@ use App\MaterialDiscountQuantity;
 use App\MaterialType;
 use App\MaterialUnpack;
 use App\MaterialVencimiento;
+use App\PriceList;
+use App\PriceListItem;
 use App\Quality;
+use App\Services\InventoryCostService;
 use App\Shelf;
 use App\Specification;
 use App\Item;
@@ -1700,9 +1703,10 @@ class MaterialController extends Controller
                 "descripcion" => $material->full_name,
                 "medida" => $material->measure,
                 "unidad_medida" => ($material->unitMeasure == null) ? '':$material->unitMeasure->name,
-                "stock_max" => $material->stock_max,
-                "stock_min" => $material->stock_min,
+                "stock_max" => $material->stock_max_total,
+                "stock_min" => $material->stock_min_total,
                 "stock_actual" => $material->stock_current,
+                "stock_current" => $material->stock_current_total,
                 "prioridad" => $priority,
                 "precio_unitario" => $material->unit_price,
                 "precio_lista" => $material->list_price,
@@ -2489,7 +2493,7 @@ class MaterialController extends Controller
 
     }
 
-    public function getPriceListMaterial($material)
+    public function getPriceListMaterialO($material)
     {
         $material = Material::find($material);
 
@@ -2500,9 +2504,183 @@ class MaterialController extends Controller
             return response()->json([
                 'priceList' => ($material->list_price == null) ? 0 : $material->list_price,
                 'priceBase' => ($material->unit_price == null) ? 0 : $material->unit_price,
-                'priceMin' => ($material->min_price == null) ? 0 : $material->min_price,
-                'priceMax' => ($material->max_price == null) ? 0 : $material->max_price,
             ], 200);
+        }
+    }
+
+    public function getPriceListMaterial($materialId, InventoryCostService $inventoryCostService)
+    {
+        $material = Material::with([
+            'stockItems' => function ($query) {
+                $query->where('is_active', true)
+                    ->with([
+                        'variant:id,material_id,attribute_summary,quality_id,color_id',
+                        'variant.talla:id,name,short_name',
+                        'variant.color:id,name,short_name',
+                    ]);
+            }
+        ])->find($materialId);
+
+        if (!$material) {
+            return response()->json([
+                'message' => 'No existe el material'
+            ], 422);
+        }
+
+        // Aquí define cómo obtienes la lista de precios actual
+        $priceListId = 1; // ejemplo, luego lo puedes parametrizar
+
+        $priceBase = (float) $inventoryCostService->getAverageCostUpToDate($material->id, now());
+
+        $stockItems = $material->stockItems;
+
+        // Si no tiene stockItems todavía, seguimos con lógica legacy
+        if ($stockItems->isEmpty()) {
+            return response()->json([
+                'mode' => 'legacy',
+                'material' => [
+                    'id' => $material->id,
+                    'full_name' => $material->full_name,
+                ],
+                'price_base' => $priceBase,
+                'price_list' => $material->list_price === null ? 0 : (float) $material->list_price,
+                'stock_items' => [],
+            ], 200);
+        }
+
+        $stockItemIds = $stockItems->pluck('id')->toArray();
+
+        $priceListItems = PriceListItem::where('price_list_id', $priceListId)
+            ->whereIn('stock_item_id', $stockItemIds)
+            ->get()
+            ->keyBy('stock_item_id');
+
+        $rows = $stockItems->map(function ($stockItem) use ($priceListItems) {
+            $variantText = '';
+
+            if ($stockItem->variant) {
+                if (!empty($stockItem->variant->attribute_summary)) {
+                    $variantText = $stockItem->variant->attribute_summary;
+                } else {
+                    $talla = optional($stockItem->variant->talla)->short_name ?: optional($stockItem->variant->talla)->name;
+                    $color = optional($stockItem->variant->color)->name;
+                    $variantText = collect([$talla, $color])->filter()->implode(' / ');
+                }
+            }
+
+            $priceListItem = $priceListItems->get($stockItem->id);
+
+            return [
+                'stock_item_id' => $stockItem->id,
+                'display_name' => $stockItem->display_name,
+                'sku' => $stockItem->sku,
+                'barcode' => $stockItem->barcode,
+                'variant_text' => $variantText,
+                'price_list_item_id' => optional($priceListItem)->id,
+                'price_list' => $priceListItem ? (float) $priceListItem->price : 0,
+            ];
+        })->values()->toArray();
+
+        return response()->json([
+            'mode' => 'stock_items',
+            'material' => [
+                'id' => $material->id,
+                'full_name' => $material->full_name,
+            ],
+            'price_base' => $priceBase,
+            'stock_items' => $rows,
+        ], 200);
+    }
+
+    public function managePrice(Request $request)
+    {
+        //dd($request->all());
+        $request->validate([
+            'material_id' => 'required|integer|exists:materials,id',
+            'price_mode' => 'required|in:legacy,stock_items',
+            'material_priceList' => 'nullable|numeric|min:0',
+            'stock_items' => 'nullable|array',
+            'stock_items.*.stock_item_id' => 'required_with:stock_items|integer|exists:stock_items,id',
+            'stock_items.*.price_list' => 'required_with:stock_items|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $material = Material::find($request->material_id);
+
+            if (!$material) {
+                return response()->json([
+                    'message' => 'No existe el material.'
+                ], 422);
+            }
+
+            if ($request->price_mode === 'legacy') {
+                $material->list_price = $request->material_priceList ?? 0;
+                $material->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Precio de tienda actualizado correctamente.'
+                ], 200);
+            }
+
+            $defaultPriceList = PriceList::where('is_default', true)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$defaultPriceList) {
+                return response()->json([
+                    'message' => 'No existe una lista de precios por defecto activa.'
+                ], 422);
+            }
+
+            $stockItems = $request->stock_items ?? [];
+
+            if (empty($stockItems)) {
+                return response()->json([
+                    'message' => 'No se enviaron stock items para actualizar.'
+                ], 422);
+            }
+
+            foreach ($stockItems as $row) {
+                $stockItem = StockItem::where('id', $row['stock_item_id'])
+                    ->where('material_id', $material->id)
+                    ->first();
+
+                if (!$stockItem) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'message' => 'Uno de los stock items no pertenece al material seleccionado.'
+                    ], 422);
+                }
+
+                PriceListItem::updateOrCreate(
+                    [
+                        'price_list_id' => $defaultPriceList->id,
+                        'stock_item_id' => $stockItem->id,
+                    ],
+                    [
+                        'price' => (float) ($row['price_list'] ?? 0),
+                    ]
+                );
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Precios de tienda actualizados correctamente.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Ocurrió un error al guardar los precios.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 

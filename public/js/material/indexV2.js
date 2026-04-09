@@ -511,6 +511,17 @@ $(document).ready(function () {
             }
         });
     }
+
+    $(document).on('click', '[data-ver-inventario]', function () {
+        const materialId = $(this).data('material-id');
+
+        if (!materialId) {
+            toastr.error('No se encontró el stock item.');
+            return;
+        }
+
+        openInventoryLevelsModal(materialId);
+    });
 });
 
 var $formAssignChild;
@@ -530,6 +541,124 @@ var $modalPrecioDirecto;
 var $modalPrecioPercentage;
 var $formPrecioDirecto;
 var $formPrecioPorcentaje;
+
+function openInventoryLevelsModal(materialId) {
+    const url = window.materialInventoryLevelsUrl.replace(':id', materialId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        beforeSend: function () {
+            $('#tbody-modal-inventory-levels').html(`
+                <tr>
+                    <td colspan="8" class="text-center">Cargando...</td>
+                </tr>
+            `);
+            $('#modalInventoryLevels').modal('show');
+        },
+        success: function (response) {
+            fillInventoryLevelsModal(response);
+        },
+        error: function (xhr) {
+            let message = 'No se pudo cargar el inventario.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            toastr.error(message);
+        }
+    });
+}
+
+function fillInventoryLevelsModal(response) {
+    const levels = Array.isArray(response.inventory_levels) ? response.inventory_levels : [];
+    const materialName = response.material && response.material.full_name
+        ? response.material.full_name
+        : 'Inventario';
+
+    $('#modalInventoryLevelsLabel').text(`Inventario - ${materialName}`);
+
+    renderInventoryLevelsModalRows(levels);
+}
+
+
+function escapeHtml(text) {
+    return $('<div>').text(text).html();
+}
+
+function renderInventoryLevelsModalRows(levels) {
+    const $tbody = $('#tbody-modal-inventory-levels');
+    $tbody.empty();
+
+    if (!levels.length) {
+        $tbody.html(`
+            <tr>
+                <td colspan="10" class="text-center text-muted">
+                    No hay inventory levels registrados.
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    levels.forEach(function (level, index) {
+        const stockLabel = [
+            level.stock_item_name || '',
+            level.variant_text || '',
+            level.stock_item_sku ? `SKU: ${level.stock_item_sku}` : ''
+        ].filter(Boolean).join('<br>');
+
+        $tbody.append(`
+            <tr>
+                <td>
+                    <input type="hidden" name="inventory_levels[${index}][id]" value="${escapeHtml(level.id || '')}">
+                    <input type="hidden" name="inventory_levels[${index}][stock_item_id]" value="${escapeHtml(level.stock_item_id || '')}">
+                    ${stockLabel}
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.warehouse_name || '')}" readonly>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.location_name || '')}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_on_hand)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_reserved)}" readonly>
+                </td>
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="inventory_levels[${index}][min_alert]"
+                           value="${normalizeNumber(level.min_alert)}"
+                           min="0" step="0.01" readonly>
+                </td>
+                <td>
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           name="inventory_levels[${index}][max_alert]"
+                           value="${normalizeNumber(level.max_alert)}"
+                           min="0" step="0.01" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.average_cost)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.last_cost)}" readonly>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function normalizeNumber(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+}
 
 function tpl(id, data) {
     let html = $(id).html();
@@ -792,8 +921,6 @@ function openModalSeparate() {
     $modalSeparate.modal('show');
 }
 
-
-
 function setPricePercentage() {
     event.preventDefault();
     $("#btn-submit_pricePercentage").attr("disabled", true);
@@ -861,70 +988,93 @@ function setPricePercentage() {
     });
 }
 
-function setPriceList() {
+function setPriceList(event) {
     event.preventDefault();
-    $("#btn-submit_priceList").attr("disabled", true);
-    // Obtener la URL
+
+    const $btn = $("#btn-submit_priceList");
+    $btn.attr("disabled", true);
+
     var createUrl = $formPrecioDirecto.data('url');
     var form = new FormData($('#formPrecioDirecto')[0]);
+
     $.ajax({
         url: createUrl,
         method: 'POST',
         data: form,
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
-                $("#btn-submit_priceList").attr("disabled", false);
-                $modalPrecioDirecto.modal('hide');
-                var activeColumns = getActiveColumns();
-                console.log(activeColumns);
-                getDataMaterials(1, activeColumns);
-            }, 2000 )
-        },
-        error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "4000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-submit_priceList").attr("disabled", false);
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                debug: false,
+                newestOnTop: false,
+                progressBar: true,
+                positionClass: "toast-top-right",
+                preventDuplicates: false,
+                onclick: null,
+                showDuration: "300",
+                hideDuration: "1000",
+                timeOut: "2000",
+                extendedTimeOut: "1000",
+                showEasing: "swing",
+                hideEasing: "linear",
+                showMethod: "fadeIn",
+                hideMethod: "fadeOut"
+            });
 
+            setTimeout(function () {
+                $btn.attr("disabled", false);
+                $modalPrecioDirecto.modal('hide');
+
+                var activeColumns = getActiveColumns();
+                getDataMaterials(1, activeColumns);
+            }, 1000);
         },
+        error: function (xhr) {
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                toastr.error(xhr.responseJSON.message, 'Error', {
+                    closeButton: true,
+                    debug: false,
+                    newestOnTop: false,
+                    progressBar: true,
+                    positionClass: "toast-top-right",
+                    preventDuplicates: false,
+                    onclick: null,
+                    showDuration: "300",
+                    hideDuration: "1000",
+                    timeOut: "4000",
+                    extendedTimeOut: "1000",
+                    showEasing: "swing",
+                    hideEasing: "linear",
+                    showMethod: "fadeIn",
+                    hideMethod: "fadeOut"
+                });
+            }
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                for (var property in xhr.responseJSON.errors) {
+                    toastr.error(xhr.responseJSON.errors[property], 'Error', {
+                        closeButton: true,
+                        debug: false,
+                        newestOnTop: false,
+                        progressBar: true,
+                        positionClass: "toast-top-right",
+                        preventDuplicates: false,
+                        onclick: null,
+                        showDuration: "300",
+                        hideDuration: "1000",
+                        timeOut: "4000",
+                        extendedTimeOut: "1000",
+                        showEasing: "swing",
+                        hideEasing: "linear",
+                        showMethod: "fadeIn",
+                        hideMethod: "fadeOut"
+                    });
+                }
+            }
+
+            $btn.attr("disabled", false);
+        }
     });
 }
 
@@ -932,79 +1082,125 @@ function openModalPrecioDirecto() {
     var material_id = $(this).data('material');
     var material_name = $(this).data('description');
 
-    var priceList = 0;
-    var priceBase = 0;
-    var priceMin = 0;
-    var priceMax = 0;
+    $modalPrecioDirecto.find('#material_id').val(material_id);
+    $modalPrecioDirecto.find('#descriptionMaterialPrice').html(material_name);
+    $modalPrecioDirecto.find('#price_mode').val('legacy');
+    $modalPrecioDirecto.find('#material_priceBase').val('0.00');
+    $modalPrecioDirecto.find('#material_priceList').val('0.00');
 
-    $.get('/dashboard/get/price/list/material/'+material_id, function(data) {
-        priceList = data.priceList;
-        priceBase = data.priceBase;
-        priceMin = data.priceMin;
-        priceMax = data.priceMax;
-        $modalPrecioDirecto.find('[id=material_priceBase]').val(parseFloat(priceBase).toFixed(2));
-        $modalPrecioDirecto.find('[id=material_priceMin]').val(parseFloat(priceMin).toFixed(2));
-        $modalPrecioDirecto.find('[id=material_priceMax]').val(parseFloat(priceMax).toFixed(2));
-        $modalPrecioDirecto.find('[id=material_priceList]').val(parseFloat(priceList).toFixed(2));
-
-
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        // Función de error, se ejecuta cuando la solicitud GET falla
-        console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-    }, 'json')
-        .done(function() {
-            // Configuración de encabezados
-            var headers = {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-            };
-
-            $.ajaxSetup({
-                headers: headers
-            });
-        });
-
-    $modalPrecioDirecto.find('[id=material_id]').val(material_id);
-    $modalPrecioDirecto.find('[id=descriptionMaterialPrice]').html(material_name);
+    $('#legacy-price-container').show();
+    $('#stock-items-price-container').hide();
+    $('#tbody-modal-price-list').html(`
+        <tr>
+            <td colspan="5" class="text-center text-muted">Cargando...</td>
+        </tr>
+    `);
 
     $modalPrecioDirecto.modal('show');
+
+    $.ajax({
+        url: '/dashboard/get/price/list/material/' + material_id,
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            fillModalPrecioDirecto(data);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.error(textStatus, errorThrown);
+
+            let message = 'No se pudo cargar la información de precios.';
+
+            if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                message = jqXHR.responseJSON.message;
+            }
+
+            toastr.error(message, 'Error', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '2000'
+            });
+        }
+    });
+}
+
+function fillModalPrecioDirecto(data) {
+    let priceBase = parseFloat(data.priceBase || data.price_base || 0);
+    $modalPrecioDirecto.find('#material_priceBase').val(priceBase.toFixed(2));
+
+    if (data.mode === 'stock_items') {
+        $modalPrecioDirecto.find('#price_mode').val('stock_items');
+        $('#legacy-price-container').hide();
+        $('#stock-items-price-container').show();
+
+        renderStockItemsPrices(data.stockItems || data.stock_items || []);
+        return;
+    }
+
+    $modalPrecioDirecto.find('#price_mode').val('legacy');
+    $('#legacy-price-container').show();
+    $('#stock-items-price-container').hide();
+
+    let priceList = parseFloat(data.priceList || data.price_list || 0);
+    $modalPrecioDirecto.find('#material_priceList').val(priceList.toFixed(2));
+}
+
+function renderStockItemsPrices(items) {
+    const $tbody = $('#tbody-modal-price-list');
+    $tbody.empty();
+
+    if (!items.length) {
+        $tbody.html(`
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    No hay stock items registrados.
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    items.forEach(function(item, index) {
+        let descripcion = item.display_name || '';
+        let variante = item.variant_text || '';
+        let sku = item.sku || '';
+        let barcode = item.barcode || '';
+        let priceList = parseFloat(item.price_list || 0).toFixed(2);
+
+        $tbody.append(`
+            <tr>
+                <td>
+                    <input type="hidden" name="stock_items[${index}][stock_item_id]" value="${escapeHtml2(item.stock_item_id || '')}">
+                    <input type="hidden" name="stock_items[${index}][price_list_item_id]" value="${escapeHtml2(item.price_list_item_id || '')}">
+                    ${escapeHtml2(descripcion)}
+                </td>
+                <td>${escapeHtml2(variante)}</td>
+                <td>${escapeHtml2(sku)}</td>
+                <td>${escapeHtml2(barcode)}</td>
+                <td>
+                    <input
+                        type="number"
+                        class="form-control form-control-sm"
+                        name="stock_items[${index}][price_list]"
+                        value="${priceList}"
+                        min="0"
+                        step="0.01"
+                        required
+                    >
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function escapeHtml2(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function openModalPrecioPorcentaje() {
@@ -1520,10 +1716,57 @@ function renderDataTable(data, activeColumns) {
     clone.querySelector("[data-unidad_medida]").innerHTML = data.unidad_medida;
     /*clone.querySelector("[data-stock_max]").innerHTML = data.stock_max;
     clone.querySelector("[data-stock_min]").innerHTML = data.stock_min;*/
-    clone.querySelector("[data-stock_actual]").innerHTML = data.stock_actual;
+    let stockContainer = clone.querySelector("[data-stock_actual]");
+
+    if (data.stock_current !== null) {
+        stockContainer.innerHTML = data.stock_current;
+    } else {
+        stockContainer.innerHTML = `
+            <div class="d-flex flex-column align-items-center">
+                <button class="btn btn-sm btn-outline-primary mt-1"
+                    data-material-id="${data.id}"
+                    data-ver-inventario>
+                    Ver Inv.
+                </button>
+            </div>
+        `;
+    }
+
+    let stockMinContainer = clone.querySelector("[data-stock_min]");
+
+    if (data.stock_min !== null) {
+        stockMinContainer.innerHTML = data.stock_min;
+    } else {
+        stockMinContainer.innerHTML = `
+            <div class="d-flex flex-column align-items-center">
+                <button class="btn btn-sm btn-outline-primary mt-1"
+                    data-material-id="${data.id}"
+                    data-ver-inventario>
+                    Ver Inv.
+                </button>
+            </div>
+        `;
+    }
+
+    let stockMaxContainer = clone.querySelector("[data-stock_max]");
+
+    if (data.stock_max !== null) {
+        stockMaxContainer.innerHTML = data.stock_max;
+    } else {
+        stockMaxContainer.innerHTML = `
+            <div class="d-flex flex-column align-items-center">
+                <button class="btn btn-sm btn-outline-primary mt-1"
+                    data-material-id="${data.id}"
+                    data-ver-inventario>
+                    Ver Inv.
+                </button>
+            </div>
+        `;
+    }
+
     /*clone.querySelector("[data-prioridad]").innerHTML = data.prioridad;*/
-    clone.querySelector("[data-precio_unitario]").innerHTML = data.precio_unitario;
-    clone.querySelector("[data-precio_lista]").innerHTML = data.precio_lista;
+    /*clone.querySelector("[data-precio_unitario]").innerHTML = data.precio_unitario;
+    clone.querySelector("[data-precio_lista]").innerHTML = data.precio_lista;*/
     clone.querySelector("[data-categoria]").innerHTML = data.categoria;
     clone.querySelector("[data-sub_categoria]").innerHTML = data.sub_categoria;
     /*clone.querySelector("[data-tipo]").innerHTML = data.tipo;

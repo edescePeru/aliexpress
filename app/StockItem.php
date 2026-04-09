@@ -36,4 +36,9 @@ class StockItem extends Model
     {
         return $this->hasMany(InventoryLevel::class, 'stock_item_id');
     }
+
+    public function priceListItems()
+    {
+        return $this->hasMany(PriceListItem::class, 'stock_item_id');
+    }
 }

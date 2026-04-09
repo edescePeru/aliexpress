@@ -2806,7 +2806,7 @@ Route::middleware('auth')->group(function (){
         Route::post('/set/price/porcentaje/material', 'MaterialController@setPricePorcentajeMaterial')
             ->name('material.set.price.porcentaje');
 
-        Route::post('/manage/price/material', 'MaterialController@managePriceMaterial')
+        Route::post('/manage/price/material', 'MaterialController@managePrice')
             ->name('material.manage.price');
 
         // TODO: Ganancia Diaria
@@ -3105,6 +3105,9 @@ Route::middleware('auth')->group(function (){
 
         Route::get('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@getInventoryLevels')
             ->name('stockitems.inventory-levels');
+
+        Route::get('/dashboard/material/{material}/inventory-levels', 'StockItemController@getInventoryLevelsByMaterial')
+            ->name('material.inventory-levels');
 
         Route::post('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
             ->name('stockitems.inventory-levels.update');

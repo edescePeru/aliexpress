@@ -9,7 +9,7 @@ class Material extends Model
 {
     use SoftDeletes;
 
-    protected $appends = ['full_description', 'stock_store', 'price_final', 'name_unit'];
+    protected $appends = ['full_description', 'stock_store', 'price_final', 'name_unit', 'stock_current_total'];
 
     protected $fillable = [
         'code',
@@ -60,6 +60,10 @@ class Material extends Model
             ->where('is_active', true)
             ->get(['id', 'variant_id']);
 
+        if ($stockItems->isEmpty()) {
+            return $this->stock_current;
+        }
+
         if ($stockItems->count() !== 1) {
             return null;
         }
@@ -78,6 +82,68 @@ class Material extends Model
         }
 
         return $inventoryLevels->first()->qty_on_hand;
+
+    }
+
+    public function getStockMinTotalAttribute()
+    {
+        $stockItems = StockItem::where('material_id', $this->id)
+            ->where('is_active', true)
+            ->get(['id', 'variant_id']);
+
+        if ($stockItems->isEmpty()) {
+            return $this->stock_min;
+        }
+
+        if ($stockItems->count() !== 1) {
+            return null;
+        }
+
+        $stockItem = $stockItems->first();
+
+        if ($stockItem->variant_id !== null) {
+            return null;
+        }
+
+        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
+            ->get(['id', 'min_alert']);
+
+        if ($inventoryLevels->count() !== 1) {
+            return null;
+        }
+
+        return $inventoryLevels->first()->min_alert;
+
+    }
+
+    public function getStockMaxTotalAttribute()
+    {
+        $stockItems = StockItem::where('material_id', $this->id)
+            ->where('is_active', true)
+            ->get(['id', 'variant_id']);
+
+        if ($stockItems->isEmpty()) {
+            return $this->stock_max;
+        }
+
+        if ($stockItems->count() !== 1) {
+            return null;
+        }
+
+        $stockItem = $stockItems->first();
+
+        if ($stockItem->variant_id !== null) {
+            return null;
+        }
+
+        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
+            ->get(['id', 'max_alert']);
+
+        if ($inventoryLevels->count() !== 1) {
+            return null;
+        }
+
+        return $inventoryLevels->first()->max_alert;
 
     }
 

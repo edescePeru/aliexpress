@@ -274,14 +274,24 @@
             <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch4">
             <label class="custom-control-label" for="customSwitch4">Stock Actual</label>
         </div>
+
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input type="checkbox" checked data-column="stock_min" class="custom-control-input" id="customSwitch5">
+            <label class="custom-control-label" for="customSwitch5">Stock Minimo</label>
+        </div>
+
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input type="checkbox" checked data-column="stock_max" class="custom-control-input" id="customSwitch6">
+            <label class="custom-control-label" for="customSwitch6">Stock Maximo</label>
+        </div>
+        {{--<div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
             <input type="checkbox" checked data-column="precio_unitario" class="custom-control-input" id="customSwitch5">
             <label class="custom-control-label" for="customSwitch5">Precio Costo</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
             <input type="checkbox" checked data-column="precio_lista" class="custom-control-input" id="customSwitch6">
             <label class="custom-control-label" for="customSwitch6">Precio Venta</label>
-        </div>
+        </div>--}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
             <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch7">
             <label class="custom-control-label" for="customSwitch7">Categoría</label>
@@ -353,8 +363,10 @@
             <th data-column="descripcion" data-descripcion>Descripcion</th>
             <th data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
             <th data-column="stock_actual" data-stock_actual>Stock Actual</th>
-            <th data-column="precio_unitario" data-precio_unitario>Precio Costo</th>
-            <th data-column="precio_lista" data-precio_lista>Precio Venta</th>
+            <th data-column="stock_min" data-stock_min>Stock Minimo</th>
+            <th data-column="stock_max" data-stock_max>Stock Maximo</th>
+            {{--<th data-column="precio_unitario" data-precio_unitario>Precio Costo</th>
+            <th data-column="precio_lista" data-precio_lista>Precio Venta</th>--}}
             <th data-column="categoria" data-categoria>Categoría</th>
             <th data-column="sub_categoria" data-sub_categoria>SubCategoría</th>
             <th data-column="marca" data-marca>Marca</th>
@@ -401,8 +413,10 @@
             <td data-column="descripcion" data-descripcion></td>
             <td data-column="unidad_medida" data-unidad_medida></td>
             <td data-column="stock_actual" data-stock_actual></td>
-            <td data-column="precio_unitario" data-precio_unitario></td>
-            <td data-column="precio_lista" data-precio_lista></td>
+            <td data-column="stock_min" data-stock_min></td>
+            <td data-column="stock_max" data-stock_max></td>
+            {{--<td data-column="precio_unitario" data-precio_unitario></td>
+            <td data-column="precio_lista" data-precio_lista></td>--}}
             <td data-column="categoria" data-categoria></td>
             <td data-column="sub_categoria" data-sub_categoria></td>
             <td data-column="marca" data-marca></td>
@@ -433,49 +447,105 @@
     </template>
 
     <div id="modalPrecioDirecto" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Gestión de Precios</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
+
                 <form id="formPrecioDirecto" data-url="{{ route('material.manage.price') }}">
                     @csrf
+
                     <div class="modal-body">
                         <input type="hidden" id="material_id" name="material_id">
-                        <p>¿Está seguro de configurar estos precios?</p>
-                        <p id="descriptionMaterialPrice"></p>
+                        <input type="hidden" id="price_mode" name="price_mode" value="legacy">
+
+                        <p id="descriptionMaterialPrice" class="font-weight-bold mb-3"></p>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="material_priceList">Precio Base: <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="material_priceBase" step="0.01" name="material_priceBase" class="form-control" required min="0" readonly>
-                                </div>
-                            </div>
-                            {{--<div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="material_priceList">Precio Minimo: <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="material_priceMin" step="0.01" name="material_priceMin" class="form-control" required min="0">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="material_priceList">Precio Máximo: <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="material_priceMax" step="0.01" name="material_priceMax" class="form-control" required min="0">
-                                </div>
-                            </div>--}}
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="material_priceList">Precio Tienda: <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="material_priceList" step="0.01" name="material_priceList" class="form-control" required min="0">
+                                    <label for="material_priceBase">
+                                        Precio Costo:
+                                        <span class="right badge badge-danger">(*)</span>
+                                    </label>
+                                    <input
+                                            type="number"
+                                            id="material_priceBase"
+                                            step="0.01"
+                                            name="material_priceBase"
+                                            class="form-control"
+                                            required
+                                            min="0"
+                                            readonly
+                                    >
+                                    <small class="text-muted">
+                                        Este valor se calcula automáticamente en base al costo promedio.
+                                    </small>
                                 </div>
                             </div>
                         </div>
 
+                        <div id="legacy-price-container">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="material_priceList">
+                                            Precio Tienda:
+                                            <span class="right badge badge-danger">(*)</span>
+                                        </label>
+                                        <input
+                                                type="number"
+                                                id="material_priceList"
+                                                step="0.01"
+                                                name="material_priceList"
+                                                class="form-control"
+                                                min="0"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="stock-items-price-container" style="display: none;">
+                            <div class="alert alert-info py-2 mb-3">
+                                Este material tiene múltiples stock items. Configure el precio de tienda por cada uno.
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead>
+                                    <tr>
+                                        <th>Stock Item</th>
+                                        <th>Variante</th>
+                                        <th>SKU</th>
+                                        <th>Código de barras</th>
+                                        <th width="160">Precio Tienda</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="tbody-modal-price-list">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">
+                                            No hay datos cargados.
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                     </div>
+
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" id="btn-submit_priceList" class="btn btn-success">Guardar</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            Cancelar
+                        </button>
+                        <button type="button" id="btn-submit_priceList" class="btn btn-success">
+                            Guardar
+                        </button>
                     </div>
                 </form>
             </div>
@@ -718,6 +788,50 @@
     <div id="resumen-stock-html" class="d-none">
         @include('material._resumen_popup', ['rows' => $rows])
     </div>
+
+    <div class="modal fade" id="modalInventoryLevels" tabindex="-1" role="dialog" aria-labelledby="modalInventoryLevelsLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalInventoryLevelsLabel">Inventario por almacén</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" id="modal_stock_item_id">
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Almacén</th>
+                                <th>Ubicación</th>
+                                <th>Stock actual</th>
+                                <th>Reservado</th>
+                                <th>Min</th>
+                                <th>Max</th>
+                                <th>Promedio</th>
+                                <th>Últ. costo</th>
+                            </tr>
+                            </thead>
+                            <tbody id="tbody-modal-inventory-levels">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 
 @section('plugins')
@@ -869,6 +983,9 @@
             });
 
         })
+    </script>
+    <script>
+        window.materialInventoryLevelsUrl = "{{ route('material.inventory-levels', ':id') }}";
     </script>
     <script src="{{ asset('js/material/indexV2.js') }}?v={{ time() }}"></script>
 
