@@ -312,4 +312,9 @@ class Quote extends Model
     {
         return $this->hasMany(Sale::class, 'quote_id');
     }
+
+    public function stockLotReservations()
+    {
+        return $this->hasMany(QuoteStockLot::class, 'quote_id');
+    }
 }

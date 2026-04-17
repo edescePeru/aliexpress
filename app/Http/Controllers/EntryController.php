@@ -1419,7 +1419,7 @@ class EntryController extends Controller
 
             // Mapa de DetailEntry por groupKey
             $detailEntryMap = [];
-
+            $stockLotMap = [];
             // =========================
             // 1) Crear DetailEntry por grupo
             //    + actualizar inventory_levels
@@ -1477,10 +1477,10 @@ class EntryController extends Controller
                 // =========================
                 // Crear/actualizar lote si aplica
                 // =========================
-                if (($group['lot_code'] ?? '') !== '' || !empty($group['date_vence'])) {
+                /*if (($group['lot_code'] ?? '') !== '' || !empty($group['date_vence'])) {
                     $this->increaseStockLot(
                         $group['stock_item_id'],
-                        //$group['location_id'],
+                        $group['location_id'],
                         $group['warehouse_id'],
                         $detailEntry->id,
                         $group['lot_code'],
@@ -1488,7 +1488,19 @@ class EntryController extends Controller
                         $group['count'],
                         $group['unit_price']
                     );
-                }
+                }*/
+                $stockLot = $this->increaseStockLot(
+                    $group['stock_item_id'],
+                    $group['location_id'],
+                    $group['warehouse_id'],
+                    $detailEntry->id,
+                    $group['lot_code'] ?? null,
+                    !empty($group['date_vence']) ? $date : null,
+                    $group['count'],
+                    $group['unit_price']
+                );
+
+                $stockLotMap[$groupKey] = $stockLot;
 
                 // =========================
                 // FollowMaterial (igual que antes)
@@ -1566,6 +1578,8 @@ class EntryController extends Controller
                 $detailEntry = $detailEntryMap[$groupKey];
                 $material = $detailEntry->material;
 
+                $stockLot = $stockLotMap[$groupKey] ?? null;
+
                 if (!isset($totalByDetailEntryId[$detailEntry->id])) {
                     $totalByDetailEntryId[$detailEntry->id] = 0;
                 }
@@ -1606,15 +1620,18 @@ class EntryController extends Controller
                     if (isset($material->typeScrap)) {
                         Item::create([
                             'detail_entry_id' => $detailEntry->id,
-                            'material_id'     => $detailEntry->material_id, // compatibilidad temporal
                             'stock_item_id'   => $detailEntry->stock_item_id,
+                            'stock_lot_id'    => $stockLot ? $stockLot->id : null,
+                            'material_id'     => $detailEntry->material_id,
                             'code'            => $it->item,
                             'length'          => (float) $material->typeScrap->length,
                             'width'           => (float) $material->typeScrap->width,
                             'weight'          => 0,
                             'price'           => $priceForItem,
+                            'unit_cost'       => (float) $detailEntry->unit_price,
                             'percentage'      => 1,
                             'typescrap_id'    => $material->typeScrap->id,
+                            'warehouse_id'    => $warehouseId,
                             'location_id'     => $it->id_location,
                             'state'           => $it->state ?? 'good',
                             'state_item'      => 'entered'
@@ -1623,14 +1640,17 @@ class EntryController extends Controller
                     else {
                         Item::create([
                             'detail_entry_id' => $detailEntry->id,
-                            'material_id'     => $detailEntry->material_id,
                             'stock_item_id'   => $detailEntry->stock_item_id,
+                            'stock_lot_id'    => $stockLot ? $stockLot->id : null,
+                            'material_id'     => $detailEntry->material_id,
                             'code'            => $it->item,
                             'length'          => 0,
                             'width'           => 0,
                             'weight'          => 0,
                             'price'           => $priceForItem,
+                            'unit_cost'       => (float) $detailEntry->unit_price,
                             'percentage'      => 1,
+                            'warehouse_id'    => $warehouseId,
                             'location_id'     => $it->id_location,
                             'state'           => $it->state ?? 'good',
                             'state_item'      => 'entered'
@@ -1731,34 +1751,29 @@ class EntryController extends Controller
         return response()->json(['message' => 'Ingreso por compra guardado con éxito.'], 200);
     }
 
-    private function increaseStockLot(int $stockItemId,
-        //?int $locationId,
+    private function increaseStockLot(
+        int $stockItemId,
+        ?int $locationId,
         ?int $warehouseId,
         int $detailEntryId,
         ?string $lotCode,
         $expirationDate,
         float $quantity,
         float $unitCost
-    ): void {
-        $lotCode = $lotCode !== '' ? $lotCode : null;
+    ) {
+        $lotCode = trim((string) $lotCode) !== '' ? trim((string) $lotCode) : null;
 
-        $lot = StockLot::firstOrNew([
+        return StockLot::create([
             'stock_item_id'   => $stockItemId,
+            'location_id'     => $locationId,
             'warehouse_id'    => $warehouseId,
+            'detail_entry_id' => $detailEntryId,
             'lot_code'        => $lotCode,
             'expiration_date' => $expirationDate,
+            'qty_on_hand'     => $quantity,
+            'qty_reserved'    => 0,
+            'unit_cost'       => $unitCost,
         ]);
-
-        if (!$lot->exists) {
-            $lot->qty_on_hand = 0;
-            $lot->qty_reserved = 0;
-            $lot->unit_cost = $unitCost;
-        }
-
-        $lot->detail_entry_id = $detailEntryId;
-        $lot->qty_on_hand += $quantity;
-        $lot->unit_cost = $unitCost;
-        $lot->save();
     }
 
     private function increaseInventoryLevel(
@@ -2717,7 +2732,7 @@ class EntryController extends Controller
         return response()->json(['message' => 'Detalle de compra eliminado con éxito.'], 200);
     }
 
-    public function addDetailOfEntry( Request $request, $id_entry )
+    public function addDetailOfEntryO( Request $request, $id_entry )
     {
         $begin = microtime(true);
         //dump($request);
@@ -3122,6 +3137,371 @@ class EntryController extends Controller
                         $orderPurchase->state = 1;
                         $orderPurchase->save();
                     }
+
+                } else {
+                    $orderPurchase->state = 2;
+                    $orderPurchase->save();
+                }
+
+            } else {
+                $orderPurchase->state = 2;
+                $orderPurchase->save();
+            }
+        }
+
+        return response()->json(['message' => 'Detalles de compra guardados con éxito.'], 200);
+    }
+
+    public function addDetailOfEntry(Request $request, $id_entry)
+    {
+        $begin = microtime(true);
+        $flag = DataGeneral::where('name', 'type_current')->first();
+
+        DB::beginTransaction();
+        try {
+            $entry = Entry::findOrFail($id_entry);
+
+            $items = json_decode($request->get('items'));
+
+            if (!is_array($items) && !($items instanceof \Traversable)) {
+                throw new \Exception('El formato de items es inválido.');
+            }
+
+            /**
+             * Agrupar por:
+             * stock_item_id + warehouse/location + lote + fecha_vencimiento + price
+             */
+            $grouped = [];
+
+            foreach ($items as $it) {
+                $materialId  = (int) ($it->id_material ?? 0);
+                $stockItemId = (int) ($it->stock_item_id ?? 0);
+                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
+
+                $location = Location::find($locationId);
+                $warehouseId = isset($location) ? $location->warehouse_id : null;
+
+                $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
+                $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
+                $unitPrice = (float) ($it->price ?? 0);
+
+                if (!$stockItemId) {
+                    throw new \Exception("Uno de los items no tiene stock_item_id.");
+                }
+
+                if (!$materialId) {
+                    throw new \Exception("Uno de los items no tiene id_material.");
+                }
+
+                $dateKey = ($dateStr === '') ? '__NULL__' : $dateStr;
+                $lotKey  = ($lotCode === '') ? '__NOLOT__' : $lotCode;
+
+                $groupKey = implode('|', [
+                    $stockItemId,
+                    $warehouseId ?: 'null',
+                    $lotKey,
+                    $dateKey,
+                    number_format($unitPrice, 4, '.', '')
+                ]);
+
+                if (!isset($grouped[$groupKey])) {
+                    $grouped[$groupKey] = [
+                        'material_id'   => $materialId,
+                        'stock_item_id' => $stockItemId,
+                        'location_id'   => $locationId,
+                        'warehouse_id'  => $warehouseId,
+                        'lot_code'      => $lotCode,
+                        'date_vence'    => $dateStr,
+                        'unit_price'    => $unitPrice,
+                        'count'         => 0,
+                    ];
+                }
+
+                $grouped[$groupKey]['count'] += (float) ($it->quantity ?? 1);
+            }
+
+            $detailEntryMap = [];
+            $stockLotMap = [];
+
+            /**
+             * 1) Crear DetailEntry por grupo
+             *    + inventory_levels
+             *    + stock_lots
+             */
+            foreach ($grouped as $groupKey => $group) {
+                $material = Material::find($group['material_id']);
+                if (!$material) {
+                    throw new \Exception("Material no encontrado: " . $group['material_id']);
+                }
+
+                $stockItem = StockItem::with('material')->find($group['stock_item_id']);
+                if (!$stockItem) {
+                    throw new \Exception("StockItem no encontrado: " . $group['stock_item_id']);
+                }
+
+                $date = null;
+                if (!empty($group['date_vence']) && $group['date_vence'] !== '__NULL__') {
+                    $date = Carbon::createFromFormat('d/m/Y', $group['date_vence']);
+                }
+
+                $detailEntry = DetailEntry::create([
+                    'entry_id'          => $entry->id,
+                    'material_id'       => $group['material_id'], // compatibilidad temporal
+                    'ordered_quantity'  => $group['count'],
+                    'entered_quantity'  => $group['count'],
+                    'unit_price'        => round((float) $group['unit_price'], 2),
+                    'date_vence'        => $date,
+                    'stock_item_id'     => $group['stock_item_id'],
+                ]);
+
+                $detailEntryMap[$groupKey] = $detailEntry;
+
+                if ($material->perecible == 's' && $date) {
+                    MaterialVencimiento::firstOrCreate([
+                        'material_id' => $group['material_id'],
+                        'fecha_vencimiento' => $date
+                    ]);
+                }
+
+                $this->increaseInventoryLevel(
+                    $group['stock_item_id'],
+                    $group['location_id'],
+                    $group['warehouse_id'],
+                    $group['count'],
+                    $group['unit_price']
+                );
+
+                $stockLot = $this->increaseStockLot(
+                    $group['stock_item_id'],
+                    $group['location_id'],
+                    $group['warehouse_id'],
+                    $detailEntry->id,
+                    $group['lot_code'] ?? null,
+                    !empty($group['date_vence']) ? $date : null,
+                    $group['count'],
+                    $group['unit_price']
+                );
+
+                $stockLotMap[$groupKey] = $stockLot;
+
+                $follows = FollowMaterial::where('material_id', $group['material_id'])->get();
+                if (!$follows->isEmpty()) {
+
+                    $notification = Notification::create([
+                        'content' => 'El material ' . $detailEntry->material->full_description . ' ha sido ingresado.',
+                        'reason_for_creation' => 'follow_material',
+                        'user_id' => Auth::user()->id,
+                        'url_go' => route('follow.index')
+                    ]);
+
+                    $users = User::role(['admin', 'owner'])->get();
+                    foreach ($users as $user) {
+                        $followUsers = FollowMaterial::where('material_id', $detailEntry->material_id)
+                            ->where('user_id', $user->id)
+                            ->get();
+
+                        if (!$followUsers->isEmpty()) {
+                            foreach ($user->roles as $role) {
+                                NotificationUser::create([
+                                    'notification_id' => $notification->id,
+                                    'role_id' => $role->id,
+                                    'user_id' => $user->id,
+                                    'read' => false,
+                                    'date_read' => null,
+                                    'date_delete' => null
+                                ]);
+                            }
+                        }
+                    }
+
+                    foreach ($follows as $follow) {
+                        $follow->state = 'in_warehouse';
+                        $follow->save();
+                    }
+                }
+            }
+
+            /**
+             * 2) Crear Items y acumular total_detail
+             */
+            $totalByDetailEntryId = [];
+
+            foreach ($items as $it) {
+
+                $materialId  = (int) ($it->id_material ?? 0);
+                $stockItemId = (int) ($it->stock_item_id ?? 0);
+                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
+
+                $location = Location::find($locationId);
+                $warehouseId = isset($location) ? $location->warehouse_id : null;
+
+                $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
+                $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
+                $unitPrice = (float) ($it->price ?? 0);
+
+                $dateKey = ($dateStr === '') ? '__NULL__' : $dateStr;
+                $lotKey  = ($lotCode === '') ? '__NOLOT__' : $lotCode;
+
+                $groupKey = implode('|', [
+                    $stockItemId,
+                    $warehouseId ?: 'null',
+                    $lotKey,
+                    $dateKey,
+                    number_format($unitPrice, 4, '.', '')
+                ]);
+
+                if (!isset($detailEntryMap[$groupKey])) {
+                    continue;
+                }
+
+                $detailEntry = $detailEntryMap[$groupKey];
+                $stockLot = $stockLotMap[$groupKey] ?? null;
+                $material = $detailEntry->material;
+
+                if (!isset($totalByDetailEntryId[$detailEntry->id])) {
+                    $totalByDetailEntryId[$detailEntry->id] = 0;
+                }
+
+                if ($flag->valueText == 'usd') {
+                    $detailEntry->unit_price = round((float)$it->price, 2);
+                    $detailEntry->save();
+                    $priceForItem = round((float)$it->price, 2);
+                } elseif ($flag->valueText == 'pen') {
+                    $detailEntry->unit_price = round((float)$it->price, 2);
+                    $detailEntry->save();
+                    $priceForItem = round((float)$it->price, 2);
+                } else {
+                    $priceForItem = round((float)$it->price, 2);
+                }
+
+                if ((int) $material->tipo_venta_id === 3) {
+                    if (isset($material->typeScrap)) {
+                        Item::create([
+                            'detail_entry_id' => $detailEntry->id,
+                            'stock_item_id'   => $detailEntry->stock_item_id,
+                            'stock_lot_id'    => $stockLot ? $stockLot->id : null,
+                            'material_id'     => $detailEntry->material_id,
+                            'code'            => $it->item ?? null,
+                            'length'          => (float) $material->typeScrap->length,
+                            'width'           => (float) $material->typeScrap->width,
+                            'weight'          => 0,
+                            'price'           => $priceForItem,
+                            'unit_cost'       => (float) $detailEntry->unit_price,
+                            'percentage'      => 1,
+                            'typescrap_id'    => $material->typeScrap->id,
+                            'warehouse_id'    => $warehouseId,
+                            'location_id'     => $locationId,
+                            'state'           => $it->state ?? 'good',
+                            'state_item'      => 'entered'
+                        ]);
+                    } else {
+                        Item::create([
+                            'detail_entry_id' => $detailEntry->id,
+                            'stock_item_id'   => $detailEntry->stock_item_id,
+                            'stock_lot_id'    => $stockLot ? $stockLot->id : null,
+                            'material_id'     => $detailEntry->material_id,
+                            'code'            => $it->item ?? null,
+                            'length'          => 0,
+                            'width'           => 0,
+                            'weight'          => 0,
+                            'price'           => $priceForItem,
+                            'unit_cost'       => (float) $detailEntry->unit_price,
+                            'percentage'      => 1,
+                            'warehouse_id'    => $warehouseId,
+                            'location_id'     => $locationId,
+                            'state'           => $it->state ?? 'good',
+                            'state_item'      => 'entered'
+                        ]);
+                    }
+                }
+
+                $totalByDetailEntryId[$detailEntry->id] += (float) $it->price;
+            }
+
+            /**
+             * 3) Guardar total_detail
+             */
+            foreach ($totalByDetailEntryId as $detailEntryId => $total) {
+                DetailEntry::where('id', $detailEntryId)->update([
+                    'total_detail' => round($total, 2)
+                ]);
+            }
+
+            $credit = SupplierCredit::where('entry_id', $entry->id)->first();
+
+            if (isset($credit)) {
+                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
+                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
+                $credit->save();
+            }
+
+            /**
+             * 4) Recalcular costo promedio material padre
+             */
+            $entryDate = $entry->date_entry instanceof Carbon
+                ? $entry->date_entry
+                : Carbon::parse($entry->date_entry);
+
+            $affectedMaterialIds = collect($grouped)
+                ->pluck('material_id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+
+            foreach ($affectedMaterialIds as $mid) {
+                $avg = (float) ($avgCosts[$mid] ?? 0.0);
+
+                Material::where('id', $mid)->update([
+                    'unit_price' => $avg
+                ]);
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Agregar detalle de ingreso',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $entry = Entry::find($id_entry);
+        $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
+
+        if (!is_null($orderPurchase)) {
+            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
+
+            if (count($entradas) > 0) {
+                $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
+
+                if (isset($details)) {
+                    $flag = 1;
+                    foreach ($details as $detail) {
+                        $material = $detail->material_id;
+                        $cant_material = 0;
+                        foreach ($entradas as $entrada) {
+                            $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
+                                ->where('material_id', $material)->sum('entered_quantity');
+                            $cant_material += $entry_details_sum;
+                        }
+
+                        if ($cant_material < $detail->quantity) {
+                            $flag = 0;
+                        }
+                    }
+                    $orderPurchase->state = $flag == 0 ? 0 : 1;
+                    $orderPurchase->save();
 
                 } else {
                     $orderPurchase->state = 2;

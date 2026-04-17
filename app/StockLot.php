@@ -37,4 +37,9 @@ class StockLot extends Model
     {
         return $this->belongsTo(DetailEntry::class, 'detail_entry_id');
     }
+
+    public function quoteReservations()
+    {
+        return $this->hasMany(QuoteStockLot::class, 'stock_lot_id');
+    }
 }

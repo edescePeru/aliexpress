@@ -160,7 +160,7 @@ function showModalQuantityConsumable(render, consumable) {
 
     $('#c_quantity_productId').val(consumable.id);
     $('#c_quantity_total').val(0);
-    $('#c_quantity_stock_show').val(consumable.stock_current);
+    $('#c_quantity_stock_show').val(consumable.stock_available);
     $('#c_presentationsArea').html('<div class="text-muted">Cargando presentaciones...</div>');
 
     fetchPresentations(consumable.id)
@@ -229,7 +229,7 @@ function renderTemplateConsumable(render, consumable, qtyVisible, pricePU, disco
 
     // visibles
     clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
+    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
     clone.querySelector("[data-consumableQuantity]").value = parseFloat(qtyVisible).toFixed(2);
     clone.querySelector("[data-consumablePrice]").value = parseFloat(pricePU).toFixed(2);
     $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePU.toFixed(10));
@@ -244,7 +244,8 @@ function renderTemplateConsumable(render, consumable, qtyVisible, pricePU, disco
     clone.querySelector("[data-consumableImporte]").value = (parseFloat(qtyVisible) * parseFloat(pricePU)).toFixed(2);
 
     // data attrs
-    $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.id);
+    $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.material_id);
+    $(clone).find('[data-stock_item_id]').attr('data-stock_item_id', consumable.stock_item_id);
     $(clone).find('[data-descuento]').attr('data-descuento', parseFloat(discount || 0).toFixed(2));
     $(clone).find('[data-type_promotion]').attr('data-type_promotion', 'ninguno');
 
@@ -322,6 +323,13 @@ function readConsumablesFromDom($card) {
             $row.find('[data-consumableId]').val() ||
             null;
 
+        const stockItemId =
+            $row.find('[data-stock_item_id]').attr('data-stock_item_id') ||
+            $row.find('[data-stock_item_id]').val() ||
+            $row.find('[data-stock_item_id]').attr('data-stock_item_id') ||
+            $row.find('[data-stock_item_id]').val() ||
+            null;
+
         const unit = ($row.find('[data-consumableUnit]').val() || '').trim();
 
         const qtyVisible = parseFloat($row.find('[data-consumableQuantity]').val() || 0);
@@ -338,6 +346,7 @@ function readConsumablesFromDom($card) {
 
         arr.push({
             id: materialId,
+            stockItemId: stockItemId,
             description,
             unit,
             quantity: qtyVisible,
@@ -725,7 +734,10 @@ $(document).ready(function () {
             processResults(data) {
                 return {
                     results: $.map(data, function (item) {
-                        return { text: item.full_description, id: item.id };
+                        return {
+                            text: item.display_name,
+                            id: item.id,
+                        }
                     })
                 }
             }
@@ -880,6 +892,9 @@ $(document).ready(function () {
         });
     });
 
+    $('#btn-notAddConsumable').on('click', function () {
+        $modalConsumableQty.modal('hide');
+    });
 });
 
 var $selectCustomer;
@@ -960,6 +975,7 @@ function saveEquipmentEdit() {
 
                     const consumablesDescription = [];
                     const consumablesIds = [];
+                    const consumablesStockItemIds = [];
                     const consumablesUnit = [];
 
                     const consumablesQuantity = []; // packs o unidades (según presentación)
@@ -982,6 +998,8 @@ function saveEquipmentEdit() {
                     // En edit, normalmente ya están en el card, por eso hacemos un find directo.
                     $card.find('[data-consumableDescription]').each(function(){ consumablesDescription.push($(this).val()); });
                     $card.find('[data-consumableId]').each(function(){ consumablesIds.push($(this).attr('data-consumableid')); });
+
+                    $card.find('[data-stock_item_id]').each(function(){ consumablesStockItemIds.push($(this).attr('data-stock_item_id')); });
 
                     $card.find('[data-descuento]').each(function(){
                         const d = parseFloat($(this).attr('data-descuento') || 0);
@@ -1012,6 +1030,7 @@ function saveEquipmentEdit() {
                     for (let i = 0; i < consumablesDescription.length; i++) {
                         consumablesArray.push({
                             id: consumablesIds[i],
+                            stock_item_id: consumablesStockItemIds[i],
                             description: consumablesDescription[i],
                             unit: consumablesUnit[i],
 

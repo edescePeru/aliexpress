@@ -17,6 +17,71 @@ class StockItem extends Model
         'is_active' // El is_active de cada variante
     ];
 
+    public function getStockCurrentAttribute()
+    {
+        if (!$this->relationLoaded('inventoryLevels')) {
+            return (float) $this->inventoryLevels()->sum('qty_on_hand');
+        }
+
+        return (float) $this->inventoryLevels->sum('qty_on_hand');
+    }
+
+    public function getStockReservedAttribute()
+    {
+        if (!$this->relationLoaded('inventoryLevels')) {
+            return (float) $this->inventoryLevels()->sum('qty_reserved');
+        }
+
+        return (float) $this->inventoryLevels->sum('qty_reserved');
+    }
+
+    public function getStockAvailableAttribute()
+    {
+        return (float) $this->stock_current - (float) $this->stock_reserved;
+    }
+
+    public function getListPriceAttribute()
+    {
+        if ($this->relationLoaded('priceListItems')) {
+            $priceListItem = $this->priceListItems->first(function ($item) {
+                return $item->priceList && $item->priceList->is_default && $item->priceList->is_active;
+            });
+
+            return $priceListItem ? (float) $priceListItem->price : 0;
+        }
+
+        $defaultPriceList = PriceList::where('is_default', true)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$defaultPriceList) {
+            return 0;
+        }
+
+        $priceListItem = $this->priceListItems()
+            ->where('price_list_id', $defaultPriceList->id)
+            ->first();
+
+        return $priceListItem ? (float) $priceListItem->price : 0;
+    }
+
+    public function getUiColorAttribute()
+    {
+        if ($this->material && (int) $this->material->enable_status === 0) {
+            return 'purple';
+        }
+
+        if ((float) $this->stock_available <= 0) {
+            return 'red';
+        }
+
+        if ((float) $this->list_price > 0) {
+            return 'blue';
+        }
+
+        return '';
+    }
+
     public function material()
     {
         return $this->belongsTo(Material::class, 'material_id');
@@ -40,5 +105,10 @@ class StockItem extends Model
     public function priceListItems()
     {
         return $this->hasMany(PriceListItem::class, 'stock_item_id');
+    }
+
+    public function quoteStockLots()
+    {
+        return $this->hasMany(QuoteStockLot::class, 'stock_item_id');
     }
 }

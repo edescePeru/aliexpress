@@ -40,6 +40,8 @@ use App\ResumenQuote;
 use App\Sale;
 use App\SaleDetail;
 use App\Services\InventoryCostService;
+use App\StockItem;
+use App\StockLot;
 use App\TipoPago;
 use App\UnitMeasure;
 use App\User;
@@ -55,7 +57,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Webklex\PDFMerger\Facades\PDFMergerFacade as PDFMerger;
 use Intervention\Image\Facades\Image;
-
+use App\Services\QuoteStockReservationService;
 
 class QuoteSaleController extends Controller
 {
@@ -256,10 +258,12 @@ class QuoteSaleController extends Controller
             'stockItems' => function ($query) {
                 $query->where('is_active', true)
                     ->with([
-                        'variant:id,material_id,attribute_summary,color_id',
+                        'variant:id,material_id,attribute_summary,quality_id,color_id',
                         'variant.talla:id,name,short_name',
                         'variant.color:id,name,short_name',
                         'unitMeasure:id,name',
+                        'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
+                        'priceListItems.priceList:id,is_default,is_active',
                     ]);
             }
         ])->where('enable_status', 1)->get();
@@ -286,19 +290,55 @@ class QuoteSaleController extends Controller
                     'unit_measure' => $material->unitMeasure,
                     'list_price' => $material->list_price,
                     'enable_status' => $material->enable_status,
-                    'stock_current' => $material->stock_current,
+                    'stock_current' => (float) ($material->stock_current ?? 0),
+                    'stock_reserved' => 0,
+                    'stock_available' => (float) ($material->stock_current ?? 0),
                     'state_update_price' => $material->state_update_price,
                 ];
                 continue;
             }
 
             foreach ($material->stockItems as $stockItem) {
-                $variantText = $this->getVariantText($stockItem);
+                $variantText = '';
+
+                if ($stockItem->variant) {
+                    if (!empty($stockItem->variant->attribute_summary)) {
+                        $variantText = $stockItem->variant->attribute_summary;
+                    } else {
+                        $quality = optional($stockItem->variant->quality)->short_name
+                            ?: optional($stockItem->variant->quality)->name;
+
+                        $color = optional($stockItem->variant->color)->name;
+
+                        $variantText = collect([$quality, $color])
+                            ->filter()
+                            ->implode(' / ');
+                    }
+                }
 
                 $fullDescription = $stockItem->display_name ?: $material->full_name;
                 if ($variantText) {
                     $fullDescription .= ' - ' . $variantText;
                 }
+
+                $stockCurrent = (float) $stockItem->inventoryLevels->sum(function ($level) {
+                    return (float) ($level->qty_on_hand ?? 0);
+                });
+
+                $stockReserved = (float) $stockItem->inventoryLevels->sum(function ($level) {
+                    return (float) ($level->qty_reserved ?? 0);
+                });
+
+                $stockAvailable = $stockCurrent - $stockReserved;
+
+                $priceListItem = $stockItem->priceListItems
+                    ->first(function ($item) {
+                        return $item->priceList
+                            && $item->priceList->is_default
+                            && $item->priceList->is_active;
+                    });
+
+                $listPrice = $priceListItem ? (float) $priceListItem->price : 0;
 
                 $array[] = [
                     'id' => $stockItem->id,
@@ -314,9 +354,11 @@ class QuoteSaleController extends Controller
                     'barcode' => $stockItem->barcode,
                     'type_scrap' => $material->typeScrap,
                     'unit_measure' => $stockItem->unitMeasure ?: $material->unitMeasure,
-                    'list_price' => $material->list_price, // temporal, luego cambiarás a price_list_items
+                    'list_price' => $listPrice,
                     'enable_status' => $material->enable_status,
-                    'stock_current' => null, // luego esto debería salir del inventory level o accessor del stock item
+                    'stock_current' => $stockCurrent,
+                    'stock_reserved' => $stockReserved,
+                    'stock_available' => $stockAvailable,
                     'state_update_price' => $material->state_update_price,
                 ];
             }
@@ -720,7 +762,7 @@ class QuoteSaleController extends Controller
      * - Workforces (servicios adicionales):
      *   - Puede venir billable (1/0). Si billable = 0, igual lo guardamos, pero en facturación se excluirá.
      */
-    public function store(StoreQuoteRequest $request)
+    public function storeO(StoreQuoteRequest $request)
     {
         $begin = microtime(true);
         $validated = $request->validated();
@@ -1105,6 +1147,392 @@ class QuoteSaleController extends Controller
         }
 
         return response()->json(['message' => 'Cotización ' . $codeQuote . ' guardada con éxito.'], 200);
+    }
+
+    public function store(StoreQuoteRequest $request)
+    {
+        $begin = microtime(true);
+        $validated = $request->validated();
+
+        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
+        $currency = $dataCurrency->valueText;
+
+        DB::beginTransaction();
+        try {
+
+            $maxCode = Quote::max('id');
+            $maxId = $maxCode + 1;
+            $length = 5;
+
+            $quote = Quote::create([
+                'code' => '',
+                'description_quote' => $request->get('code_description'),
+                'observations' => $request->get('observations'),
+
+                'date_quote' => ($request->filled('date_quote'))
+                    ? Carbon::createFromFormat('d/m/Y', $request->get('date_quote'))
+                    : Carbon::now(),
+
+                'date_validate' => ($request->filled('date_validate'))
+                    ? Carbon::createFromFormat('d/m/Y', $request->get('date_validate'))
+                    : Carbon::now()->addDays(5),
+
+                'way_to_pay' => $request->get('way_to_pay', ''),
+                'delivery_time' => $request->get('delivery_time', ''),
+
+                'customer_id' => $request->get('customer_id'),
+                'contact_id' => $request->get('contact_id'),
+                'payment_deadline_id' => $request->get('payment_deadline'),
+
+                'state' => 'created',
+                'currency_invoice' => $currency,
+
+                // Totales (front)
+                //'descuento' => $request->get('descuento'),
+                'descuento' => $request->get('descuentoReal'),
+                'discount_type' => $request->get('discount_type'),                 // amount|percent|null
+                'discount_input_mode' => $request->get('discount_input_mode'),     // with_igv|without_igv|null
+                'discount_input_value' => $request->get('discount_input_value'),   // decimal|null
+
+                /*'gravada' => $request->get('gravada'),
+                'igv_total' => $request->get('igv_total'),
+                'total_importe' => $request->get('total_importe'),*/
+                'gravada' => $request->get('gravadaReal'),
+                'igv_total' => $request->get('igvReal'),
+                'total_importe' => $request->get('totalReal'),
+            ]);
+
+            // Código
+            $codeQuote = ($maxId < $quote->id)
+                ? 'COT-' . str_pad($quote->id, $length, "0", STR_PAD_LEFT)
+                : 'COT-' . str_pad($maxId, $length, "0", STR_PAD_LEFT);
+
+            $quote->code = $codeQuote;
+            $quote->save();
+
+            QuoteUser::create([
+                'quote_id' => $quote->id,
+                'user_id' => Auth::user()->id,
+            ]);
+
+            $equipments = json_decode($request->get('equipments')) ?? [];
+
+            // IGV: si tienes una variable/config global, reemplaza
+            $igvPct = 18.0;
+            $igvFactor = 1 + ($igvPct / 100);
+
+            for ($i = 0; $i < sizeof($equipments); $i++) {
+
+                $equipment = Equipment::create([
+                    'quote_id' => $quote->id,
+                    'description' => ($equipments[$i]->description ?? '') ?: '',
+                    'detail' => ($equipments[$i]->detail ?? '') ?: '',
+                    'quantity' => $equipments[$i]->quantity ?? 1,
+                    'utility' => $equipments[$i]->utility ?? 0,
+                    'rent' => $equipments[$i]->rent ?? 0,
+                    'letter' => $equipments[$i]->letter ?? 0,
+                    'total' => $equipments[$i]->total ?? 0,
+                ]);
+
+                $totalMaterial = 0;
+                $totalConsumable = 0;
+                $totalElectric = 0;
+                $totalWorkforces = 0;
+                $totalTornos = 0;
+                $totalDias = 0;
+
+                $materials = $equipments[$i]->materials ?? [];
+                $consumables = $equipments[$i]->consumables ?? [];
+                $electrics = $equipments[$i]->electrics ?? [];
+                $workforces = $equipments[$i]->workforces ?? [];
+                $tornos = $equipments[$i]->tornos ?? [];
+                $dias = $equipments[$i]->dias ?? [];
+
+                // MATERIALS (sin cambios)
+                for ($j = 0; $j < sizeof($materials); $j++) {
+                    $equipmentMaterial = EquipmentMaterial::create([
+                        'equipment_id' => $equipment->id,
+                        'material_id' => $materials[$j]->material->id,
+                        'quantity' => (float)$materials[$j]->quantity,
+                        'price' => (float)$materials[$j]->material->unit_price,
+                        'length' => (float)(($materials[$j]->length ?? '') == '' ? 0 : $materials[$j]->length),
+                        'width' => (float)(($materials[$j]->width ?? '') == '' ? 0 : $materials[$j]->width),
+                        'percentage' => (float)$materials[$j]->quantity,
+                        'state' => ($materials[$j]->quantity > $materials[$j]->material->stock_current) ? 'Falta comprar' : 'En compra',
+                        'availability' => ($materials[$j]->quantity > $materials[$j]->material->stock_current) ? 'Agotado' : 'Completo',
+                        'total' => (float)$materials[$j]->quantity * (float)$materials[$j]->material->unit_price,
+                    ]);
+
+                    $totalMaterial += $equipmentMaterial->total;
+                }
+
+                // CONSUMABLES (con presentaciones)
+                // Recomendado para precisión decimal (si tienes bcmath)
+                @bcscale(10);
+
+                $totalConsumable = '0';
+
+                /** @var QuoteStockReservationService $reservationService */
+                $reservationService = app(QuoteStockReservationService::class);
+
+                for ($k = 0; $k < sizeof($consumables); $k++) {
+
+                    $c = $consumables[$k];
+
+                    $stockItemId = (int)($c->id ?? 0);
+                    $stockItem = StockItem::with(['material'])->find($stockItemId);
+
+                    if (!$stockItem) {
+                        throw new \Exception("El producto con ID {$stockItemId} no existe.");
+                    }
+
+                    // ============================
+                    // 1) Inputs del front (reales)
+                    // ============================
+                    // quantity: packs si hay presentación, unidades si no hay presentación
+                    $frontQty = (float)($c->quantity ?? 0);
+                    if ($frontQty <= 0) {
+                        throw new \Exception("Cantidad inválida para material {$stockItem->display_name}.");
+                    }
+
+                    $presentationId = $c->presentation_id ?? null;
+
+                    // ✅ Estos 3 son los que mandas y NO debemos recalcular:
+                    $valorUnitarioReal = (string)($c->valorReal ?? $c->valor ?? '0'); // sin IGV (pack o unidad)
+                    $priceReal         = (string)($c->priceReal ?? $c->price ?? '0'); // con IGV (pack o unidad)
+                    $importeReal       = (string)($c->importe ?? '0');                // total con IGV (ya calculado)
+
+                    if ((float)$valorUnitarioReal < 0 || (float)$priceReal < 0 || (float)$importeReal < 0) {
+                        throw new \Exception("Valores inválidos (precio/valor/total) para {$stockItem->display_name}.");
+                    }
+
+                    // ============================
+                    // 2) Presentación SOLO para stock (unidades equivalentes)
+                    // ============================
+                    $packs = null;
+                    $unitsPerPack = null;
+
+                    if (!empty($presentationId)) {
+
+                        $packs = (int)$frontQty;
+                        if ($packs < 1) {
+                            throw new \Exception("Cantidad de paquetes inválida para material {$stockItem->display_name}.");
+                        }
+
+                        $presentation = MaterialPresentation::where('id', $presentationId)
+                            ->where('material_id', $stockItem->material->id)
+                            ->where('active', 1)
+                            ->first();
+
+                        if (!$presentation) {
+                            throw new \Exception("La presentación seleccionada no es válida o no pertenece al material {$stockItem->display_name}.");
+                        }
+
+                        $unitsPerPack = (int)$presentation->quantity;
+                        if ($unitsPerPack < 1) {
+                            throw new \Exception("La presentación tiene cantidad inválida para {$stockItem->display_name}.");
+                        }
+
+                        $requestedUnits = (float)($packs * $unitsPerPack);
+
+                    } else {
+                        // Unitario: units_equivalent debe ser unidades (si no viene, usa frontQty)
+                        $requestedUnits = (float)($c->units_equivalent ?? $frontQty);
+
+                        if ($requestedUnits <= 0) {
+                            throw new \Exception("Cantidad inválida para material {$stockItem->display_name}.");
+                        }
+                    }
+
+                    // ============================
+                    // 3) Stock disponible real desde LOTES
+                    // ============================
+                    $available = $reservationService->getAvailableStockByStockItem($stockItem->id);
+
+                    if ($requestedUnits > $available) {
+                        throw new \Exception(
+                            "El material {$stockItem->material->full_name} no cuenta con stock suficiente. " .
+                            "Requerido: {$requestedUnits}. Disponible: {$available}."
+                        );
+                    }
+
+                    $availability = ($requestedUnits > $available) ? 'Agotado' : 'Completo';
+                    $state        = ($requestedUnits > $available) ? 'Falta comprar' : 'En compra';
+
+                    // ============================
+                    // 4) Guardar consumable
+                    // ============================
+                    $equipmentConsumable = EquipmentConsumable::create([
+                        'availability' => $availability,
+                        'state' => $state,
+                        'equipment_id' => $equipment->id,
+                        'material_id' => $stockItem->material->id,
+                        'stock_item_id' => $stockItem->id,
+
+                        // ✅ SIEMPRE stock en unidades equivalentes
+                        'quantity' => $requestedUnits,
+
+                        // ✅ Guardar EXACTO lo real que viene del front
+                        'price' => $priceReal,
+                        'valor_unitario' => $valorUnitarioReal,
+                        'total' => $importeReal,
+
+                        'discount' => (string)($c->discount ?? '0'),
+                        'type_promo' => $c->type_promo ?? null,
+
+                        'material_presentation_id' => $presentationId,
+                        'packs' => $packs,
+                        'units_per_pack' => $unitsPerPack,
+                    ]);
+
+                    // ============================
+                    // 5) Total consumables con precisión
+                    // ============================
+                    $totalConsumable = bcadd($totalConsumable, $importeReal, 10);
+
+                    // ============================
+                    // 6) Reservar LOTES para cotización
+                    // ============================
+                    $reservationService->reserveForQuoteDetail(
+                        (int) $quote->id,
+                        (int) $equipmentConsumable->id,
+                        (int) $stockItem->id,
+                        (float) $requestedUnits
+                    );
+
+                    // ============================
+                    // 7) Promo limit
+                    // ============================
+                    if (($c->type_promo ?? null) === "limit") {
+
+                        $promotion = PromotionLimit::where('material_id', $stockItem->material->id)
+                            ->whereDate('start_date', '<=', now())
+                            ->whereDate('end_date', '>=', now())
+                            ->first();
+
+                        if ($promotion) {
+                            $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
+
+                            if ($promotion->applies_to === 'worker') {
+                                $query->where('user_id', auth()->id());
+                            }
+
+                            $usage = $query->first();
+
+                            $alreadyUsed = $usage ? (float)$usage->used_quantity : 0.0;
+                            $remaining = (float)$promotion->limit_quantity - $alreadyUsed;
+
+                            if ($remaining < $requestedUnits) {
+                                throw new \Exception("La promoción para {$stockItem->material->full_name} ya no tiene suficiente cantidad disponible");
+                            }
+
+                            if (!$usage) {
+                                PromotionUsage::create([
+                                    'promotion_limit_id' => $promotion->id,
+                                    'user_id' => $promotion->applies_to === 'worker' ? auth()->id() : null,
+                                    'used_quantity' => $requestedUnits,
+                                    'equipment_id' => $equipment->id,
+                                    'equipment_consumable_id' => $equipmentConsumable->id,
+                                    'quote_id' => $equipment->quote_id,
+                                ]);
+                            } else {
+                                $usage->used_quantity += $requestedUnits;
+                                $usage->equipment_id = $equipment->id;
+                                $usage->equipment_consumable_id = $equipmentConsumable->id;
+                                $usage->quote_id = $equipment->quote_id;
+                                $usage->save();
+                            }
+                        }
+                    }
+                }
+
+                // WORKFORCES (servicios adicionales)
+                // - Guarda billable
+                // - SIEMPRE suma al total del equipo/cotización
+                for ($w = 0; $w < sizeof($workforces); $w++) {
+
+                    $billable = isset($workforces[$w]->billable)
+                        ? (int)$workforces[$w]->billable
+                        : 1;
+
+                    $equipmentWorkforce = EquipmentWorkforce::create([
+                        'equipment_id' => $equipment->id,
+                        'description' => $workforces[$w]->description ?? '',
+                        'price' => (float)($workforces[$w]->price ?? 0),
+                        'quantity' => (float)($workforces[$w]->quantity ?? 0),
+                        'total' => (float)($workforces[$w]->importe ?? ($workforces[$w]->total ?? 0)),
+                        'unit' => $workforces[$w]->unit ?? '',
+                        'billable' => $billable,
+                    ]);
+
+                    $totalWorkforces += $equipmentWorkforce->total;
+                }
+
+                // Totales del equipo (sin cambios)
+                $totalEquipo = (($totalMaterial + $totalConsumable + $totalElectric + $totalWorkforces + $totalTornos + $totalDias) * (float)$equipment->quantity);
+                $totalEquipmentU = $totalEquipo * ((($equipment->utility / 100) + 1));
+                $totalEquipmentL = $totalEquipmentU * ((($equipment->letter / 100) + 1));
+                $totalEquipmentR = $totalEquipmentL * ((($equipment->rent / 100) + 1));
+
+                //$totalQuote += $totalEquipmentR;
+
+                $equipment->total = $totalEquipo;
+                $equipment->save();
+            }
+
+            $quote->save();
+
+            $notification = Notification::create([
+                'content' => $quote->code . ' creada por ' . Auth::user()->name,
+                'reason_for_creation' => 'create_quote',
+                'user_id' => Auth::user()->id,
+                'url_go' => route('quote.edit', $quote->id)
+            ]);
+
+            $users = User::role(['admin', 'principal', 'logistic'])->get();
+            foreach ($users as $user) {
+                if ($user->id != Auth::user()->id) {
+                    foreach ($user->roles as $role) {
+                        NotificationUser::create([
+                            'notification_id' => $notification->id,
+                            'role_id' => $role->id,
+                            'user_id' => $user->id,
+                            'read' => false,
+                            'date_read' => null,
+                            'date_delete' => null
+                        ]);
+                    }
+                }
+            }
+
+            $end = microtime(true) - $begin;
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Guardar cotizacion POST',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Cotización ' . $codeQuote . ' guardada con éxito.'], 200);
+    }
+
+    public function getAvailableStockFromLots($stockItemId)
+    {
+        return (float) StockLot::where('stock_item_id', $stockItemId)
+            ->get()
+            ->sum(function ($lot) {
+                return (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
+            });
     }
 
     public function updateDatosGeneral(Request $request)
@@ -1594,33 +2022,20 @@ class QuoteSaleController extends Controller
             ->with('customer')
             ->with('deadline')
             ->with(['equipments' => function ($query) {
-                $query->with(['materials', 'consumables.presentation', 'electrics', 'workforces', 'turnstiles', 'workdays']);
+                $query->with([
+                    'materials',
+                    'consumables.presentation',
+                    'consumables.stockItem.material',
+                    'consumables.stockItem.inventoryLevels',
+                    'consumables.stockItem.priceListItems.priceList',
+                    'electrics',
+                    'workforces',
+                    'turnstiles',
+                    'workdays',
+                ]);
             }])->first();
 
         $images = [];
-
-        $materials = Material::with('unitMeasure','typeScrap')
-            /*->where('enable_status', 1)*/->get();
-
-        //dd($array);
-
-        $array = [];
-        foreach ( $materials as $material )
-        {
-            array_push($array, [
-                'id'=> $material->id,
-                'full_name' => $material->full_name,
-                'type_scrap' => $material->typeScrap,
-                'stock_current' => $material->stock_current,
-                'unit_price' => $material->unit_price,
-                'unit' => ($material->unitMeasure == null) ? "":$material->unitMeasure->name,
-                'code' => $material->code,
-                'unit_measure' => $material->unitMeasure,
-                'typescrap_id' => $material->typescrap_id,
-                'enable_status' => $material->enable_status,
-                'update_price' => $material->state_update_price
-            ]);
-        }
 
         $dataCurrency = DataGeneral::where('name', 'type_current')->first();
         $currency = $dataCurrency->valueText;
@@ -1636,11 +2051,7 @@ class QuoteSaleController extends Controller
             'time' => $end
         ]);
 
-
-        /*dump($quote->total_equipments);
-        dd();*/
-
-        return view('quoteSale.edit', compact('quote', 'unitMeasures', 'customers', 'consumables', 'electrics', 'workforces', 'permissions', 'paymentDeadlines', 'utility', 'rent', 'letter', 'images', 'array', 'currency', 'igv'));
+        return view('quoteSale.edit', compact('quote', 'unitMeasures', 'customers', 'consumables', 'electrics', 'workforces', 'permissions', 'paymentDeadlines', 'utility', 'rent', 'letter', 'images', 'currency', 'igv'));
 
     }
 
@@ -1733,18 +2144,99 @@ class QuoteSaleController extends Controller
                         $totalMaterial += $equipmentMaterial->total;
                     }
 
-                    for ($k = 0; $k < sizeof($consumables); $k++) {
-                        $material = Material::find($consumables[$k]->id);
+                    // CONSUMABLES
+                    @bcscale(10);
 
-                        // 🟢 VALIDAR PROMOCIÓN SI type_promo = limit
-                        if ($consumables[$k]->type_promo == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumables[$k]->id)
+                    for ($k = 0; $k < sizeof($consumables); $k++) {
+                        $c = $consumables[$k];
+
+                        $materialId = (int) ($c->id ?? 0);
+                        $stockItemId = (int) ($c->stockItemId ?? 0);
+
+                        $material = Material::find($materialId);
+                        if (!$material) {
+                            throw new \Exception("El material con ID {$materialId} no existe.");
+                        }
+
+                        $stockItem = StockItem::with(['material'])
+                            ->where('id', $stockItemId)
+                            ->where('material_id', $materialId)
+                            ->first();
+
+                        if (!$stockItem) {
+                            throw new \Exception("El stock item con ID {$stockItemId} no existe o no pertenece al material {$material->full_name}.");
+                        }
+
+                        // 1) Inputs del front
+                        $frontQty = (float) ($c->quantity ?? 0);
+                        if ($frontQty <= 0) {
+                            throw new \Exception("Cantidad inválida para material {$stockItem->display_name}.");
+                        }
+
+                        $presentationId = $c->presentation_id ?? null;
+
+                        $valorUnitarioReal = (string) ($c->valorReal ?? $c->valor ?? '0');
+                        $priceReal         = (string) ($c->priceReal ?? $c->price ?? '0');
+                        $importeReal       = (string) ($c->importe ?? '0');
+
+                        if ((float) $valorUnitarioReal < 0 || (float) $priceReal < 0 || (float) $importeReal < 0) {
+                            throw new \Exception("Valores inválidos (precio/valor/total) para {$stockItem->display_name}.");
+                        }
+
+                        // 2) Presentación / unidades equivalentes
+                        $packs = null;
+                        $unitsPerPack = null;
+
+                        if (!empty($presentationId)) {
+                            $packs = (int) $frontQty;
+                            if ($packs < 1) {
+                                throw new \Exception("Cantidad de paquetes inválida para material {$stockItem->display_name}.");
+                            }
+
+                            $presentation = MaterialPresentation::where('id', $presentationId)
+                                ->where('material_id', $materialId)
+                                ->where('active', 1)
+                                ->first();
+
+                            if (!$presentation) {
+                                throw new \Exception("La presentación seleccionada no es válida o no pertenece al material {$stockItem->display_name}.");
+                            }
+
+                            $unitsPerPack = (int) $presentation->quantity;
+                            if ($unitsPerPack < 1) {
+                                throw new \Exception("La presentación tiene cantidad inválida para {$stockItem->display_name}.");
+                            }
+
+                            $requestedUnits = (float) ($packs * $unitsPerPack);
+                        } else {
+                            $requestedUnits = (float) ($c->units_equivalent ?? $frontQty);
+
+                            if ($requestedUnits <= 0) {
+                                throw new \Exception("Cantidad inválida para material {$stockItem->display_name}.");
+                            }
+                        }
+
+                        // 3) Validar stock disponible real por lotes
+                        $available = $reservationService->getAvailableStockByStockItem($stockItem->id);
+
+                        if ($requestedUnits > $available) {
+                            throw new \Exception(
+                                "El material {$stockItem->material->full_name} no cuenta con stock suficiente. " .
+                                "Requerido: {$requestedUnits}. Disponible: {$available}."
+                            );
+                        }
+
+                        $availability = ($requestedUnits > $available) ? 'Agotado' : 'Completo';
+                        $state        = ($requestedUnits > $available) ? 'Falta comprar' : 'En compra';
+
+                        // 4) Promo limit
+                        if (($c->type_promo ?? null) === "limit") {
+                            $promotion = PromotionLimit::where('material_id', $materialId)
                                 ->whereDate('start_date', '<=', now())
                                 ->whereDate('end_date', '>=', now())
                                 ->first();
 
                             if ($promotion) {
-                                // buscar uso
                                 $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
 
                                 if ($promotion->applies_to == 'worker') {
@@ -1761,33 +2253,68 @@ class QuoteSaleController extends Controller
                                     ]);
                                 }
 
-                                $requestedQty = (float) $consumables[$k]->quantity;
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
+                                $remaining = (float) $promotion->limit_quantity - (float) $usage->used_quantity;
 
-                                if ($remaining < $requestedQty) {
+                                if ($remaining < $requestedUnits) {
                                     throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
                                 }
 
-                                // actualizar consumo
-                                $usage->increment('used_quantity', $requestedQty);
+                                $usage->increment('used_quantity', $requestedUnits);
                             }
                         }
 
-                        // 🟢 REGISTRAR EQUIPMENT CONSUMABLE
+                        // 5) Guardar consumable
                         $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumables[$k]->quantity > $material->stock_current) ? 'Agotado' : 'Completo',
-                            'state' => ((float) $consumables[$k]->quantity > $material->stock_current) ? 'Falta comprar' : 'En compra',
+                            'availability' => $availability,
+                            'state' => $state,
                             'equipment_id' => $equipment->id,
-                            'material_id' => $consumables[$k]->id,
-                            'quantity' => (float) $consumables[$k]->quantity,
-                            'price' => (float) $consumables[$k]->price,
-                            'valor_unitario' => (float) $consumables[$k]->valor,
-                            'discount' => (float) $consumables[$k]->discount,
-                            'total' => (float) $consumables[$k]->importe,
-                            'type_promo' => $consumables[$k]->type_promo,
+                            'material_id' => $materialId,
+                            'stock_item_id' => $stockItemId,
+                            'quantity' => $requestedUnits,
+                            'price' => $priceReal,
+                            'valor_unitario' => $valorUnitarioReal,
+                            'discount' => (string) ($c->discount ?? '0'),
+                            'total' => $importeReal,
+                            'type_promo' => $c->type_promo ?? null,
+                            'material_presentation_id' => $presentationId,
+                            'packs' => $packs,
+                            'units_per_pack' => $unitsPerPack,
                         ]);
 
-                        $totalConsumable += $equipmentConsumable->total;
+                        $totalConsumable = bcadd((string) $totalConsumable, (string) $importeReal, 10);
+
+                        // 6) Reservar lotes para cotización
+                        $reservationService->reserveForQuoteDetail(
+                            (int) $quote->id,
+                            (int) $equipmentConsumable->id,
+                            (int) $stockItemId,
+                            (float) $requestedUnits
+                        );
+
+                        // 7) Vincular promo con el detalle
+                        if (($c->type_promo ?? null) === "limit") {
+                            $promotion = PromotionLimit::where('material_id', $materialId)
+                                ->whereDate('start_date', '<=', now())
+                                ->whereDate('end_date', '>=', now())
+                                ->first();
+
+                            if ($promotion) {
+                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
+
+                                if ($promotion->applies_to == 'worker') {
+                                    $query->where('user_id', auth()->id());
+                                }
+
+                                $usage = $query->first();
+
+                                if ($usage) {
+                                    $usage->equipment_id = $equipment->id;
+                                    $usage->equipment_consumable_id = $equipmentConsumable->id;
+                                    $usage->quote_id = $equipment->quote_id;
+                                    $usage->save();
+                                }
+                            }
+                        }
                     }
 
                     for ( $k=0; $k<sizeof($electrics); $k++ )
@@ -1885,7 +2412,7 @@ class QuoteSaleController extends Controller
 
     }
 
-    public function destroy(Quote $quote)
+    public function destroyO(Quote $quote)
     {
         DB::transaction(function () use ($quote) {
 
@@ -1945,6 +2472,86 @@ class QuoteSaleController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    public function destroy(Quote $quote)
+    {
+        try {
+            DB::transaction(function () use ($quote) {
+
+                if ($quote->state === 'canceled') {
+                    throw new \Exception('La cotización ya fue anulada.');
+                }
+
+                /** @var QuoteStockReservationService $reservationService */
+                $reservationService = app(QuoteStockReservationService::class);
+
+                /*
+                 * 0) VALIDAR SI SE PUEDE ANULAR
+                 */
+                $activeSale = Sale::where('quote_id', $quote->id)
+                    ->where('state_annulled', 0)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($quote->state === 'confirmed' && $activeSale) {
+                    throw new \Exception(
+                        'No se puede anular esta cotización porque tiene una venta activa asociada. Primero debe anular la venta.'
+                    );
+                }
+
+                /*
+                 * 1) LIBERAR RESERVAS DE LOTES DE LA COTIZACIÓN
+                 */
+                $reservationService->releaseReservationsByQuote((int) $quote->id);
+
+                /*
+                 * 2) LIMPIAR EQUIPOS Y CONSUMIBLES LIGADOS A LA COTIZACIÓN
+                 *    - Eliminar PromotionUsage por consumible
+                 *    - Eliminar consumibles
+                 *    - Eliminar relaciones hijas
+                 *    - Eliminar equipos
+                 */
+                $equipments = Equipment::where('quote_id', $quote->id)
+                    ->with([
+                        'consumables',
+                        'materials',
+                        'electrics',
+                        'workforces',
+                        'turnstiles',
+                        'workdays',
+                    ])
+                    ->get();
+
+                foreach ($equipments as $equipment) {
+
+                    foreach ($equipment->consumables as $consumable) {
+                        PromotionUsage::where('equipment_consumable_id', $consumable->id)->delete();
+                        //$consumable->delete();
+                    }
+
+                    /*foreach ($equipment->workforces as $workforce) {
+                        $workforce->delete();
+                    }*/
+
+                    //$equipment->delete();
+                }
+
+                /*
+                 * 3) MARCAR LA COTIZACIÓN COMO ANULADA
+                 */
+                $quote->state = 'canceled';
+                $quote->save();
+            });
+
+            return response()->json(['ok' => true]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function updateEquipmentOfQuoteOriginal(Request $request, $id_equipment, $id_quote)
@@ -2986,7 +3593,7 @@ class QuoteSaleController extends Controller
 
     }
 
-    public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote)
+    public function updateEquipmentOfQuote3(Request $request, $id_equipment, $id_quote)
     {
         //dd($request);
         $begin = microtime(true);
@@ -3232,6 +3839,262 @@ class QuoteSaleController extends Controller
                     'price' => (string)($w['price'] ?? '0'),        // con IGV
                     'quantity' => (float)($w['quantity'] ?? 0),
                     'total' => (string)($w['importe'] ?? '0'),      // con IGV
+                    'unit' => $w['unit'] ?? '',
+                    'billable' => isset($w['billable']) ? (int)$w['billable'] : 1,
+                ]);
+            }
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Modificar equipo de cotizacion (EDIT)',
+                'time' => microtime(true) - $begin
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Equipo guardado con éxito.',
+                'equipment' => $equipment_quote,
+                'quote' => $quote
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote)
+    {
+        $begin = microtime(true);
+
+        $quote = Quote::findOrFail($id_quote);
+
+        DB::beginTransaction();
+        try {
+
+            /** @var QuoteStockReservationService $reservationService */
+            $reservationService = app(QuoteStockReservationService::class);
+
+            $dateQuote = $request->get('date_quote')
+                ? Carbon::createFromFormat('d/m/Y', $request->get('date_quote'))
+                : null;
+
+            $dateValidate = $request->get('date_validate')
+                ? Carbon::createFromFormat('d/m/Y', $request->get('date_validate'))
+                : null;
+
+            $quote->update([
+                'description_quote'   => $request->get('descriptionQuote'),
+                'code'                => $request->get('codeQuote'),
+                'date_quote'          => $dateQuote,
+                'date_validate'       => $dateValidate,
+                'way_to_pay'          => $request->get('way_to_pay') ?? '',
+                'delivery_time'       => $request->get('delivery_time') ?? '',
+                'customer_id'         => $request->get('customer_id') ?? null,
+                'contact_id'          => $request->get('contact_id') ?? null,
+                'payment_deadline_id' => $request->get('payment_deadline') ?? null,
+                'observations'        => $request->get('observations') ?? '',
+            ]);
+
+            $equipment_quote = Equipment::where('id', $id_equipment)
+                ->where('quote_id', $quote->id)
+                ->firstOrFail();
+
+            /**
+             * 1) Guardar totales de Quote + metadata del descuento
+             */
+            $quote->descuento       = (string)($request->input('descuento', '0'));
+            $quote->gravada         = (string)($request->input('gravada', '0'));
+            $quote->igv_total       = (string)($request->input('igv_total', '0'));
+            $quote->total_importe   = (string)($request->input('total_importe', '0'));
+
+            $quote->discount_type        = $request->input('discount_type');
+            $quote->discount_input_mode  = $request->input('discount_input_mode');
+            $quote->discount_input_value = $request->input('discount_input_value');
+            $quote->save();
+
+            /**
+             * 2) Eliminar consumables antiguos y devolver reservas
+             * quantity en BD = unidades equivalentes
+             */
+            foreach ($equipment_quote->consumables as $consumable) {
+                $reservationService->releaseReservationsByQuoteDetail(
+                    (int) $quote->id,
+                    (int) $consumable->id
+                );
+
+                $consumable->delete();
+            }
+
+            // Limpiar relaciones restantes (siempre recreamos)
+            foreach ($equipment_quote->workforces as $workforce) $workforce->delete();
+            foreach ($equipment_quote->materials as $m) $m->delete();
+            foreach ($equipment_quote->electrics as $e) $e->delete();
+            foreach ($equipment_quote->turnstiles as $t) $t->delete();
+            foreach ($equipment_quote->workdays as $w) $w->delete();
+
+            /**
+             * 3) Payload (array con 1 equipo)
+             */
+            $equipments = $request->input('equipment');
+            if (!is_array($equipments) || count($equipments) === 0) {
+                throw new \Exception('No se recibieron equipos.');
+            }
+            $equip = $equipments[0];
+
+            /**
+             * 4) Actualizar equipo principal
+             */
+            $equipment_quote->description = $equip['description'] ?? '';
+            $equipment_quote->detail      = $equip['detail'] ?? '';
+            $equipment_quote->quantity    = $equip['quantity'] ?? 1;
+            $equipment_quote->utility     = $equip['utility'] ?? 0;
+            $equipment_quote->rent        = $equip['rent'] ?? 0;
+            $equipment_quote->letter      = $equip['letter'] ?? 0;
+            $equipment_quote->total       = (string)($equip['total'] ?? '0');
+            $equipment_quote->save();
+
+            /**
+             * 5) Re-crear consumables
+             * - c['id'] = material_id
+             * - c['stock_item_id'] = stock_item_id
+             * - quantity en BD = unidades equivalentes
+             */
+            $consumables = $equip['consumables'] ?? [];
+
+            @bcscale(10);
+
+            foreach ($consumables as $c) {
+
+                $materialId  = (int)($c['id'] ?? 0);
+                $stockItemId = (int)($c['stock_item_id'] ?? 0);
+
+                $material = Material::find($materialId);
+                if (!$material) {
+                    throw new \Exception("El material con ID {$materialId} no existe.");
+                }
+
+                $stockItem = StockItem::with(['material'])
+                    ->where('id', $stockItemId)
+                    ->where('material_id', $materialId)
+                    ->first();
+
+                if (!$stockItem) {
+                    throw new \Exception("El stock item con ID {$stockItemId} no existe o no pertenece al material {$material->full_name}.");
+                }
+
+                // --- presentación solo para stock/reserva ---
+                $presentationId = $c['presentation_id'] ?? null;
+                $packs = null;
+                $unitsPerPack = null;
+                $requestedUnits = 0;
+
+                if (!empty($presentationId)) {
+
+                    // En UI quantity = packs
+                    $packs = (int)($c['quantity'] ?? 0);
+                    if ($packs < 1) {
+                        throw new \Exception("Packs inválidos para {$stockItem->display_name}.");
+                    }
+
+                    $presentation = MaterialPresentation::where('id', $presentationId)
+                        ->where('material_id', $materialId)
+                        ->where('active', 1)
+                        ->first();
+
+                    if (!$presentation) {
+                        throw new \Exception("Presentación inválida para {$stockItem->display_name}.");
+                    }
+
+                    $unitsPerPack = (int)$presentation->quantity;
+                    if ($unitsPerPack < 1) {
+                        throw new \Exception("Units_per_pack inválido para {$stockItem->display_name}.");
+                    }
+
+                    $requestedUnits = (float)($packs * $unitsPerPack);
+
+                } else {
+
+                    // Unitario: units_equivalent debe ser unidades (si no viene, usa quantity)
+                    $requestedUnits = (float)($c['units_equivalent'] ?? ($c['quantity'] ?? 0));
+
+                    if ($requestedUnits <= 0) {
+                        throw new \Exception("Cantidad inválida para {$stockItem->display_name}.");
+                    }
+                }
+
+                // --- Dinero (NO recalcular): guardar lo real del front ---
+                $valorUnitarioReal = (string)($c['valorReal'] ?? $c['valor'] ?? '0'); // sin IGV
+                $priceReal         = (string)($c['priceReal'] ?? $c['price'] ?? '0'); // con IGV
+                $importeReal       = (string)($c['importe'] ?? '0');                  // total con IGV
+
+                if ((float)$valorUnitarioReal < 0 || (float)$priceReal < 0 || (float)$importeReal < 0) {
+                    throw new \Exception("Valores inválidos (precio/valor/total) para {$stockItem->display_name}.");
+                }
+
+                // validar stock disponible real desde lotes
+                $available = $reservationService->getAvailableStockByStockItem($stockItemId);
+
+                if ($requestedUnits > $available) {
+                    throw new \Exception(
+                        "Stock insuficiente para {$stockItem->material->full_name}. " .
+                        "Requerido: {$requestedUnits}. Disponible: {$available}."
+                    );
+                }
+
+                $availability = ($requestedUnits > $available) ? 'Agotado' : 'Completo';
+                $state        = ($requestedUnits > $available) ? 'Falta comprar' : 'En compra';
+
+                // crear consumable
+                $equipmentConsumable = EquipmentConsumable::create([
+                    'equipment_id' => $equipment_quote->id,
+                    'material_id' => $materialId,
+                    'stock_item_id' => $stockItemId,
+
+                    'material_presentation_id' => $presentationId,
+                    'packs' => $packs,
+                    'units_per_pack' => $unitsPerPack,
+
+                    // stock (unidades equivalentes)
+                    'quantity' => (float)$requestedUnits,
+
+                    // dinero real
+                    'price' => $priceReal,
+                    'valor_unitario' => $valorUnitarioReal,
+                    'total' => $importeReal,
+
+                    'discount' => (string)($c['discount'] ?? '0'),
+                    'type_promo' => $c['type_promo'] ?? null,
+                    'availability' => $availability,
+                    'state' => $state,
+                ]);
+
+                // reservar lotes según el nuevo detalle
+                $reservationService->reserveForQuoteDetail(
+                    (int) $quote->id,
+                    (int) $equipmentConsumable->id,
+                    (int) $stockItemId,
+                    (float) $requestedUnits
+                );
+            }
+
+            /**
+             * 6) Re-crear workforces
+             */
+            $workforces = $equip['workforces'] ?? [];
+
+            foreach ($workforces as $w) {
+                EquipmentWorkforce::create([
+                    'equipment_id' => $equipment_quote->id,
+                    'description' => $w['description'] ?? '',
+                    'price' => (string)($w['price'] ?? '0'),
+                    'quantity' => (float)($w['quantity'] ?? 0),
+                    'total' => (string)($w['importe'] ?? '0'),
                     'unit' => $w['unit'] ?? '',
                     'billable' => isset($w['billable']) ? (int)$w['billable'] : 1,
                 ]);

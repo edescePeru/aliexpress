@@ -9,6 +9,7 @@ class EquipmentConsumable extends Model
     protected $fillable = [
         'equipment_id',
         'material_id',
+        'stock_item_id',
         'quantity',
         'price',
         'total',
@@ -38,5 +39,10 @@ class EquipmentConsumable extends Model
 
     public function presentation(){
         return $this->belongsTo(MaterialPresentation::class, 'material_presentation_id');
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo('App\StockItem', 'stock_item_id');
     }
 }

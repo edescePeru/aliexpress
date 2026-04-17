@@ -8,20 +8,25 @@ class Item extends Model
 {
     protected $fillable = [
         'detail_entry_id',
+        'stock_item_id',
+        'stock_lot_id',
         'material_id',
         'code',
         'length',
         'width',
         'weight',
         'price',
+        'unit_cost',
         'percentage',
         'typescrap_id',
+        'warehouse_id',
         'location_id',
         'state',
         'state_item',
         'type',
         'usage'
     ];
+
 
     public function detailEntry()
     {
@@ -124,4 +129,20 @@ class Item extends Model
         // Si en el futuro soportas más monedas o códigos raros
         return $price;
     }
+
+    public function stockItem()
+    {
+        return $this->belongsTo(StockItem::class, 'stock_item_id');
+    }
+
+    public function stockLot()
+    {
+        return $this->belongsTo(StockLot::class, 'stock_lot_id');
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
+
 }

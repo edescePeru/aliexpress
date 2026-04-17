@@ -398,7 +398,7 @@ function showModalQuantityConsumable(render, consumable) {
 
     $('#c_quantity_productId').val(consumable.id);
     $('#c_quantity_total').val(0);
-    $('#c_quantity_stock_show').val(consumable.stock_current);
+    $('#c_quantity_stock_show').val(consumable.stock_available);
     $('#c_presentationsArea').html('<div class="text-muted">Cargando presentaciones...</div>');
 
     fetchPresentations(consumable.id)
@@ -1185,6 +1185,7 @@ function renderTemplateConsumableWithFixedPrice(render, consumable, quantity, fi
 
 function renderTemplateConsumable(render, consumable, quantity, discountOrPrice, type_promo, isPrice = false, pres = null) {
 
+    console.log(consumable);
     var clone = activateTemplate('#template-consumable');
 
     let qtyVisible = parseFloat(quantity);
@@ -1197,7 +1198,7 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
 
         // visibles
         clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-        clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
+        clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
         clone.querySelector("[data-consumableQuantity]").value = packs.toFixed(2); // ✅ muestra packs
         clone.querySelector("[data-consumablePrice]").value = pricePack.toFixed(2); // ✅ precio pack
         $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePack.toFixed(10));
@@ -1234,7 +1235,7 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
     let importeTotal  = precioUnitario * qtyVisible;
 
     clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.description;
+    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
     clone.querySelector("[data-consumableQuantity]").value = qtyVisible.toFixed(2);
     clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
     $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', valorUnitario.toFixed(10));
