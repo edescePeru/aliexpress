@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Sale;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -10,6 +11,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use App\CashMovement;
 use App\Entry;
 use App\OrderService;
+use App\Quote;
 
 class CashFlowRangeExport implements WithMultipleSheets
 {
@@ -22,6 +24,7 @@ class CashFlowRangeExport implements WithMultipleSheets
     private $entriesFinanzas;
     private $entriesCompras;
     private $orderServices;
+    private $quotes;
 
     // totals
     private $totalIncome = 0.0;
@@ -29,6 +32,8 @@ class CashFlowRangeExport implements WithMultipleSheets
     private $totalExpenseFinanzas = 0.0;
     private $totalCompras = 0.0;
     private $totalServicios = 0.0;
+
+    private $totalServiciosAdicionalesSinFacturar = 0.0;
 
     public function __construct(Carbon $start, Carbon $end)
     {
@@ -114,6 +119,39 @@ class CashFlowRangeExport implements WithMultipleSheets
         $this->totalServicios = (float) $this->orderServices->sum(function ($o) {
             return (float) ($o->total ?? 0);
         });
+
+        // =========================
+        // 6) SERVICIOS ADICIONALES SIN FACTURAR (Quote -> equipments -> workforces)
+        // =========================
+
+        $sales = Sale::with([
+            'quote.equipments.workforces',
+        ])
+            ->whereBetween('created_at', [$this->start, $this->end])
+            ->where('state_annulled', 0)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        /*$this->quotes = Quote::with([
+            'equipments.workforces'
+        ])
+            ->whereDate('date_quote', '>=', $this->start->toDateString())
+            ->whereDate('date_quote', '<=', $this->end->toDateString())
+            ->get();*/
+
+        $this->totalServiciosAdicionalesSinFacturar = (float) $sales->sum(function ($sale) {
+            if (!$sale->quote) {
+                return 0;
+            }
+
+            return $sale->quote->equipments->sum(function ($equipment) {
+                return $equipment->workforces
+                    ->where('billable', false)
+                    ->sum(function ($workforce) {
+                        return (float) ($workforce->total ?? 0);
+                    });
+            });
+        });
     }
 
     public function sheets(): array
@@ -128,6 +166,7 @@ class CashFlowRangeExport implements WithMultipleSheets
                 $this->totalIncome,
                 $this->totalExpenseCaja,
                 //$this->totalExpenseFinanzas,
+                $this->totalServiciosAdicionalesSinFacturar,
                 $this->totalCompras,
                 $this->totalServicios,
                 $totalExpense,

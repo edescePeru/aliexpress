@@ -35,6 +35,7 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
     {
         $sales = Sale::with([
             'worker',
+            'quote.equipments.workforces',
             'cashMovements' => function ($q) {
                 $q->where('type', 'sale')
                     ->with('cashBoxSubtype')
@@ -61,6 +62,7 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
             //'Total',
             'Método de Pago',
             'Regularizado',
+            'Serv. Adic. No Facturados',
             'Total',
         ];
     }
@@ -73,6 +75,18 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
 
         $this->grandTotal += (float) $calc['amount'];
 
+        $totalNoBillable = 0;
+
+        if ($row->quote) {
+            $totalNoBillable = (float) $row->quote->equipments->sum(function ($equipment) {
+                return $equipment->workforces
+                    ->where('billable', false)
+                    ->sum(function ($workforce) {
+                        return (float) ($workforce->total ?? 0);
+                    });
+            });
+        }
+
         return [
             'VENTA - ' . ($row->id),
             $row->formatted_sale_date ?? Carbon::parse($row->date_sale)->isoFormat('DD/MM/YYYY [a las] h:mm A'),
@@ -80,6 +94,8 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
             //number_format($calc['amount'], 2, '.', ''),
             $calc['method'],
             $calc['is_regularized'] ? 'SI' : 'NO',
+            // 👇 NUEVO CAMPO (referencial)
+            number_format($totalNoBillable, 2, '.', ''),
             number_format((float)$row->importe_total, 2, '.', ''),
         ];
     }
@@ -93,11 +109,11 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
                 $totalRow = 1 + $this->rowCount + 1;
 
                 // Columnas: A Código, B Fecha, C Moneda, D Total, ...
-                $event->sheet->setCellValue('E' . $totalRow, 'TOTAL');
-                $event->sheet->setCellValue('F' . $totalRow, number_format($this->grandTotal, 2, '.', ''));
+                $event->sheet->setCellValue('F' . $totalRow, 'TOTAL');
+                $event->sheet->setCellValue('G' . $totalRow, number_format($this->grandTotal, 2, '.', ''));
 
                 // Estilo
-                $event->sheet->getStyle('E' . $totalRow . ':F' . $totalRow)->getFont()->setBold(true);
+                $event->sheet->getStyle('G' . $totalRow . ':G' . $totalRow)->getFont()->setBold(true);
             },
         ];
     }

@@ -1625,6 +1625,14 @@ class PuntoVentaController extends Controller
                     $material->stock_current += $detail->quantity;
                     $material->save();
                 }
+
+                // TODO: Eliminamos el detalle de salida para no afectar kardex
+                //$detail->delete();
+                $outputDetail = OutputDetail::where('sale_detail_id', $detail->id)->first();
+                if (isset($outputDetail))
+                {
+                    $outputDetail->delete();
+                }
             }
 
             $sale->state_annulled = 1;
