@@ -20,6 +20,7 @@ use App\Http\Controllers\Traits\NubefactTrait;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\ImagesQuote;
+use App\InventoryLevel;
 use App\Item;
 use App\Mail\StockLowNotificationMail;
 use App\Material;
@@ -34,6 +35,7 @@ use App\PromotionLimit;
 use App\PromotionUsage;
 use App\Quote;
 use App\QuoteMaterialReservation;
+use App\QuoteStockLot;
 use App\QuoteUser;
 use App\ResumenEquipment;
 use App\ResumenQuote;
@@ -4332,6 +4334,7 @@ class QuoteSaleController extends Controller
                                 'id',
                                 'equipment_id',
                                 'material_id',
+                                'stock_item_id',
                                 'material_presentation_id',
                                 'discount',
                                 'type_promo',
@@ -4345,7 +4348,8 @@ class QuoteSaleController extends Controller
                                 'material' => function ($q) {
                                     $q->select('id', 'full_name', 'unit_measure_id')
                                         ->with('unitMeasure:id,name');
-                                }
+                                },
+                                'stockItem:id,display_name,sku'
                             ]);
                         },
                         'workforces' => function ($q) {
@@ -4405,8 +4409,11 @@ class QuoteSaleController extends Controller
                             'price' => $consumable->price,
                             'total' => $consumable->total,
                             'material' => [
-                                'full_description' => optional($consumable->material)->full_name ?? '',
+                                'full_description' => optional($consumable->stockItem)->display_name
+                                    ?? optional($consumable->material)->full_name
+                                    ?? '',
                                 'name_unit' => optional(optional($consumable->material)->unitMeasure)->name ?? '',
+                                'sku' => optional($consumable->stockItem)->sku ?? '',
                             ],
                         ];
                     })->values(),
@@ -5117,7 +5124,7 @@ class QuoteSaleController extends Controller
         }
     }
 
-    public function storeFromQuote(Request $request)
+    public function storeFromQuoteO3(Request $request)
     {
         $begin = microtime(true);
 
@@ -5588,6 +5595,587 @@ class QuoteSaleController extends Controller
         }
     }
 
+    public function storeFromQuote(Request $request)
+    {
+        $begin = microtime(true);
+
+        $worker = Worker::where('user_id', Auth::id())->firstOrFail();
+
+        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
+        $currency = $dataCurrency ? $dataCurrency->valueText : 'pen';
+
+        // ===========================
+        // ✅ Validación CashBox/Subtype
+        // ===========================
+        $cashBoxId        = $request->input('pv_cash_box_id');
+        $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+
+        if (!$cashBoxId) {
+            return response()->json(['message' => 'Seleccione una caja (CashBox).'], 422);
+        }
+
+        $cashBox = CashBox::find($cashBoxId);
+
+        if (!$cashBox || !(bool)$cashBox->is_active) {
+            return response()->json(['message' => 'La caja seleccionada no es válida o está inactiva.'], 422);
+        }
+
+        $needSubtype = ($cashBox->type === 'bank' && (bool)$cashBox->uses_subtypes);
+
+        if ($needSubtype) {
+            if (!$cashBoxSubtypeId) {
+                return response()->json(['message' => 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).'], 422);
+            }
+
+            $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
+                ->where('is_active', 1)
+                ->where('id', (int)$cashBoxSubtypeId)
+                ->first();
+
+            if (!$validSubtype) {
+                return response()->json(['message' => 'El subtipo seleccionado no es válido o está inactivo.'], 422);
+            }
+        } else {
+            $cashBoxSubtypeId = null;
+        }
+
+        DB::beginTransaction();
+        try {
+            $quote = Quote::with([
+                'equipments.consumables.material',
+                'equipments.consumables.stockItem',
+                'equipments.workforces',
+            ])->findOrFail($request->quote_id);
+
+            if (!$quote || $quote->state !== 'confirmed') {
+                throw new \Exception("La cotización no es válida o no está confirmada.");
+            }
+
+            $activeSale = Sale::where('quote_id', $quote->id)
+                ->where('state_annulled', 0)
+                ->lockForUpdate()
+                ->first();
+
+            if ($activeSale) {
+                throw new \Exception("La cotización ya fue convertida en una venta activa.");
+            }
+
+            // ===========================
+            // 1) Crear venta (Sale)
+            // ===========================
+            $sale = Sale::create([
+                'date_sale' => $request->filled('fechaDocumento')
+                    ? Carbon::createFromFormat('Y-m-d', $request->fechaDocumento)
+                    : Carbon::now(),
+
+                'serie'     => $this->generateRandomString(),
+                'worker_id' => $worker->id,
+                'caja'      => $worker->id,
+                'currency'  => ($currency === 'usd') ? 'USD' : 'PEN',
+
+                'op_exonerada'     => 0,
+                'op_inafecta'      => 0,
+                'op_gravada'       => $quote->gravada,
+                'igv'              => $quote->igv_total,
+                'total_descuentos' => $quote->descuento,
+                'importe_total'    => $quote->total_importe,
+                'vuelto'           => 0,
+
+                'quote_id' => $quote->id,
+
+                'type_document'            => $request->type_document,
+                'numero_documento_cliente' => $request->numero_documento_cliente,
+                'tipo_documento_cliente'   => $request->tipo_documento_cliente,
+                'nombre_cliente'           => $request->nombre_cliente,
+                'direccion_cliente'        => $request->direccion_cliente,
+                'email_cliente'            => $request->email_cliente,
+
+                'serie_sunat'   => null,
+                'numero'        => null,
+                'sunat_ticket'  => null,
+                'sunat_status'  => null,
+                'sunat_message' => null,
+                'xml_path'      => null,
+                'cdr_path'      => null,
+                'pdf_path'      => null,
+                'fecha_emision' => null,
+            ]);
+
+            // ===========================
+            // 2) Crear Output
+            // ===========================
+            $output = Output::create([
+                'execution_order'   => ($quote->order_execution == "") ? 'VENTA POR COTIZACION' : $quote->order_execution,
+                'request_date'      => $sale->date_sale,
+                'requesting_user'   => Auth::id(),
+                'responsible_user'  => Auth::id(),
+                'state'             => 'confirmed',
+                'indicator'         => 'or',
+            ]);
+
+            $igv = (float) PorcentageQuote::where('name', 'igv')->value('value');
+            $factor = bcadd('1', bcdiv((string)$igv, '100', 10), 10);
+
+            // ===========================
+            // 3) Detalles + consumo real de reservas/lotes
+            // ===========================
+            foreach ($quote->equipments as $equipment) {
+
+                foreach ($equipment->consumables as $consumable) {
+                    $materialId  = (int) $consumable->material_id;
+                    $stockItemId = (int) $consumable->stock_item_id;
+                    $qty         = (float) $consumable->quantity;
+
+                    if (!$stockItemId) {
+                        throw new \Exception("El consumible {$consumable->id} no tiene stock_item_id.");
+                    }
+
+                    $material = $consumable->material;
+
+                    $reservedLots = QuoteStockLot::where('quote_id', $quote->id)
+                        ->where('quote_detail_id', $consumable->id)
+                        ->where('stock_item_id', $stockItemId)
+                        ->orderBy('id', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($reservedLots->isEmpty()) {
+                        throw new \Exception("No se encontraron reservas para el consumible {$consumable->id}.");
+                    }
+
+                    $reservedQty = (float) $reservedLots->sum('quantity');
+                    if (bccomp((string) $reservedQty, (string) $qty, 10) < 0) {
+                        throw new \Exception(
+                            "Las reservas del consumible {$consumable->id} son insuficientes. " .
+                            "Reservado: {$reservedQty}. Requerido: {$qty}."
+                        );
+                    }
+
+                    $totalCost = (float) $reservedLots->sum(function ($row) {
+                        return (float) $row->quantity * (float) $row->unit_cost;
+                    });
+                    $unitCost = $qty > 0 ? ($totalCost / $qty) : 0;
+
+                    $saleDetailData = [
+                        'sale_id'                  => $sale->id,
+                        'material_id'              => $materialId,
+                        'stock_item_id'            => $stockItemId,
+                        'material_presentation_id' => $consumable->material_presentation_id,
+                        'valor_unitario'           => $consumable->valor_unitario,
+                        'price'                    => $consumable->price,
+                        'quantity'                 => $consumable->quantity,
+                        'packs'                    => $consumable->packs,
+                        'units_per_pack'           => $consumable->units_per_pack,
+                        'percentage_tax'           => 18,
+                        'total'                    => $consumable->total,
+                        'discount'                 => $consumable->discount,
+                        'unit_cost'                => $unitCost,
+                        'total_cost'               => $totalCost,
+                    ];
+
+                    if (Schema::hasColumn('sale_details', 'stock_item_id')) {
+                        $saleDetailData['stock_item_id'] = $stockItemId;
+                    }
+
+                    $saleDetail = SaleDetail::create($saleDetailData);
+
+                    if ($material && (int) $material->tipo_venta_id === 3) {
+
+                        if (floor($qty) != $qty) {
+                            throw new \Exception(
+                                "La cotización requiere cantidad decimal para el material {$materialId}. " .
+                                "Aún no está implementado para retazos."
+                            );
+                        }
+
+                        foreach ($reservedLots as $reservedLot) {
+                            $consumeQty = (float) $reservedLot->quantity;
+
+                            if (floor($consumeQty) != $consumeQty) {
+                                throw new \Exception(
+                                    "La reserva del lote {$reservedLot->stock_lot_id} tiene cantidad decimal y no está implementado para items unitarios."
+                                );
+                            }
+
+                            $consumeQtyInt = (int) $consumeQty;
+
+                            $items = Item::where('stock_item_id', $stockItemId)
+                                ->where('stock_lot_id', $reservedLot->stock_lot_id)
+                                ->whereIn('state_item', ['entered', 'scrapped'])
+                                ->orderBy('id', 'asc')
+                                ->lockForUpdate()
+                                ->take($consumeQtyInt)
+                                ->get();
+
+                            if ($items->count() < $consumeQtyInt) {
+                                throw new \Exception(
+                                    "Stock insuficiente del stock item {$stockItemId} en el lote {$reservedLot->stock_lot_id}. " .
+                                    "Se requieren {$consumeQtyInt} items y solo hay {$items->count()} disponibles."
+                                );
+                            }
+
+                            $lot = StockLot::where('id', $reservedLot->stock_lot_id)
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (!$lot) {
+                                throw new \Exception("No se encontró el lote reservado {$reservedLot->stock_lot_id}.");
+                            }
+
+                            if ((float) $lot->qty_reserved < $consumeQty || (float) $lot->qty_on_hand < $consumeQty) {
+                                throw new \Exception("El lote {$lot->id} no tiene stock/reserva suficiente para consumirse.");
+                            }
+
+                            foreach ($items as $item) {
+                                OutputDetail::create([
+                                    'output_id'      => $output->id,
+                                    'sale_detail_id' => $saleDetail->id,
+                                    'item_id'        => $item->id,
+                                    'material_id'    => $materialId,
+                                    'stock_item_id'  => $item->stock_item_id,
+                                    'stock_lot_id'   => $item->stock_lot_id,
+                                    'warehouse_id'   => $item->warehouse_id,
+                                    'location_id'    => $item->location_id,
+                                    'quote_id'       => $quote->id,
+                                    'custom'         => 0,
+                                    'percentage'     => 1,
+                                    'price'          => $item->price,
+                                    'length'         => $item->length,
+                                    'width'          => $item->width,
+                                    'equipment_id'   => $equipment->id ?? null,
+                                    'activo'         => null,
+                                    'unit_cost'      => (float) ($item->unit_cost ?? $reservedLot->unit_cost),
+                                    'total_cost'     => (float) ($item->unit_cost ?? $reservedLot->unit_cost),
+                                ]);
+
+                                $item->state_item = 'exited';
+                                $item->save();
+                            }
+
+                            $lot->qty_on_hand  = (float) $lot->qty_on_hand - $consumeQty;
+                            $lot->qty_reserved = (float) $lot->qty_reserved - $consumeQty;
+                            $lot->save();
+
+                            $this->syncInventoryLevelFromLots(
+                                $stockItemId,
+                                $lot->warehouse_id,
+                                $lot->location_id
+                            );
+
+                            $reservedLot->delete();
+                        }
+                    } else {
+
+                        foreach ($reservedLots as $reservedLot) {
+                            $consumeQty = (float) $reservedLot->quantity;
+
+                            if ($consumeQty <= 0) {
+                                continue;
+                            }
+
+                            $lot = StockLot::where('id', $reservedLot->stock_lot_id)
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (!$lot) {
+                                throw new \Exception("No se encontró el lote reservado {$reservedLot->stock_lot_id}.");
+                            }
+
+                            if ((float) $lot->qty_reserved < $consumeQty) {
+                                throw new \Exception(
+                                    "El lote {$lot->id} no tiene reserva suficiente. " .
+                                    "Reservado en lote: {$lot->qty_reserved}. Requerido: {$consumeQty}."
+                                );
+                            }
+
+                            if ((float) $lot->qty_on_hand < $consumeQty) {
+                                throw new \Exception(
+                                    "El lote {$lot->id} no tiene stock suficiente para consumirse. " .
+                                    "Stock: {$lot->qty_on_hand}. Requerido: {$consumeQty}."
+                                );
+                            }
+
+                            $lot->qty_on_hand  = (float) $lot->qty_on_hand - $consumeQty;
+                            $lot->qty_reserved = (float) $lot->qty_reserved - $consumeQty;
+                            $lot->save();
+
+                            $this->syncInventoryLevelFromLots(
+                                $stockItemId,
+                                $lot->warehouse_id,
+                                $lot->location_id
+                            );
+
+                            OutputDetail::create([
+                                'output_id'      => $output->id,
+                                'sale_detail_id' => $saleDetail->id,
+                                'item_id'        => null,
+                                'material_id'    => $materialId,
+                                'stock_item_id'  => $stockItemId,
+                                'stock_lot_id'   => $lot->id,
+                                'warehouse_id'   => $lot->warehouse_id,
+                                'location_id'    => $lot->location_id,
+                                'quote_id'       => $quote->id,
+                                'custom'         => 0,
+                                'percentage'     => $consumeQty,
+                                'price'          => $consumable->price,
+                                'length'         => null,
+                                'width'          => null,
+                                'equipment_id'   => $equipment->id ?? null,
+                                'activo'         => null,
+                                'unit_cost'      => (float) $reservedLot->unit_cost,
+                                'total_cost'     => (float) $reservedLot->unit_cost * $consumeQty,
+                            ]);
+
+                            $reservedLot->delete();
+                        }
+                    }
+                }
+
+                foreach ($equipment->workforces->where('billable', 1) as $wf) {
+                    $qty = (string) $wf->quantity;
+                    $priceWithIgv = (string) $wf->price;
+
+                    $valorUnitario = bcdiv($priceWithIgv, $factor, 10);
+
+                    SaleDetail::create([
+                        'sale_id'                  => $sale->id,
+                        'material_id'              => null,
+                        'stock_item_id'            => null,
+                        'material_presentation_id' => null,
+                        'description'              => $wf->description,
+                        'valor_unitario'           => $valorUnitario,
+                        'price'                    => $priceWithIgv,
+                        'quantity'                 => $qty,
+                        'packs'                    => null,
+                        'units_per_pack'           => null,
+                        'percentage_tax'           => $igv,
+                        'total'                    => $wf->total,
+                        'discount'                 => 0,
+                        'unit_cost'                => '0.0000000000',
+                        'total_cost'               => '0.0000000000',
+                    ]);
+                }
+            }
+
+            // ===========================
+            // 4) Caja: movimiento (SIN VUELTO)
+            // ===========================
+            $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
+                ->where('user_id', Auth::id())
+                ->where('status', 1)
+                ->latest();
+
+            if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
+                $cashRegisterQuery->where('cash_box_subtype_id', (int)$cashBoxSubtypeId);
+            }
+
+            $cashRegister = $cashRegisterQuery->first();
+
+            if (!$cashRegister) {
+                return response()->json(['message' => 'No hay caja abierta para la caja/canal seleccionado.'], 422);
+            }
+
+            $amount = (float)$quote->total_importe;
+
+            $description = 'Venta desde cotización - ' . ($cashBox->name ?? 'Caja');
+            if ($needSubtype && $cashBoxSubtypeId) {
+                $sub = CashBoxSubtype::find((int)$cashBoxSubtypeId);
+                if ($sub) $description .= ' (' . $sub->name . ')';
+            }
+
+            $regularize = 1;
+
+            if ($cashBox->type === 'bank' && (int) $cashBox->uses_subtypes === 1) {
+                if (!$cashBoxSubtypeId) {
+                    return response()->json([
+                        'message' => 'Debe seleccionar el subtipo bancario (Yape / Plin / POS / Transfer).'
+                    ], 422);
+                }
+
+                $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
+                $regularize = $subtype->is_deferred ? 0 : 1;
+            } else {
+                $cashBoxSubtypeId = null;
+            }
+
+            $movement = [
+                'cash_register_id'      => $cashRegister->id,
+                'type'                  => 'sale',
+                'amount'                => $amount,
+                'description'           => $description,
+                'sale_id'               => $sale->id,
+                'regularize'            => $regularize,
+            ];
+
+            if (!is_null($cashBoxSubtypeId)) {
+                $movement['cash_box_subtype_id'] = (int) $cashBoxSubtypeId;
+            }
+
+            CashMovement::create($movement);
+
+            if ($regularize == 1) {
+                $cashRegister->current_balance += $amount;
+                $cashRegister->total_sales     += $amount;
+                $cashRegister->save();
+            }
+
+            // ===========================
+            // Notificación + Auditoría
+            // ===========================
+            $notification = Notification::create([
+                'content' => 'Venta creada desde cotización por ' . Auth::user()->name,
+                'reason_for_creation' => 'create_sale_from_quote',
+                'user_id' => Auth::id(),
+                'url_go' => route('puntoVenta.index')
+            ]);
+
+            $users = User::role(['admin', 'principal', 'logistic'])->get();
+            foreach ($users as $u) {
+                if ($u->id != Auth::id()) {
+                    foreach ($u->roles as $role) {
+                        NotificationUser::create([
+                            'notification_id' => $notification->id,
+                            'role_id' => $role->id,
+                            'user_id' => $u->id,
+                            'read' => false
+                        ]);
+                    }
+                }
+            }
+
+            $elapsed = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Guardar venta desde cotización',
+                'time'    => $elapsed
+            ]);
+
+            DB::commit();
+
+            // ===========================
+            // 5) Nubefact
+            // ===========================
+            $nubefactResult = null;
+
+            if (in_array($sale->type_document, ['01', '03'])) {
+                try {
+                    $sale->loadMissing(['details.material']);
+                    $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
+
+                    $filename = 'ORD' . $sale->id;
+                    $pdfFilename = $filename . '.pdf';
+                    $xmlFilename = $filename . '.xml';
+                    $cdrFilename = $filename . '.zip';
+
+                    foreach (['pdfs', 'xmls', 'cdrs'] as $folder) {
+                        if (!file_exists(public_path("comprobantes/$folder"))) {
+                            mkdir(public_path("comprobantes/$folder"), 0777, true);
+                        }
+                    }
+
+                    if (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $pdfContent = Http::get($nubefactResult['enlace_del_pdf'])->body();
+                        file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_xml'])) {
+                        $xmlContent = Http::get($nubefactResult['enlace_del_xml'])->body();
+                        file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
+                    }
+                    if (!empty($nubefactResult['enlace_del_cdr'])) {
+                        $cdrContent = Http::get($nubefactResult['enlace_del_cdr'])->body();
+                        file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
+                    }
+
+                    $sale->update([
+                        'serie_sunat'   => $nubefactResult['serie'] ?? null,
+                        'numero'        => $nubefactResult['numero'] ?? null,
+                        'sunat_ticket'  => $nubefactResult['sunat_ticket'] ?? null,
+                        'sunat_status'  => $nubefactResult['sunat_description'] ?? 'Enviado',
+                        'sunat_message' => $nubefactResult['sunat_note'] ?? '',
+                        'xml_path'      => file_exists(public_path('comprobantes/xmls/' . $xmlFilename)) ? $xmlFilename : null,
+                        'cdr_path'      => file_exists(public_path('comprobantes/cdrs/' . $cdrFilename)) ? $cdrFilename : null,
+                        'pdf_path'      => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
+                        'fecha_emision' => now()->toDateString(),
+                    ]);
+
+                } catch (\Throwable $e) {
+                    $sale->update([
+                        'sunat_status'  => 'Error',
+                        'sunat_message' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $urlPrint  = route('puntoVenta.print', $sale->id);
+            $printType = 'ticket';
+
+            if (in_array($sale->type_document, ['01', '03'])) {
+                if (!empty($nubefactResult['enlace_del_pdf'])) {
+                    $urlPrint = $nubefactResult['enlace_del_pdf'];
+                }
+                if (!empty($sale->pdf_path)) {
+                    $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+                    if (file_exists($localPath)) {
+                        $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                        $printType = 'sunat_pdf';
+                    } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
+                        $printType = 'sunat_pdf';
+                    }
+                }
+            }
+
+            return response()->json([
+                'message'    => 'Venta creada con éxito desde cotización' . ($nubefactResult ? ' y comprobante generado.' : ' (sin comprobante).'),
+                'sale_id'    => $sale->id,
+                'nubefact'   => $nubefactResult,
+                'url_print'  => $urlPrint,
+                'print_type' => $printType,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Sincroniza el resumen por inventory_level desde los stock_lots.
+     */
+    protected function syncInventoryLevelFromLots(int $stockItemId, $warehouseId, $locationId): void
+    {
+        $qtyOnHand = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_on_hand');
+
+        $qtyReserved = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_reserved');
+
+        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
+            [
+                'stock_item_id' => $stockItemId,
+                'warehouse_id'  => $warehouseId,
+                'location_id'   => $locationId,
+            ],
+            [
+                'qty_on_hand'   => 0,
+                'qty_reserved'  => 0,
+                'min_alert'     => 0,
+                'max_alert'     => 0,
+                'average_cost'  => 0,
+                'last_cost'     => 0,
+            ]
+        );
+
+        $inventoryLevel->qty_on_hand  = $qtyOnHand;
+        $inventoryLevel->qty_reserved = $qtyReserved;
+        $inventoryLevel->save();
+    }
+
     public function generateRandomString($length = 25) {
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $charactersLength = strlen($characters);
@@ -5865,7 +6453,7 @@ class QuoteSaleController extends Controller
             ->with('deadline')
             ->with('users')
             ->with(['equipments' => function ($query) {
-                $query->with(['materials', 'consumables.material', 'workforces', 'turnstiles']);
+                $query->with(['materials', 'consumables.material', 'consumables.stockItem', 'workforces', 'turnstiles']);
             }])->first();
 
 
@@ -6022,7 +6610,7 @@ class QuoteSaleController extends Controller
             ->with('customer')
             ->with('deadline')
             ->with(['equipments' => function ($query) {
-                $query->with(['materials', 'consumables', 'electrics', 'workforces', 'turnstiles', 'workdays']);
+                $query->with(['materials', 'consumables.material', 'consumables.stockItem', 'electrics', 'workforces', 'turnstiles', 'workdays']);
             }])->first();
 
         $images = [];

@@ -8,17 +8,21 @@ class OutputDetail extends Model
 {
     protected $fillable = [
         'output_id',
+        'sale_detail_id',
         'item_id',
-        'length',
-        'width',
-        'price',
-        'percentage',
         'material_id',
-        'equipment_id',
+        'stock_item_id',
+        'stock_lot_id',
+        'warehouse_id',
+        'location_id',
         'quote_id',
         'custom',
+        'percentage',
+        'price',
+        'length',
+        'width',
+        'equipment_id',
         'activo',
-        'sale_detail_id',
         'unit_cost',
         'total_cost',
     ];
@@ -81,5 +85,25 @@ class OutputDetail extends Model
     public function getKardexQuantityAttribute()
     {
         return (float) ($this->percentage ?? 1);
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo(StockItem::class, 'stock_item_id');
+    }
+
+    public function stockLot()
+    {
+        return $this->belongsTo(StockLot::class, 'stock_lot_id');
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
     }
 }

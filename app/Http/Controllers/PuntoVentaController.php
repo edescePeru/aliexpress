@@ -1313,7 +1313,7 @@ class PuntoVentaController extends Controller
         $sale = Sale::where('id', $id)
             ->with('worker')
             ->with(['details' => function ($query) {
-                $query->with(['material']);
+                $query->with(['material', 'stockItem']);
             }])
             ->firstOrFail();
 

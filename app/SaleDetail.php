@@ -9,6 +9,7 @@ class SaleDetail extends Model
     protected $fillable = [
         'sale_id',
         'material_id',
+        'stock_item_id',
         'description',
         'material_presentation_id',
         'valor_unitario',
@@ -36,5 +37,10 @@ class SaleDetail extends Model
     public function materialPresentation()
     {
         return $this->belongsTo(MaterialPresentation::class, 'material_presentation_id');
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo(StockItem::class, 'stock_item_id');
     }
 }

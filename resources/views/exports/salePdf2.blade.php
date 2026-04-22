@@ -69,7 +69,9 @@
     @forelse ($sale->details as $detail)
         @php
             $total  = number_format($detail->total, 2, '.', '');
-            $nombre = $detail->material->full_name;
+            $nombre = optional($detail->stockItem)->display_name
+                        ?? optional($detail->material)->full_name
+                        ?? 'Producto';
 
             $hasPresentation = !empty($detail->material_presentation_id)
                 && !empty($detail->packs)

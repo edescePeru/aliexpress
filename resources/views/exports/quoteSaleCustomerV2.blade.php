@@ -221,8 +221,14 @@
             <tr>
                 <td class="text-center">{{ number_format($cantidad, 0) }}</td>
                 <td class="text-center">{{ $consumable->material->unitMeasure->name ?? '' }}</td>
-                <td class="text-center">{{ $consumable->material->code ?? '' }}</td>
-                <td style="text-align:left;">{{ "(".$present.") ".$consumable->material->full_name }}</td>
+                <td class="text-center">
+                    {{ optional($consumable->stockItem)->sku ?? optional($consumable->material)->code ?? '' }}
+                </td>
+
+                <td style="text-align:left;">
+                    ({{ $present }})
+                    {{ optional($consumable->stockItem)->display_name ?? optional($consumable->material)->full_name ?? '' }}
+                </td>
 
                 @if($quote->state_decimals)
                     <td style="text-align: right">{{ number_format($vunit, 0) }}</td>

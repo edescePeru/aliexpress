@@ -10,7 +10,9 @@ trait NubefactTrait
 {
     private function buildNubefactData(Sale $order): array
     {
-        $order->loadMissing(['details.material']);
+        $order->loadMissing([
+            'details.material',
+            'details.stockItem']);
 
         $isFactura = $order->type_document === '01';
         $serie = $isFactura ? 'FFF1' : 'BBB1';
@@ -58,9 +60,15 @@ trait NubefactTrait
                     : $item->units_per_pack . 'und'
                 );
 
-                $descripcion = $item->material
-                    ? "(".$present.") ".$item->material->full_name
-                    : "(".$present.") ".'Material ' . $item->material_id;
+                $descripcion = "(".$present.") ";
+
+                if (!empty($item->stock_item_id) && $item->stockItem) {
+                    $descripcion .= $item->stockItem->display_name;
+                } elseif ($item->material) {
+                    $descripcion .= $item->material->full_name;
+                } else {
+                    $descripcion .= 'Material ' . $item->material_id;
+                }
             }
 
             return [

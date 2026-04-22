@@ -39,6 +39,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Intervention\Image\Facades\Image;
 use Barryvdh\DomPDF\Facade as PDF;
 
@@ -2136,7 +2137,7 @@ class EntryController extends Controller
     }
 
     // No se borró la orden de compra
-    public function destroyEntryPurchase(Entry $entry)
+    public function destroyEntryPurchaseO(Entry $entry)
     {
         $begin = microtime(true);
         $entry2 = $entry;
@@ -2398,6 +2399,323 @@ class EntryController extends Controller
         return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
     }
 
+    public function destroyEntryPurchase(Entry $entry)
+    {
+        $begin = microtime(true);
+        $entry2 = $entry;
+
+        DB::beginTransaction();
+        try {
+            if ($entry->entry_type === 'Por compra') {
+
+                $detailsEntry = $entry->details;
+
+                $affectedMaterialIds = [];
+                $inventoryKeysToSync = [];
+
+                foreach ($detailsEntry as $detail) {
+
+                    $material = Material::find($detail->material_id);
+                    if (!$material) {
+                        throw new \Exception("Material no encontrado: {$detail->material_id}");
+                    }
+
+                    $affectedMaterialIds[] = (int) $material->id;
+
+                    // ===========================
+                    // 1) Validaciones de bloqueo
+                    // ===========================
+                    $items = Item::where('detail_entry_id', $detail->id)
+                        ->lockForUpdate()
+                        ->get();
+
+                    // Para itemeables: no permitir si hay items reservados o salidos
+                    $itemsBlocking = $items->whereIn('state_item', ['reserved', 'exited']);
+                    if ($itemsBlocking->count() > 0) {
+                        return response()->json([
+                            'message' => 'Lo sentimos, no se puede eliminar la entrada porque hay items reservados o en salida.'
+                        ], 422);
+                    }
+
+                    $stockLots = StockLot::where('detail_entry_id', $detail->id)
+                        ->lockForUpdate()
+                        ->get();
+
+                    // No permitir eliminar si algún lote de este detalle tiene reserva
+                    $reservedLots = $stockLots->filter(function ($lot) {
+                        return (float) $lot->qty_reserved > 0;
+                    });
+
+                    if ($reservedLots->count() > 0) {
+                        return response()->json([
+                            'message' => 'Lo sentimos, no se puede eliminar la entrada porque uno o más lotes tienen stock reservado.'
+                        ], 422);
+                    }
+
+                    // No permitir eliminar si el stock restante del detalle ya fue consumido parcialmente
+                    $currentLotOnHand = (float) $stockLots->sum('qty_on_hand');
+                    $originalDetailQty = (float) $detail->entered_quantity;
+
+                    if ($stockLots->count() > 0 && bccomp((string) $currentLotOnHand, (string) $originalDetailQty, 10) < 0) {
+                        return response()->json([
+                            'message' => 'Lo sentimos, no se puede eliminar la entrada porque parte del stock ya fue consumido.'
+                        ], 422);
+                    }
+
+                    // Validación extra si ya agregaste stock_lot_id a output_details
+                    if (Schema::hasColumn('output_details', 'stock_lot_id') && $stockLots->count() > 0) {
+                        $stockLotIds = $stockLots->pluck('id')->all();
+
+                        $outputDetailsUsingLots = OutputDetail::whereIn('stock_lot_id', $stockLotIds)->exists();
+                        if ($outputDetailsUsingLots) {
+                            return response()->json([
+                                'message' => 'Lo sentimos, no se puede eliminar la entrada porque el stock ya fue usado en una salida.'
+                            ], 422);
+                        }
+                    }
+
+                    // ===========================
+                    // 2) Eliminar items ligados al detalle
+                    // ===========================
+                    foreach ($items as $item) {
+                        $item->delete();
+                    }
+
+                    // ===========================
+                    // 3) Eliminar lotes del detalle
+                    //    y luego sincronizar inventory_levels
+                    // ===========================
+                    foreach ($stockLots as $lot) {
+                        $inventoryKeysToSync[] = [
+                            'stock_item_id' => (int) $lot->stock_item_id,
+                            'warehouse_id'  => $lot->warehouse_id,
+                            'location_id'   => $lot->location_id,
+                        ];
+
+                        $lot->delete();
+                    }
+
+                    // ===========================
+                    // 4) Si no hubo stock_lot (caso legacy), ajustar inventory level
+                    //    usando entered_quantity del detalle
+                    // ===========================
+                    if ($stockLots->isEmpty() && $detail->stock_item_id) {
+                        $inventoryLevels = InventoryLevel::where('stock_item_id', $detail->stock_item_id)
+                            ->lockForUpdate()
+                            ->get();
+
+                        if ($inventoryLevels->count() > 0) {
+                            $remainingToDiscount = (float) $detail->entered_quantity;
+
+                            foreach ($inventoryLevels as $inventoryLevel) {
+                                if ($remainingToDiscount <= 0) {
+                                    break;
+                                }
+
+                                $availableHere = (float) $inventoryLevel->qty_on_hand;
+                                if ($availableHere <= 0) {
+                                    continue;
+                                }
+
+                                $toDiscount = min($remainingToDiscount, $availableHere);
+
+                                $inventoryLevel->qty_on_hand = max(
+                                    0,
+                                    (float) $inventoryLevel->qty_on_hand - $toDiscount
+                                );
+                                $inventoryLevel->save();
+
+                                $remainingToDiscount -= $toDiscount;
+                            }
+                        }
+                    }
+
+                    // ===========================
+                    // 5) Tu lógica de OrderPurchase / MaterialOrder
+                    // ===========================
+                    $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
+
+                    if (!is_null($orderPurchase)) {
+                        $orderPurchaseDetail = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)
+                            ->where('material_id', $material->id)
+                            ->first();
+
+                        if ($orderPurchaseDetail) {
+                            $materialOrders = MaterialOrder::where('order_purchase_detail_id', $orderPurchaseDetail->id)->get();
+
+                            if ($materialOrders && $materialOrders->count() > 0) {
+                                foreach ($materialOrders as $materialOrder) {
+                                    $materialOrder->quantity_entered = 0;
+                                    $materialOrder->save();
+                                }
+                            }
+                        }
+                    }
+
+                    // ===========================
+                    // 6) Eliminar detail entry
+                    // ===========================
+                    $detail->delete();
+                }
+
+                // ===========================
+                // 7) Sincronizar inventory levels desde stock_lots
+                // ===========================
+                $inventoryKeysToSync = collect($inventoryKeysToSync)
+                    ->unique(function ($row) {
+                        return implode('|', [
+                            $row['stock_item_id'] ?? 'null',
+                            $row['warehouse_id'] ?? 'null',
+                            $row['location_id'] ?? 'null',
+                        ]);
+                    })
+                    ->values()
+                    ->all();
+
+                foreach ($inventoryKeysToSync as $key) {
+                    $this->syncInventoryLevelFromLots(
+                        (int) $key['stock_item_id'],
+                        $key['warehouse_id'],
+                        $key['location_id']
+                    );
+                }
+
+                // ===========================
+                // 8) Recalcular costo promedio (compatibilidad temporal)
+                // ===========================
+                $affectedMaterialIds = array_values(array_unique(array_map('intval', $affectedMaterialIds)));
+
+                $now = now();
+                $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $now);
+
+                foreach ($affectedMaterialIds as $mid) {
+                    $avg = (float) ($avgCosts[$mid] ?? 0.0);
+                    Material::where('id', $mid)->update(['unit_price' => $avg]);
+                }
+
+                // ===========================
+                // 9) Borrar imagen principal
+                // ===========================
+                if ($entry->image !== 'no_image.png') {
+                    $myImage = public_path() . '/images/entries/' . $entry->image;
+                    if (@getimagesize($myImage)) {
+                        unlink($myImage);
+                    }
+                }
+
+                // ===========================
+                // 10) Eliminar crédito outstanding
+                // ===========================
+                $credit = SupplierCredit::with('deadline')
+                    ->where('entry_id', $entry->id)
+                    ->where('state_credit', 'outstanding')
+                    ->first();
+
+                if (isset($credit)) {
+                    $credit->delete();
+                }
+
+                // ===========================
+                // 11) Eliminar entry
+                // ===========================
+                $entry->delete();
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Eliminar Ingreso Almacen (sin salida, reversión física)',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        // ===========================
+        // 12) Recalcular estado de la Orden de Compra
+        // ===========================
+        $orderPurchase = OrderPurchase::where('code', $entry2->purchase_order)->first();
+
+        if (!is_null($orderPurchase)) {
+            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
+
+            if (count($entradas) > 0) {
+                $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
+
+                if (isset($details)) {
+                    $flag = 1;
+                    foreach ($details as $detail) {
+                        $material = $detail->material_id;
+                        $cantMaterial = 0;
+
+                        foreach ($entradas as $entrada) {
+                            $entryDetailsSum = DetailEntry::where('entry_id', $entrada->id)
+                                ->where('material_id', $material)
+                                ->sum('entered_quantity');
+
+                            $cantMaterial += $entryDetailsSum;
+                        }
+
+                        if ($cantMaterial < $detail->quantity) {
+                            $flag = 0;
+                        }
+                    }
+
+                    $orderPurchase->state = $flag == 0 ? 0 : 1;
+                    $orderPurchase->save();
+
+                } else {
+                    $orderPurchase->state = 2;
+                    $orderPurchase->save();
+                }
+
+            } else {
+                $orderPurchase->state = 2;
+                $orderPurchase->save();
+            }
+        }
+
+        return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
+    }
+
+    protected function syncInventoryLevelFromLots(int $stockItemId, $warehouseId, $locationId): void
+    {
+        $qtyOnHand = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_on_hand');
+
+        $qtyReserved = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_reserved');
+
+        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
+            [
+                'stock_item_id' => $stockItemId,
+                'warehouse_id'  => $warehouseId,
+                'location_id'   => $locationId,
+            ],
+            [
+                'qty_on_hand'   => 0,
+                'qty_reserved'  => 0,
+                'min_alert'     => 0,
+                'max_alert'     => 0,
+                'average_cost'  => 0,
+                'last_cost'     => 0,
+            ]
+        );
+
+        $inventoryLevel->qty_on_hand  = $qtyOnHand;
+        $inventoryLevel->qty_reserved = $qtyReserved;
+        $inventoryLevel->save();
+    }
+
     public function getJsonEntriesPurchase()
     {
         $begin = microtime(true);
@@ -2493,7 +2811,7 @@ class EntryController extends Controller
         return $entries;
     }
 
-    public function destroyDetailOfEntry($id_detail, $id_entry)
+    public function destroyDetailOfEntryO($id_detail, $id_entry)
     {
         $begin = microtime(true);
 
@@ -2718,6 +3036,241 @@ class EntryController extends Controller
                         $orderPurchase->state = 1;
                         $orderPurchase->save();
                     }
+
+                } else {
+                    $orderPurchase->state = 2;
+                    $orderPurchase->save();
+                }
+
+            } else {
+                $orderPurchase->state = 2;
+                $orderPurchase->save();
+            }
+        }
+
+        return response()->json(['message' => 'Detalle de compra eliminado con éxito.'], 200);
+    }
+
+    public function destroyDetailOfEntry($id_detail, $id_entry)
+    {
+        $begin = microtime(true);
+
+        DB::beginTransaction();
+        try {
+            $entry  = Entry::find($id_entry);
+            $detail = DetailEntry::find($id_detail);
+
+            if (!$entry || !$detail) {
+                throw new \Exception("No se encontró el ingreso o el detalle.");
+            }
+
+            $material = Material::find($detail->material_id);
+            if (!$material) {
+                throw new \Exception("Material no encontrado: {$detail->material_id}");
+            }
+
+            $inventoryKeysToSync = [];
+
+            // ===========================
+            // 1) Validaciones de bloqueo
+            // ===========================
+            $items = Item::where('detail_entry_id', $detail->id)
+                ->lockForUpdate()
+                ->get();
+
+            $itemsBlocking = $items->whereIn('state_item', ['reserved', 'exited']);
+            if ($itemsBlocking->count() > 0) {
+                return response()->json([
+                    'message' => 'Lo sentimos, no se puede eliminar porque hay items reservados o en salida.'
+                ], 422);
+            }
+
+            $stockLots = StockLot::where('detail_entry_id', $detail->id)
+                ->lockForUpdate()
+                ->get();
+
+            $reservedLots = $stockLots->filter(function ($lot) {
+                return (float) $lot->qty_reserved > 0;
+            });
+
+            if ($reservedLots->count() > 0) {
+                return response()->json([
+                    'message' => 'Lo sentimos, no se puede eliminar porque uno o más lotes tienen stock reservado.'
+                ], 422);
+            }
+
+            // Si ya hay menos qty_on_hand que lo ingresado originalmente, parte del ingreso ya fue consumido
+            $currentLotOnHand = (float) $stockLots->sum('qty_on_hand');
+            $originalDetailQty = (float) $detail->entered_quantity;
+
+            if ($stockLots->count() > 0 && bccomp((string) $currentLotOnHand, (string) $originalDetailQty, 10) < 0) {
+                return response()->json([
+                    'message' => 'No se puede eliminar este detalle porque parte del stock ya fue consumido por salidas/ventas.'
+                ], 422);
+            }
+
+            // Validación extra si output_details ya tiene stock_lot_id
+            if (Schema::hasColumn('output_details', 'stock_lot_id') && $stockLots->count() > 0) {
+                $stockLotIds = $stockLots->pluck('id')->all();
+
+                $outputDetailsUsingLots = OutputDetail::whereIn('stock_lot_id', $stockLotIds)->exists();
+
+                if ($outputDetailsUsingLots) {
+                    return response()->json([
+                        'message' => 'No se puede eliminar este detalle porque el stock ya fue usado en una salida.'
+                    ], 422);
+                }
+            }
+
+            // ===========================
+            // 2) Eliminar items del detalle
+            // ===========================
+            foreach ($items as $item) {
+                $item->delete();
+            }
+
+            // ===========================
+            // 3) Eliminar lotes y preparar sync de inventory_levels
+            // ===========================
+            foreach ($stockLots as $lot) {
+                $inventoryKeysToSync[] = [
+                    'stock_item_id' => (int) $lot->stock_item_id,
+                    'warehouse_id'  => $lot->warehouse_id,
+                    'location_id'   => $lot->location_id,
+                ];
+
+                $lot->delete();
+            }
+
+            // ===========================
+            // 4) Fallback legacy: si no hay stock_lots pero sí stock_item_id,
+            //    ajustar inventory_levels usando entered_quantity
+            // ===========================
+            if ($stockLots->isEmpty() && $detail->stock_item_id) {
+                $inventoryLevels = InventoryLevel::where('stock_item_id', $detail->stock_item_id)
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($inventoryLevels->count() > 0) {
+                    $remainingToDiscount = (float) $detail->entered_quantity;
+
+                    foreach ($inventoryLevels as $inventoryLevel) {
+                        if ($remainingToDiscount <= 0) {
+                            break;
+                        }
+
+                        $availableHere = (float) $inventoryLevel->qty_on_hand;
+                        if ($availableHere <= 0) {
+                            continue;
+                        }
+
+                        $toDiscount = min($remainingToDiscount, $availableHere);
+
+                        $inventoryLevel->qty_on_hand = max(
+                            0,
+                            (float) $inventoryLevel->qty_on_hand - $toDiscount
+                        );
+                        $inventoryLevel->save();
+
+                        $remainingToDiscount -= $toDiscount;
+                    }
+                }
+            }
+
+            // ===========================
+            // 5) Eliminar detail entry
+            // ===========================
+            $detail->delete();
+
+            // ===========================
+            // 6) Sincronizar inventory_levels desde stock_lots
+            // ===========================
+            $inventoryKeysToSync = collect($inventoryKeysToSync)
+                ->unique(function ($row) {
+                    return implode('|', [
+                        $row['stock_item_id'] ?? 'null',
+                        $row['warehouse_id'] ?? 'null',
+                        $row['location_id'] ?? 'null',
+                    ]);
+                })
+                ->values()
+                ->all();
+
+            foreach ($inventoryKeysToSync as $key) {
+                $this->syncInventoryLevelFromLots(
+                    (int) $key['stock_item_id'],
+                    $key['warehouse_id'],
+                    $key['location_id']
+                );
+            }
+
+            // ===========================
+            // 7) Actualizar crédito (mantengo tu lógica)
+            // ===========================
+            $credit = SupplierCredit::where('entry_id', $entry->id)->first();
+            if (isset($credit)) {
+                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
+                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
+                $credit->save();
+            }
+
+            // ===========================
+            // 8) Recalcular costo promedio (compatibilidad temporal)
+            // ===========================
+            $now = now();
+            $newAvg = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
+
+            $material->unit_price = $newAvg;
+            $material->save();
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Eliminar detalle de ingreso (sin salida, reversión física)',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        // ===========================
+        // 9) Recalcular estado de la Orden de Compra
+        // ===========================
+        $entry = Entry::find($id_entry);
+        $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
+
+        if (!is_null($orderPurchase)) {
+            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
+
+            if (count($entradas) > 0) {
+                $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
+
+                if (isset($details)) {
+                    $flag = 1;
+                    foreach ($details as $detailOrder) {
+                        $materialId = $detailOrder->material_id;
+                        $cantMaterial = 0;
+
+                        foreach ($entradas as $entrada) {
+                            $entryDetailsSum = DetailEntry::where('entry_id', $entrada->id)
+                                ->where('material_id', $materialId)
+                                ->sum('entered_quantity');
+
+                            $cantMaterial += $entryDetailsSum;
+                        }
+
+                        if ($cantMaterial < $detailOrder->quantity) {
+                            $flag = 0;
+                        }
+                    }
+
+                    $orderPurchase->state = $flag == 0 ? 0 : 1;
+                    $orderPurchase->save();
 
                 } else {
                     $orderPurchase->state = 2;
