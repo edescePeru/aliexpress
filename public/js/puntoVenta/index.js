@@ -258,6 +258,7 @@ function addProductCartSpecial() {
     });
 
     let productId = $(this).data('product_id');
+    let materialId = $(this).data('material_id');
     let productPrice = $(this).data('product_price');
     let productStock = $(this).data('product_stock');
     let productName = $(this).data('product_name');
@@ -313,7 +314,7 @@ function addProductCartSpecial() {
     } else {
         showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock);
     }*/
-    showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock);
+    showModalQuantity(productId, materialId,productPrice, productName, productUnit, productTax, productType, productStock);
 
 
 }
@@ -330,9 +331,10 @@ function addProductCartSpecial() {
 
     $modalQuantity.modal('show');
 }*/
-function showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock) {
+function showModalQuantity(productId, materialId,productPrice, productName, productUnit, productTax, productType, productStock) {
 
     $("#quantity_productId").val(productId);
+    $("#quantity_materialId").val(materialId);
     $("#quantity_productPrice").val(productPrice);
     $("#quantity_productStock").val(productStock);
     $("#quantity_productName").val(productName);
@@ -346,7 +348,7 @@ function showModalQuantity(productId, productPrice, productName, productUnit, pr
     $("#presentationsArea").html('<div class="text-muted">Cargando presentaciones...</div>');
 
     // cargar presentaciones activas
-    fetchPresentations(productId)
+    fetchPresentations(materialId)
         .then(presentations => {
             renderPresentationsInModal(presentations);
             $modalQuantity.modal('show');
@@ -468,6 +470,7 @@ function addProduct() {
     event.preventDefault();
 
     let productId = $("#quantity_productId").val();
+    let materialId = $("#quantity_materialId").val();
     let unitPrice = parseFloat($("#quantity_productPrice").val());
     let productStock = parseFloat($("#quantity_productStock").val());
     let productName = $("#quantity_productName").val();
@@ -541,6 +544,7 @@ function addProduct() {
             $items.push({
                 itemKey: itemKey,
                 productId: productId,
+                materialId: materialId,
                 presentationId: null,
                 presentationQty: 1,
                 presentationLabel: 'Unidad',
@@ -576,6 +580,7 @@ function addProduct() {
         $items.push({
             itemKey: itemKey,
             productId: productId,
+            materialId: materialId,
             presentationId: r.presentationId,
             presentationQty: r.presentationQty,
             presentationLabel: `${r.presentationQty} unidades`,
@@ -1260,6 +1265,7 @@ function addProductCart() {
     event.preventDefault();
 
     let productId = $(this).data('product_id');
+    let materialId = $(this).data('material_id');
     let productPrice = parseFloat($(this).data('product_price'));
     let productStock = parseFloat($(this).data('product_stock'));
     let productName = $(this).data('product_name');
@@ -1293,6 +1299,7 @@ function addProductCart() {
     $items.push({
         itemKey: itemKey,
         productId: productId,
+        materialId: materialId,
         presentationId: null,
         presentationQty: 1,
         presentationLabel: 'Unidad',
@@ -1668,7 +1675,7 @@ function renderData(data) {
     }
 }
 
-function renderDataCard(data) {
+function renderDataCardO(data) {
     var clone = activateTemplate('#item-card');
     let url_image = document.location.origin + '/images/material/' + data.image;
     clone.querySelector("[data-image1]").setAttribute("src", url_image);
@@ -1690,6 +1697,46 @@ function renderDataCard(data) {
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_unit", data.unit);
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_tax", data.tax);
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_type", data.type);
+
+    $("#body-card").append(clone);
+
+    $('[data-toggle="tooltip"]').tooltip();
+}
+
+function renderDataCard(data) {
+    var clone = activateTemplate('#item-card');
+    let url_image = document.location.origin + '/images/material/' + data.image;
+
+    clone.querySelector("[data-image1]").setAttribute("src", data.image_url);
+    /*clone.querySelector("[data-image2]").setAttribute("src", url_image);*/
+    clone.querySelector("[data-name]").innerHTML = data.full_name;
+    clone.querySelector("[data-price]").innerHTML = data.price;
+
+    // Botón normal
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_id", data.id);
+    clone.querySelector("[data-add_cart]").setAttribute("data-material_id", data.material_id || '');
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_source", data.source || '');
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_price", data.price);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_stock", data.stock);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_name", data.full_name);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_unit", data.unit);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_tax", data.tax);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_type", data.type);
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_sku", data.sku || '');
+    clone.querySelector("[data-add_cart]").setAttribute("data-product_barcode", data.barcode || '');
+
+    // Botón especial
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_id", data.id);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-material_id", data.material_id || '');
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_source", data.source || '');
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_price", data.price);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_stock", data.stock);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_name", data.full_name);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_unit", data.unit);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_tax", data.tax);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_type", data.type);
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_sku", data.sku || '');
+    clone.querySelector("[data-add_cart_special]").setAttribute("data-product_barcode", data.barcode || '');
 
     $("#body-card").append(clone);
 

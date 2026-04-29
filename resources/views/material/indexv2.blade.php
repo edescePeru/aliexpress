@@ -512,7 +512,7 @@
 
                         <div id="stock-items-price-container" style="display: none;">
                             <div class="alert alert-info py-2 mb-3">
-                                Este material tiene múltiples stock items. Configure el precio de tienda por cada uno.
+                                Configure el precio de tienda por cada uno.
                             </div>
 
                             <div class="table-responsive">
@@ -523,12 +523,13 @@
                                         <th>Variante</th>
                                         <th>SKU</th>
                                         <th>Código de barras</th>
+                                        <th width="160">Precio Costo</th>
                                         <th width="160">Precio Tienda</th>
                                     </tr>
                                     </thead>
                                     <tbody id="tbody-modal-price-list">
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted">
+                                        <td colspan="6" class="text-center text-muted">
                                             No hay datos cargados.
                                         </td>
                                     </tr>

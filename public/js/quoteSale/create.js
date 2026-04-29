@@ -401,7 +401,7 @@ function showModalQuantityConsumable(render, consumable) {
     $('#c_quantity_stock_show').val(consumable.stock_available);
     $('#c_presentationsArea').html('<div class="text-muted">Cargando presentaciones...</div>');
 
-    fetchPresentations(consumable.id)
+    fetchPresentations(consumable.material_id)
         .then(function(presentations) {
             // solo activas (por si acaso)
             let actives = presentations.filter(x => x.active === true || x.active === 1 || x.active === "1");

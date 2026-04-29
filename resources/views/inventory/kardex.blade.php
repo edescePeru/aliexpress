@@ -48,33 +48,35 @@
             <form id="form-kardex" autocomplete="off">
                 <div class="row">
                     {{-- Material --}}
-                    <div class="col-md-5">
+                    {{--<div class="col-md-5">
                         <div class="form-group">
                             <label for="material_id">Material</label>
                             <select id="material_id" class="form-control select2-material" style="width: 100%;">
+                            </select>
+                        </div>
+                    </div>--}}
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label for="stock_item_id">Material</label>
+                            <select id="stock_item_id" name="stock_item_id" class="form-control select2-material" style="width: 100%;">
                                 {{-- Se cargan por AJAX --}}
                             </select>
                         </div>
                     </div>
 
-                    {{-- Fecha desde --}}
-                    <div class="col-md-2">
+                    <div class="col-md-5">
                         <div class="form-group">
-                            <label for="from_date">Desde</label>
-                            <input type="date" id="from_date" name="from" class="form-control">
-                        </div>
-                    </div>
-
-                    {{-- Fecha hasta --}}
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label for="to_date">Hasta</label>
-                            <input type="date" id="to_date" name="to" class="form-control">
+                            <label for="warehouse_id">Material</label>
+                            <select id="warehouse_id" name="warehouse_id" class="form-control select2-material" style="width: 100%;">
+                                {{-- Se cargan por AJAX --}}
+                            </select>
                         </div>
                     </div>
 
                     {{-- Botón buscar --}}
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-2 align-items-end">
+                        <label for="btn-search-kardex">&nbsp;</label>
+                        <br>
                         <button type="button" id="btn-search-kardex" class="btn btn-primary btn-block">
                             <i class="fa fa-search"></i> Buscar Kardex
                         </button>

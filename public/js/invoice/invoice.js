@@ -4,7 +4,7 @@ let $materialsComplete=[];
 let $locationsComplete=[];
 let $items=[];
 $(document).ready(function () {
-    $.ajax({
+    /*$.ajax({
         url: "/dashboard/get/materials",
         type: 'GET',
         dataType: 'json',
@@ -29,6 +29,66 @@ $(document).ready(function () {
             }
 
         }
+    });*/
+
+    // ==============================
+    // Seleccionar caja EFECTIVO por defecto
+    // ==============================
+    function pvSelectDefaultCashBox() {
+        const $cash = $('#pv_cash_box_id');
+
+        // Buscar option con data-type="cash"
+        const $cashOption = $cash.find('option').filter(function () {
+            return ($(this).data('type') || '') === 'cash';
+        }).first();
+
+        if ($cashOption.length) {
+            $cash.val($cashOption.val()).trigger('change');
+        }
+    }
+
+    // ==============================
+    // Cascada caja -> subtipo
+    // ==============================
+    function pvFillSubtypes(selectId, subtypes) {
+        const $sel = $(selectId);
+        $sel.empty().append('<option value="">Seleccione subtipo...</option>');
+
+        (subtypes || []).forEach(s => {
+            $sel.append(new Option(s.name, s.id, false, false));
+        });
+
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            $sel.trigger('change.select2');
+        }
+    }
+
+    function pvToggleSubtypesByCashBox() {
+        const $cash = $('#pv_cash_box_id');
+        const $sub  = $('#pv_cash_box_subtype_id');
+        const $wrap = $('#pv_cash_box_subtype_wrap');
+
+        const $opt = $cash.find('option:selected');
+        const type = ($opt.data('type') || $opt.attr('data-type') || '').toString();
+        const uses = String($opt.data('uses_subtypes') || $opt.attr('data-uses_subtypes') || '0') === '1';
+
+        if (type === 'bank' && uses) {
+            if ($wrap.length) $wrap.show();
+            pvFillSubtypes('#pv_cash_box_subtype_id', window.PV_SUBTYPES || []);
+        } else {
+            if ($wrap.length) $wrap.hide();
+            pvFillSubtypes('#pv_cash_box_subtype_id', []);
+            $sub.val('').trigger('change');
+        }
+    }
+
+    // OJO: aquí NO rellenamos cajas por JS porque el Blade ya las imprime.
+    pvToggleSubtypesByCashBox();
+
+    pvSelectDefaultCashBox();          // 👈 AQUÍ
+
+    $('#pv_cash_box_id').on('change', function () {
+        pvToggleSubtypesByCashBox();
     });
 
     $('#btn-currency').on('switchChange.bootstrapSwitch', function (event, state) {

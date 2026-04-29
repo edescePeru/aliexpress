@@ -6,7 +6,7 @@ $(function () {
         allowClear: true,
         width: 'resolve',
         ajax: {
-            url: '/dashboard/materials/select',
+            url: '/dashboard/stock-items/select',
             dataType: 'json',
             delay: 250,
             data: function (params) {
@@ -24,18 +24,62 @@ $(function () {
         minimumInputLength: 1
     });
 
+    $('#stock_item_id').select2({
+        placeholder: 'Busque y seleccione un producto...',
+        allowClear: true,
+        width: 'resolve',
+        ajax: {
+            url: '/dashboard/stock-items/select',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 1
+    });
+
+    $('#warehouse_id').select2({
+        placeholder: 'Seleccione un almacén...',
+        allowClear: true,
+        width: 'resolve',
+        ajax: {
+            url: '/dashboard/warehouses/select',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data
+                };
+            },
+            cache: true
+        }
+    });
+
     // 2) Click en Buscar Kardex
     $('#btn-search-kardex').on('click', function () {
-        let materialId = $('#material_id').val();
-        let from = $('#from_date').val();
-        let to   = $('#to_date').val();
+        let stockItemId = $('#stock_item_id').val();
+        let warehouseId = $('#warehouse_id').val();
 
-        if (!materialId) {
-            alert('Seleccione un material.');
+        if (!stockItemId) {
+            alert('Seleccione un producto.');
             return;
         }
 
-        loadKardex(materialId, from, to);
+        loadKardex(stockItemId, warehouseId);
     });
 });
 
@@ -46,18 +90,20 @@ function money(simbolo, valor) {
     return simbolo + ' ' + parseFloat(valor).toFixed(2);
 }
 
-function loadKardex(materialId, from, to) {
+function loadKardex(stockItemId, warehouseId = null) {
     $('#kardex-body').html(
         '<tr><td colspan="10" class="text-center">Cargando...</td></tr>'
     );
 
-    $.getJSON('/dashboard/kardex/' + materialId, { from: from, to: to }, function (res) {
+    $.getJSON('/dashboard/kardex/' + stockItemId, {
+        warehouse_id: warehouseId
+    }, function (res) {
         let tbody = $('#kardex-body');
         tbody.empty();
 
         if (!res.rows || res.rows.length === 0) {
             tbody.append(
-                '<tr><td colspan="10" class="text-center">No se encontraron movimientos para el rango seleccionado.</td></tr>'
+                '<tr><td colspan="10" class="text-center">No se encontraron movimientos para el producto seleccionado.</td></tr>'
             );
         } else {
             res.rows.forEach(function (r) {
@@ -78,11 +124,16 @@ function loadKardex(materialId, from, to) {
             });
         }
 
-        // Encabezado info material
         $('#kardex-header').show();
-        $('#kardex-material-name').text(res.material_name || ('ID ' + res.material_id));
-        let rangeText = (from || 'Inicio') + ' al ' + (to || 'Hoy');
-        $('#kardex-range').text(rangeText);
+
+        $('#kardex-material-name').text(
+            res.stock_item_name || res.material_name || ('StockItem ID ' + res.stock_item_id)
+        );
+
+        $('#kardex-range').text(
+            warehouseId ? 'Filtrado por almacén' : 'Todos los almacenes'
+        );
+
     }).fail(function () {
         $('#kardex-body').html(
             '<tr><td colspan="10" class="text-center text-danger">Error al obtener el Kardex.</td></tr>'

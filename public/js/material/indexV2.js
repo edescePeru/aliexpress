@@ -1125,23 +1125,38 @@ function openModalPrecioDirecto() {
 }
 
 function fillModalPrecioDirecto(data) {
-    let priceBase = parseFloat(data.priceBase || data.price_base || 0);
-    $modalPrecioDirecto.find('#material_priceBase').val(priceBase.toFixed(2));
 
+    // =========================
+    // STOCK ITEMS (nuevo modelo)
+    // =========================
     if (data.mode === 'stock_items') {
         $modalPrecioDirecto.find('#price_mode').val('stock_items');
+
         $('#legacy-price-container').hide();
         $('#stock-items-price-container').show();
+
+        // 🔥 Ocultar costo general
+        $('#material_priceBase').closest('.row').hide();
 
         renderStockItemsPrices(data.stockItems || data.stock_items || []);
         return;
     }
 
+    // =========================
+    // LEGACY (ya casi eliminado)
+    // =========================
     $modalPrecioDirecto.find('#price_mode').val('legacy');
+
     $('#legacy-price-container').show();
     $('#stock-items-price-container').hide();
 
+    // 🔥 Mostrar costo general
+    $('#material_priceBase').closest('.row').show();
+
+    let priceBase = parseFloat(data.priceBase || data.price_base || 0);
     let priceList = parseFloat(data.priceList || data.price_list || 0);
+
+    $modalPrecioDirecto.find('#material_priceBase').val(priceBase.toFixed(2));
     $modalPrecioDirecto.find('#material_priceList').val(priceList.toFixed(2));
 }
 
@@ -1152,7 +1167,7 @@ function renderStockItemsPrices(items) {
     if (!items.length) {
         $tbody.html(`
             <tr>
-                <td colspan="5" class="text-center text-muted">
+                <td colspan="6" class="text-center text-muted">
                     No hay stock items registrados.
                 </td>
             </tr>
@@ -1165,6 +1180,8 @@ function renderStockItemsPrices(items) {
         let variante = item.variant_text || '';
         let sku = item.sku || '';
         let barcode = item.barcode || '';
+
+        let priceBase = parseFloat(item.price_base || 0).toFixed(2);
         let priceList = parseFloat(item.price_list || 0).toFixed(2);
 
         $tbody.append(`
@@ -1174,9 +1191,22 @@ function renderStockItemsPrices(items) {
                     <input type="hidden" name="stock_items[${index}][price_list_item_id]" value="${escapeHtml2(item.price_list_item_id || '')}">
                     ${escapeHtml2(descripcion)}
                 </td>
+
                 <td>${escapeHtml2(variante)}</td>
                 <td>${escapeHtml2(sku)}</td>
                 <td>${escapeHtml2(barcode)}</td>
+
+                <!-- 🔥 NUEVO: COSTO -->
+                <td>
+                    <input
+                        type="number"
+                        class="form-control form-control-sm text-primary font-weight-bold"
+                        value="${priceBase}"
+                        readonly
+                    >
+                </td>
+
+                <!-- PRECIO TIENDA -->
                 <td>
                     <input
                         type="number"

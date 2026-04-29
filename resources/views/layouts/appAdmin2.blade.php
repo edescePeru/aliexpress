@@ -3091,18 +3091,25 @@
                             </a>
                             <ul class="nav nav-treeview">
                                 @can('list_invoice')
-                                    {{--<li class="nav-item">
-                                        <a href="{{route('invoice.index')}}" class="nav-link @yield('activeListInvoice')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar compras/Servicios</p>
-                                        </a>
-                                    </li>--}}
                                     <li class="nav-item">
-                                        <a href="{{route('report.invoice.finance')}}" class="nav-link @yield('activeReportInvoice')">
+                                        <a href="{{route('invoice.index')}}" class="nav-link @yield('activeListInvoice')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Facturas finanzas</p>
                                         </a>
                                     </li>
+
+                                    <li class="nav-item">
+                                        <a href="{{route('invoice.index.annulled')}}" class="nav-link @yield('activeListInvoiceAnnulled')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Facturas anuladas</p>
+                                        </a>
+                                    </li>
+                                    {{--<li class="nav-item">
+                                        <a href="{{route('report.invoice.finance')}}" class="nav-link @yield('activeReportInvoice')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Facturas finanzas</p>
+                                        </a>
+                                    </li>--}}
                                     {{--<li class="nav-item">
                                         <a href="{{route('report.invoice.finance.sin.orden')}}" class="nav-link @yield('activeReportInvoiceSinOrden')">
                                             <i class="far fa-circle nav-icon"></i>

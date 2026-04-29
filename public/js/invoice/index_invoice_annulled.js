@@ -32,7 +32,7 @@ $(document).ready(function () {
     //console.log($permissions);
     var table = $('#dynamic-table').DataTable( {
         ajax: {
-            url: "/dashboard/get/json/invoices/purchase",
+            url: "/dashboard/get/json/invoices/purchase/annulled",
             dataSrc: 'data'
         },
         bAutoWidth: false,
@@ -234,62 +234,15 @@ $(document).ready(function () {
                     console.log(item.material_name);
                     if ( item.code == null ) {
                         if (!item.finance) {
-                            if ($.inArray('update_entryPurchase', $permissions) !== -1) {
-                                text = text + '<a href="' + document.location.origin + '/dashboard/entrada/compra/editar/' + item.id + '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>  ';
-                            }
-                            if ( $.inArray('regularizeOrder_entryPurchase', $permissions) !== -1 ) {
-                                if (item.purchase_order == '' || item.purchase_order == null)
-                                {
-                                    text = text + ' <a href="'+document.location.origin+ '/dashboard/regularizar/automaticamente/entrada/compra/'+item.id+'" '+
-                                        ' class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Regularizar automaticamente compra"><i class="fas fa-share-square"></i></a>';
-
-                                }
-                            }
                             text = text + '<button type="button" data-details="' + item.id + '" data-code="0" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
 
                         } else {
-                            if ($.inArray('update_invoice', $permissions) !== -1) {
-                                text = text + '<a href="' + document.location.origin + '/dashboard/factura/compra/editar/' + item.id + '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>  ';
-                            }
-
-                            if (item.purchase_order == null  )
-                            {
-                                if ($.inArray('destroy_invoice', $permissions) !== -1) {
-                                    text = text + '<button type="button" data-delete="' + item.id + '" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular factura"><i class="fa fa-trash"></i> </button>';
-                                }
-                            } else {
-                                if (item.purchase_order.substr(0, 1) === '0') {
-                                    if ($.inArray('destroy_invoice', $permissions) !== -1) {
-                                        text = text + '<button type="button" data-delete="' + item.id + '" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular factura"><i class="fa fa-trash"></i> </button>';
-                                    }
-                                }
-                            }
-
-                            if ( item.type_order == 'purchase' )
-                            {
-
-                            } else {
-                                if ( $.inArray('regularizeOrder_entryPurchase', $permissions) !== -1 ) {
-                                    if (item.purchase_order == '' || item.purchase_order == null)
-                                    {
-                                        text = text + ' <a href="'+document.location.origin+ '/dashboard/regularizar/automaticamente/entrada/servicio/'+item.id+'" '+
-                                            ' class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Regularizar automaticamente servicio"><i class="fas fa-share-square"></i></a>';
-                                    }
-                                }
-                            }
 
                             text = text + '<button type="button" data-details="' + item.id + '" data-code="0" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
 
                         }
                     } else {
-                        if ( ($.inArray('update_orderService', $permissions) !== -1) || ($.inArray('regularize_orderService', $permissions) !== -1) ) {
-                            text = text + '<a href="'+document.location.origin+ '/dashboard/ingresar/orden/servicio/'+item.id+
-                                '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar servicio"><i class="fa fa-pen"></i></a> ';
-                        }
-                        if ( $.inArray('update_orderService', $permissions) !== -1 ) {
-                            text = text + ' <button data-deleteOS="'+item.id+'" data-name="'+item.code+'" '+
-                                ' class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>';
-                        }
+
                         text = text + '<button type="button" data-details="' + item.id + '" data-code="1" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
 
                     }

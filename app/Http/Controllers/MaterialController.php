@@ -2528,13 +2528,10 @@ class MaterialController extends Controller
         }
 
         // Aquí define cómo obtienes la lista de precios actual
-        $priceListId = 1; // ejemplo, luego lo puedes parametrizar
-
-        $priceBase = (float) $inventoryCostService->getAverageCostUpToDate($material->id, now());
+        $priceListId = 1;
 
         $stockItems = $material->stockItems;
 
-        // Si no tiene stockItems todavía, seguimos con lógica legacy
         if ($stockItems->isEmpty()) {
             return response()->json([
                 'mode' => 'legacy',
@@ -2542,28 +2539,38 @@ class MaterialController extends Controller
                     'id' => $material->id,
                     'full_name' => $material->full_name,
                 ],
-                'price_base' => $priceBase,
+                'price_base' => $material->unit_price === null ? 0 : (float) $material->unit_price,
                 'price_list' => $material->list_price === null ? 0 : (float) $material->list_price,
                 'stock_items' => [],
             ], 200);
         }
 
-        $stockItemIds = $stockItems->pluck('id')->toArray();
+        $stockItemIds = $stockItems->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->toArray();
+
+        $avgCosts = $inventoryCostService->getAverageCostsByStockItem($stockItemIds);
 
         $priceListItems = PriceListItem::where('price_list_id', $priceListId)
             ->whereIn('stock_item_id', $stockItemIds)
             ->get()
             ->keyBy('stock_item_id');
 
-        $rows = $stockItems->map(function ($stockItem) use ($priceListItems) {
+        $rows = $stockItems->map(function ($stockItem) use ($priceListItems, $avgCosts) {
             $variantText = '';
 
             if ($stockItem->variant) {
                 if (!empty($stockItem->variant->attribute_summary)) {
                     $variantText = $stockItem->variant->attribute_summary;
                 } else {
-                    $talla = optional($stockItem->variant->talla)->short_name ?: optional($stockItem->variant->talla)->name;
+                    $talla = optional($stockItem->variant->talla)->short_name
+                        ?: optional($stockItem->variant->talla)->name;
+
                     $color = optional($stockItem->variant->color)->name;
+
                     $variantText = collect([$talla, $color])->filter()->implode(' / ');
                 }
             }
@@ -2576,10 +2583,15 @@ class MaterialController extends Controller
                 'sku' => $stockItem->sku,
                 'barcode' => $stockItem->barcode,
                 'variant_text' => $variantText,
+                'price_base' => (float) ($avgCosts[$stockItem->id] ?? 0),
                 'price_list_item_id' => optional($priceListItem)->id,
                 'price_list' => $priceListItem ? (float) $priceListItem->price : 0,
             ];
         })->values()->toArray();
+
+        $generalPriceBase = count($rows) === 1
+            ? (float) ($rows[0]['price_base'] ?? 0)
+            : null;
 
         return response()->json([
             'mode' => 'stock_items',
@@ -2587,7 +2599,7 @@ class MaterialController extends Controller
                 'id' => $material->id,
                 'full_name' => $material->full_name,
             ],
-            'price_base' => $priceBase,
+            'price_base' => $generalPriceBase,
             'stock_items' => $rows,
         ], 200);
     }
@@ -3241,6 +3253,71 @@ class MaterialController extends Controller
             return [
                 'id'   => $m->id,
                 'text' => "{$m->code} - {$m->full_description}",
+            ];
+        });
+
+        return response()->json($results);
+    }
+
+    public function selectStockItemsAjax(Request $request)
+    {
+        $term = trim($request->get('q', ''));
+
+        $query = StockItem::query()
+            ->with('material:id,full_name,code')
+            ->select('id', 'material_id', 'sku', 'barcode', 'display_name')
+            ->where('is_active', 1);
+
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $q->where('sku', 'like', "%{$term}%")
+                    ->orWhere('barcode', 'like', "%{$term}%")
+                    ->orWhere('display_name', 'like', "%{$term}%")
+                    ->orWhereHas('material', function ($mq) use ($term) {
+                        $mq->where('code', 'like', "%{$term}%")
+                            ->orWhere('full_name', 'like', "%{$term}%");
+                    });
+            });
+        }
+
+        $stockItems = $query
+            ->orderBy('display_name')
+            ->limit(20)
+            ->get();
+
+        $results = $stockItems->map(function ($item) {
+            $code = $item->sku ?: optional($item->material)->code;
+            $name = $item->display_name ?: optional($item->material)->full_name;
+
+            return [
+                'id'   => $item->id,
+                'text' => trim(($code ? $code . ' - ' : '') . $name),
+            ];
+        });
+
+        return response()->json($results);
+    }
+
+    public function selectWarehousesAjax(Request $request)
+    {
+        $term = trim($request->get('q', ''));
+
+        $query = Warehouse::query()
+            ->select('id', 'name')
+            ->orderBy('name');
+
+        if ($term !== '') {
+            $query->where('name', 'like', "%{$term}%");
+        }
+
+        $warehouses = $query
+            ->limit(20)
+            ->get();
+
+        $results = $warehouses->map(function ($warehouse) {
+            return [
+                'id' => $warehouse->id,
+                'text' => $warehouse->name,
             ];
         });
 

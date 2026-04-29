@@ -8,7 +8,7 @@
     active
 @endsection
 
-@section('activeCreateInvoice')
+@section('activeListInvoice')
     active
 @endsection
 
@@ -46,11 +46,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Facturas por compra/servicio</h1>
+    <h1 class="page-title">Facturas por compra/Servicios</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nueva factura por compra/servicio</h5>
+    <h5 class="card-title">Ver factura por compra/Servicio</h5>
 @endsection
 
 @section('page-breadcrumb')
@@ -59,15 +59,16 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('invoice.index') }}"><i class="fa fa-archive"></i> Facturas por compra/servicio</a>
+            <a href="{{ route('invoice.index') }}"><i class="fa fa-archive"></i> Facturas por compra/Servicios</a>
         </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nueva factura</li>
+        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Ver factura</li>
     </ol>
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('invoice.store') }}" enctype="multipart/form-data">
+    <form id="formEdit" class="form-horizontal" data-url="" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="entry_id" value="{{ $entry->id }}">
         <div class="row">
             <div class="col-md-12">
                 <div class="card card-success">
@@ -82,111 +83,59 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="form-group " id="sandbox-container">
+                                <div class="form-group" id="sandbox-container">
                                     <label for="date_invoice">Fecha de Factura</label>
                                     <div class="input-daterange" id="datepicker">
-                                        <input type="text" class="form-control date-range-filter" id="date_invoice" name="date_invoice">
+                                        <input type="text" class="form-control date-range-filter" id="date_invoice" name="date_invoice" value="{{ $entry->date_entry->format('d/m/Y') }}" readonly>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="purchase_order">Orden de Compra/servicio</label>
-                                    <input type="text" id="purchase_order" name="purchase_order" class="form-control">
+                                    <label for="purchase_order">Orden de Compra/Servicio</label>
+                                    <input type="text" id="purchase_order" name="purchase_order" value="{{ $entry->purchase_order }}" class="form-control" readonly>
                                 </div>
                                 <div class="form-group">
                                     <label for="supplier">Proveedor </label>
-                                    <select id="supplier" name="supplier_id" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $suppliers as $supplier )
-                                            <option value="{{ $supplier->id }}">{{ $supplier->business_name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <input type="text" value="{{ ( $entry->supplier_id == null ) ? "Sin Proveedor":$entry->supplier->business_name }}" class="form-control" readonly>
+
                                 </div>
                                 <div class="form-group">
                                     <label for="observation">Observación </label>
-                                    <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...."></textarea>
+                                    <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...." readonly>{{$entry->observation}}</textarea>
                                 </div>
                                 <div class="form-group">
                                     <label for="category_invoice">Categoría </label>
-                                    <select id="category_invoice" name="category_invoice_id" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $categories as $category )
-                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <input type="text" id="supplier" name="supplier" value="{{ ( $entry->category_invoice_id == null ) ? "Sin categoría":$entry->category_invoice->name }}" class="form-control" readonly>
+
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group row">
                                     <div class="col-md-8">
                                         <label for="invoice">Factura <span class="right badge badge-danger">(*)</span></label>
-                                        <input type="text" id="invoice" name="invoice" class="form-control">
+                                        <input type="text" id="invoice" name="invoice" class="form-control" value="{{ $entry->invoice }}" readonly>
                                     </div>
-                                    {{--<div class="col-md-4">
-                                        <label for="btn-grouped"> Diferido <span class="right badge badge-danger">(*)</span></label> <br>
-                                        <input id="btn-grouped" type="checkbox" name="deferred_invoice" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
-                                    </div>--}}
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="type_order">Tipo de Orden <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="hidden" id="entry_type" value="Por compra" name="entry_type" class="form-control" readonly>
-                                    <select id="type_order" name="type_order" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        <option value="purchase">Por compra</option>
-                                        <option value="service">Por servicio</option>
-                                    </select>
+                                    <div class="col-md-8">
+                                        <label for="type_order">Tipo de Orden <span class="right badge badge-danger">(*)</span></label>
+                                        <input type="hidden" id="entry_type" value="Por compra" name="entry_type" class="form-control" readonly>
+                                        <input type="text" class="form-control" value="{{ ($entry->type_order == 'purchase') ? 'Orden de Compra': 'Orden de Servicio' }}" readonly>
+                                    </div>
                                 </div>
-
                                 <div class="form-group">
                                     <label for="image">Imagen/PDF Factura </label>
-                                    <input type="file" id="image" name="image" class="form-control">
+                                    {{--<input type="file" id="image" name="image" class="form-control">--}}
+                                    @if ( strtoupper(substr($entry->image,-3)) == 'PDF' )
+                                        <a target="_blank" href="{{ asset('images/entries/'.$entry->image) }}" class="btn btn-outline-success float-right">Ver PDF</a>
+                                    @else
+                                        <img data-image src="{{ asset('images/entries/'.$entry->image) }}" alt="{{$entry->invoice}}" width="100px" height="100px">
+                                    @endif
+                                    {{--<img data-image src="{{ asset('images/entries/'.$entry->image) }}" alt="{{$entry->invoice}}" width="100px" height="100px">--}}
                                 </div>
-                                <div class="form-group row">
-                                    <div class="col-md-4">
-                                        <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
-                                        <input id="btn-currency" type="checkbox" name="currency_invoice" data-bootstrap-switch data-off-color="primary" data-on-text="DOLARES" data-off-text="SOLES" data-on-color="success">
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <div class="col-md-4">
-                                        <label for="pv_cash_box_id">
-                                            Caja <span class="right badge badge-danger">(*)</span>
-                                        </label>
-
-                                        <select id="pv_cash_box_id"
-                                                name="pv_cash_box_id"
-                                                class="form-control select2"
-                                                style="width: 100%;">
-                                            <option value=""></option>
-
-                                            @foreach($cashBoxes as $b)
-                                                <option
-                                                        value="{{ $b['id'] }}"
-                                                        data-type="{{ $b['type'] }}"
-                                                        data-uses_subtypes="{{ $b['uses_subtypes'] ? 1 : 0 }}"
-                                                >
-                                                    {{ $b['name'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-4" id="pv_cash_box_subtype_wrap" style="display:none;">
-                                        <label for="pv_cash_box_subtype_id">
-                                            Canal / Subtipo <span class="right badge badge-danger">(*)</span>
-                                        </label>
-
-                                        <select id="pv_cash_box_subtype_id"
-                                                name="pv_cash_box_subtype_id"
-                                                class="form-control select2"
-                                                style="width: 100%;">
-                                            <option value=""></option>
-                                        </select>
-
-                                        <small class="text-muted">
-                                            Solo aplica cuando la caja es bancaria y usa subtipos.
-                                        </small>
-                                    </div>
+                                <div class="col-md-4">
+                                    <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <input id="btn-currency" readonly type="checkbox" {{ ($entry->currency_invoice === 'USD') ? 'checked':''}} name="currency_invoice" data-bootstrap-switch data-off-color="primary" data-on-text="DOLARES" data-off-text="SOLES" data-on-color="success">
                                 </div>
                             </div>
                         </div>
@@ -198,7 +147,7 @@
             <div class="col-md-12">
                 <div class="card card-warning">
                     <div class="card-header">
-                        <h3 class="card-title">Materiales/Servicios</h3>
+                        <h3 class="card-title">Materiales</h3>
 
                         <div class="card-tools">
                             <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
@@ -208,59 +157,16 @@
                     <div class="card-body">
 
                         <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="material_search">Ingresar material/Servicio <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="text" id="material_search" onkeyup="mayus(this);" class="form-control">
-
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="material_unit">Unidad <span class="right badge badge-danger">(*)</span></label>
-                                    <select id="material_unit" name="material_unit" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $unitMeasures as $unitMeasure )
-                                            <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="quantity" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="price">Precio Total C/IGV <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                    this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                    ">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="btn-add"> &nbsp; </label>
-                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary">Agregar <i class="fas fa-arrow-circle-right"></i></button>
-                            </div>
-
-                        </div>
-
-                        <hr>
-
-                        <div class="row">
                             <div class="col-md-12">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h3 class="card-title">Materiales/Servicios</h3>
+                                        <h3 class="card-title">Materiales</h3>
                                     </div>
                                     <!-- /.card-header -->
-                                    <div class="card-body table-responsive p-0" style="height: 300px;">
-                                        <table class="table table-head-fixed text-nowrap">
+                                    <div class="card-body table-responsive p-0">
+                                        <table id="tablita" class="table table-head-fixed text-nowrap">
                                             <thead>
                                                 <tr>
-                                                    <th>Codigo</th>
                                                     <th>Material</th>
                                                     <th>Cantidad</th>
                                                     <th>Und</th>
@@ -268,16 +174,26 @@
                                                     <th>Total sin Imp.</th>
                                                     <th>Total Imp.</th>
                                                     <th>Importe</th>
-                                                    <th>Acciones</th>
+
                                                 </tr>
                                             </thead>
                                             <tbody id="body-materials">
+                                                @foreach( $entry->details as $key => $detail )
+                                                    <tr>
+                                                        <td data-description>{{$detail->material_description}}</td>
+                                                        <td data-quantity>{{$detail->entered_quantity}}</td>
+                                                        <td data-unit>{{$detail->unit}}</td>
+                                                        <td data-price>{{$detail->unit_price}}</td>
+                                                        <td data-subtotal>{{ $detail->sub_total }}</td>
+                                                        <td data-taxes>{{ $detail->taxes }}</td>
+                                                        <td data-total>{{ $detail->total }}</td>
 
+                                                    </tr>
+                                                @endforeach
 
                                             </tbody>
                                             <template id="materials-selected">
                                                 <tr>
-                                                    <td data-id>183</td>
                                                     <td data-description>John Doe</td>
                                                     <td data-quantity>John Doe</td>
                                                     <td data-unit>11-7-2014</td>
@@ -286,60 +202,78 @@
                                                     <td data-taxes>11-7-2014</td>
                                                     <td data-total>11-7-2014</td>
                                                     <td>
-                                                        <button type="button" data-delete="" class="btn btn-danger"><i class="fas fa-trash"></i></button>
+                                                        <button type="button" data-deleteNew="" class="btn btn-outline-warning btn-sm"><i class="fas fa-trash"></i></button>
                                                     </td>
                                                 </tr>
                                             </template>
                                         </table>
                                     </div>
                                     <!-- /.card-body -->
+                                    <hr>
+                                    <div class="row">
+                                        <!-- accepted payments column -->
+                                        <div class="col-6">
+
+                                        </div>
+                                        <!-- /.col -->
+                                        <div class="col-6">
+                                            <p class="lead">Resumen de factura</p>
+
+                                            <div class="table-responsive">
+                                                <table class="table">
+                                                    <tr>
+                                                        <th style="width:50%">Subtotal: </th>
+                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="subtotal">{{ $entry->sub_total }}</span> </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Igv: </th>
+                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="taxes">{{ $entry->taxes }}</span> </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Total: </th>
+                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="total">{{ $entry->total }}</span> </td>
+                                                    </tr>
+
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <!-- /.col -->
+                                    </div>
                                 </div>
                                 <!-- /.card -->
                             </div>
                         </div>
-                        <div class="row">
-                            <!-- accepted payments column -->
-                            <div class="col-6">
-
-                            </div>
-                            <!-- /.col -->
-                            <div class="col-6">
-                                <p class="lead">Resumen de factura</p>
-
-                                <div class="table-responsive">
-                                    <table class="table">
-                                        <tr>
-                                            <th style="width:50%">Subtotal: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="subtotal">0.00</span> </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Igv: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="taxes">0.00</span> </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Total: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="total">0.00</span> </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                            <!-- /.col -->
-                        </div>
-                        <!-- /.row -->
                     </div>
                     <!-- /.card-body -->
                 </div>
                 <!-- /.card -->
             </div>
         </div>
-        <div class="row">
+        {{--<div class="row">
             <div class="col-12">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar factura compra/servicio</button>
+                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar cambios</button>
             </div>
-        </div>
+        </div>--}}
         <!-- /.card-footer -->
     </form>
+
+    <div id="modalImage" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Visualización del documento</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <img id="image-document" src="" alt="" width="100%">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="modalAddItems" class="modal fade" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
@@ -445,7 +379,7 @@
                             <label class="col-sm-12 control-label" for="material_GroupSelected"> Material </label>
 
                             <div class="col-sm-12">
-                                <input type="text" id="material_GroupSelected" onkeyup="mayus(this);" name="material_GroupSelected" class="form-control" />
+                                <input type="text" id="material_GroupSelected" name="material_GroupSelected" class="form-control" />
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -509,7 +443,10 @@
 @section('scripts')
     <script src="{{asset('admin/plugins/typehead/typeahead.bundle.js')}}"></script>
     <script>
-        $('#date_invoice').attr("value", moment().format('DD/MM/YYYY'));
+        if ( $('#date_invoice') === '' )
+        {
+            $('#date_invoice').attr("value", moment().format('DD/MM/YYYY'));
+        }
 
         $('#sandbox-container .input-daterange').datepicker({
             todayBtn: "linked",
@@ -520,15 +457,11 @@
             todayHighlight: true,
             defaultViewDate: moment().format('L')
         });
-
         $("input[data-bootstrap-switch]").each(function(){
             $(this).bootstrapSwitch();
         });
         $('#supplier').select2({
             placeholder: "Seleccione un proveedor",
-        });
-        $('#material_unit').select2({
-            placeholder: "Seleccione unidad",
         });
         $('#type_order').select2({
             placeholder: "Seleccione un tipo",
@@ -536,13 +469,10 @@
         $('#category_invoice').select2({
             placeholder: "Seleccione una categoría",
         });
+        $('#material_unit').select2({
+            placeholder: "Seleccione unidad",
+        });
     </script>
-
-    <script>
-        window.PV_CASHBOXES = @json($cashBoxes);
-        window.PV_SUBTYPES  = @json($subtypes);
-    </script>
-
-    <script src="{{ asset('js/invoice/invoice.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/invoice/edit_invoice.js') }}"></script>
 
 @endsection

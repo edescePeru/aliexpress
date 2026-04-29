@@ -1198,6 +1198,8 @@ Route::middleware('auth')->group(function (){
         // INVOICE
         Route::get('factura/compra', 'InvoiceController@indexInvoices')->name('invoice.index')
             ->middleware('permission:list_invoice');
+        Route::get('factura/compra/anuladas', 'InvoiceController@indexInvoicesAnnulled')->name('invoice.index.annulled')
+            ->middleware('permission:list_invoice');
         Route::get('crear/factura/compra', 'InvoiceController@createInvoice')->name('invoice.create')
             ->middleware('permission:create_invoice');
         Route::post('invoice/store', 'InvoiceController@storeInvoice')->name('invoice.store')
@@ -1208,12 +1210,14 @@ Route::middleware('auth')->group(function (){
             ->middleware('permission:destroy_invoice');
 
         Route::get('/get/json/invoices/purchase', 'InvoiceController@getJsonInvoices');
+        Route::get('/get/json/invoices/purchase/annulled', 'InvoiceController@getJsonInvoicesAnnulled');
         Route::get('/get/invoices/purchase', 'InvoiceController@getInvoices');
         Route::get('/get/invoice/by/id/{id}', 'InvoiceController@getInvoiceById');
         Route::get('/get/service/by/id/{id}', 'InvoiceController@getServiceById');
 
         Route::get('factura/compra/editar/{entry}', 'InvoiceController@editInvoice')->name('invoice.edit')
             ->middleware('permission:update_invoice');
+        Route::get('factura/compra/ver/{entry}', 'InvoiceController@verInvoice')->name('invoice.show');
         Route::post('invoice/update', 'InvoiceController@updateInvoice')->name('invoice.update')
             ->middleware('permission:update_invoice');
 
@@ -2984,6 +2988,10 @@ Route::middleware('auth')->group(function (){
         Route::get('/kardex', 'InventoryMovementController@index')
             ->name('kardex.index');
         Route::get('/materials/select', 'MaterialController@selectAjax')->name('materials.selectAjax');
+        Route::get('/stock-items/select', 'MaterialController@selectStockItemsAjax')
+            ->name('stockitems.select');
+        Route::get('/warehouses/select', 'MaterialController@selectWarehousesAjax')
+            ->name('warehouses.select');
 
         // TODO: PARAMTRIZACION DE MATERIAL DETAILS
         Route::prefix('settings')

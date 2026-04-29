@@ -82,6 +82,31 @@ class StockItem extends Model
         return '';
     }
 
+    public function getDisplayImageAttribute()
+    {
+        if ($this->variant && !empty($this->variant->image)) {
+            return $this->variant->image;
+        }
+
+        return optional($this->material)->image;
+    }
+
+    public function getDisplayImageUrlAttribute()
+    {
+        // 1. Si tiene variante con imagen
+        if ($this->variant && !empty($this->variant->image)) {
+            return asset('images/material/variants/' . $this->variant->image);
+        }
+
+        // 2. Si no, usar imagen del material padre
+        if ($this->material && !empty($this->material->image)) {
+            return asset('images/material/' . $this->material->image);
+        }
+
+        // 3. Imagen por defecto
+        return asset('images/material/no_image.png');
+    }
+
     public function material()
     {
         return $this->belongsTo(Material::class, 'material_id');

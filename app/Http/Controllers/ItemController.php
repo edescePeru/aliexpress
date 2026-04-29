@@ -78,36 +78,65 @@ class ItemController extends Controller
         $arrayItems = [];
         $arrayDetails = [];
 
-        $entry = Entry::find($entry);
+        $entry = Entry::with([
+            'details.material',
+            'details.stockItem',
+            'details.items.stockItem',
+            'details.items.material',
+            'details.items.location.area',
+            'details.items.location.warehouse',
+            'details.items.location.shelf',
+            'details.items.location.level',
+            'details.items.location.container',
+        ])->find($entry);
+
         foreach ($entry->details as $detail) {
 
             array_push($arrayDetails,
                 [
                     'id'=> $detail->id,
-                    'material' => $detail->material->full_description,
-                    'code' => $detail->material->code,
+                    'material' => optional($detail->stockItem)->display_name
+                        ?? optional($detail->material)->full_name,
+
+                    'code' => optional($detail->stockItem)->sku
+                        ?? optional($detail->material)->code,
                     'ordered_quantity' => $detail->entered_quantity,
                     'unit_price' => $detail->unit_price
                 ]);
 
-            $items = Item::with(['location', 'typescrap', 'material', 'detailEntry'])
+            $items = Item::with([
+                'location.area',
+                'location.warehouse',
+                'location.shelf',
+                'location.level',
+                'location.container',
+                'typescrap',
+                'material',
+                'stockItem'
+            ])
                 ->where('detail_entry_id', $detail->id)
                 ->get();
-            foreach ( $items as $key => $item )
-            {
-                $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name;
-                array_push($arrayItems,
-                    [
-                        'id'=> $key+1,
-                        'material' => $item->material->full_description,
-                        'code' => $item->code,
-                        'length' => $item->length,
-                        'width' => $item->width,
-                        'weight' => $item->weight,
-                        'price' => $item->material->unit_price,
-                        'location' => substr($l,0,30).'...',
-                        'state' => $item->state,
-                    ]);
+            foreach ($items as $key => $item) {
+
+                $l = 'AR:' . optional($item->location->area)->name .
+                    '|AL:' . optional($item->location->warehouse)->name .
+                    '|AN:' . optional($item->location->shelf)->name .
+                    '|NIV:' . optional($item->location->level)->name .
+                    '|CON:' . optional($item->location->container)->name;
+
+                $arrayItems[] = [
+                    'id' => $key + 1,
+                    'material' => optional($item->stockItem)->display_name
+                        ?? optional($item->material)->full_name,
+                    'code' => $item->code,
+                    'length' => $item->length,
+                    'width' => $item->width,
+                    'weight' => $item->weight,
+                    'price' => $item->unit_cost
+                        ?? optional($item->material)->unit_price,
+                    'location' => substr($l, 0, 30) . '...',
+                    'state' => $item->state,
+                ];
             }
         }
 

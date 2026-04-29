@@ -1678,8 +1678,17 @@ class EntryController extends Controller
                 ? $entry->date_entry
                 : Carbon::parse($entry->date_entry);
 
-            $affectedMaterialIds = collect($grouped)
+            /*$affectedMaterialIds = collect($grouped)
                 ->pluck('material_id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->unique()
+                ->values()
+                ->toArray();*/
+
+            $affectedStockItemIds = collect($grouped)
+                ->pluck('stock_item_id')
                 ->map(function ($id) {
                     return (int) $id;
                 })
@@ -1687,13 +1696,14 @@ class EntryController extends Controller
                 ->values()
                 ->toArray();
 
-            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+            //$avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+            $avgCosts = $this->inventoryCostService->getAverageCostsByStockItem($affectedStockItemIds, $entryDate);
 
-            foreach ($affectedMaterialIds as $mid) {
-                $avg = (float) ($avgCosts[$mid] ?? 0.0);
+            foreach ($affectedStockItemIds as $stockItemId) {
+                $avg = (float) ($avgCosts[$stockItemId] ?? 0.0);
 
-                Material::where('id', $mid)->update([
-                    'unit_price' => $avg
+                InventoryLevel::where('stock_item_id', $stockItemId)->update([
+                    'average_cost' => $avg
                 ]);
             }
 
@@ -2421,6 +2431,7 @@ class EntryController extends Controller
                     }
 
                     $affectedMaterialIds[] = (int) $material->id;
+                    $affectedStockItemIds[] = (int) $detail->stock_item_id;
 
                     // ===========================
                     // 1) Validaciones de bloqueo
@@ -2585,8 +2596,20 @@ class EntryController extends Controller
                 // ===========================
                 $affectedMaterialIds = array_values(array_unique(array_map('intval', $affectedMaterialIds)));
 
+                $affectedStockItemIds = array_values(array_unique(array_map('intval', $affectedStockItemIds)));
+
                 $now = now();
                 $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $now);
+
+                $avgStockItemCosts = $this->inventoryCostService->getAverageCostsByStockItem($affectedStockItemIds);
+
+                foreach ($affectedStockItemIds as $stockItemId) {
+                    $avg = (float) ($avgStockItemCosts[$stockItemId] ?? 0.0);
+
+                    InventoryLevel::where('stock_item_id', $stockItemId)->update([
+                        'average_cost' => $avg
+                    ]);
+                }
 
                 foreach ($affectedMaterialIds as $mid) {
                     $avg = (float) ($avgCosts[$mid] ?? 0.0);
@@ -3996,8 +4019,16 @@ class EntryController extends Controller
                 ? $entry->date_entry
                 : Carbon::parse($entry->date_entry);
 
-            $affectedMaterialIds = collect($grouped)
+            /*$affectedMaterialIds = collect($grouped)
                 ->pluck('material_id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->unique()
+                ->values()
+                ->toArray();*/
+            $affectedStockItemIds = collect($grouped)
+                ->pluck('stock_item_id')
                 ->map(function ($id) {
                     return (int) $id;
                 })
@@ -4005,13 +4036,20 @@ class EntryController extends Controller
                 ->values()
                 ->toArray();
 
-            $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $entryDate);
+            $avgCosts = $this->inventoryCostService->getAverageCostsByStockItem($affectedStockItemIds);
 
-            foreach ($affectedMaterialIds as $mid) {
+            /*foreach ($affectedMaterialIds as $mid) {
                 $avg = (float) ($avgCosts[$mid] ?? 0.0);
 
                 Material::where('id', $mid)->update([
                     'unit_price' => $avg
+                ]);
+            }*/
+            foreach ($affectedStockItemIds as $stockItemId) {
+                $avg = (float) ($avgCosts[$stockItemId] ?? 0.0);
+
+                InventoryLevel::where('stock_item_id', $stockItemId)->update([
+                    'average_cost' => $avg
                 ]);
             }
 

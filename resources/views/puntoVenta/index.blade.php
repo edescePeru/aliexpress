@@ -731,6 +731,7 @@
                 </div>
 
                 <input type="hidden" id="quantity_productId">
+                <input type="hidden" id="quantity_materialId">
                 <input type="hidden" id="quantity_productPrice">
                 <input type="hidden" id="quantity_productStock">
                 <input type="hidden" id="quantity_productName">

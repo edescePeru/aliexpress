@@ -91,4 +91,70 @@ class InventoryCostService
         $result = $this->getAverageCostsUpToDate([(int)$materialId], $date);
         return (float) ($result[$materialId] ?? 0.0);
     }
+
+    public function getAverageCostsByStockItem(array $stockItemIds): array
+    {
+        $stockItemIds = array_values(array_unique(array_map('intval', $stockItemIds)));
+
+        if (empty($stockItemIds)) {
+            return [];
+        }
+
+        $movements = InventoryMovement::whereIn('stock_item_id', $stockItemIds)
+            ->orderBy('stock_item_id')
+            ->orderBy('movement_date')
+            ->orderBy('movement_id')
+            ->get();
+
+        $avg = [];
+        $saldoQty = [];
+        $saldoImp = [];
+
+        foreach ($stockItemIds as $id) {
+            $avg[$id] = 0.0;
+            $saldoQty[$id] = 0.0;
+            $saldoImp[$id] = 0.0;
+        }
+
+        foreach ($movements as $m) {
+            $sid = (int) $m->stock_item_id;
+
+            if (!array_key_exists($sid, $avg)) {
+                continue;
+            }
+
+            $qty = (float) $m->quantity;
+
+            if ($qty <= 0) {
+                continue;
+            }
+
+            if ($m->movement_type === 'IN') {
+                $uc = (float) $m->unit_cost;
+                $imp = $qty * $uc;
+
+                $saldoQty[$sid] += $qty;
+                $saldoImp[$sid] += $imp;
+
+                $avg[$sid] = $saldoQty[$sid] > 0
+                    ? $saldoImp[$sid] / $saldoQty[$sid]
+                    : 0.0;
+            } else {
+                $uc = (float) ($m->unit_cost ?? $avg[$sid]);
+                $imp = $qty * $uc;
+
+                $saldoQty[$sid] -= $qty;
+                $saldoImp[$sid] -= $imp;
+            }
+        }
+
+        return $avg;
+    }
+
+    public function getAverageCostByStockItem($stockItemId): float
+    {
+        $result = $this->getAverageCostsByStockItem([(int) $stockItemId]);
+
+        return (float) ($result[$stockItemId] ?? 0.0);
+    }
 }

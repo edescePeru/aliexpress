@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\CashBox;
+use App\CashBoxSubtype;
+use App\CashMovement;
+use App\CashRegister;
 use App\CategoryInvoice;
 use App\DetailEntry;
 use App\Entry;
@@ -21,6 +25,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Intervention\Image\Facades\Image;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -41,12 +46,47 @@ class InvoiceController extends Controller
         return view('invoice.index_invoice', compact('permissions'));
     }
 
+    public function indexInvoicesAnnulled()
+    {
+        $user = Auth::user();
+        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
+        return view('invoice.index_invoice_annulled', compact('permissions'));
+    }
+
     public function createInvoice()
     {
         $suppliers = Supplier::all();
         $unitMeasures = UnitMeasure::all();
         $categories = CategoryInvoice::all();
-        return view('invoice.create_invoice', compact('suppliers', 'unitMeasures', 'categories'));
+
+        // ✅ NUEVO: Cajas + subtipos (igual que PV)
+        $cashBoxes = CashBox::where('is_active', 1)
+            ->orderBy('position')
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id'            => (int) $b->id,
+                    'name'          => (string) $b->name,
+                    'type'          => (string) $b->type,
+                    'uses_subtypes' => (bool) $b->uses_subtypes,
+                ];
+            })
+            ->values();
+
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')
+            ->where('is_active', 1)
+            ->orderBy('position')
+            ->get()
+            ->map(function ($s) {
+                return [
+                    'id'   => (int) $s->id,
+                    'name' => (string) $s->name,
+                ];
+            })
+            ->values();
+
+        return view('invoice.create_invoice', compact('suppliers', 'unitMeasures', 'categories', 'cashBoxes','subtypes'));
     }
 
     public function storeInvoice(StoreInvoiceRequest $request)
@@ -59,22 +99,33 @@ class InvoiceController extends Controller
         $fechaFormato = $fecha->format('Y-m-d');
         //$response = $this->getTipoDeCambio($fechaFormato);
 
-        $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
+        //$tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
+
+        $precioCompra = 1;
+        $precioVenta = 1;
+
+        $tipoMoneda = $request->has('currency_invoice') ? 'USD' : 'PEN';
+
+        if ( $tipoMoneda == 'USD' ) {
+            $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
+            $precioCompra = (float) $tipoCambioSunat->precioCompra;
+            $precioVenta = (float) $tipoCambioSunat->precioVenta;
+        }
 
         DB::beginTransaction();
         try {
             $entry = Entry::create([
                 'purchase_order' => $request->get('purchase_order'),
                 'invoice' => $request->get('invoice'),
-                'deferred_invoice' => ($request->has('deferred_invoice')) ? $request->get('deferred_invoice'):'off',
+                'deferred_invoice' => 'off',
                 'supplier_id' => $request->get('supplier_id'),
                 'entry_type' => $request->get('entry_type'),
                 'type_order' => $request->get('type_order'),
                 'date_entry' => Carbon::createFromFormat('d/m/Y', $request->get('date_invoice')),
                 'finance' => true,
-                'currency_invoice' => ($request->has('currency_invoice')) ? 'USD':'PEN',
-                'currency_compra' => (float) $tipoCambioSunat->precioCompra,
-                'currency_venta' => (float) $tipoCambioSunat->precioVenta,
+                'currency_invoice' => $tipoMoneda,
+                'currency_compra' => (float) $precioCompra,
+                'currency_venta' => (float) $precioVenta,
                 'observation' => $request->get('observation'),
                 'category_invoice_id' => $request->get('category_invoice_id'),
             ]);
@@ -87,7 +138,7 @@ class InvoiceController extends Controller
                 $path = public_path().'/images/entries/';
                 $image = $request->file('image');
                 $extension = $request->file('image')->getClientOriginalExtension();
-                //$filename = $entry->id . '.' . $extension;
+
                 if ( strtoupper($extension) != "PDF" )
                 {
                     $filename = $entry->id . '.JPG';
@@ -103,20 +154,6 @@ class InvoiceController extends Controller
                     $entry->image = $filename;
                     $entry->save();
                 }
-                /*$path = public_path().'/images/entries/';
-                $image = $request->file('image');
-                $filename = $entry->id . '.JPG';
-                $img = Image::make($image);
-                $img->orientate();
-                $img->save($path.$filename, 80, 'JPG');
-                //$request->file('image')->move($path, $filename);
-                $entry->image = $filename;
-                $entry->save();*/
-                /*$extension = $request->file('image')->getClientOriginalExtension();
-                $filename = $entry->id . '.' . $extension;
-                $request->file('image')->move($path, $filename);
-                $entry->image = $filename;
-                $entry->save();*/
             }
 
             $items = json_decode($request->get('items'));
@@ -134,89 +171,6 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            /*$items = json_decode($request->get('items'));
-
-            //dd($item->id);
-            $materials_id = [];
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                array_push($materials_id, $items[$i]->id_material);
-            }
-
-            $counter = array_count_values($materials_id);
-            //dd($counter);
-
-            foreach ( $counter as $id_material => $count )
-            {
-                $material = Material::find($id_material);
-                $material->stock_current = $material->stock_current + $count;
-                $material->save();
-
-                // TODO: ORDER_QUANTITY sera tomada de la orden de compra
-                $detail_entry = DetailEntry::create([
-                    'entry_id' => $entry->id,
-                    'material_id' => $id_material,
-                    'ordered_quantity' => $count,
-                    'entered_quantity' => $count,
-                ]);
-                //dd($id_material .' '. $count);
-                for ( $i=0; $i<sizeof($items); $i++ )
-                {
-                    if( $detail_entry->material_id == $items[$i]->id_material )
-                    {
-                        $price = ($detail_entry->material->price > (float)$items[$i]->price) ? $detail_entry->material->price : $items[$i]->price;
-                        $materialS = Material::find($detail_entry->material_id);
-                        if ( $materialS->price < $items[$i]->price )
-                        {
-                            $materialS->unit_price = $items[$i]->price;
-                            $materialS->save();
-
-                            $detail_entry->unit_price = $materialS->unit_price;
-                            $detail_entry->save();
-                        }
-                        //dd($detail_entry->material->materialType);
-                        if ( isset($detail_entry->material->typeScrap) )
-                        {
-                            $item = Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $items[$i]->item,
-                                'length' => $detail_entry->material->typeScrap->length,
-                                'width' => $detail_entry->material->typeScrap->width,
-                                'weight' => 0,
-                                'price' => $price,
-                                'percentage' => 1,
-                                'typescrap_id' => $detail_entry->material->typeScrap->id,
-                                'location_id' => $items[$i]->id_location,
-                                'state' => $items[$i]->state,
-                                'state_item' => 'entered'
-                            ]);
-                        } else {
-                            $item = Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $items[$i]->item,
-                                'length' => 0,
-                                'width' => 0,
-                                'weight' => 0,
-                                'price' => $price,
-                                'percentage' => 1,
-                                'location_id' => $items[$i]->id_location,
-                                'state' => $items[$i]->state,
-                                'state_item' => 'entered'
-                            ]);
-                        }
-
-                    }
-                }
-            }*/
-
-            /* SI ( En el campo factura y en (Orden Compra/Servicio) ) AND Diferente a 000
-                Entonces
-                SI ( Existe en la tabla creditos ) ENTONCES
-                actualiza la factura en la tabla de creditos
-            */
             if ( $entry->invoice != '' || $entry->invoice != null )
             {
                 if ( $entry->purchase_order != '' || $entry->purchase_order != null )
@@ -247,6 +201,104 @@ class InvoiceController extends Controller
 
             $end = microtime(true) - $begin;
 
+            // ===========================
+            // MOVIMIENTO DE CAJA / BANCO
+            // ===========================
+            $cashBoxId = $request->input('pv_cash_box_id');
+            $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+
+            if (!$cashBoxId) {
+                throw new \Exception('Seleccione una caja.');
+            }
+
+            $cashBox = CashBox::find($cashBoxId);
+
+            if (!$cashBox || !(bool) $cashBox->is_active) {
+                throw new \Exception('La caja seleccionada no es válida o está inactiva.');
+            }
+
+            $needSubtype = ($cashBox->type === 'bank' && (bool) $cashBox->uses_subtypes);
+
+            if ($needSubtype) {
+                if (!$cashBoxSubtypeId) {
+                    throw new \Exception('Seleccione el canal/subtipo.');
+                }
+
+                $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
+                    ->where('is_active', 1)
+                    ->where('id', (int) $cashBoxSubtypeId)
+                    ->first();
+
+                if (!$validSubtype) {
+                    throw new \Exception('El subtipo seleccionado no es válido o está inactivo.');
+                }
+            } else {
+                $cashBoxSubtypeId = null;
+            }
+
+            $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
+                ->where('user_id', Auth::id())
+                ->where('status', 1)
+                ->latest();
+
+            if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
+                $cashRegisterQuery->where('cash_box_subtype_id', (int) $cashBoxSubtypeId);
+            }
+
+            $cashRegister = $cashRegisterQuery->first();
+
+            if (!$cashRegister) {
+                throw new \Exception('No hay caja abierta para la caja/canal seleccionado.');
+            }
+
+            $amount = (float) $entry->total;
+
+            if ($amount <= 0) {
+                $amount = collect($items)->sum(function ($item) {
+                    return (float) ($item->total ?? 0);
+                });
+            }
+
+            $regularize = 1;
+
+            /*if ($cashBox->type === 'bank' && (int) $cashBox->uses_subtypes === 1) {
+                $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
+                $regularize = $subtype->is_deferred ? 0 : 1;
+            }*/
+
+            $description = 'Pago de factura/servicio - ' . ($cashBox->name ?? 'Caja');
+
+            if ($needSubtype && $cashBoxSubtypeId) {
+                $sub = CashBoxSubtype::find((int) $cashBoxSubtypeId);
+                if ($sub) {
+                    $description .= ' (' . $sub->name . ')';
+                }
+            }
+
+            $movement = [
+                'cash_register_id' => $cashRegister->id,
+                'type' => 'expense',
+                'amount' => $amount,
+                'description' => $description,
+                'observation' => $entry->invoice ? 'Factura: ' . $entry->invoice : 'Factura financiera',
+                'entry_id' => $entry->id,
+                'sale_id' => null,
+                'regularize' => $regularize,
+            ];
+
+            if (!is_null($cashBoxSubtypeId)) {
+                $movement['cash_box_subtype_id'] = (int) $cashBoxSubtypeId;
+            }
+
+            CashMovement::create($movement);
+
+            if ($regularize == 1) {
+                $cashRegister->current_balance -= $amount;
+                $cashRegister->total_expenses += $amount;
+                $cashRegister->save();
+            }
+
+
             Audit::create([
                 'user_id' => Auth::user()->id,
                 'action' => 'Guardar factura finanza',
@@ -266,17 +318,14 @@ class InvoiceController extends Controller
     {
         $begin = microtime(true);
         $dateCurrent = Carbon::now('America/Lima');
-        $date4MonthAgo = $dateCurrent->subMonths(5);
         $entries = Entry::with('supplier')->with('category_invoice')
-            /*->with(['details' => function ($query) {
-                $query->with('material');
-            }])*/
-            ->where('date_entry', '>=', $date4MonthAgo)
+            //->where('date_entry', '>=', $date4MonthAgo)
             ->where('entry_type', 'Por compra')
+            ->where('finance', 1)
+            ->where('state_annulled', 0)
             ->orderBy('created_at', 'desc')
             ->get();
         $orderServices = OrderService::with('supplier')
-            /*->with(['details'])*/
             ->where('regularize', 'r')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -289,6 +338,34 @@ class InvoiceController extends Controller
         {
             array_push($array, $orderService);
         }
+        //dd(datatables($entries)->toJson());
+        $end = microtime(true) - $begin;
+
+        Audit::create([
+            'user_id' => Auth::user()->id,
+            'action' => 'Obtener facturas finanzas',
+            'time' => $end
+        ]);
+        return datatables($array)->toJson();
+    }
+
+    public function getJsonInvoicesAnnulled()
+    {
+        $begin = microtime(true);
+        $dateCurrent = Carbon::now('America/Lima');
+        $entries = Entry::with('supplier')->with('category_invoice')
+            //->where('date_entry', '>=', $date4MonthAgo)
+            ->where('entry_type', 'Por compra')
+            ->where('finance', 1)
+            ->where('state_annulled', 1)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        $array = [];
+        foreach ( $entries as $entry )
+        {
+            array_push($array, $entry);
+        }
+
         //dd(datatables($entries)->toJson());
         $end = microtime(true) - $begin;
 
@@ -356,6 +433,14 @@ class InvoiceController extends Controller
         return $entries;
     }
 
+    public function verInvoice(Entry $entry)
+    {
+        $suppliers = Supplier::all();
+        $unitMeasures = UnitMeasure::all();
+        $categories = CategoryInvoice::all();
+        return view('invoice.show_invoice', compact('entry', 'suppliers', 'categories', 'unitMeasures'));
+    }
+
     public function editInvoice(Entry $entry)
     {
         $suppliers = Supplier::all();
@@ -408,11 +493,7 @@ class InvoiceController extends Controller
                     $entry->image = $filename;
                     $entry->save();
                 }
-                /*$extension = $request->file('image')->getClientOriginalExtension();
-                $filename = $entry->id . '.' . $extension;
-                $request->file('image')->move($path, $filename);
-                $entry->image = $filename;
-                $entry->save();*/
+
             }
 
             $items = json_decode($request->get('items'));
@@ -468,7 +549,7 @@ class InvoiceController extends Controller
 
     }
 
-    public function destroyInvoice( Request $request, $id )
+    public function destroyInvoiceO( Request $request, $id )
     {
         DB::beginTransaction();
         try {
@@ -489,6 +570,79 @@ class InvoiceController extends Controller
 
         return response()->json(['message' => 'Factura eliminada.'], 200);
 
+    }
+
+    public function destroyInvoice(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $entry = Entry::with('details')->findOrFail($id);
+
+            if ((int) $entry->finance !== 1) {
+                throw new \Exception('Solo se pueden anular facturas financieras desde esta opción.');
+            }
+
+            if ((int) ($entry->state_annulled ?? 0) === 1) {
+                throw new \Exception('La factura ya fue anulada previamente.');
+            }
+
+            $movements = CashMovement::where('entry_id', $entry->id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($movements as $movement) {
+                if ($movement->type === 'expense') {
+                    CashMovement::create([
+                        'cash_register_id' => $movement->cash_register_id,
+                        'entry_id' => $entry->id,
+                        'sale_id' => null,
+                        'type' => 'income',
+                        'amount' => $movement->amount,
+                        'description' => 'Reversión de egreso por anulación de factura financiera',
+                        'observation' => 'Anulación de factura: ' . ($entry->invoice ?? ''),
+                        'regularize' => $movement->regularize,
+                        'cash_box_subtype_id' => $movement->cash_box_subtype_id,
+                    ]);
+
+                    if ((int) $movement->regularize === 1) {
+                        $cashRegister = CashRegister::find($movement->cash_register_id);
+
+                        if ($cashRegister) {
+                            $cashRegister->current_balance += (float) $movement->amount;
+                            $cashRegister->total_incomes += (float) $movement->amount;
+                            $cashRegister->total_expenses -= (float) $movement->amount;
+                            $cashRegister->save();
+                        }
+                    }
+                }
+            }
+
+            $fecha = Carbon::now()->format('d/m/Y');
+
+            $entry->observation = trim(($entry->observation ?? '') . " | ANULADA EL DÍA {$fecha}");
+            $entry->state_annulled = 1;
+            $entry->save();
+
+            Audit::create([
+                'user_id' => Auth::id(),
+                'action' => 'Anular factura financiera',
+                'time' => 0
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Factura financiera anulada correctamente.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function getJsonInvoicesFinance()

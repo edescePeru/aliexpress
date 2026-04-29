@@ -101,12 +101,12 @@
 
 @section('page-title')
     <h5 class="card-title">Listar materiales almacen</h5>
-    <button type="button" class="btn btn-outline-info btn-sm float-right" id="btn-resumen-stock">
+    {{--<button type="button" class="btn btn-outline-info btn-sm float-right" id="btn-resumen-stock">
         Ver resumen de stock
-    </button>
-    @can('create_material')
+    </button>--}}
+    {{--@can('create_material')
         <a href="{{ route('material.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo material </a>
-    @endcan
+    @endcan--}}
 @endsection
 
 @section('page-breadcrumb')

@@ -15,6 +15,7 @@ class CashMovement extends Model
         'amount_regularize',      // monto real abonado
         'commission',             // amount - amount_regularize
         'sale_id',
+        'entry_id',
         'cash_box_subtype_id',
         'observation',
         'cash_movement_origin_id',       // origen (ej: movimiento del cajero)
@@ -40,6 +41,11 @@ class CashMovement extends Model
     public function sale()
     {
         return $this->belongsTo('App\Sale');
+    }
+
+    public function entry()
+    {
+        return $this->belongsTo(Entry::class, 'entry_id');
     }
 
     public function cashBoxSubtype()

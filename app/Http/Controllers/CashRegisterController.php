@@ -673,6 +673,7 @@ class CashRegisterController extends Controller
 
                 'date' => $movement->created_at ? $movement->created_at->format('d/m/Y h:i A') : '',
                 'sale_id' => $movement->sale_id,
+                'entry_id' => $movement->entry_id,
                 'subtype_is_deferred' => $movement->cashBoxSubtype ? (bool)$movement->cashBoxSubtype->is_deferred : false,
 
             ];
