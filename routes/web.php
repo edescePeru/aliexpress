@@ -3228,3 +3228,6 @@ Route::get('/api/sunat/v1', function () {
 });
 
 Route::get('/test/view/inventory', 'InventoryMovementController@test');
+
+Route::get('/inventory-migration/run', 'InventoryMigrationController@run')
+    ->name('inventory.migration.run');
