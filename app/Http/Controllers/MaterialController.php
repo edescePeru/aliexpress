@@ -308,7 +308,8 @@ class MaterialController extends Controller
 
                 InventoryLevel::create([
                     'stock_item_id'     => $stockItem->id,
-                    'location_id'       => null,
+                    'location_id'       => 1,
+                    'warehouse_id'      => 1,
                     'qty_on_hand'       => 0,
                     'qty_reserved'      => 0,
                     'min_alert'         => $stockMinimo,

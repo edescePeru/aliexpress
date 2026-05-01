@@ -163,6 +163,8 @@ $(document).ready(function () {
 
     $('#btnSaveTalla').on('click', saveTalla);
 
+    $('#btnSaveColor').on('click', saveColor);
+
     $('#btnSaveCategoria').on('click', saveCategoria);
 
     $('#btn-newSubCategoria').on('click', function () {
@@ -262,6 +264,9 @@ function generateVariants() {
         toastr.warning('Todas las combinaciones seleccionadas ya fueron agregadas.');
         return;
     }
+
+    $('#talla').val(null).trigger('change');
+    $('#color').val(null).trigger('change');
 
     toastr.success('Se generaron ' + generatedCount + ' variantes correctamente.');
 }
@@ -532,6 +537,65 @@ function saveCategoria() {
                 $.alert({
                     title: 'Error',
                     content: response.message || 'No se pudo crear la talla.',
+                    type: 'red',
+                    boxWidth: '400px',
+                    useBootstrap: false
+                });
+            }
+        },
+        error: function(xhr) {
+            let errors = xhr.responseJSON.errors;
+            let message = '';
+            $.each(errors, function(key, value) {
+                message += `<div>• ${value[0]}</div>`;
+            });
+
+            $.alert({
+                title: 'Errores de validación',
+                content: message,
+                type: 'orange',
+                boxWidth: '400px',
+                useBootstrap: false
+            });
+        }
+    });
+}
+
+function saveColor() {
+    let $form = $('#formCreateColor');
+    let url = $form.data('url');
+    let data = $form.serialize();
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: data,
+        success: function(response) {
+            if (response.success) {
+                // Agregar la nueva opción al select
+                $('#color').append(
+                    `<option value="${response.data.id}" data-short-name="${response.data.short_name}" selected>${response.data.description}</option>`
+                ).trigger('change');
+
+                // Cerrar el modal
+                $('#modalColor').modal('hide');
+
+                // Resetear formulario
+                $form[0].reset();
+
+                // Mostrar mensaje de éxito
+                $.dialog({
+                    title: '¡Éxito!',
+                    content: 'Color creado correctamente.',
+                    type: 'green',
+                    boxWidth: '400px',
+                    useBootstrap: false
+                });
+
+            } else {
+                $.alert({
+                    title: 'Error',
+                    content: response.message || 'No se pudo crear el color.',
                     type: 'red',
                     boxWidth: '400px',
                     useBootstrap: false
@@ -882,7 +946,7 @@ function generateNameProduct() {
     let marca = $('#brand option:selected').text();
     let modelo = $('#exampler option:selected').text();
     let genero = $('#genero option:selected').text();
-    let talla = $('#talla option:selected').text();
+    //let talla = $('#talla option:selected').text();
 
     let subcategoria = $('#subcategory option:selected').text();
 
@@ -893,7 +957,7 @@ function generateNameProduct() {
     if (marca !== 'Ninguno' && marca !== '') partes.push(marca);
     if (modelo !== 'Ninguno' && modelo !== '') partes.push(modelo);
     if (genero !== 'Ninguno' && genero !== '') partes.push(genero);
-    if (talla !== 'Ninguno' && talla !== '') partes.push(talla);
+    //if (talla !== 'Ninguno' && talla !== '') partes.push(talla);
     //if (subcategoria !== 'Ninguno' && subcategoria !== '') partes.push(subcategoria);
 
     // Unir las partes con un espacio y asignarlo al campo de nombre

@@ -3119,6 +3119,30 @@ Route::middleware('auth')->group(function (){
 
         Route::post('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
             ->name('stockitems.inventory-levels.update');
+
+        //COLORS
+        /*Route::get('/all/tallas', 'TallaController@getTallas')
+            ->middleware('permission:list_unitMeasure')*/;
+        /*Route::get('tallas', 'TallaController@index')
+            ->name('talla.index')
+            ->middleware('permission:list_unitMeasure')*/;
+        /*Route::get('crear/talla', 'TallaController@create')
+            ->name('talla.create')
+            ->middleware('permission:list_unitMeasure')*/;
+        Route::post('color/store', 'ColorController@store')
+            ->name('color.store')
+            /*->middleware('permission:list_unitMeasure')*/;
+        /*Route::get('/editar/talla/{id}', 'TallaController@edit')
+            ->name('talla.edit')
+            ->middleware('permission:list_unitMeasure')*/;
+        /*Route::post('talla/update', 'TallaController@update')
+            ->name('talla.update')
+            ->middleware('permission:list_unitMeasure')*/;
+        /*Route::post('talla/destroy', 'TallaController@destroy')
+            ->name('talla.destroy')
+            ->middleware('permission:list_unitMeasure')*/;
+        /*Route::post('/talla/delete-multiple', 'TallaController@deleteMultiple');*/
+
     });
 });
 

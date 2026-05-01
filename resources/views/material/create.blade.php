@@ -698,6 +698,46 @@
         </div>
     </div>
 
+    <!-- Modal Crear Color -->
+    <div class="modal fade" id="modalColor" tabindex="-1" role="dialog" aria-labelledby="modalColorLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalCategoriaLabel">Crear Color</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCreateColor" data-url="{{ route('color.store') }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="form-group row">
+                            <div class="col-md-4">
+                                <label>Color <span class="right badge badge-danger">(*)</span></label>
+                                <input type="text" class="form-control" name="name" placeholder="Ejm: Blanco">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label>Código HEX</label>
+                                <input type="text" class="form-control" name="code" onkeyup="mayus(this);" placeholder="Ejm: #000000">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label>Nombre clave <span class="right badge badge-danger">(*)</span></label>
+                                <input type="text" class="form-control" name="short_name" onkeyup="mayus(this);" placeholder="Ejm: BLA">
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="button" id="btnSaveColor" class="btn btn-outline-success">Guardar</button>
+                            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <template id="template-variante">
         <div class="row item-variante mb-2">
             <div class="col-md-1">
