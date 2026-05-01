@@ -522,61 +522,7 @@
 
                         </div>
                         <hr>
-                        <div class="form-group row">
 
-                            <!-- Aqui iran las variantes que seran como una tabla -->
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Talla</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Color</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <strong>SKU Sugerido</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Código Barras</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <strong>Imagen</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Activo</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Inventariable</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Stock Mínino</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Stock Máximo</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Acción</strong>
-                                </div>
-                            </div>
-
-                        </div>
                         <div class="form-group row">
                             <div id="body-variantes">
 
