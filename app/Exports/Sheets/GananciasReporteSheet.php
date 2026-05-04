@@ -29,7 +29,7 @@ class GananciasReporteSheet implements FromCollection, WithHeadings, WithMapping
         return 'REPORTE';
     }
 
-    private function resolveUnitCost($detail): float
+    private function resolveUnitCostO($detail): float
     {
         if (!is_null($detail->unit_cost) && (float)$detail->unit_cost > 0) {
             return (float)$detail->unit_cost;
@@ -37,9 +37,59 @@ class GananciasReporteSheet implements FromCollection, WithHeadings, WithMapping
         return (float)(optional($detail->material)->unit_price ?? 0);
     }
 
-    private function buildBaseQuery()
+    private function resolveUnitCost($detail): float
+    {
+        if (!is_null($detail->unit_cost) && (float) $detail->unit_cost > 0) {
+            return (float) $detail->unit_cost;
+        }
+
+        if (
+            !is_null($detail->total_cost) &&
+            (float) $detail->total_cost > 0 &&
+            (float) $detail->quantity > 0
+        ) {
+            return (float) $detail->total_cost / (float) $detail->quantity;
+        }
+
+        if ($detail->stockItem && $detail->stockItem->inventoryLevels) {
+            $avgCost = (float) $detail->stockItem->inventoryLevels->avg('average_cost');
+
+            if ($avgCost > 0) {
+                return $avgCost;
+            }
+        }
+
+        return (float) (optional($detail->material)->unit_price ?? 0);
+    }
+
+    private function buildBaseQueryO()
     {
         $query = Sale::with(['worker', 'details.material'])
+            ->where('state_annulled', false)
+            ->orderBy('created_at', 'DESC');
+
+        if (!empty($this->startDate) && !empty($this->endDate)) {
+            $fechaInicio = Carbon::createFromFormat('d/m/Y', $this->startDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $this->endDate);
+
+            $query->whereDate('created_at', '>=', $fechaInicio)
+                ->whereDate('created_at', '<=', $fechaFinal);
+        }
+
+        if (!empty($this->creator)) {
+            $query->where('worker_id', $this->creator);
+        }
+
+        return $query;
+    }
+
+    private function buildBaseQuery()
+    {
+        $query = Sale::with([
+            'worker',
+            'details.material', // fallback legacy
+            'details.stockItem.inventoryLevels',
+        ])
             ->where('state_annulled', false)
             ->orderBy('created_at', 'DESC');
 

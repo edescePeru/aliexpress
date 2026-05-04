@@ -956,7 +956,7 @@ class ShippingGuideController extends Controller
         return [$serie, $numero];
     }
 
-    private function buildDetailDescription($saleDetail)
+    private function buildDetailDescriptionO($saleDetail)
     {
         $name = optional($saleDetail->material)->full_name ?: ('MATERIAL #' . $saleDetail->material_id);
 
@@ -973,6 +973,33 @@ class ShippingGuideController extends Controller
         return $name;
     }
 
+    private function buildDetailDescription($saleDetail)
+    {
+        // 🔥 1) Prioridad: stockItem
+        if ($saleDetail->stockItem) {
+            $name = $saleDetail->stockItem->display_name;
+        }
+        // 🔁 2) Fallback legacy
+        else {
+            $name = optional($saleDetail->material)->full_name
+                ?: ('MATERIAL #' . $saleDetail->material_id);
+        }
+
+        // 📦 3) Si hay presentación, agregar (X UND)
+        if (!empty($saleDetail->material_presentation_id) && $saleDetail->materialPresentation) {
+            $und = $saleDetail->materialPresentation->quantity;
+
+            if (!empty($und)) {
+                return $name . ' (' . $und . ' UND)';
+            }
+
+            return $name;
+        }
+
+        // 🟢 4) Sin presentación
+        return $name;
+    }
+
     public function saleItems(Request $request)
     {
         $request->validate([
@@ -981,7 +1008,7 @@ class ShippingGuideController extends Controller
 
         [$serieSunat, $numeroSunat] = $this->parseSaleRef($request->sale_ref);
 
-        $sale = Sale::with(['details.material', 'details.materialPresentation'])
+        $sale = Sale::with(['details.material', 'details.stockItem', 'details.materialPresentation'])
             ->where('serie_sunat', $serieSunat)
             ->where('numero', $numeroSunat)
             ->firstOrFail();
@@ -1071,7 +1098,7 @@ class ShippingGuideController extends Controller
 
     public function items(Sale $sale)
     {
-        $sale->load(['details.material', 'details.materialPresentation']);
+        $sale->load(['details.material', 'details.stockItem', 'details.materialPresentation']);
 
         $items = [];
         $line = 1;

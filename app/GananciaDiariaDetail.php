@@ -10,6 +10,7 @@ class GananciaDiariaDetail extends Model
         'ganancia_diaria_id',
         'date_detail',
         'material_id',
+        'stock_item_id',
         'quantity',
         'price_sale',
         'utility'
@@ -23,6 +24,11 @@ class GananciaDiariaDetail extends Model
     public function material()
     {
         return $this->belongsTo('App\Material');
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo(StockItem::class, 'stock_item_id');
     }
 
     protected $dates = ['date_detail'];

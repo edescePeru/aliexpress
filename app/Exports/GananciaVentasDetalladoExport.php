@@ -30,7 +30,7 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
         return 'VENTAS';
     }
 
-    private function buildBaseQuery()
+    private function buildBaseQueryO()
     {
         $query = Sale::with([
             'worker',
@@ -57,7 +57,41 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
         return $query;
     }
 
-    private function resolveUnitCost($detail): float
+    private function buildBaseQuery()
+    {
+        $query = Sale::with([
+            'worker',
+
+            // 🔥 NUEVO
+            'details.stockItem.inventoryLevels',
+
+            // 🔁 fallback legacy (no lo quites aún)
+            'details.material',
+
+            'details.materialPresentation',
+
+            'cashMovements.cashBoxSubtype',
+            'cashMovements.cashRegister.cashBox',
+        ])
+            ->where('state_annulled', false)
+            ->orderBy('created_at', 'DESC');
+
+        if (!empty($this->startDate) && !empty($this->endDate)) {
+            $fechaInicio = Carbon::createFromFormat('d/m/Y', $this->startDate);
+            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $this->endDate);
+
+            $query->whereDate('created_at', '>=', $fechaInicio)
+                ->whereDate('created_at', '<=', $fechaFinal);
+        }
+
+        if (!empty($this->creator)) {
+            $query->where('worker_id', $this->creator);
+        }
+
+        return $query;
+    }
+
+    private function resolveUnitCostO($detail): float
     {
         // 1) costo guardado en detalle
         if (!is_null($detail->unit_cost) && (float)$detail->unit_cost > 0) {
@@ -68,11 +102,51 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
         return (float)(optional($detail->material)->unit_price ?? 0);
     }
 
-    private function resolveTotalCost($detail, float $unitCost, float $qty): float
+    private function resolveUnitCost($detail): float
+    {
+        // 1) costo unitario guardado directamente (lo ideal)
+        if (!is_null($detail->unit_cost) && (float) $detail->unit_cost > 0) {
+            return (float) $detail->unit_cost;
+        }
+
+        // 2) calcular desde total_cost si existe
+        if (
+            !is_null($detail->total_cost) &&
+            (float) $detail->total_cost > 0 &&
+            (float) $detail->quantity > 0
+        ) {
+            return (float) $detail->total_cost / (float) $detail->quantity;
+        }
+
+        // 3) fallback moderno: costo promedio del stock_item
+        if ($detail->stockItem && $detail->stockItem->inventoryLevels) {
+            $avgCost = (float) $detail->stockItem->inventoryLevels->avg('average_cost');
+
+            if ($avgCost > 0) {
+                return $avgCost;
+            }
+        }
+
+        // 4) fallback legacy (ventas antiguas)
+        return (float) (optional($detail->material)->unit_price ?? 0);
+    }
+
+    private function resolveTotalCostO($detail, float $unitCost, float $qty): float
     {
         if (!is_null($detail->total_cost) && (float)$detail->total_cost > 0) {
             return (float)$detail->total_cost;
         }
+        return $unitCost * $qty;
+    }
+
+    private function resolveTotalCost($detail, float $unitCost, float $qty): float
+    {
+        // 1) ya guardado en el detalle (lo ideal)
+        if (!is_null($detail->total_cost) && (float) $detail->total_cost > 0) {
+            return (float) $detail->total_cost;
+        }
+
+        // 2) fallback cálculo
         return $unitCost * $qty;
     }
 
@@ -149,10 +223,26 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
         return $label . ' (' . $qtyUnd . ' und)';
     }
 
-    private function resolveDescripcion($detail): string
+    private function resolveDescripcionO($detail): string
     {
         // prioridad: description guardada en detalle, si no material->full_name
         return (string)($detail->description ?: (optional($detail->material)->full_name ?? ''));
+    }
+
+    private function resolveDescripcion($detail): string
+    {
+        // 1) descripción guardada en el detalle (máxima prioridad)
+        if (!empty($detail->description)) {
+            return (string) $detail->description;
+        }
+
+        // 2) stock item (nuevo modelo)
+        if ($detail->stockItem) {
+            return (string) ($detail->stockItem->display_name ?? '');
+        }
+
+        // 3) fallback legacy
+        return (string) (optional($detail->material)->full_name ?? '');
     }
 
     public function headings(): array

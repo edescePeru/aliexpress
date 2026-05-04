@@ -26,7 +26,8 @@ class DataFirstPositionAlmacenSeeder extends Seeder
         Warehouse::create([
             'name' => 'GEN',
             'comment' => 'Almacén principal',
-            'area_id' => 1
+            'area_id' => 1,
+            'is_default' => 1
         ]);
 
         Shelf::create([

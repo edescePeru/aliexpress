@@ -71,6 +71,11 @@ class DatabaseSeeder extends Seeder
         $this->call(TipoPagoSeeder::class);
         $this->call(WorkforceSeeder::class);
         $this->call(BankSeeder::class);
+        $this->call(ColorSeeder::class);
+        $this->call(PriceListSeeder::class);
+
+        $this->call(CashBoxesSeeder::class);
+        $this->call(CategoryInvoiceSeeder::class);
 
         // 👇 DIMENSIÓN TIEMPO
         Artisan::call('dimension:populate-date');

@@ -301,7 +301,7 @@ class CashBoxController extends Controller
                 'cash_movements.description',
                 'cash_movements.sale_id',
                 'cash_movements.created_at',
-                'cash_movements.sale_id',
+                'cash_movements.entry_id',
                 'cash_movements.observation',
                 'cash_movements.amount_regularize',
                 'cash_movements.commission',
@@ -390,6 +390,7 @@ class CashBoxController extends Controller
                 'observation' => $row->observation,
 
                 'sale_id' => $row->sale_id,
+                'entry_id' => $row->entry_id,
                 'created_at' => $row->created_at->format('d/m/Y h:i A'),
 
                 'cash_box_id' => $row->register_cash_box_id,

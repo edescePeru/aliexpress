@@ -96,7 +96,15 @@
             printBtn.setAttribute('href', url);
             printBtn.setAttribute('data-id', data.id);
         } else {
-            printBtn.style.display = 'none';
+            if (data.entry_id != null) {
+                printBtn.setAttribute("data-id", data.id);
+                let url = document.location.origin + '/dashboard/factura/compra/ver/' + data.entry_id;
+                printBtn.setAttribute("href", url);
+                printBtn.setAttribute("target", "blank");
+            } else {
+                // Si no hay sale_id, ocultamos el print
+                printBtn.style.display = 'none';
+            }
         }
 
         // Regularizar solo si:

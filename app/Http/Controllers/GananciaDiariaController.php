@@ -47,7 +47,7 @@ class GananciaDiariaController extends Controller
 
     }
 
-    private function resolveUnitCost($detail): float
+    private function resolveUnitCostO($detail): float
     {
         // 1) Si el detalle ya guardó costo unitario, úsalo
         if (!is_null($detail->unit_cost) && (float)$detail->unit_cost > 0) {
@@ -55,6 +55,35 @@ class GananciaDiariaController extends Controller
         }
 
         // 2) Fallback: costo actual del material (para ventas antiguas)
+        return (float) (optional($detail->material)->unit_price ?? 0);
+    }
+
+    private function resolveUnitCost($detail): float
+    {
+        // 1) Nuevo modelo: costo unitario guardado en sale_details
+        if (!is_null($detail->unit_cost) && (float) $detail->unit_cost > 0) {
+            return (float) $detail->unit_cost;
+        }
+
+        // 2) Si tiene total_cost y quantity, calcular unitario
+        if (
+            !is_null($detail->total_cost) &&
+            (float) $detail->total_cost > 0 &&
+            (float) $detail->quantity > 0
+        ) {
+            return (float) $detail->total_cost / (float) $detail->quantity;
+        }
+
+        // 3) Fallback stock item: costo promedio actual
+        if ($detail->stockItem && $detail->stockItem->inventoryLevels) {
+            $avg = (float) $detail->stockItem->inventoryLevels->avg('average_cost');
+
+            if ($avg > 0) {
+                return $avg;
+            }
+        }
+
+        // 4) Fallback legacy
         return (float) (optional($detail->material)->unit_price ?? 0);
     }
 
@@ -83,14 +112,14 @@ class GananciaDiariaController extends Controller
         // BASE QUERY (con relaciones)
         // ==========================
         if ($startDate == "" || $endDate == "") {
-            $query = Sale::with(['worker', 'details.material'])
+            $query = Sale::with(['worker', 'details.stockItem.inventoryLevels', 'details.material'])
                 ->where('state_annulled', false)
                 ->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal  = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::with(['worker', 'details.material'])
+            $query = Sale::with(['worker', 'details.stockItem.inventoryLevels', 'details.material'])
                 ->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
                 ->where('state_annulled', false)
@@ -314,7 +343,7 @@ class GananciaDiariaController extends Controller
         return view('ganancia.indexDetailTrabajador', compact( 'permissions', 'sale'));
     }
 
-    public function getDataGananciaDetails(Request $request, $pageNumber = 1)
+    public function getDataGananciaDetailsO(Request $request, $pageNumber = 1)
     {
         $perPage = 10;
 
@@ -365,6 +394,76 @@ class GananciaDiariaController extends Controller
             "price_sale" => $price_sale,
             "utility" => $utility
         ]);
+
+        $pagination = [
+            'currentPage' => (int)$pageNumber,
+            'totalPages' => (int)$totalPages,
+            'startRecord' => $startRecord,
+            'endRecord' => $endRecord,
+            'totalRecords' => $totalFilteredRecords,
+            'totalFilteredRecords' => $totalFilteredRecords
+        ];
+
+        return ['data' => $array, 'pagination' => $pagination];
+    }
+
+    public function getDataGananciaDetails(Request $request, $pageNumber = 1)
+    {
+        $perPage = 10;
+
+        $ganancia_id = $request->input('ganancia_id');
+
+        $array = [];
+
+        $query = GananciaDiariaDetail::with(['material', 'stockItem'])
+            ->where('ganancia_diaria_id', $ganancia_id)
+            ->orderBy('id', 'desc');
+
+        $totalFilteredRecords = $query->count();
+        $totalPages = ceil($totalFilteredRecords / $perPage);
+
+        $startRecord = ($pageNumber - 1) * $perPage + 1;
+        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
+
+        $gananciaDetails = $query->skip(($pageNumber - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        $quantity = 0;
+        $price_sale = 0;
+        $utility = 0;
+
+        foreach ($gananciaDetails as $detail) {
+            $description = optional($detail->stockItem)->display_name
+                ?? optional($detail->material)->full_name
+                ?? 'Producto';
+
+            $array[] = [
+                "id" => $detail->id,
+                "date_detail" => $detail->date_detail->format('d/m/Y'),
+                "material_id" => $detail->material_id,
+                "stock_item_id" => $detail->stock_item_id,
+                "material_description" => $description,
+                "quantity" => $detail->quantity,
+                "price_sale" => $detail->price_sale,
+                "utility" => $detail->utility
+            ];
+
+            $quantity += $detail->quantity;
+            $price_sale += $detail->price_sale;
+            $utility += $detail->utility;
+        }
+
+        $array[] = [
+            "id" => 0,
+            "date_detail" => "",
+            "material_id" => "",
+            "stock_item_id" => "",
+            "material_description" => "TOTAL",
+            "quantity" => $quantity,
+            "price_sale" => $price_sale,
+            "utility" => $utility
+        ];
 
         $pagination = [
             'currentPage' => (int)$pageNumber,

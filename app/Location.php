@@ -15,7 +15,8 @@ class Location extends Model
         'level_id',
         'container_id',
         'position_id',
-        'description'
+        'description',
+        'default'
     ];
 
     public function getFullLocationAttribute()
