@@ -162,7 +162,7 @@ class PuntoVentaController extends Controller
 
     public function getDataProducts(Request $request, $pageNumber = 1)
     {
-        $perPage = 10;
+        $perPage = 12;
         $categoryId = trim((string) $request->input('category_id', ''));
         $productSearch = trim((string) $request->input('product_search', ''));
 
