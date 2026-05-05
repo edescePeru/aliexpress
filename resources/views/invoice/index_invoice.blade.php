@@ -87,7 +87,7 @@
             <thead>
             <tr>
                 <th>Fecha de factura</th>
-                <th>Orden de compra</th>
+                {{--<th>Orden de compra</th>--}}
                 <th>Factura</th>
                 <th>Tipo de entrada</th>
                 <th>Proveedor</th>

@@ -84,32 +84,40 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group" id="sandbox-container">
-                                    <label for="date_invoice">Fecha de Factura</label>
-                                    <div class="input-daterange" id="datepicker">
-                                        <input type="text" class="form-control date-range-filter" id="date_invoice" name="date_invoice" value="{{ $entry->date_entry->format('d/m/Y') }}" readonly>
+                                    <div class="col-md-10">
+                                        <label for="date_invoice">Fecha de Factura</label>
+                                        <div class="input-daterange" id="datepicker">
+                                            <input type="text" class="form-control date-range-filter" id="date_invoice" name="date_invoice" value="{{ $entry->date_entry->format('d/m/Y') }}" readonly>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="purchase_order">Orden de Compra/Servicio</label>
-                                    <input type="text" id="purchase_order" name="purchase_order" value="{{ $entry->purchase_order }}" class="form-control" readonly>
+                                    <div class="col-md-10">
+                                        <label for="purchase_order">Orden de Compra/Servicio</label>
+                                        <input type="text" id="purchase_order" name="purchase_order" value="{{ $entry->purchase_order }}" class="form-control" readonly>
+                                    </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="supplier">Proveedor </label>
-                                    <input type="text" value="{{ ( $entry->supplier_id == null ) ? "Sin Proveedor":$entry->supplier->business_name }}" class="form-control" readonly>
-
+                                    <div class="col-md-10">
+                                        <label for="supplier">Proveedor </label>
+                                        <input type="text" value="{{ ( $entry->supplier_id == null ) ? "Sin Proveedor":$entry->supplier->business_name }}" class="form-control" readonly>
+                                    </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="observation">Observación </label>
-                                    <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...." readonly>{{$entry->observation}}</textarea>
+                                    <div class="col-md-10">
+                                        <label for="observation">Observación </label>
+                                        <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...." readonly>{{$entry->observation}}</textarea>
+                                    </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="category_invoice">Categoría </label>
-                                    <input type="text" id="supplier" name="supplier" value="{{ ( $entry->category_invoice_id == null ) ? "Sin categoría":$entry->category_invoice->name }}" class="form-control" readonly>
-
+                                    <div class="col-md-10">
+                                        <label for="category_invoice">Categoría </label>
+                                        <input type="text" value="{{ ( $entry->category_invoice_id == null ) ? "Sin categoría":$entry->category_invoice->name }}" class="form-control" readonly>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-group row">
+                                <div class="form-group">
                                     <div class="col-md-8">
                                         <label for="invoice">Factura <span class="right badge badge-danger">(*)</span></label>
                                         <input type="text" id="invoice" name="invoice" class="form-control" value="{{ $entry->invoice }}" readonly>
@@ -448,31 +456,11 @@
             $('#date_invoice').attr("value", moment().format('DD/MM/YYYY'));
         }
 
-        $('#sandbox-container .input-daterange').datepicker({
-            todayBtn: "linked",
-            clearBtn: true,
-            language: "es",
-            multidate: false,
-            autoclose: true,
-            todayHighlight: true,
-            defaultViewDate: moment().format('L')
-        });
         $("input[data-bootstrap-switch]").each(function(){
             $(this).bootstrapSwitch();
         });
-        $('#supplier').select2({
-            placeholder: "Seleccione un proveedor",
-        });
-        $('#type_order').select2({
-            placeholder: "Seleccione un tipo",
-        });
-        $('#category_invoice').select2({
-            placeholder: "Seleccione una categoría",
-        });
-        $('#material_unit').select2({
-            placeholder: "Seleccione unidad",
-        });
+
     </script>
-    <script src="{{ asset('js/invoice/edit_invoice.js') }}"></script>
+    {{--<script src="{{ asset('js/invoice/edit_invoice.js') }}"></script>--}}
 
 @endsection

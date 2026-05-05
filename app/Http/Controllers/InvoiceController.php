@@ -115,7 +115,7 @@ class InvoiceController extends Controller
         DB::beginTransaction();
         try {
             $entry = Entry::create([
-                'purchase_order' => $request->get('purchase_order'),
+                'purchase_order' => null,
                 'invoice' => $request->get('invoice'),
                 'deferred_invoice' => 'off',
                 'supplier_id' => $request->get('supplier_id'),

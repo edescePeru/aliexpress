@@ -89,10 +89,10 @@
                                         <input type="text" class="form-control date-range-filter" id="date_invoice" name="date_invoice" value="{{ $entry->date_entry->format('d/m/Y') }}">
                                     </div>
                                 </div>
-                                <div class="form-group">
+                                {{--<div class="form-group">
                                     <label for="purchase_order">Orden de Compra/Servicio</label>
                                     <input type="text" id="purchase_order" name="purchase_order" value="{{ $entry->purchase_order }}" class="form-control">
-                                </div>
+                                </div>--}}
                                 <div class="form-group">
                                     <label for="supplier">Proveedor </label>
                                     <select id="supplier" name="supplier_id" class="form-control select2" style="width: 100%;">
