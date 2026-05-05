@@ -66,7 +66,7 @@
 
                     <div class="col-md-5">
                         <div class="form-group">
-                            <label for="warehouse_id">Material</label>
+                            <label for="warehouse_id">Almacén</label>
                             <select id="warehouse_id" name="warehouse_id" class="form-control select2-material" style="width: 100%;">
                                 {{-- Se cargan por AJAX --}}
                             </select>
