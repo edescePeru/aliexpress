@@ -6,6 +6,8 @@ use App\DetailEntry;
 use App\Entry;
 use App\InventoryLevel;
 use App\Material;
+use App\Output;
+use App\OutputDetail;
 use App\PriceListItem;
 use App\Quote;
 use App\StockItem;
@@ -289,6 +291,105 @@ class InventoryMigrationController extends Controller
                 'message' => 'Cotizaciones reparadas correctamente.',
                 'quotes' => $quoteIds,
                 'reserved_by_stock_item' => $reservedByStockItem,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function adjustMaterial201Output()
+    {
+        DB::beginTransaction();
+
+        try {
+            $materialId = 201;
+
+            $stockItem = StockItem::where('material_id', $materialId)
+                ->whereNull('variant_id')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$stockItem) {
+                throw new \Exception("No existe StockItem para material_id {$materialId}");
+            }
+
+            $lots = StockLot::where('stock_item_id', $stockItem->id)
+                ->where('qty_on_hand', '>', 0)
+                ->lockForUpdate()
+                ->get();
+
+            if ($lots->isEmpty()) {
+                throw new \Exception("No hay stock_lots con stock para material_id {$materialId}");
+            }
+
+            $totalQty = (float) $lots->sum('qty_on_hand');
+
+            if ($totalQty <= 0) {
+                throw new \Exception("El material {$materialId} no tiene stock disponible para ajustar.");
+            }
+
+            // 1. Crear salida de ajuste
+            $output = Output::create([
+                'request_date' => now(),
+                'state' => 'attended',
+                'reason' => 'AJUSTE DE INVENTARIO - MATERIAL ' . $materialId,
+            ]);
+
+            // 2. Crear output_details por cada lote y consumir stock_lots
+            foreach ($lots as $lot) {
+                $qtyToConsume = (float) $lot->qty_on_hand;
+                $unitCost = (float) ($lot->unit_cost ?? 0);
+
+                OutputDetail::create([
+                    'output_id' => $output->id,
+                    'sale_detail_id' => null,
+                    'item_id' => null,
+
+                    'material_id' => $materialId,
+                    'stock_item_id' => $stockItem->id,
+                    'stock_lot_id' => $lot->id,
+
+                    'warehouse_id' => $lot->warehouse_id,
+                    'location_id' => $lot->location_id,
+
+                    'quote_id' => null,
+                    'equipment_id' => null,
+
+                    'custom' => 0,
+                    'percentage' => $qtyToConsume,
+                    'price' => 0,
+
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $qtyToConsume * $unitCost,
+                ]);
+
+                $lot->qty_on_hand = 0;
+                $lot->qty_reserved = 0;
+                $lot->save();
+            }
+
+            // 3. Actualizar inventory_levels
+            InventoryLevel::where('stock_item_id', $stockItem->id)
+                ->update([
+                    'qty_on_hand' => 0,
+                    'qty_reserved' => 0,
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Ajuste realizado correctamente.',
+                'material_id' => $materialId,
+                'stock_item_id' => $stockItem->id,
+                'output_id' => $output->id,
+                'quantity_adjusted' => $totalQty,
             ], 200);
 
         } catch (\Throwable $e) {
