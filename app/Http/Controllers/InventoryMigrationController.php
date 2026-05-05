@@ -13,6 +13,7 @@ use App\Quote;
 use App\StockItem;
 use App\StockLot;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class InventoryMigrationController extends Controller
@@ -337,9 +338,12 @@ class InventoryMigrationController extends Controller
 
             // 1. Crear salida de ajuste
             $output = Output::create([
-                'request_date' => now(),
-                'state' => 'attended',
-                'reason' => 'AJUSTE DE INVENTARIO - MATERIAL ' . $materialId,
+                'execution_order'   => 'AJUSTE-MATERIAL-201-' . now()->format('YmdHis'),
+                'request_date'      => now(),
+                'requesting_user'   => Auth::id(),
+                'responsible_user'  => Auth::id(),
+                'state'             => 'confirmed', // importante para kardex
+                'indicator'         => 'or', // mismo flujo que usas
             ]);
 
             // 2. Crear output_details por cada lote y consumir stock_lots
