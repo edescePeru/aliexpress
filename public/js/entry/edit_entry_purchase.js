@@ -456,7 +456,8 @@ function addItems() {
         let material_price = parseFloat($('#price').val()).toFixed(2);
         //let material_location = $('#locationGroup').val();
         let material_location = $('#almacen').val();
-        let material_vence = $("#date_vence").val()
+        let material_vence = $("#date_vence").val();
+        let material_lote = $("#lot").val();
         let location = $locationsComplete.find( location => location.location === material_location );
 
         for ( var j=0; j<quantity; j++ )
@@ -469,10 +470,13 @@ function addItems() {
                 'price': parseFloat(parseFloat(material_price)/parseFloat(quantity)).toFixed(4),
                 'quantity':1 ,
                 'material': material_name,
-                'id_material': material.id,
+                'id_material': material.material_id,
+                'stock_item_id': material.stock_item_id,
                 'item': code,
                 'id_location':location.id,
-                'date_vence': material_vence
+                'date_vence': material_vence,
+                'material_lote': material_lote,
+                'state': 'good'
             });
             //renderTemplateMaterial($items.length, material_price, material_name, code,  location.location, state_description);
         }
