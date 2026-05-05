@@ -7,6 +7,7 @@ use App\Entry;
 use App\InventoryLevel;
 use App\Material;
 use App\PriceListItem;
+use App\Quote;
 use App\StockItem;
 use App\StockLot;
 use Illuminate\Http\Request;
@@ -195,6 +196,99 @@ class InventoryMigrationController extends Controller
                 'created_price_list_items' => $createdPriceListItems,
                 'materials_with_stock' => $withStock,
                 'materials_without_stock' => $withoutStock,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function fixQuotesStockItemsSimple()
+    {
+        DB::beginTransaction();
+
+        try {
+            $quoteIds = [422, 414];
+
+            $quotes = Quote::with(['equipments.consumables'])
+                ->whereIn('id', $quoteIds)
+                ->get();
+
+            $reservedByStockItem = [];
+
+            foreach ($quotes as $quote) {
+                foreach ($quote->equipments as $equipment) {
+                    foreach ($equipment->consumables as $consumable) {
+
+                        $materialId = (int) $consumable->material_id;
+                        $quantity = (float) $consumable->quantity;
+
+                        if ($materialId <= 0 || $quantity <= 0) {
+                            continue;
+                        }
+
+                        $stockItem = StockItem::where('material_id', $materialId)
+                            ->whereNull('variant_id')
+                            ->first();
+
+                        if (!$stockItem) {
+                            throw new \Exception("No existe stock_item para material_id {$materialId}");
+                        }
+
+                        // Actualizar consumible
+                        $consumable->stock_item_id = $stockItem->id;
+                        $consumable->save();
+
+                        // Acumular reservado por stockItem
+                        if (!isset($reservedByStockItem[$stockItem->id])) {
+                            $reservedByStockItem[$stockItem->id] = 0;
+                        }
+
+                        $reservedByStockItem[$stockItem->id] += $quantity;
+                    }
+                }
+            }
+
+            foreach ($reservedByStockItem as $stockItemId => $reservedQty) {
+
+                $stockLot = StockLot::where('stock_item_id', $stockItemId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$stockLot) {
+                    throw new \Exception("No existe stock_lot para stock_item_id {$stockItemId}");
+                }
+
+                if ((float) $stockLot->qty_on_hand < (float) $reservedQty) {
+                    throw new \Exception(
+                        "Stock insuficiente para stock_item_id {$stockItemId}. " .
+                        "Stock: {$stockLot->qty_on_hand}, reservado requerido: {$reservedQty}"
+                    );
+                }
+
+                // Como solo hay 1 stockLot, se coloca directo
+                $stockLot->qty_reserved = (float) $reservedQty;
+                $stockLot->save();
+
+                // Como solo hay 1 inventoryLevel, se coloca directo
+                InventoryLevel::where('stock_item_id', $stockItemId)
+                    ->update([
+                        'qty_reserved' => (float) $reservedQty,
+                    ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Cotizaciones reparadas correctamente.',
+                'quotes' => $quoteIds,
+                'reserved_by_stock_item' => $reservedByStockItem,
             ], 200);
 
         } catch (\Throwable $e) {
