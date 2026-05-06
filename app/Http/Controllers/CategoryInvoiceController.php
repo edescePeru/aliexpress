@@ -23,7 +23,7 @@ class CategoryInvoiceController extends Controller
     }
 
 
-    public function store(StoreCategoryInvoiceRequest $request)
+    public function storeO(StoreCategoryInvoiceRequest $request)
     {
         $validated = $request->validated();
 
@@ -44,6 +44,41 @@ class CategoryInvoiceController extends Controller
         return response()->json(['message' => 'Categoría de factura guardado con éxito.'], 200);
     }
 
+    public function store(StoreCategoryInvoiceRequest $request)
+    {
+        $validated = $request->validated();
+
+        DB::beginTransaction();
+
+        try {
+
+            $category = CategoryInvoice::create([
+                'name' => $request->get('name'),
+                'description' => $request->get('description'),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Categoría de factura guardada con éxito.',
+                'data' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'description' => $category->description,
+                ]
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
 
     public function update(UpdateCategoryInvoiceRequest $request)
     {

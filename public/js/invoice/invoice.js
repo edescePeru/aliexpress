@@ -129,6 +129,8 @@ $(document).ready(function () {
     $('#btn-submit').on('click', storeInvoice);
     //$formCreate.on('submit', storeInvoice);
 
+    $('#btnSaveCategoria').on('click', saveCategoria);
+
 });
 
 // Initializing the typeahead
@@ -165,6 +167,65 @@ let $longitud = 20;
 
 function mayus(e) {
     e.value = e.value.toUpperCase();
+}
+
+function saveCategoria() {
+    let $form = $('#formCreateCategoria');
+    let url = $form.data('url');
+    let data = $form.serialize();
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: data,
+        success: function(response) {
+            if (response.success) {
+                // Agregar la nueva opción al select
+                $('#category_invoice').append(
+                    `<option value="${response.data.id}" selected>${response.data.name}</option>`
+                ).trigger('change');
+
+                // Cerrar el modal
+                $('#modalCategoria').modal('hide');
+
+                // Resetear formulario
+                $form[0].reset();
+
+                // Mostrar mensaje de éxito
+                $.dialog({
+                    title: '¡Éxito!',
+                    content: 'Categoría creada correctamente.',
+                    type: 'green',
+                    boxWidth: '400px',
+                    useBootstrap: false
+                });
+
+            } else {
+                $.alert({
+                    title: 'Error',
+                    content: response.message || 'No se pudo crear la talla.',
+                    type: 'red',
+                    boxWidth: '400px',
+                    useBootstrap: false
+                });
+            }
+        },
+        error: function(xhr) {
+            let errors = xhr.responseJSON.errors;
+            let message = '';
+            $.each(errors, function(key, value) {
+                message += `<div>• ${value[0]}</div>`;
+            });
+
+            $.alert({
+                title: 'Errores de validación',
+                content: message,
+                type: 'orange',
+                boxWidth: '400px',
+                useBootstrap: false
+            });
+        }
+    });
 }
 
 function saveTableItems() {

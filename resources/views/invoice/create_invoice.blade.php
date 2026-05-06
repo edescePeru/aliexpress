@@ -34,14 +34,14 @@
             width: 100% !important;
         }
 
-        .modal-dialog {
+        /*.modal-dialog {
             height: 100% !important;
-        }
+        }*/
 
-        .modal-content {
+        /*.modal-content {
             height: auto;
             min-height: 100%;
-        }
+        }*/
     </style>
 @endsection
 
@@ -107,12 +107,19 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="category_invoice">Categoría </label>
-                                    <select id="category_invoice" name="category_invoice_id" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $categories as $category )
-                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="input-group">
+                                        <select id="category_invoice" name="category_invoice_id" class="form-control select2" style="width: 90%;">
+                                            <option></option>
+                                            @foreach( $categories as $category )
+                                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#modalCategoria">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -494,6 +501,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Crear Categoria -->
+    <div class="modal fade" id="modalCategoria" tabindex="-1" role="dialog" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalCategoriaLabel">Crear Categoría</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCreateCategoria" data-url="{{ route('categoryInvoice.store') }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="form-group row">
+                            <div class="col-md-6">
+                                <label>Categoría <span class="right badge badge-danger">(*)</span></label>
+                                <input type="text" class="form-control" name="name" onkeyup="mayus(this);" placeholder="Ejm: ELECTRICIDAD">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label>Descripción</label>
+                                <input type="text" class="form-control" name="description" onkeyup="mayus(this);" placeholder="Ejm: Servicios de Luz">
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="button" id="btnSaveCategoria" class="btn btn-outline-success">Guardar</button>
+                            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @section('plugins')
