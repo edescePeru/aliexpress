@@ -287,27 +287,29 @@ class GraphsController extends Controller
             ->where('type', 'expense')
             ->sum('amount');
 
-        $facturasFinanzasEgresos = Entry::with('supplier')
+        /*$facturasFinanzasEgresos = Entry::with('supplier')
             ->with('category_invoice')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
             ->where('finance', 1)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get();*/
 
         $totalFinanzasEgreso = 0;
 
-        foreach ( $facturasFinanzasEgresos as $finanzasEgreso )
+        /*foreach ( $facturasFinanzasEgresos as $finanzasEgreso )
         {
             $totalFinanzasEgreso += $finanzasEgreso->total;
-        }
+        }*/
 
         $entries = Entry::with('supplier')->with('category_invoice')
             ->where('entry_type', 'Por compra')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
+            ->where('finance', '<>',1)
             ->orderBy('created_at', 'desc')
             ->get();
+
         $orderServices = OrderService::with('supplier')
             ->where('regularize', 'r')
             ->whereDate('created_at', '>=', $startDate)

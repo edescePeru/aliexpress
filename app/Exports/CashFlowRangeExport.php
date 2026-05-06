@@ -80,7 +80,7 @@ class CashFlowRangeExport implements WithMultipleSheets
         // 3) EGRESOS FINANZAS (Entry finance=1)
         // filtro created_at, mostrar date_entry
         // =========================
-        $this->entriesFinanzas = Entry::with(['supplier', 'category_invoice', 'details'])
+        /*$this->entriesFinanzas = Entry::with(['supplier', 'category_invoice', 'details'])
             ->whereDate('created_at', '>=', $this->start->toDateString())
             ->whereDate('created_at', '<=', $this->end->toDateString())
             ->where('finance', 1)
@@ -89,7 +89,7 @@ class CashFlowRangeExport implements WithMultipleSheets
 
         $this->totalExpenseFinanzas = (float) $this->entriesFinanzas->sum(function ($e) {
             return (float) $e->total; // accessor string num -> float
-        });
+        });*/
 
         // =========================
         // 4) COMPRAS (Entry Por compra)
@@ -212,6 +212,7 @@ class CashFlowRangeExport implements WithMultipleSheets
                 'cash_movements.observation',
                 'cash_movements.created_at',
                 'cash_movements.sale_id',
+                'cash_movements.entry_id',
                 'cash_movements.amount_regularize',
                 'cash_movements.commission',
                 'cash_movements.regularize',

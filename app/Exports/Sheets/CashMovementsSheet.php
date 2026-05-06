@@ -3,6 +3,7 @@
 namespace App\Exports\Sheets;
 
 use App\CashBoxSubtype;
+use App\Entry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -53,7 +54,8 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
             'Monto',
             'Abonado',
             'Comisión',
-            'Descripción',
+            'Categoría',
+            'Descripción'
         ];
     }
 
@@ -74,6 +76,13 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
 
         $cashBoxSubType = CashBoxSubtype::find($cashBoxSubTypeId);
 
+        $categoria = "";
+        if ( $row->entry_id != null )
+        {
+            $entry = Entry::with('category_invoice')->find($row->entry_id);
+            $categoria = $entry->category_invoice->name;
+        }
+
         return [
             $row->id,
             Carbon::parse($row->created_at)->format('d/m/Y h:i A'),
@@ -85,7 +94,8 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
             number_format($amount, 2, '.', ''),
             $row->amount_regularize !== null ? number_format((float)$row->amount_regularize, 2, '.', '') : '-',
             $row->commission !== null ? number_format((float)$row->commission, 2, '.', '') : '-',
-            $desc,
+            $categoria,
+            $desc
         ];
     }
 
