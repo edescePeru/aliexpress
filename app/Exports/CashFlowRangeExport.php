@@ -98,6 +98,7 @@ class CashFlowRangeExport implements WithMultipleSheets
             ->where('entry_type', 'Por compra')
             ->whereDate('created_at', '>=', $this->start->toDateString())
             ->whereDate('created_at', '<=', $this->end->toDateString())
+            ->where('finance', '<>',1)
             ->orderBy('created_at', 'desc')
             ->get();
 
