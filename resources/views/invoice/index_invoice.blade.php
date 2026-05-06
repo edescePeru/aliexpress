@@ -52,7 +52,7 @@
 @section('page-title')
     <h5 class="card-title">Listado de facturas</h5>
     @can('create_invoice')
-    <a href="{{ route('invoice.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo ingreso </a>
+    <a href="{{ route('invoice.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva factura </a>
     @endcan
 @endsection
 

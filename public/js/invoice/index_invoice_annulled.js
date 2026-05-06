@@ -53,7 +53,7 @@ $(document).ready(function () {
                     return '<p> '+ moment(date_final).format('DD/MM/YYYY') +'</p>'
                 }
             },
-            { data: null,
+            /*{ data: null,
                 title: 'OC/OS',
                 wrap: true,
                 "render": function (item)
@@ -71,7 +71,7 @@ $(document).ready(function () {
                     }
 
                 }
-            },
+            },*/
             { data: 'invoice' },
             { data: null,
                 title: 'Tipo de Orden',
@@ -231,21 +231,10 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     var text = '';
-                    console.log(item.material_name);
-                    if ( item.code == null ) {
-                        if (!item.finance) {
-                            text = text + '<button type="button" data-details="' + item.id + '" data-code="0" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
 
-                        } else {
+                    text = text + '<a target="_blank" href="' + document.location.origin + '/dashboard/factura/compra/ver/' + item.id + '" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Factura"><i class="fa fa-eye"></i> </a>  ';
 
-                            text = text + '<button type="button" data-details="' + item.id + '" data-code="0" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
-
-                        }
-                    } else {
-
-                        text = text + '<button type="button" data-details="' + item.id + '" data-code="1" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i> </button>';
-
-                    }
+                    text = text + '<button type="button" data-details="' + item.id + '" data-code="0" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-search"></i> </button>';
 
                     return text; /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
                 }

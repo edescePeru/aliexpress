@@ -232,7 +232,7 @@ $(document).ready(function () {
                 {
                     var text = '';
 
-                    text = text + '<a href="' + document.location.origin + '/dashboard/factura/compra/ver/' + item.id + '" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Factura"><i class="fa fa-eye"></i> </a>  ';
+                    text = text + '<a target="_blank" href="' + document.location.origin + '/dashboard/factura/compra/ver/' + item.id + '" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Factura"><i class="fa fa-eye"></i> </a>  ';
 
                     if ($.inArray('destroy_invoice', $permissions) !== -1) {
                         text = text + '<button type="button" data-delete="' + item.id + '" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular factura"><i class="fa fa-trash"></i> </button>';
