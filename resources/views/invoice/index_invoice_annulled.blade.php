@@ -241,5 +241,5 @@
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
-    <script src="{{ asset('js/invoice/index_invoice_annulled.js') }}"></script>
+    <script src="{{ asset('js/invoice/index_invoice_annulled.js') }}?v={{ time() }}"></script>
 @endsection
