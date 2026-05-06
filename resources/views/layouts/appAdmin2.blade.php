@@ -38,6 +38,29 @@
             max-height: 300px; /* Establece la altura máxima del contenedor para activar el scroll */
             overflow: auto;    /* Añade un scroll si el contenido supera la altura máxima */
         }
+
+        /* Sidebar con scroll cómodo en AdminLTE 3 */
+        .layout-fixed .main-sidebar .sidebar {
+            height: calc(100vh - 57px) !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+
+        /* Cuando AdminLTE usa OverlayScrollbars */
+        .main-sidebar .os-content {
+            padding-bottom: 60px !important;
+        }
+
+        /* Espacio extra al final del menú */
+        .main-sidebar .nav-sidebar {
+            padding-bottom: 60px !important;
+        }
+
+        /* Compactar un poco las opciones */
+        .nav-sidebar .nav-link {
+            padding-top: 0.45rem;
+            padding-bottom: 0.45rem;
+        }
     </style>
     @yield('styles')
 
