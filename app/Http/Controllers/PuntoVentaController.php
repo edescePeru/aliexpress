@@ -203,13 +203,13 @@ class PuntoVentaController extends Controller
             $search = $productSearch;
 
             $stockItemsQuery->where(function ($q) use ($search) {
-                $q->where('sku', $search)
-                    ->orWhere('barcode', $search)
+                $q->where('sku', 'like', '%' . $search . '%')
+                    ->orWhere('barcode', 'like', '%' . $search . '%')
                     ->orWhere('display_name', 'like', '%' . $search . '%')
                     ->orWhereHas('material', function ($mq) use ($search) {
                         $mq->where('full_name', 'like', '%' . $search . '%')
-                            ->orWhere('code', $search)
-                            ->orWhere('codigo', $search);
+                            ->orWhere('code', 'like', '%' . $search . '%')
+                            ->orWhere('codigo', 'like', '%' . $search . '%');
                     });
             });
 
