@@ -212,7 +212,8 @@ class EntryController extends Controller
     public function createEntryPurchase()
     {
         $suppliers = Supplier::all();
-        return view('entry.create_entry_purchase', compact('suppliers'));
+        //return view('entry.create_entry_purchase', compact('suppliers'));
+        return view('entry.create_entry_purchaseV2', compact('suppliers'));
     }
 
     public function createEntryScrap()
@@ -1902,7 +1903,7 @@ class EntryController extends Controller
     public function editEntryPurchase(Entry $entry)
     {
         $suppliers = Supplier::all();
-        return view('entry.edit_entry_purchase', compact('entry', 'suppliers'));
+        return view('entry.edit_entry_purchaseV2', compact('entry', 'suppliers'));
     }
 
     public function showEntryPurchase(Entry $entry)

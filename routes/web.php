@@ -3143,6 +3143,13 @@ Route::middleware('auth')->group(function (){
             ->middleware('permission:list_unitMeasure')*/;
         /*Route::post('/talla/delete-multiple', 'TallaController@deleteMultiple');*/
 
+        Route::get('/materials/stock-items-entry/json', 'MaterialController@getJsonMaterialStockItemsEntryV2')
+            ->name('materials.stock-items-entry.json');
+        Route::get('/materials/entry/search', 'MaterialController@getJsonMaterialsForEntry')
+            ->name('materials.entry.search');
+
+        Route::get('/materials/{material}/stock-items-entry', 'MaterialController@getStockItemsForEntry')
+            ->name('materials.stock-items.entry');
     });
 });
 

@@ -3424,4 +3424,112 @@ class MaterialController extends Controller
 
         return $array;
     }
+
+    public function getJsonMaterialsForEntry(Request $request)
+    {
+        $search = trim($request->get('search', ''));
+
+        $materials = Material::with([
+            'unitMeasure',
+            'typeScrap',
+            'stockItems' => function ($q) {
+                $q->where('is_active', 1)
+                    ->with('inventoryLevels');
+            }
+        ])
+            ->where('enable_status', 1)
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('full_name', 'LIKE', "%{$search}%")
+                        ->orWhereHas('stockItems', function ($stockQuery) use ($search) {
+                            $stockQuery->where('is_active', 1)
+                                ->where(function ($sq) use ($search) {
+                                    $sq->where('sku', 'LIKE', "%{$search}%")
+                                        ->orWhere('barcode', 'LIKE', "%{$search}%")
+                                        ->orWhere('display_name', 'LIKE', "%{$search}%");
+                                });
+                        });
+                });
+            })
+            ->limit(30)
+            ->get();
+
+        $array = [];
+
+        foreach ($materials as $material) {
+            $stockItems = $material->stockItems;
+
+            $activeStockItemsCount = $stockItems->count();
+
+            $stockCurrent = $stockItems->sum(function ($stockItem) {
+                return $stockItem->inventoryLevels->sum('qty_on_hand');
+            });
+
+            $simpleStockItem = null;
+
+            if ($activeStockItemsCount === 1) {
+                $simpleStockItem = $stockItems->first();
+            }
+
+            $hasVariants = $stockItems->whereNotNull('variant_id')->count() > 0;
+
+            $array[] = [
+                'id' => $material->id,
+                'material_id' => $material->id,
+
+                'material' => $material->full_name,
+                'unit' => optional($material->unitMeasure)->name ?? '',
+
+                'price' => 0,
+                'typescrap' => $material->typescrap_id,
+                'full_typescrap' => $material->typeScrap,
+                'stock_current' => $stockCurrent,
+                'category' => $material->category_id,
+                'enable_status' => $material->enable_status,
+                'tipo_venta_id' => $material->tipo_venta_id,
+                'perecible' => $material->perecible ?? 'n',
+
+                'has_variants' => $hasVariants,
+                'stock_items_count' => $activeStockItemsCount,
+
+                'stock_item_id' => optional($simpleStockItem)->id,
+                'stock_item_sku' => optional($simpleStockItem)->sku,
+                'stock_item_barcode' => optional($simpleStockItem)->barcode,
+                'stock_item_display_name' => optional($simpleStockItem)->display_name,
+            ];
+        }
+
+        return response()->json($array);
+    }
+
+    public function getStockItemsForEntry($materialId)
+    {
+        $stockItems = StockItem::with([
+            'variant'
+        ])
+            ->where('material_id', $materialId)
+            ->where('is_active', 1)
+            ->whereNotNull('variant_id')
+            ->orderBy('display_name', 'asc')
+            ->get();
+
+        $array = [];
+
+        foreach ($stockItems as $stockItem) {
+            $variant = $stockItem->variant;
+
+            $array[] = [
+                'stock_item_id' => $stockItem->id,
+                'material_id' => $stockItem->material_id,
+                'variant_id' => $stockItem->variant_id,
+
+                'attribute_summary' => optional($variant)->attribute_summary ?? $stockItem->display_name,
+                'sku' => $stockItem->sku,
+                'barcode' => $stockItem->barcode,
+                'display_name' => $stockItem->display_name,
+            ];
+        }
+
+        return response()->json($array);
+    }
 }
