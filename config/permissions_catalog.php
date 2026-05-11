@@ -16,6 +16,7 @@ return [
     'attend_requestSimple' => 'Atender solicitud de área',
     'changePercentage_proforma' => 'Cambiar porcentajes Pre Cotizaciones',
     'config_materialSetting' => 'Configurar parámetros de materiales',
+    'configGeneral_materialSetting' => 'Configurar datos materiales',
     'confirm_output' => 'Confirmar Salidas',
     'confirm_proforma' => 'Confirmar Pre Cotizaciones',
     'confirm_quote' => 'Confirmar Cotizaciones',

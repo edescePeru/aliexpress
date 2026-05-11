@@ -737,7 +737,8 @@
                     @canany('list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')
                     <li class="nav-header">MATERIALES</li>
                     @endcanany
-                    @canany('list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')
+                    {{--@canany('list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')--}}
+                    @can('configGeneral_materialSetting')
                     <li class="nav-item has-treeview @yield('openConfig')">
                         <a href="#" class="nav-link @yield('activeConfig')">
                             <i class="fas fa-tools nav-icon"></i>
