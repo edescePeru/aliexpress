@@ -433,6 +433,14 @@ return [
     'update_invoice' => 'Modificar Facturas Compra',
     'update_level' => 'Modificar Niveles',
     'update_material' => 'Modificar Materiales',
+    'gestionarPrecios_material' => 'Gestionar Precios de Materiales',
+    'verVariantes_material' => 'Ver variantes de Materiales',
+
+    'separatePacks_material' => 'Separar paquetes de Materiales',
+    'assignChild_material' => 'Asignar material hijo de Materiales',
+    'managePresentations_material' => 'Configurar presentaciones de Materiales',
+    'verVencimientos_material' => 'Ver fechas de vencimientos de Materiales',
+
     'update_materialType' => 'Modificar Tipos de Materiales',
     'update_orderPurchaseExpress' => 'Modificar Ordenes Compra Express',
     'update_orderPurchaseFinance' => 'Modificar Ordenes Compra Finanzas',

@@ -1838,13 +1838,27 @@ function renderDataTable(data, activeColumns) {
 
     /*clone.querySelector("[data-precioPorcentaje]").setAttribute("data-material", data.id);
     clone.querySelector("[data-precioPorcentaje]").setAttribute("data-description", data.descripcion);*/
-    clone.querySelector("[data-precioDirecto]").setAttribute("data-material", data.id);
-    clone.querySelector("[data-precioDirecto]").setAttribute("data-description", data.descripcion);
+    if ($.inArray('gestionarPrecios_material', $permissions) !== -1) {
+        clone.querySelector("[data-precioDirecto]").setAttribute("data-material", data.id);
+        clone.querySelector("[data-precioDirecto]").setAttribute("data-description", data.descripcion);
+    } else {
+        let element = clone.querySelector("[data-precioDirecto]");
+        if (element) {
+            element.style.display = 'none';
+        }
+    }
 
     if ( data.has_variants == 1 )
     {
-        let url2 = document.location.origin + '/dashboard/view/material/variants/' + data.id;
-        clone.querySelector("[data-ver_variants]").setAttribute("href", url2);
+        if ($.inArray('verVariantes_material', $permissions) !== -1) {
+            let url2 = document.location.origin + '/dashboard/view/material/variants/' + data.id;
+            clone.querySelector("[data-ver_variants]").setAttribute("href", url2);
+        } else {
+            let element = clone.querySelector("[data-ver_variants]");
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
     } else {
         let element = clone.querySelector("[data-ver_variants]");
         if (element) {
@@ -1852,23 +1866,50 @@ function renderDataTable(data, activeColumns) {
         }
     }
 
-    clone.querySelector("[data-show_vencimiento]").setAttribute("data-material", data.id);
-    clone.querySelector("[data-show_vencimiento]").setAttribute("data-description", data.descripcion);
+    if ($.inArray('verVencimientos_material', $permissions) !== -1) {
+        clone.querySelector("[data-show_vencimiento]").setAttribute("data-material", data.id);
+        clone.querySelector("[data-show_vencimiento]").setAttribute("data-description", data.descripcion);
+    } else {
+        let element = clone.querySelector("[data-show_vencimiento]");
+        if (element) {
+            element.style.display = 'none';
+        }
+    }
 
-    clone.querySelector("[data-manage_presentations]").setAttribute("data-material", data.id);
-    clone.querySelector("[data-manage_presentations]").setAttribute("data-description", data.descripcion);
-
+    if ($.inArray('managePresentations_material', $permissions) !== -1) {
+        clone.querySelector("[data-manage_presentations]").setAttribute("data-material", data.id);
+        clone.querySelector("[data-manage_presentations]").setAttribute("data-description", data.descripcion);
+    } else {
+        let element = clone.querySelector("[data-manage_presentations]");
+        if (element) {
+            element.style.display = 'none';
+        }
+    }
     /*let url3 = document.location.origin + '/dashboard/enviar/material/a/tienda/' + data.id;
     clone.querySelector("[data-send_store]").setAttribute("href", url3);*/
 
     if (data.isPack == 1) {
-        clone.querySelector("[data-assign_child]").setAttribute("data-material", data.id);
-        clone.querySelector("[data-assign_child]").setAttribute("data-description", data.descripcion);
+        if ($.inArray('assignChild_material', $permissions) !== -1) {
+            clone.querySelector("[data-assign_child]").setAttribute("data-material", data.id);
+            clone.querySelector("[data-assign_child]").setAttribute("data-description", data.descripcion);
+        } else {
+            let element = clone.querySelector("[data-assign_child]");
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
 
-        clone.querySelector("[data-separate]").setAttribute("data-material", data.id);
-        clone.querySelector("[data-separate]").setAttribute("data-description", data.descripcion);
-        clone.querySelector("[data-separate]").setAttribute("data-measure", data.medida);
-        clone.querySelector("[data-separate]").setAttribute("data-quantity", data.stock_actual);
+        if ($.inArray('separatePacks_material', $permissions) !== -1) {
+            clone.querySelector("[data-separate]").setAttribute("data-material", data.id);
+            clone.querySelector("[data-separate]").setAttribute("data-description", data.descripcion);
+            clone.querySelector("[data-separate]").setAttribute("data-measure", data.medida);
+            clone.querySelector("[data-separate]").setAttribute("data-quantity", data.stock_actual);
+        } else {
+            let element = clone.querySelector("[data-separate]");
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
     } else {
         let element = clone.querySelector("[data-separate]");
         let element2 = clone.querySelector("[data-assign_child]");
