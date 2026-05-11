@@ -10,6 +10,7 @@ use App\Http\Requests\RestoreContactNameRequest;
 use App\Http\Requests\StoreContactNameRequest;
 use App\Http\Requests\UpdateContactNameRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ContactNameController extends Controller
@@ -18,8 +19,10 @@ class ContactNameController extends Controller
     {
         //$customers = Customer::all();
         //$permissions = Permission::all();
+        $user = Auth::user();
+        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        return view('contactName.index');
+        return view('contactName.index',  compact('permissions'));
     }
 
     public function store(StoreContactNameRequest $request)

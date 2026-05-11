@@ -1,4 +1,5 @@
 $(document).ready(function () {
+    $permissions = JSON.parse($('#permissions').val());
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/contacts",
@@ -24,10 +25,17 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    return '<a href="'+document.location.origin+ '/dashboard/editar/contacto/'+item.id+
-                        '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>'+
-                        ' <button data-delete="'+item.id+'" data-contact="'+item.name+'" data-company="'+item.customer.business_name+'" '+
-                        ' class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>'
+                    var text = '';
+                    if ( $.inArray('update_contactName', $permissions) !== -1 ) {
+                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/contacto/'+item.id+
+                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
+                    }
+                    if ( $.inArray('destroy_contactName', $permissions) !== -1 ) {
+                        text = text + ' <button data-delete="'+item.id+'" data-contact="'+item.name+'" data-company="'+item.customer.business_name+'" '+
+                            ' class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
+                    }
+                    return text;
+
                 } },
 
         ],
@@ -180,6 +188,7 @@ $(document).ready(function () {
 
 var $formDelete;
 var $modalDelete;
+var $permissions;
 
 function openModalDelete() {
     var customer_id = $(this).data('delete');
