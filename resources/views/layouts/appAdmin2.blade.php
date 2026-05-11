@@ -1129,12 +1129,14 @@
                                         </a>
                                     </li>
                                 @endcan--}}
+                                @can('listStockitem_material')
                                     <li class="nav-item">
                                         <a href="{{route('stockitems.index')}}" class="nav-link @yield('activeListStockItems')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listar stocks items</p>
                                         </a>
                                     </li>
+                                @endcan
                                 @can('create_material')
                                 <li class="nav-item">
                                     <a href="{{ route('material.create') }}" class="nav-link @yield('activeCreateMaterial')">
@@ -1151,12 +1153,14 @@
                                         </a>
                                     </li>
                                 @endcan
+                                @can('separetePacks_material')
                                     <li class="nav-item">
                                         <a href="{{ route('material.separate.pack') }}" class="nav-link @yield('activeSeparatePackMaterial')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Separar paquetes</p>
                                         </a>
                                     </li>
+                                @endcan
                                     {{--<li class="nav-item">
                                         <a href="{{ route('index.combos') }}" class="nav-link @yield('listComboMaterial')">
                                             <i class="far fa-circle nav-icon"></i>

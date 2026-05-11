@@ -294,6 +294,8 @@ return [
     'list_loan' => 'Listar Préstamos',
     'list_location' => 'Ver ubicaciones',
     'list_material' => 'Listar Materiales',
+    'listStockitem_material' => 'Listar Stock Items',
+    'separetePacks_material' => 'Separar paquetes',
     'list_materialType' => 'Listar Tipos de Materiales',
     'list_medicalRest' => 'Listar Descansos Médicos',
     'list_metas' => 'Listar Metas',
