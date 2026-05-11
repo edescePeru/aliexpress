@@ -441,6 +441,10 @@ return [
     'managePresentations_material' => 'Configurar presentaciones de Materiales',
     'verVencimientos_material' => 'Ver fechas de vencimientos de Materiales',
 
+    'configInventariable_material' => 'Configurar inventariable de stock items',
+    'configActive_material' => 'Configurar activo de stock items',
+    'verInventario_material' => 'Ver Inventario de stock items',
+
     'update_materialType' => 'Modificar Tipos de Materiales',
     'update_orderPurchaseExpress' => 'Modificar Ordenes Compra Express',
     'update_orderPurchaseFinance' => 'Modificar Ordenes Compra Finanzas',

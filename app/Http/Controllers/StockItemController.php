@@ -7,6 +7,7 @@ use App\Material;
 use App\StockItem;
 use App\Variant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class StockItemController extends Controller
@@ -45,7 +46,9 @@ class StockItemController extends Controller
 
     public function index()
     {
-        return view('stockItem.list');
+        $user = Auth::user();
+        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        return view('stockItem.list', compact('permissions'));
     }
 
     public function toggleInventory(Request $request, $id)

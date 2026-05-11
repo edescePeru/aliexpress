@@ -119,6 +119,8 @@
 @endsection
 
 @section('content')
+    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+
     <div class="row mb-3">
         <div class="col-md-4">
             <input type="text" id="search-stock-item" class="form-control"

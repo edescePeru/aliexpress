@@ -1,4 +1,6 @@
 $(document).ready(function () {
+    $permissions = JSON.parse($('#permissions').val());
+
     loadStockItems(1);
 
     $('#btn-search-stock-item').on('click', function () {
@@ -96,6 +98,8 @@ $(document).ready(function () {
     });
 });
 
+var $permissions;
+
 function openInventoryLevelsModal(stockItemId) {
     const url = window.stockItemInventoryLevelsUrl.replace(':id', stockItemId);
 
@@ -121,6 +125,10 @@ function openInventoryLevelsModal(stockItemId) {
             toastr.error(message);
         }
     });
+}
+
+function can(permission) {
+    return $.inArray(permission, $permissions) !== -1;
 }
 
 function fillInventoryLevelsModal(response) {
@@ -307,41 +315,59 @@ function renderStockItemsTable(items) {
 
         let unitMeasure = item.unit_measure ? (item.unit_measure.name || '') : '';
 
-        html += `
-                <tr>
-                    <td>${escapeHtml(item.sku || '')}</td>
-                    <td>${escapeHtml(item.barcode || '')}</td>
-                    <td>${escapeHtml(item.display_name || '')}</td>
-                    <td>${escapeHtml(materialName)}</td>
-                    <td>${escapeHtml(variantText)}</td>
-                    <td>${escapeHtml(unitMeasure)}</td>
-                    <td>${inventariable}</td>
-                    <td>${activo}</td>
-                    <td>${stockActual}</td>
-                    <td>${stockReservado}</td>
-                    <td>
-                        <button class="btn btn-sm btn-warning btn-toggle-inventory"
-                            data-id="${item.id}"
-                            data-value="${item.tracks_inventory}">
-                            Config. Inv
-                        </button>
-                    
-                        <button class="btn btn-sm btn-secondary btn-toggle-active"
-                            data-id="${item.id}"
-                            data-variant="${item.variant_id || ''}"
-                            data-value="${item.is_active}">
-                            Config. Act
-                        </button>
-                        
-                        <button class="btn btn-sm btn-outline-primary"
-                            data-id="${item.id}"
-                            data-variant="${item.variant_id || ''}"
-                            data-ver_inventario>
-                            Ver Inventario
-                        </button>
-                    </td>
-                </tr>
+        let buttons = '';
+
+        if (can('configInventariable_material')) {
+            buttons += `
+                <button class="btn btn-sm btn-warning btn-toggle-inventory"
+                    data-id="${item.id}"
+                    data-value="${item.tracks_inventory}">
+                    Config. Inv
+                </button>
             `;
+        }
+
+        if (can('configActive_material')) {
+            buttons += `
+                <button class="btn btn-sm btn-secondary btn-toggle-active"
+                    data-id="${item.id}"
+                    data-variant="${item.variant_id || ''}"
+                    data-value="${item.is_active}">
+                    Config. Act
+                </button>
+            `;
+        }
+
+        if (can('verInventario_material')) {
+            buttons += `
+                <button class="btn btn-sm btn-outline-primary"
+                    data-id="${item.id}"
+                    data-variant="${item.variant_id || ''}"
+                    data-ver_inventario>
+                    Ver Inventario
+                </button>
+            `;
+        }
+
+        if (buttons === '') {
+            buttons = `<span class="text-muted">Sin acciones</span>`;
+        }
+
+        html += `
+            <tr>
+                <td>${escapeHtml(item.sku || '')}</td>
+                <td>${escapeHtml(item.barcode || '')}</td>
+                <td>${escapeHtml(item.display_name || '')}</td>
+                <td>${escapeHtml(materialName)}</td>
+                <td>${escapeHtml(variantText)}</td>
+                <td>${escapeHtml(unitMeasure)}</td>
+                <td>${inventariable}</td>
+                <td>${activo}</td>
+                <td>${stockActual}</td>
+                <td>${stockReservado}</td>
+                <td>${buttons}</td>
+            </tr>
+        `;
     });
 
     $('#tbody-stock-items').html(html);
