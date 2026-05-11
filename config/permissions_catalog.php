@@ -321,6 +321,7 @@ return [
     'list_quality' => 'Listar calidades',
     'list_quote' => 'Listar Cotizaciones',
     'list_quoteSale' => 'Ver listado de cotizaciones de ventas',
+    'generarComprobante_quoteSale' => 'Generar comprobantes de cotizaciones',
     'list_referralGuide' => 'Listar guías de remisión',
     'list_refund' => 'Listar reembolsos',
     'list_report' => 'Listar reportes',

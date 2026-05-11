@@ -244,6 +244,7 @@
     <!--begin::Tab Content-->
     <div class="tab-content">
         <!--begin::Tab pane-->
+        @can('generarComprobante_quoteSale')
         <hr>
         <div class="row">
             <div class="container-fluid">
@@ -260,6 +261,7 @@
                 </div>
             </div>
         </div>
+        @endcan
         <hr>
         <div class="table-responsive">
             <table class="table table-bordered letraTabla table-hover table-sm">
