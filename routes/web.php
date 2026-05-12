@@ -3150,6 +3150,8 @@ Route::middleware('auth')->group(function (){
 
         Route::get('/materials/{material}/stock-items-entry', 'MaterialController@getStockItemsForEntry')
             ->name('materials.stock-items.entry');
+
+        Route::get('/get/material/{material}/stock-items', 'PuntoVentaController@getStockItemsByMaterial')->name('get.stock-items.by.material');
     });
 });
 
