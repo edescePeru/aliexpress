@@ -2208,6 +2208,12 @@ class PuntoVentaController extends Controller
         $dataOwnerCuenta2Empresa = DataGeneral::where('name', 'owner_cuenta_2')->first();
         $ownerCuenta2Empresa = $dataOwnerCuenta2Empresa->valueText;
 
+        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
+        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+
+        $dataLogotipoBNEmpresa = DataGeneral::where('name', 'logotipo_bn')->first();
+        $logotipoBNEmpresa = $dataLogotipoBNEmpresa->valueText;
+
         $tieneCuentas = false;
         if ( $nroCuenta2Empresa != "" || $nroCuenta1Empresa != "" )
         {
@@ -2249,6 +2255,8 @@ class PuntoVentaController extends Controller
 
         $pdf = Pdf::loadView('exports.salePdf2', compact('titleCuenta1Empresa',
             'nroCuenta1Empresa',
+            'logotipoEmpresa',
+            'logotipoBNEmpresa',
             'cciCuenta1Empresa',
             'imgCuenta1Empresa',
             'ownerCuenta1Empresa',

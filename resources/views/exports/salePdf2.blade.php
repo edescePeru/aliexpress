@@ -51,7 +51,7 @@
 <div class="ticket">
     <div style="text-align:center;">
         <img
-                src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('images/logo/logotipoBN.png'))) }}"
+                src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('images/logo/' . $logotipoBNEmpresa))) }}"
                 alt="Logo de Tienda"
                 style="display:block; margin:0 auto;"
         >
