@@ -78,6 +78,39 @@ class PuntoVentaController extends Controller
         $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
 
 
+        return view('puntoVenta.index', compact(
+            'categories',
+            'tipoPagos',
+            'askWorker',
+            'workers',
+            'cashBoxes','subtypes'
+        ));
+    }
+
+    public function indexV2()
+    {
+        $categories = Category::all();
+        $tipoPagos  = TipoPago::all();
+
+        // Si no existe, se crea con valueText = 'no'
+        $cfg = DataGeneral::firstOrCreate(
+            ['name' => 'punto_venta_worker'],
+            ['valueText' => 'no']
+        );
+
+        // True solo si está configurado en "si"
+        $askWorker = strtolower($cfg->valueText) === 'si';
+
+        // Lista de trabajadores habilitados
+        $workers = Worker::where('enable', true)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+
         return view('puntoVenta.indexV2', compact(
             'categories',
             'tipoPagos',
@@ -160,7 +193,7 @@ class PuntoVentaController extends Controller
         return ['data' => $arrayProducts, 'pagination' => $pagination];
     }
 
-    public function getDataProducts2(Request $request, $pageNumber = 1)
+    public function getDataProducts(Request $request, $pageNumber = 1)
     {
         $perPage = 12;
         $categoryId = trim((string) $request->input('category_id', ''));
@@ -345,6 +378,10 @@ class PuntoVentaController extends Controller
 
                 $stockAvailable = max(0, $stockCurrent - $stockReserved);
 
+                if ($stockAvailable <= 0) {
+                    return null;
+                }
+
                 $variantText = 'Presentación única';
 
                 if ($stockItem->variant) {
@@ -374,6 +411,7 @@ class PuntoVentaController extends Controller
                     'price' => (float) (optional($stockItem->priceListItems->first())->price ?? 0),
                 ];
             })
+            ->filter()
             ->values();
 
         return response()->json([
@@ -382,7 +420,7 @@ class PuntoVentaController extends Controller
         ]);
     }
 
-    public function getDataProducts(Request $request, $pageNumber = 1)
+    public function getDataProductsV2(Request $request, $pageNumber = 1)
     {
         $perPage = 12;
         $categoryId = trim((string) $request->input('category_id', ''));

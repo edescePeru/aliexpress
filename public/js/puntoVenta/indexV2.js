@@ -1,3 +1,5 @@
+let $currentStockItemRow = null;
+
 $(document).ready(function () {
 
     setTimeout(function () {
@@ -163,6 +165,312 @@ $(document).ready(function () {
     $(document).on('change', '#pv_vuelto_cash_box_id', function () {
         refreshVueltoSubtypeUI();
     });
+
+    $('#modalPresentaciones').on('hidden.bs.modal', function () {
+        unlockCurrentStockItemQuantity();
+    });
+
+    $(document).on('click', '.btn-presentacion-stock-item', function () {
+        const materialId = $(this).data('material_id');
+
+        if (!materialId) {
+            toastr.error('No se encontró el material.');
+            return;
+        }
+
+        $currentStockItemRow = $(this).closest('tr');
+
+        $('#presentationsArea').html(`
+            <div class="text-center text-muted py-3">
+                Cargando presentaciones...
+            </div>
+        `);
+
+        const availableUnits = parseFloat($currentStockItemRow.data('stock')) || 0;
+
+        console.log("availableUnits "+availableUnits);
+
+        $('#modalPresentaciones').modal('show');
+
+        setTimeout(function () {
+            $('#modalPresentaciones').css('z-index', 1060);
+            $('.modal-backdrop').last().css('z-index', 1055);
+        }, 200);
+
+        fetchPresentations(materialId).then(function (presentations) {
+            console.log(presentations);
+            console.log("availableUnits "+availableUnits);
+            renderPresentationsInModal(presentations, availableUnits);
+            if (presentations && presentations.length > 0) {
+                $currentStockItemRow
+                    .find('.input-cantidad-stock-item')
+                    .val(0)
+                    .prop('readonly', true)
+                    .prop('disabled', true)
+                    .attr('title', 'La cantidad se define desde presentaciones');
+            }
+        }).catch(function () {
+            $('#presentationsArea').html(`
+            <div class="text-danger">
+                Error al cargar las presentaciones.
+            </div>
+        `);
+        });
+    });
+
+    $(document).on('click', '#btnAgregarPresentaciones', function () {
+        if (!$currentStockItemRow) {
+            toastr.error('No se encontró la fila del producto.');
+            return;
+        }
+
+        const materialId = $currentStockItemRow.data('material-id');
+        const stockItemId = $currentStockItemRow.data('stock-item-id');
+
+        let selectedPresentations = [];
+
+        $('#presentationsArea [data-pres-row]').each(function () {
+            const row = $(this);
+
+            const materialPresentationId = row.data('pres-id');
+            const unitsPerPack = parseFloat(row.data('pres-qty')) || 0;
+            const price = parseFloat(row.data('pres-price')) || 0;
+            const packs = parseInt(row.find('[data-pres-packs]').val()) || 0;
+
+            if (packs > 0) {
+                selectedPresentations.push({
+                    material_id: materialId,
+                    stock_item_id: stockItemId,
+                    material_presentation_id: materialPresentationId,
+                    packs: packs,
+                    unitsPerPack: unitsPerPack,
+                    quantity: packs * unitsPerPack,
+                    price: price
+                });
+            }
+        });
+
+        if (selectedPresentations.length === 0) {
+            toastr.warning('Debe ingresar al menos una presentación.');
+            return;
+        }
+
+        renderPresentationSelectionInRow($currentStockItemRow, selectedPresentations);
+
+        $currentStockItemRow
+            .find('.input-cantidad-stock-item')
+            .val(0)
+            .prop('readonly', true)
+            .prop('disabled', true)
+            .attr('title', 'La cantidad se define desde presentaciones');
+
+        $('#modalPresentaciones').modal('hide');
+    });
+
+    $(document).on('click', '.btn-remove-presentations', function () {
+        const $row = $(this).closest('tr');
+
+        $row.find('.input-cantidad-stock-item')
+            .prop('readonly', false)
+            .prop('disabled', false)
+            .removeAttr('title');
+
+        const materialId = $row.data('material-id');
+        const stockItemId = $row.data('stock-item-id');
+
+        const $actionTd = $(this).closest('td');
+
+        $actionTd.html(`
+        <button 
+            type="button" 
+            class="btn btn-outline-primary btn-sm btn-presentacion-stock-item"
+            data-material_id="${materialId}"
+            data-stock_item_id="${stockItemId}">
+            Presentación
+        </button>
+    `);
+    });
+
+    $(document).on('click', '#btn-agregar-todos-stock-items', function () {
+        let addedCount = 0;
+        let hasError = false;
+
+        $('#tbody-stock-items-venta tr').each(function () {
+            const $row = $(this);
+
+            const stockItemId = $row.data('stock-item-id');
+            const materialId = $row.data('material-id');
+
+            if (!stockItemId || !materialId) {
+                return;
+            }
+
+            const productId = stockItemId;
+            const productName = $row.data('product-name') || $row.find('td:first').text().trim();
+            const productUnit = $row.data('product-unit') || 'UND';
+            const productTax = parseFloat($row.data('product-tax')) || 0;
+            const productType = parseInt($row.data('product-type')) || 0;
+            const stockAvailable = parseFloat($row.data('stock')) || 0;
+            const unitPrice = parseFloat($row.data('price')) || 0;
+
+            const $presentationInput = $row.find('.input-presentations-selected');
+            const hasPresentationsSelected = $presentationInput.length > 0;
+
+            /**
+             * CASO 1: Tiene presentaciones seleccionadas
+             */
+            if (hasPresentationsSelected) {
+                let presentations = [];
+
+                try {
+                    presentations = JSON.parse($presentationInput.attr('data-presentations') || '[]');
+                } catch (e) {
+                    toastr.error('Error leyendo las presentaciones seleccionadas.');
+                    hasError = true;
+                    return false;
+                }
+
+                let totalUnits = presentations.reduce(function (sum, r) {
+                    return sum + (parseFloat(r.quantity) || 0);
+                }, 0);
+
+                if (totalUnits > stockAvailable) {
+                    toastr.error(`La cantidad seleccionada para ${productName} supera el stock disponible.`);
+                    hasError = true;
+                    return false;
+                }
+
+                presentations.forEach(function (r) {
+                    const presentationId = r.material_presentation_id;
+                    const presentationQty = parseFloat(r.unitsPerPack) || 1;
+                    const packs = parseFloat(r.packs) || 0;
+                    const price = parseFloat(r.price) || 0;
+
+                    if (packs <= 0) {
+                        return;
+                    }
+
+                    const itemKey = buildItemKey(stockItemId, presentationId);
+
+                    let existing = $items.find(x => x.itemKey === itemKey);
+
+                    if (existing) {
+                        toastr.error(`El producto ${productName} (${presentationQty} unidades) ya está agregado. Use + / - para modificar.`, 'Error', {
+                            closeButton: true
+                        });
+                        hasError = true;
+                        return;
+                    }
+
+                    const total = parseFloat(packs * price).toFixed(2);
+
+                    $items.push({
+                        itemKey: itemKey,
+                        productId: productId,
+                        stockItemId: stockItemId,
+                        materialId: materialId,
+
+                        presentationId: presentationId,
+                        presentationQty: presentationQty,
+                        presentationLabel: `${presentationQty} unidades`,
+
+                        priceEffective: price,
+                        productPrice: price,
+                        productName: productName,
+                        productUnit: productUnit,
+                        productTax: productTax,
+                        productType: productType,
+
+                        productTotal: total,
+                        productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
+                        productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
+
+                        productQuantity: packs,
+                        unitsEquivalent: packs * presentationQty,
+                        productDiscount: 0
+                    });
+
+                    renderDataCartRow(itemKey);
+                    addedCount++;
+                });
+
+                return;
+            }
+
+            /**
+             * CASO 2: Sin presentaciones, venta por unidad
+             */
+            const qtyToUse = parseFloat($row.find('.input-cantidad-stock-item').val()) || 0;
+
+            if (qtyToUse <= 0) {
+                return;
+            }
+
+            if (qtyToUse > stockAvailable) {
+                toastr.error(`La cantidad ingresada para ${productName} supera el stock disponible.`);
+                hasError = true;
+                return false;
+            }
+
+            const itemKey = buildItemKey(stockItemId, null);
+
+            let existing = $items.find(x => x.itemKey === itemKey);
+
+            if (existing) {
+                toastr.error(`El producto ${productName} (Unidad) ya está agregado. Use + / - para modificar.`, 'Error', {
+                    closeButton: true
+                });
+                hasError = true;
+                return false;
+            }
+
+            const total = parseFloat(qtyToUse * unitPrice).toFixed(2);
+
+            $items.push({
+                itemKey: itemKey,
+                productId: productId,
+                stockItemId: stockItemId,
+                materialId: materialId,
+
+                presentationId: null,
+                presentationQty: 1,
+                presentationLabel: 'Unidad',
+
+                priceEffective: unitPrice,
+                productPrice: unitPrice,
+                productName: productName,
+                productUnit: productUnit,
+                productTax: productTax,
+                productType: productType,
+
+                productTotal: total,
+                productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
+                productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
+
+                productQuantity: qtyToUse,
+                unitsEquivalent: qtyToUse,
+                productDiscount: 0
+            });
+
+            renderDataCartRow(itemKey);
+            addedCount++;
+        });
+
+        if (hasError) {
+            return;
+        }
+
+        if (addedCount === 0) {
+            toastr.warning('Debe ingresar una cantidad o seleccionar una presentación.');
+            return;
+        }
+
+        updateTotalOrder();
+
+        $('#modalStockItemsVenta').modal('hide');
+
+        toastr.success('Productos agregados al carrito.');
+    });
 });
 
 let $items = [];
@@ -186,8 +494,62 @@ let $modalQuantity;
 
 let $presentationsCache = {}; // materialId -> array presentations
 
-function buildItemKey(productId, presentationId) {
-    return productId + ':' + (presentationId ? presentationId : 'unit');
+function renderPresentationSelectionInRow($row, presentations) {
+    const $actionTd = $row.find('td:last');
+
+    const summaryText = buildPresentationSummaryText(presentations);
+    const tooltipText = buildPresentationTooltipText(presentations);
+    const json = JSON.stringify(presentations);
+    const hasMultiple = presentations.length > 1;
+
+    $actionTd.html(`
+        <div class="presentation-selected-wrapper">
+            
+            <div class="custom-tooltip-container ${hasMultiple ? 'has-tooltip' : ''}">
+                <input 
+                    type="text"
+                    class="form-control form-control-sm input-presentations-selected"
+                    value="${summaryText}${hasMultiple ? ' ▼' : ''}"
+                    readonly
+                    data-presentations='${escapeHtml(json)}'
+                    data-tooltip="${escapeHtml(tooltipText)}">
+
+                ${
+        hasMultiple
+            ? `<div class="custom-tooltip-box">${escapeHtml(tooltipText).replace(/\n/g, '<br>')}</div>`
+            : ''
+        }
+            </div>
+
+            <button 
+                type="button"
+                class="btn btn-danger btn-sm btn-remove-presentations"
+                title="Eliminar presentaciones">
+                <i class="fa fa-trash"></i>
+            </button>
+
+        </div>
+    `);
+}
+
+function buildPresentationSummaryText(presentations) {
+    if (!presentations || presentations.length === 0) {
+        return '';
+    }
+
+    const first = presentations[0];
+
+    return `${first.packs} paq (${first.unitsPerPack} u) a S/. ${Number(first.price).toFixed(2)}`;
+}
+
+function buildPresentationTooltipText(presentations) {
+    return presentations.map(function (p) {
+        return `${p.packs} paq (${p.unitsPerPack} u) - Cant: ${p.quantity} u - S/. ${Number(p.price).toFixed(2)}`;
+    }).join('\n');
+}
+
+function buildItemKey(stockItemId, presentationId = null) {
+    return `${stockItemId}_${presentationId || 'unidad'}`;
 }
 
 function fetchPresentations(productId) {
@@ -203,7 +565,7 @@ function fetchPresentations(productId) {
         });
 }
 
-function renderPresentationsInModal(presentations) {
+function renderPresentationsInModalO(presentations) {
     if (!presentations || presentations.length === 0) {
         $('#presentationsArea').html('<div class="text-muted">Este producto no tiene presentaciones configuradas.</div>');
         return;
@@ -244,6 +606,89 @@ function renderPresentationsInModal(presentations) {
   `;
 
     $('#presentationsArea').html(html);
+}
+
+function renderPresentationsInModal(presentations, availableUnits = 0) {
+    console.log("presentations", presentations);
+    console.log("availableUnits", availableUnits);
+
+    $('#quantity_stock_show').val(Number(availableUnits).toFixed(0));
+
+    if (!presentations || presentations.length === 0) {
+        $('#presentationsArea').html(`
+            <div class="text-muted">
+                Este producto no tiene presentaciones configuradas.
+            </div>
+        `);
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 45%;">Presentación</th>
+                        <th style="width: 25%;">Precio</th>
+                        <th style="width: 30%;">Paquetes</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    presentations.forEach(function (p) {
+        const quantity = Number(p.quantity) || 0;
+        const price = Number(p.price) || 0;
+
+        const label = p.label && p.label.trim()
+            ? p.label
+            : `${quantity} unidades`;
+
+        html += `
+            <tr 
+                data-pres-row
+                data-pres-id="${p.id}"
+                data-pres-qty="${quantity}"
+                data-pres-price="${price}">
+                
+                <td>
+                    <strong>${label}</strong>
+                    <div class="text-muted" style="font-size:12px;">
+                        Equivale a ${quantity} unidades
+                    </div>
+                </td>
+
+                <td>S/. ${price.toFixed(2)}</td>
+
+                <td>
+                    <input 
+                        type="number"
+                        min="0"
+                        step="1"
+                        class="form-control form-control-sm"
+                        value="0"
+                        data-pres-packs>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    $('#presentationsArea').html(html);
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 function notAddProduct() {
@@ -374,9 +819,12 @@ function renderStockItemsVenta(items) {
             <tr 
                 data-stock-item-id="${item.stock_item_id}"
                 data-material-id="${item.material_id}"
+                data-product-name="${item.display_name || item.variant_text}"
+                data-product-unit="${item.unit || 'UND'}"
+                data-product-tax="${item.tax || 18}"
+                data-product-type="${item.type || 0}"
                 data-price="${item.price}"
-                data-stock="${item.stock_available}"
-            >
+                data-stock="${item.stock_available}">
                 <td>${item.variant_text || 'Presentación única'}</td>
                 <td>${item.sku || ''}</td>
                 <td>${item.barcode || ''}</td>
@@ -404,14 +852,15 @@ function renderStockItemsVenta(items) {
                         value="0"
                         min="0"
                         max="${item.stock_available}"
-                        ${disabledQty}>
+                        >
                 </td>
 
                 <td class="text-center">
                     <button 
                         type="button" 
                         class="btn btn-outline-primary btn-sm btn-presentacion-stock-item"
-                        data-stock-item-id="${item.stock_item_id}">
+                        data-material_id="${item.material_id}"
+                        data-stock_item_id="${item.stock_item_id}">
                         Presentación
                     </button>
                 </td>
@@ -420,6 +869,21 @@ function renderStockItemsVenta(items) {
     });
 
     $('#tbody-stock-items-venta').html(html);
+}
+
+function unlockCurrentStockItemQuantity() {
+    if (!$currentStockItemRow) return;
+
+    const hasSelectedPresentations =
+        $currentStockItemRow.find('.input-presentations-selected').length > 0;
+
+    if (!hasSelectedPresentations) {
+        $currentStockItemRow
+            .find('.input-cantidad-stock-item')
+            .prop('readonly', false)
+            .prop('disabled', false)
+            .removeAttr('title');
+    }
 }
 
 /*function showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock) {
@@ -1505,7 +1969,7 @@ function getDataTableNew($numberPage) {
     var category_id = $('#category_id').val();
     var product_search = $("#product_search").val();
 
-    $.get('/dashboard/get/data/products/'+$numberPage, {
+    $.get('/dashboard/get/data/products/v2/'+$numberPage, {
         category_id: category_id,
         product_search: product_search
     }, function(data) {
@@ -1709,7 +2173,7 @@ function getData($numberPage) {
     var category_id = $('#category_id').val();
     var product_search = $("#product_search").val();
     //console.log(nameCategoryEquipment);
-    $.get('/dashboard/get/data/products/'+$numberPage, {
+    $.get('/dashboard/get/data/products/v2/'+$numberPage, {
         category_id: category_id,
         product_search: product_search
     }, function(data) {

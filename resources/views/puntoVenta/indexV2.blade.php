@@ -8,7 +8,7 @@
     active
 @endsection
 
-@section('activeCreatePuntoVenta')
+@section('activeCreatePuntoVentaV2')
     active
 @endsection
 
@@ -347,6 +347,86 @@
             color: #007bff; /* Cambia este valor al color que prefieras */
         }
 
+        .presentation-selected-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+            min-width: 220px;
+        }
+
+        .custom-tooltip-container {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .input-presentations-selected {
+            width: 100%;
+            min-width: 0;
+            cursor: default;
+        }
+
+        .btn-remove-presentations {
+            flex: 0 0 auto;
+        }
+
+        /* Tooltip hacia abajo */
+        .custom-tooltip-box {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            top: auto;
+            left: 50%;
+            transform: translateX(-50%) translateY(6px);
+
+            min-width: 230px;
+            max-width: 340px;
+
+            background: #2563eb;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 10px;
+
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: normal;
+
+            box-shadow: 0 8px 25px rgba(0,0,0,.18);
+
+            opacity: 0;
+            visibility: hidden;
+            transition: all .18s ease;
+
+            z-index: 999999;
+            pointer-events: none;
+            text-align: left;
+        }
+
+        /* Flechita arriba del tooltip */
+        .custom-tooltip-box::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            border-width: 7px;
+            border-style: solid;
+            border-color: #2563eb transparent transparent transparent;
+        }
+
+        .custom-tooltip-container:hover .custom-tooltip-box {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #modalStockItemsVenta .modal-body,
+        #modalStockItemsVenta .table-responsive,
+        #modalStockItemsVenta table,
+        #modalStockItemsVenta td {
+            overflow: visible !important;
+        }
     </style>
 @endsection
 
@@ -492,7 +572,7 @@
 
                                                         <div class="form-check form-check-inline">
                                                             <input class="form-check-input" type="radio" name="invoice_type" id="radio_none" value="ninguno" checked>
-                                                            <label class="form-check-label" for="radio_none">Sin comprobante</label>
+                                                            <label class="form-check-label" for="radio_none">Ticket</label>
                                                         </div>
 
                                                         <div class="form-check form-check-inline">
@@ -509,13 +589,15 @@
                                                     <!-- Campos para Boleta -->
                                                     <div id="datos_boleta" class="d-none">
                                                         <div class="form-group">
-                                                            <label for="dni">Nombre <span style="color:red;">*</span></label>
-                                                            <input type="text" name="name" id="name" class="form-control">
-                                                        </div>
-                                                        <div class="form-group">
                                                             <label for="dni">DNI <span style="color:red;">*</span></label>
                                                             <input type="text" name="dni" class="form-control" >
                                                         </div>
+
+                                                        <div class="form-group">
+                                                            <label for="dni">Nombre <span style="color:red;">*</span></label>
+                                                            <input type="text" name="name" id="name" class="form-control">
+                                                        </div>
+
                                                         <div class="form-group">
                                                             <label for="email_invoice_boleta">Email (Opcional)</label>
                                                             <input type="text" name="email_invoice_boleta" class="form-control">
@@ -722,7 +804,7 @@
             </div>
         </div>
     </div>--}}
-    <div id="modalQuantity" class="modal fade" tabindex="-1">
+    {{--<div id="modalQuantity" class="modal fade" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
 
@@ -777,8 +859,63 @@
 
             </div>
         </div>
-    </div>
+    </div>--}}
 
+    <div id="modalPresentaciones" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header py-2">
+                    <h5 class="modal-title">Presentaciones</h5>
+
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="quantity_materialId">
+                    <input type="hidden" id="quantity_stockItemId">
+
+                    <div class="form-group mb-2">
+                        <label class="mb-1 font-weight-bold">
+                            Unidades disponibles
+                        </label>
+                        <input
+                                type="text"
+                                class="form-control form-control-sm"
+                                id="quantity_stock_show"
+                                readonly
+                                style="max-width: 140px;">
+                    </div>
+
+                    <div class="mb-2">
+                        <strong>Presentaciones</strong>
+                        <div class="text-muted" style="font-size: 12px;">
+                            Ingresa cuántos “paquetes” quieres vender.
+                        </div>
+                    </div>
+
+                    <div id="presentationsArea">
+                        <div class="text-muted">Cargando presentaciones...</div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="button" id="btnAgregarPresentaciones" class="btn btn-success btn-sm">
+                        Agregar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
     {{--<template id="item-cart">
         <div class="d-flex align-items-center mb-3 w-100">
             <div class="flex-grow-1 ms-3">
