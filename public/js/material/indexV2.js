@@ -542,6 +542,20 @@ var $modalPrecioPercentage;
 var $formPrecioDirecto;
 var $formPrecioPorcentaje;
 
+function calcularColor(fechaVencimiento) {
+    var hoy = new Date();
+    var vencimiento = new Date(fechaVencimiento);
+    var diferencia = (vencimiento - hoy) / (1000 * 60 * 60 * 24); // en días
+
+    if(diferencia < 0) {
+        return 'danger'; // rojo
+    } else if(diferencia <= 5) {
+        return 'warning'; // amarillo
+    } else {
+        return 'success'; // verde
+    }
+}
+
 function openInventoryLevelsModal(materialId) {
     const url = window.materialInventoryLevelsUrl.replace(':id', materialId);
 

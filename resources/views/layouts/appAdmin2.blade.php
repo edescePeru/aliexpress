@@ -269,9 +269,17 @@
                             <li class="nav-item">
                                 <a href="{{ route('puntoVenta.index') }}" class="nav-link @yield('activeCreatePuntoVenta')">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Crear venta</p>
+                                    <p>Crear venta V1</p>
                                 </a>
                             </li>
+                            @endcan
+                            @can('createV2_puntoVenta')
+                                <li class="nav-item">
+                                    <a href="{{ route('puntoVenta.indexV2') }}" class="nav-link @yield('activeCreatePuntoVentaV2')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Crear venta V2</p>
+                                    </a>
+                                </li>
                             @endcan
                             @can('list_puntoVenta')
                             <li class="nav-item">

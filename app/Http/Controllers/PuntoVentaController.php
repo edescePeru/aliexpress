@@ -87,6 +87,39 @@ class PuntoVentaController extends Controller
         ));
     }
 
+    public function indexV2()
+    {
+        $categories = Category::all();
+        $tipoPagos  = TipoPago::all();
+
+        // Si no existe, se crea con valueText = 'no'
+        $cfg = DataGeneral::firstOrCreate(
+            ['name' => 'punto_venta_worker'],
+            ['valueText' => 'no']
+        );
+
+        // True solo si está configurado en "si"
+        $askWorker = strtolower($cfg->valueText) === 'si';
+
+        // Lista de trabajadores habilitados
+        $workers = Worker::where('enable', true)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+
+        return view('puntoVenta.indexV2', compact(
+            'categories',
+            'tipoPagos',
+            'askWorker',
+            'workers',
+            'cashBoxes','subtypes'
+        ));
+    }
+
     public function getDataProductsO(Request $request, $pageNumber = 1)
     {
         $perPage = 10;
@@ -271,68 +304,6 @@ class PuntoVentaController extends Controller
 
         $materialsLegacy = [];
 
-        /*$materialsLegacyQuery = Material::with([
-            'category:id,description',
-            'unitMeasure:id,description',
-            'typeTax:id,tax',
-            'tipoVenta:id',
-        ])
-            ->where('enable_status', 1)
-            ->whereDoesntHave('stockItems');
-
-        if ($categoryId !== '') {
-            $materialsLegacyQuery->where('category_id', $categoryId);
-        }
-
-        if ($productSearch !== '') {
-            $search = $productSearch;
-
-            $materialsLegacyQuery->where(function ($q) use ($search) {
-                $q->where('codigo', $search)
-                    ->orWhere('code', $search)
-                    ->orWhere('full_name', 'like', '%' . $search . '%');
-            });
-
-            $materialsLegacyQuery->orderByRaw("
-            CASE
-                WHEN codigo = ? THEN 0
-                WHEN code = ? THEN 0
-                ELSE 1
-            END
-        ", [$search, $search]);
-        }
-
-        $materialsLegacy = $materialsLegacyQuery->get()
-            ->map(function ($material) {
-                $stock = (float) ($material->stock_current ?? 0);
-
-                if ($stock <= 0) {
-                    return null;
-                }
-
-                return [
-                    'source' => 'material_legacy',
-                    'id' => $material->id, // aquí sí sigue siendo material_id
-                    'material_id' => $material->id,
-                    'full_name' => $material->full_name ?? '',
-                    'category' => optional($material->category)->description ?? '',
-                    'price' => (float) ($material->list_price ?? 0),
-                    'stock' => $stock,
-                    'image' => $material->image,
-                    'image_url' => !empty($material->image)
-                        ? asset('images/material/' . $material->image)
-                        : asset('images/material/no_image.png'),
-                    'unit' => optional($material->unitMeasure)->description ?? '',
-                    'tax' => optional($material->typeTax)->tax ?? 18,
-                    'rating' => 4,
-                    'type' => optional($material->tipoVenta)->id ?? 0,
-                    'sku' => '',
-                    'barcode' => $material->codigo ?? $material->code ?? '',
-                ];
-            })
-            ->filter()
-            ->values();*/
-
         /**
          * =========================================================
          * 3) Unir y paginar
@@ -350,6 +321,246 @@ class PuntoVentaController extends Controller
         $pageNumber = max(1, (int) $pageNumber);
 
         $pagedProducts = $allProducts
+            ->slice(($pageNumber - 1) * $perPage, $perPage)
+            ->values();
+
+        $startRecord = $totalFilteredRecords > 0
+            ? (($pageNumber - 1) * $perPage + 1)
+            : 0;
+
+        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
+
+        $pagination = [
+            'currentPage' => (int) $pageNumber,
+            'totalPages' => (int) $totalPages,
+            'startRecord' => $startRecord,
+            'endRecord' => $endRecord,
+            'totalRecords' => $totalFilteredRecords,
+            'totalFilteredRecords' => $totalFilteredRecords,
+        ];
+
+        return [
+            'data' => $pagedProducts->toArray(),
+            'pagination' => $pagination,
+        ];
+    }
+
+    public function getStockItemsByMaterial($materialId)
+    {
+        $defaultPriceList = PriceList::where('is_default', 1)
+            ->where('is_active', 1)
+            ->first();
+
+        $stockItems = StockItem::with([
+            'variant',
+            'variant.talla:id,name,short_name',
+            'variant.color:id,name',
+            'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
+            'priceListItems' => function ($q) use ($defaultPriceList) {
+                if ($defaultPriceList) {
+                    $q->where('price_list_id', $defaultPriceList->id);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            }
+        ])
+            ->where('material_id', $materialId)
+            ->where('is_active', 1)
+            ->get()
+            ->map(function ($stockItem) {
+                $stockCurrent = $stockItem->inventoryLevels->sum(function ($level) {
+                    return (float) ($level->qty_on_hand ?? 0);
+                });
+
+                $stockReserved = $stockItem->inventoryLevels->sum(function ($level) {
+                    return (float) ($level->qty_reserved ?? 0);
+                });
+
+                $stockAvailable = max(0, $stockCurrent - $stockReserved);
+
+                if ($stockAvailable <= 0) {
+                    return null;
+                }
+
+                $variantText = 'Presentación única';
+
+                if ($stockItem->variant) {
+                    if ($stockItem->variant->attribute_summary) {
+                        $variantText = $stockItem->variant->attribute_summary;
+                    } else {
+                        $talla = optional($stockItem->variant->talla)->short_name
+                            ?: optional($stockItem->variant->talla)->name;
+
+                        $color = optional($stockItem->variant->color)->name;
+
+                        $variantText = collect([$talla, $color])
+                            ->filter()
+                            ->implode(' / ');
+                    }
+                }
+
+                return [
+                    'stock_item_id' => $stockItem->id,
+                    'material_id' => $stockItem->material_id,
+                    'variant_id' => $stockItem->variant_id,
+                    'variant_text' => $variantText,
+                    'sku' => $stockItem->sku ?? '',
+                    'barcode' => $stockItem->barcode ?? '',
+                    'display_name' => $stockItem->display_name ?? '',
+                    'stock_available' => (float) $stockAvailable,
+                    'price' => (float) (optional($stockItem->priceListItems->first())->price ?? 0),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $stockItems,
+        ]);
+    }
+
+    public function getDataProductsV2(Request $request, $pageNumber = 1)
+    {
+        $perPage = 12;
+        $categoryId = trim((string) $request->input('category_id', ''));
+        $productSearch = trim((string) $request->input('product_search', ''));
+
+        $defaultPriceList = PriceList::where('is_default', 1)
+            ->where('is_active', 1)
+            ->first();
+
+        /**
+         * =========================================================
+         * 1) MATERIALS PADRES
+         *    La búsqueda sigue usando stock_items:
+         *    sku, barcode, display_name + material.full_name
+         * =========================================================
+         */
+        $materialsQuery = Material::with([
+            'category:id,description',
+            'unitMeasure:id,description',
+            'typeTax:id,tax',
+            'tipoVenta:id',
+            'stockItems' => function ($q) use ($defaultPriceList) {
+                $q->where('is_active', 1)
+                    ->with([
+                        'variant',
+                        'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
+                        'priceListItems' => function ($pq) use ($defaultPriceList) {
+                            if ($defaultPriceList) {
+                                $pq->where('price_list_id', $defaultPriceList->id);
+                            } else {
+                                $pq->whereRaw('1 = 0');
+                            }
+                        }
+                    ]);
+            }
+        ])
+            ->where('enable_status', 1);
+
+        if ($categoryId !== '') {
+            $materialsQuery->where('category_id', $categoryId);
+        }
+
+        if ($productSearch !== '') {
+            $search = $productSearch;
+
+            $materialsQuery->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%')
+                    ->orWhere('codigo', 'like', '%' . $search . '%')
+                    ->orWhereHas('stockItems', function ($sq) use ($search) {
+                        $sq->where('is_active', 1)
+                            ->where(function ($ssq) use ($search) {
+                                $ssq->where('sku', 'like', '%' . $search . '%')
+                                    ->orWhere('barcode', 'like', '%' . $search . '%')
+                                    ->orWhere('display_name', 'like', '%' . $search . '%');
+                            });
+                    });
+            });
+
+            $materialsQuery->orderByRaw("
+            CASE
+                WHEN full_name = ? THEN 0
+                WHEN code = ? THEN 0
+                WHEN codigo = ? THEN 0
+                ELSE 1
+            END
+        ", [$search, $search, $search]);
+        }
+
+        $materials = $materialsQuery->get()
+            ->map(function ($material) {
+                $stockItems = $material->stockItems ?? collect();
+
+                $stockCurrent = $stockItems->sum(function ($stockItem) {
+                    return $stockItem->inventoryLevels->sum(function ($level) {
+                        return (float) ($level->qty_on_hand ?? 0);
+                    });
+                });
+
+                $stockReserved = $stockItems->sum(function ($stockItem) {
+                    return $stockItem->inventoryLevels->sum(function ($level) {
+                        return (float) ($level->qty_reserved ?? 0);
+                    });
+                });
+
+                $stockAvailable = max(0, $stockCurrent - $stockReserved);
+
+                if ($stockAvailable <= 0) {
+                    return null;
+                }
+
+                $firstStockItem = $stockItems->first();
+
+                $price = 0;
+
+                if ($firstStockItem) {
+                    $price = optional($firstStockItem->priceListItems->first())->price ?? 0;
+                }
+
+                return [
+                    'source' => 'material',
+                    'id' => $material->id,
+                    'material_id' => $material->id,
+                    'full_name' => $material->full_name ?? '',
+                    'category' => optional($material->category)->description ?? '',
+                    'price' => (float) $price,
+                    'stock' => (float) $stockAvailable,
+                    'image' => $material->image ?? optional($firstStockItem)->display_image,
+                    'image_url' => $material->image_url ?? optional($firstStockItem)->display_image_url,
+                    'unit' => optional($material->unitMeasure)->description ?? '',
+                    'tax' => optional($material->typeTax)->tax ?? 18,
+                    'rating' => 4,
+                    'type' => optional($material->tipoVenta)->id ?? 0,
+
+                    // Datos referenciales del primer stock item
+                    'sku' => optional($firstStockItem)->sku ?? '',
+                    'barcode' => optional($firstStockItem)->barcode ?? '',
+
+                    // Útil para saber si debe abrir modal de variantes
+                    'has_variants' => $stockItems->whereNotNull('variant_id')->count() > 0,
+                    'stock_items_count' => $stockItems->count(),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        /**
+         * =========================================================
+         * 2) Paginar
+         * =========================================================
+         */
+        $totalFilteredRecords = $materials->count();
+
+        $totalPages = $totalFilteredRecords > 0
+            ? (int) ceil($totalFilteredRecords / $perPage)
+            : 1;
+
+        $pageNumber = max(1, (int) $pageNumber);
+
+        $pagedProducts = $materials
             ->slice(($pageNumber - 1) * $perPage, $perPage)
             ->values();
 

@@ -2735,9 +2735,12 @@ Route::middleware('auth')->group(function (){
             ->middleware('permission:download_referralGuide');
 
         // TODO: Rutas Punto de Venta
-        Route::get('/crear/venta/', 'PuntoVentaController@index')
+        Route::get('/crear/venta/V1', 'PuntoVentaController@index')
             ->name('puntoVenta.index');
+        Route::get('/crear/venta/V2', 'PuntoVentaController@indexV2')
+            ->name('puntoVenta.indexV2');
         Route::get('/get/data/products/{page}', 'PuntoVentaController@getDataProducts');
+        Route::get('/get/data/products/v2/{page}', 'PuntoVentaController@getDataProductsV2');
         Route::get('/get/discount/product/{product_id}', 'PuntoVentaController@getDiscountProduct');
         Route::post('/store/venta/', 'PuntoVentaController@store')
             ->name('puntoVenta.store');
@@ -3150,6 +3153,8 @@ Route::middleware('auth')->group(function (){
 
         Route::get('/materials/{material}/stock-items-entry', 'MaterialController@getStockItemsForEntry')
             ->name('materials.stock-items.entry');
+
+        Route::get('/get/material/{material}/stock-items', 'PuntoVentaController@getStockItemsByMaterial')->name('get.stock-items.by.material');
     });
 });
 
