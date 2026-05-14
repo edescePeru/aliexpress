@@ -323,6 +323,13 @@ return [
     'list_quote' => 'Listar Cotizaciones',
     'list_quoteSale' => 'Ver listado de cotizaciones de ventas',
     'generarComprobante_quoteSale' => 'Generar comprobantes de cotizaciones',
+
+    'generarBoleta_quoteSale' => 'Generar Boleta de cotizaciones',
+    'generarFactura_quoteSale' => 'Generar Factura de cotizaciones',
+
+    'generarBoleta_puntoVenta' => 'Generar Boleta de punto de venta',
+    'generarFactura_puntoVenta' => 'Generar Factura de punto de venta',
+
     'list_referralGuide' => 'Listar guías de remisión',
     'list_refund' => 'Listar reembolsos',
     'list_report' => 'Listar reportes',

@@ -494,16 +494,18 @@
                                                             <input class="form-check-input" type="radio" name="invoice_type" id="radio_none" value="ninguno" checked>
                                                             <label class="form-check-label" for="radio_none">Sin comprobante</label>
                                                         </div>
-
+                                                        @can('generarBoleta_puntoVenta')
                                                         <div class="form-check form-check-inline">
                                                             <input class="form-check-input" type="radio" name="invoice_type" id="radio_boleta" value="boleta">
                                                             <label class="form-check-label" for="radio_boleta">Boleta</label>
                                                         </div>
-
+                                                        @endcan
+                                                        @can('generarFactura_puntoVenta')
                                                         <div class="form-check form-check-inline">
                                                             <input class="form-check-input" type="radio" name="invoice_type" id="radio_factura" value="factura">
                                                             <label class="form-check-label" for="radio_factura">Factura</label>
                                                         </div>
+                                                        @endcan
                                                     </div>
 
                                                     <!-- Campos para Boleta -->

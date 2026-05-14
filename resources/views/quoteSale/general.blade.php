@@ -249,12 +249,16 @@
         <div class="row">
             <div class="container-fluid">
                 <div class="row text-center">
+                    @can('generarBoleta_quoteSale')
                     <div class="col">
                         <a href="{{ route('show.register.comprobante', 'Boleta') }}" type="button" class="btn btn-primary btn-block">Boleta</a>
                     </div>
+                    @endcan
+                    @can('generarFactura_quoteSale')
                     <div class="col">
                         <a href="{{ route('show.register.comprobante', 'Factura') }}" type="button" class="btn btn-success btn-block">Factura</a>
                     </div>
+                    @endcan
                     <div class="col">
                         <a href="{{ route('show.register.comprobante', 'Ticket') }}" type="button" class="btn btn-info btn-block">Ticket de venta</a>
                     </div>
