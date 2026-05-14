@@ -492,7 +492,7 @@
 
                                                         <div class="form-check form-check-inline">
                                                             <input class="form-check-input" type="radio" name="invoice_type" id="radio_none" value="ninguno" checked>
-                                                            <label class="form-check-label" for="radio_none">Sin comprobante</label>
+                                                            <label class="form-check-label" for="radio_none">Ticket</label>
                                                         </div>
                                                         @can('generarBoleta_puntoVenta')
                                                         <div class="form-check form-check-inline">
