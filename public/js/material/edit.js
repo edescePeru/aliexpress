@@ -424,6 +424,7 @@ function generateVariantsEdit() {
     let tallas = getSelectedOptionsData('#talla');
     let colores = getSelectedOptionsData('#color');
     let skuBase = generateSkuBase();
+    let genero = getAbbr(getSelectedText('#genero'));
 
     if (tallas.length === 0) {
         toastr.warning('Debe seleccionar al menos una talla.');
@@ -450,7 +451,7 @@ function generateVariantsEdit() {
                 return;
             }
 
-            const sku = generateVariantSku(skuBase, talla, color);
+            const sku = generateVariantSku(skuBase, talla, color, genero);
 
             let item = {
                 variant_id: null,
@@ -490,14 +491,15 @@ function generateVariantsEdit() {
     }
 }
 
-function generateVariantSku(skuBase, tallaData, colorData) {
+function generateVariantSku(skuBase, tallaData, colorData, genero) {
     const tallaCode = (tallaData.shortName || tallaData.text || '').toString().trim().toUpperCase();
     const colorCode = (colorData.shortName || colorData.text || '').toString().trim().toUpperCase();
 
     let parts = [
         skuBase,
         tallaCode,
-        colorCode
+        colorCode,
+        genero
     ].filter(part => part !== '');
 
     return parts.join('-');
@@ -562,8 +564,7 @@ function generateSkuBase() {
     let parts = [
         description,
         brand,
-        exampler,
-        genero
+        exampler
     ].filter(part => part !== '');
 
     return parts.join('-');

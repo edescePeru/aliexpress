@@ -280,7 +280,7 @@
                                 </div>
 
                                 <div class="col-md-1">
-                                    <label for="afecto_inventario_sin_variantes">Inentariable </label><br>
+                                    <label for="afecto_inventario_sin_variantes">Inventariable </label><br>
                                     <input type="checkbox"
                                            name="afecto_inventario_sin_variantes"
                                            id="afecto_inventario_sin_variantes"

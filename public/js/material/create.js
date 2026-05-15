@@ -233,6 +233,7 @@ function generateVariants() {
     let tallas = getSelectedOptionsData('#talla');
     let colores = getSelectedOptionsData('#color');
     let skuBase = generateSkuBase();
+    let genero  = getAbbr(getSelectedText('#genero'));
 
     if (tallas.length === 0) {
         toastr.warning('Debe seleccionar al menos una talla.');
@@ -254,7 +255,7 @@ function generateVariants() {
     colores.forEach(function (color) {
         tallas.forEach(function (talla) {
             if (!existsVariant(talla.id, color.id)) {
-                appendVariantRow(talla, color, skuBase);
+                appendVariantRow(talla, color, skuBase, genero);
                 generatedCount++;
             }
         });
@@ -340,10 +341,10 @@ function existsVariant(tallaId, colorId) {
     return exists;
 }
 
-function appendVariantRow(talla, color, skuBase) {
+function appendVariantRow(talla, color, skuBase, genero) {
     let tallaSku = cleanText(talla.shortName || talla.text);
     let colorSku = cleanText(color.shortName || color.text);
-    let skuFinal = [skuBase, tallaSku, colorSku].filter(Boolean).join('-');
+    let skuFinal = [skuBase, tallaSku, colorSku, genero].filter(Boolean).join('-');
 
     let template = document.querySelector('#template-variante').content.cloneNode(true);
     let $template = $(template);
@@ -394,8 +395,7 @@ function generateSkuBase() {
     let parts = [
         description,
         brand,
-        exampler,
-        genero
+        exampler
 
     ].filter(part => part !== '');
 
