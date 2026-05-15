@@ -1729,6 +1729,10 @@ class PuntoVentaController extends Controller
                 $direccion_cliente = $request->address;
                 $tipo_documento_cliente = '1';
                 $email_cliente = $request->email_invoice_boleta;
+
+                if (!preg_match('/^\d{8}$/', $numero_documento_cliente)) {
+                    throw new \Exception("El DNI debe contener exactamente 8 dígitos.");
+                }
             } elseif ($request->invoice_type === 'factura') {
                 $type_document = '01';
                 $numero_documento_cliente = $request->ruc;
@@ -1736,6 +1740,11 @@ class PuntoVentaController extends Controller
                 $direccion_cliente = $request->direccion_fiscal;
                 $tipo_documento_cliente = '6';
                 $email_cliente = $request->email_invoice_factura;
+
+                if (!preg_match('/^\d{11}$/', $numero_documento_cliente)) {
+                    throw new \Exception("El RUC debe contener exactamente 11 dígitos.");
+                }
+
             }
 
             $sale = Sale::create([

@@ -5660,6 +5660,34 @@ class QuoteSaleController extends Controller
                 throw new \Exception("La cotización ya fue convertida en una venta activa.");
             }
 
+            $tipoComprobante = $request->tipo_documento_cliente; // 01 boleta, 03 factura
+            $typeDocument = $request->type_document; // 1 DNI, 6 RUC
+            $numeroDocumento = preg_replace('/\D/', '', $request->numero_documento_cliente);
+
+            // Boleta = DNI
+            if ($tipoComprobante === '01') {
+
+                if ((string) $typeDocument !== '1') {
+                    throw new \Exception("Para emitir una boleta, el tipo de documento debe ser DNI.");
+                }
+
+                if (!preg_match('/^\d{8}$/', $numeroDocumento)) {
+                    throw new \Exception("El DNI debe contener exactamente 8 dígitos.");
+                }
+            }
+
+            // Factura = RUC
+            if ($tipoComprobante === '03') {
+
+                if ((string) $typeDocument !== '6') {
+                    throw new \Exception("Para emitir una factura, el tipo de documento debe ser RUC.");
+                }
+
+                if (!preg_match('/^\d{11}$/', $numeroDocumento)) {
+                    throw new \Exception("El RUC debe contener exactamente 11 dígitos.");
+                }
+            }
+
             // ===========================
             // 1) Crear venta (Sale)
             // ===========================
@@ -5684,7 +5712,7 @@ class QuoteSaleController extends Controller
                 'quote_id' => $quote->id,
 
                 'type_document'            => $request->type_document,
-                'numero_documento_cliente' => $request->numero_documento_cliente,
+                'numero_documento_cliente' => $numeroDocumento,
                 'tipo_documento_cliente'   => $request->tipo_documento_cliente,
                 'nombre_cliente'           => $request->nombre_cliente,
                 'direccion_cliente'        => $request->direccion_cliente,

@@ -1,5 +1,9 @@
 $(document).ready(function () {
 
+    $(document).on('input', '#dniCliente, #rucCliente', function () {
+        this.value = this.value.replace(/\D/g, '');
+    });
+
     $('#btn-submit').prop('disabled', true);
 
     // ==============================
@@ -281,31 +285,68 @@ $(document).ready(function () {
         }
 
         if (typeComprobante === 'Boleta' || typeComprobante === 'Ticket') {
-            nombre_cliente = $('#nameCliente').val();
-            numero_documento = $('#dniCliente').val();
-            if (!nombre_cliente || !numero_documento ) {
+
+            nombre_cliente = $('#nameCliente').val().trim();
+            numero_documento = $('#dniCliente').val().trim();
+
+            if (!nombre_cliente || !numero_documento) {
                 $.alert({
                     title: 'Campos incompletos',
                     content: 'Por favor complete Nombre y DNI',
                     type: 'red',
+                    buttons: {
+                        ok: {
+                            text: 'OK',
+                            btnClass: 'btn-danger'
+                        }
+                    }
+                });
+                return;
+            }
+
+            // Validar DNI
+            if (!/^\d{8}$/.test(numero_documento)) {
+                $.alert({
+                    title: 'DNI inválido',
+                    content: 'El DNI debe contener exactamente 8 dígitos',
+                    type: 'red',
                     buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
                 });
+
                 return;
             }
         }
 
         if (typeComprobante === 'Factura') {
-            numero_documento = $('#rucCliente').val();
-            nombre_cliente = $('#razonCliente').val();
-            direccion_cliente = $('#direccionCliente').val();
+
+            numero_documento = $('#rucCliente').val().trim();
+            nombre_cliente = $('#razonCliente').val().trim();
+            direccion_cliente = $('#direccionCliente').val().trim();
 
             if (!numero_documento || !nombre_cliente || !direccion_cliente) {
                 $.alert({
                     title: 'Campos incompletos',
                     content: 'Por favor complete RUC, Razón Social y Dirección Fiscal',
                     type: 'red',
+                    buttons: {
+                        ok: {
+                            text: 'OK',
+                            btnClass: 'btn-danger'
+                        }
+                    }
+                });
+                return;
+            }
+
+            // Validar RUC
+            if (!/^\d{11}$/.test(numero_documento)) {
+                $.alert({
+                    title: 'RUC inválido',
+                    content: 'El RUC debe contener exactamente 11 dígitos.',
+                    type: 'red',
                     buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
                 });
+
                 return;
             }
         }

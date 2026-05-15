@@ -151,7 +151,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label for="dniCliente">DNI <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="text" id="dniCliente" name="dniCliente" class="form-control form-control-sm">
+                                    <input type="text" maxlength="8" id="dniCliente" name="dniCliente" class="form-control form-control-sm">
                                 </div>
                                 <div class="col-md-4">
                                     <label for="emailCliente">Email (opcional)</label>
@@ -166,7 +166,7 @@
                                 </div>
                                 <div class="col-md-3">
                                     <label for="razonCliente">Razón Social <span class="right badge badge-danger">(*)</span></label>
-                                    <input type="text" id="razonCliente" name="razonCliente" class="form-control form-control-sm">
+                                    <input type="text" maxlength="11" id="razonCliente" name="razonCliente" class="form-control form-control-sm">
                                 </div>
                                 <div class="col-md-3">
                                     <label for="direccionCliente">Dirección Fiscal <span class="right badge badge-danger">(*)</span></label>
