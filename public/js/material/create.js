@@ -297,12 +297,13 @@ function getAbbr(text, length = 3) {
     let words = text.split(/\s+/).filter(Boolean);
 
     // Si es una sola palabra → primeras 3 letras
-    if (words.length === 1) {
+    /*if (words.length === 1) {
         return words[0].substring(0, 3);
-    }
+    }*/
+    return words[0].substring(0, 3);
 
     // Si son varias palabras → iniciales
-    return words.map(w => w.charAt(0)).join('');
+    // return words.map(w => w.charAt(0)).join('');
 }
 
 function getSelectedText(selector) {

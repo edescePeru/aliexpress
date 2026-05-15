@@ -597,12 +597,12 @@ function getAbbr(text) {
     const words = text.split(' ').filter(Boolean);
 
     // Si es una sola palabra, toma hasta 3 caracteres
-    if (words.length === 1) {
+    /*if (words.length === 1) {
         return words[0].substring(0, 3).toUpperCase();
-    }
-
+    }*/
+    return words[0].substring(0, 3).toUpperCase();
     // Si son varias palabras, toma iniciales
-    return words.map(word => word.charAt(0).toUpperCase()).join('');
+    // return words.map(word => word.charAt(0).toUpperCase()).join('');
 }
 
 function buildDefaultInventoryLevels() {
