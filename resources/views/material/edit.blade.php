@@ -177,7 +177,7 @@
                                     <select id="genero" name="genero" class="form-control select2" style="width: 83%;">
                                         <option></option>
                                         @foreach( $generos as $genero )
-                                            <option value="{{ $genero->id }}" {{ ($genero->id === $material->warrant_id) ? 'selected':'' }}>{{ $genero->description }}</option>
+                                            <option value="{{ $genero->id }}" {{ ($genero->id === $material->warrant_id) ? 'selected':'' }}>{{ $genero->name }}</option>
                                         @endforeach
                                     </select>
                                     <div class="input-group-append">
