@@ -383,13 +383,15 @@ function getSwitchText() {
 }
 
 function generateSkuBase() {
+    let description  = getAbbr($('#description').val());
+
     let brand        = getAbbr(getSelectedText('#brand'));
     let exampler     = getAbbr(getSelectedText('#exampler'));
     let subcategory  = getAbbr(getSelectedText('#subcategory'));
     let genero       = getAbbr(getSelectedText('#genero'));
 
     let parts = [
-        subcategory,
+        description,
         brand,
         exampler,
         genero
@@ -403,7 +405,8 @@ function generateSkuBase() {
 }
 
 function generateSku() {
-    //let description  = getAbbr($('#description').val());
+    let description  = getAbbr($('#description').val());
+
     let brand        = getAbbr(getSelectedText('#brand'));
     let exampler     = getAbbr(getSelectedText('#exampler'));
     let category     = getAbbr(getSelectedText('#category'));
@@ -425,12 +428,12 @@ function generateSku() {
     ].filter(part => part !== '');*/
 
     let parts = [
-        subcategory,
+        description,
         brand,
         exampler,
-        genero,
         talla,
-        color
+        color,
+        genero
     ].filter(part => part !== '');
 
     let sku = parts.join('-');

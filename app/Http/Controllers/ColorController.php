@@ -36,7 +36,8 @@ class ColorController extends Controller
             'message' => 'Color guardado con éxito.',
             'data' => [
                 'id' => $color->id,
-                'description' => $color->name
+                'description' => $color->name,
+                'short_name' => $color->short_name
             ]
         ], 200);
     }

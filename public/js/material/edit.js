@@ -552,13 +552,15 @@ function getSelectedOptionsData(selector) {
 }
 
 function generateSkuBase() {
+    let description  = getAbbr($('#description').val());
+
     let brand = getAbbr(getSelectedText('#brand'));
     let exampler = getAbbr(getSelectedText('#exampler'));
     let subcategory = getAbbr(getSelectedText('#subcategory'));
     let genero = getAbbr(getSelectedText('#genero'));
 
     let parts = [
-        subcategory,
+        description,
         brand,
         exampler,
         genero
