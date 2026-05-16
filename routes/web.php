@@ -3155,8 +3155,14 @@ Route::middleware('auth')->group(function (){
             ->name('materials.stock-items.entry');
 
         Route::get('/get/material/{material}/stock-items', 'PuntoVentaController@getStockItemsByMaterial')->name('get.stock-items.by.material');
+
+        Route::get('/customer/search-or-create/{documento}', 'CustomerController@searchOrCreateByDocument')
+            ->name('customer.searchOrCreateByDocument');
     });
 });
+
+Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');
+Route::get('/test-dni/{dni}', 'CustomerController@testDni');
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/get/type/exchange', 'FinanceWorkController@getTypeExchange');

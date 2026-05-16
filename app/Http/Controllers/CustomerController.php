@@ -10,6 +10,7 @@ use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Http\Requests\RestoreCustomerRequest;
 
+use App\Services\DecolectaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -217,5 +218,53 @@ class CustomerController extends Controller
             'address' => $customer->address,
             'email' => $email,
         ]);
+    }
+
+    public function testDni($dni, DecolectaService $decolecta) {
+        try {
+            return response()->json($decolecta->consultarDni($dni));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function testRuc($ruc, DecolectaService $decolecta) {
+        try {
+            return response()->json($decolecta->consultarRuc($ruc));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function searchOrCreateByDocument($documento, DecolectaService $decolectaService)
+    {
+        try {
+            $result = $decolectaService->buscarOCrearClientePorDocumento($documento);
+
+            $customer = $result['customer'];
+
+            return response()->json([
+                'success' => true,
+                'created' => $result['created'],
+                'source' => $result['source'],
+                'customer' => [
+                    'id' => $customer->id,
+                    'business_name' => $customer->business_name,
+                    'RUC' => $customer->RUC,
+                    'address' => $customer->address,
+                    'location' => $customer->location,
+                ],
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

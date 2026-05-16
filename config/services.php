@@ -41,4 +41,9 @@ return [
         'url'   => env('NUBEFACT_API_URL'),
     ],
 
+    'decolecta' => [
+        'token' => env('DECOLECTA_TOKEN'),
+        'url'   => env('DECOLECTA_URL', 'https://api.decolecta.com/v1'),
+    ],
+
 ];
