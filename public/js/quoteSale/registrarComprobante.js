@@ -70,18 +70,30 @@ $(document).ready(function () {
     // Bloquear datos de comprobantes
     // ==============================
     function bloquearDatosComprobante() {
+        let typeComprobante = $('#typeComprobante').val();
+        if ( typeComprobante == 'Boleta' )
+        {
+            // Boleta
+            $('#nameCliente').prop('readonly', true);
+        } else {
+            // Factura
+            if ( typeComprobante == 'Factura' )
+            {
+                $('#razonCliente').prop('readonly', true);
+                $('#direccionCliente').prop('readonly', true);
+            } else {
+                $('#razonCliente').prop('readonly', false);
+                $('#direccionCliente').prop('readonly', false);
+            }
+        }
 
-        // Boleta
-        $('#nameCliente').prop('readonly', true);
-
-        // Factura
-        $('#razonCliente').prop('readonly', true);
-        $('#direccionCliente').prop('readonly', true);
     }
 
     bloquearDatosComprobante();
 
     $(document).on('keydown', '#dniCliente, #rucCliente', function (e) {
+
+        let typeComprobante = $('#typeComprobante').val();
 
         if (e.key !== 'Enter') {
             return;
@@ -105,7 +117,10 @@ $(document).ready(function () {
             return;
         }
 
-        consultarClientePorDocumento(documento, tipo);
+        if ( typeComprobante != 'Ticket' )
+        {
+            consultarClientePorDocumento(documento, tipo);
+        }
 
     });
 
