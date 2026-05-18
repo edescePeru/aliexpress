@@ -124,6 +124,8 @@ $(document).ready(function () {
     $('input[name="invoice_type"]').on('change', function() {
         let tipo = $(this).val();
 
+        $('#datos_boleta input, #datos_factura input').val('');
+
         if (tipo === 'boleta') {
             $('#datos_boleta').removeClass('d-none');
             $('#datos_factura').addClass('d-none');
@@ -136,8 +138,10 @@ $(document).ready(function () {
             $('#datos_factura').addClass('d-none');
 
             // Limpiar inputs
-            $('#datos_boleta input, #datos_factura input').val('');
+            //$('#datos_boleta input, #datos_factura input').val('');
         }
+
+        bloquearDatosComprobante();
     });
 
     $('#pv_cash_box_id').on('change', function () {
@@ -471,6 +475,30 @@ $(document).ready(function () {
 
         toastr.success('Productos agregados al carrito.');
     });
+
+    $(document).on('keydown', '#dni, #ruc', function (e) {
+        if (e.key !== 'Enter') {
+            return;
+        }
+
+        e.preventDefault();
+
+        let input = $(this);
+        let documento = input.val().replace(/\D/g, '');
+        let tipo = input.attr('id');
+
+        if (tipo === 'dni' && documento.length !== 8) {
+            toastr.error('El DNI debe tener exactamente 8 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        if (tipo === 'ruc' && documento.length !== 11) {
+            toastr.error('El RUC debe tener exactamente 11 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        consultarClientePorDocumento(documento, tipo);
+    });
 });
 
 let $items = [];
@@ -493,6 +521,72 @@ let $sale_id = null;
 let $modalQuantity;
 
 let $presentationsCache = {}; // materialId -> array presentations
+
+function consultarClientePorDocumento(documento, tipo) {
+    $.ajax({
+        url: `/dashboard/customer/decolecta/${documento}`,
+        type: 'GET',
+        dataType: 'json',
+        beforeSend: function () {
+            if (tipo === 'dni') {
+                $('#name').val('Consultando...');
+            }
+
+            if (tipo === 'ruc') {
+                $('#razon_social').val('Consultando...');
+                $('#direccion_fiscal').val('Consultando...');
+            }
+        },
+        success: function (response) {
+            if (!response.success) {
+                toastr.error(response.message || 'No se pudo consultar el documento.', 'Error');
+                return;
+            }
+
+            let customer = response.customer;
+
+            if (tipo === 'dni') {
+                $('#dni').val(customer.RUC);
+                $('#name').val(customer.business_name || '');
+            }
+
+            if (tipo === 'ruc') {
+                $('#ruc').val(customer.RUC);
+                $('#razon_social').val(customer.business_name || '');
+                $('#direccion_fiscal').val(customer.address || '');
+            }
+
+            let mensaje = 'Documento consultado correctamente.';
+            toastr.success(mensaje, 'Correcto');
+        },
+        error: function (xhr) {
+            let message = xhr.responseJSON && xhr.responseJSON.message
+                ? xhr.responseJSON.message
+                : 'No se encontró información. Puede ingresarlo manualmente.';
+
+            toastr.warning(message + ' Puede ingresarlo manualmente.', 'Consulta sin resultado');
+
+            if (tipo === 'dni') {
+                $('#name').val('');
+                $('#name').prop('readonly', false).focus();
+            }
+
+            if (tipo === 'ruc') {
+                $('#razon_social').val('');
+                $('#direccion_fiscal').val('');
+
+                $('#razon_social').prop('readonly', false).focus();
+                $('#direccion_fiscal').prop('readonly', false);
+            }
+        }
+    });
+}
+
+function bloquearDatosComprobante() {
+    $('input[name="name"]').prop('readonly', true);
+    $('input[name="razon_social"]').prop('readonly', true);
+    $('input[name="direccion_fiscal"]').prop('readonly', true);
+}
 
 function renderPresentationSelectionInRow($row, presentations) {
     const $actionTd = $row.find('td:last');

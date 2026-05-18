@@ -189,4 +189,44 @@ class DecolectaService
 
         return 'C-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
     }
+
+    public function consultarDocumentoEnDecolecta($numeroDocumento)
+    {
+        $numeroDocumento = preg_replace('/\D/', '', $numeroDocumento);
+
+        if (!preg_match('/^\d{8}$|^\d{11}$/', $numeroDocumento)) {
+            throw new \Exception('El documento debe ser un DNI de 8 dígitos o un RUC de 11 dígitos.');
+        }
+
+        if (strlen($numeroDocumento) === 8) {
+
+            $data = $this->consultarDni($numeroDocumento);
+
+            return [
+                'customer' => [
+                    'id'            => null,
+                    'business_name' => $data['nombre'],
+                    'RUC'           => $data['numero_documento'],
+                    'address'       => null,
+                    'location'      => null,
+                ],
+                'source'  => 'api',
+                'created' => false,
+            ];
+        }
+
+        $data = $this->consultarRuc($numeroDocumento);
+
+        return [
+            'customer' => [
+                'id'            => null,
+                'business_name' => $data['nombre'],
+                'RUC'           => $data['numero_documento'],
+                'address'       => $data['direccion'],
+                'location'      => $data['location'],
+            ],
+            'source'  => 'api',
+            'created' => false,
+        ];
+    }
 }

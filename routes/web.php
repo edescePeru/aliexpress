@@ -3158,6 +3158,9 @@ Route::middleware('auth')->group(function (){
 
         Route::get('/customer/search-or-create/{documento}', 'CustomerController@searchOrCreateByDocument')
             ->name('customer.searchOrCreateByDocument');
+
+        Route::get('/customer/decolecta/{documento}', 'CustomerController@consultarDocumentoDecolecta')
+            ->name('customer.consultarDocumentoDecolecta');
     });
 });
 

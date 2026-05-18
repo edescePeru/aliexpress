@@ -67,6 +67,135 @@ $(document).ready(function () {
     });
 
     // ==============================
+    // Bloquear datos de comprobantes
+    // ==============================
+    function bloquearDatosComprobante() {
+
+        // Boleta
+        $('#nameCliente').prop('readonly', true);
+
+        // Factura
+        $('#razonCliente').prop('readonly', true);
+        $('#direccionCliente').prop('readonly', true);
+    }
+
+    bloquearDatosComprobante();
+
+    $(document).on('keydown', '#dniCliente, #rucCliente', function (e) {
+
+        if (e.key !== 'Enter') {
+            return;
+        }
+
+        e.preventDefault();
+
+        let input = $(this);
+        let documento = input.val().replace(/\D/g, '');
+        let tipo = input.attr('id');
+
+        // VALIDAR DNI
+        if (tipo === 'dniCliente' && documento.length !== 8) {
+            toastr.error('El DNI debe tener exactamente 8 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        // VALIDAR RUC
+        if (tipo === 'rucCliente' && documento.length !== 11) {
+            toastr.error('El RUC debe tener exactamente 11 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        consultarClientePorDocumento(documento, tipo);
+
+    });
+
+
+    function consultarClientePorDocumento(documento, tipo) {
+
+        $.ajax({
+            url: `/dashboard/customer/decolecta/${documento}`,
+            type: 'GET',
+            dataType: 'json',
+
+            beforeSend: function () {
+
+                if (tipo === 'dniCliente') {
+                    $('#nameCliente').val('Consultando...');
+                }
+
+                if (tipo === 'rucCliente') {
+                    $('#razonCliente').val('Consultando...');
+                    $('#direccionCliente').val('Consultando...');
+                }
+            },
+
+            success: function (response) {
+
+                if (!response.success) {
+                    toastr.error(response.message || 'No se pudo consultar el documento.', 'Error');
+                    return;
+                }
+
+                let customer = response.customer;
+
+                // DNI
+                if (tipo === 'dniCliente') {
+
+                    $('#dniCliente').val(customer.RUC || '');
+                    $('#nameCliente').val(customer.business_name || '');
+
+                    $('#nameCliente').prop('readonly', true);
+                }
+
+                // RUC
+                if (tipo === 'rucCliente') {
+
+                    $('#rucCliente').val(customer.RUC || '');
+                    $('#razonCliente').val(customer.business_name || '');
+                    $('#direccionCliente').val(customer.address || '');
+
+                    $('#razonCliente').prop('readonly', true);
+                    $('#direccionCliente').prop('readonly', true);
+                }
+
+                toastr.success('Documento consultado correctamente.', 'Correcto');
+            },
+
+            error: function (xhr) {
+
+                let message = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'No se encontró información. Puede ingresarlo manualmente.';
+
+                toastr.warning(message + ' Puede ingresarlo manualmente.', 'Consulta sin resultado');
+
+                // DNI
+                if (tipo === 'dniCliente') {
+
+                    $('#nameCliente').val('');
+                    $('#nameCliente')
+                        .prop('readonly', false)
+                        .focus();
+                }
+
+                // RUC
+                if (tipo === 'rucCliente') {
+
+                    $('#razonCliente').val('');
+                    $('#direccionCliente').val('');
+
+                    $('#razonCliente')
+                        .prop('readonly', false)
+                        .focus();
+
+                    $('#direccionCliente')
+                        .prop('readonly', false);
+                }
+            }
+        });
+    }
+
+    // ==============================
     // Buscar cotización
     // ==============================
     $('#btnBuscarCotizacion').on('click', function () {
@@ -119,13 +248,13 @@ $(document).ready(function () {
 
                 let typeComprobante = $('#typeComprobante').val();
 
-                if (typeComprobante == 'Boleta' || typeComprobante == 'Ticket') {
+                /*if (typeComprobante == 'Boleta' || typeComprobante == 'Ticket') {
                     $('#nameCliente').val(quote.customer_format);
                 } else {
                     $('#rucCliente').val(quote.customer.RUC);
                     $('#razonCliente').val(quote.customer_format);
                     $('#direccionCliente').val(quote.customer.address);
-                }
+                }*/
 
                 $('#codeQuote').val(quote.code);
                 $('#quote_id').val(quote.id);

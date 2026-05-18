@@ -221,7 +221,7 @@ let $presentationsCache = {}; // materialId -> array presentations
 
 function consultarClientePorDocumento(documento, tipo) {
     $.ajax({
-        url: `/dashboard/customer/search-or-create/${documento}`,
+        url: `/dashboard/customer/decolecta/${documento}`,
         type: 'GET',
         dataType: 'json',
         beforeSend: function () {
@@ -253,10 +253,7 @@ function consultarClientePorDocumento(documento, tipo) {
                 $('#direccion_fiscal').val(customer.address || '');
             }
 
-            let mensaje = response.created
-                ? 'Cliente consultado y registrado correctamente.'
-                : 'Cliente encontrado en la base de datos.';
-
+            let mensaje = 'Documento consultado correctamente.';
             toastr.success(mensaje, 'Correcto');
         },
         error: function (xhr) {

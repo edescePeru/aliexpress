@@ -592,7 +592,7 @@
                                                     <div id="datos_boleta" class="d-none">
                                                         <div class="form-group">
                                                             <label for="dni">DNI <span style="color:red;">*</span></label>
-                                                            <input type="text" name="dni" class="form-control" >
+                                                            <input type="text" name="dni" id="dni" class="form-control" >
                                                         </div>
 
                                                         <div class="form-group">
@@ -610,15 +610,15 @@
                                                     <div id="datos_factura" class="d-none">
                                                         <div class="form-group">
                                                             <label for="ruc">RUC <span style="color:red;">*</span></label>
-                                                            <input type="text" name="ruc" class="form-control" >
+                                                            <input type="text" name="ruc" id="ruc" class="form-control" >
                                                         </div>
                                                         <div class="form-group">
                                                             <label for="razon_social">Razón Social <span style="color:red;">*</span></label>
-                                                            <input type="text" name="razon_social" class="form-control" >
+                                                            <input type="text" name="razon_social" id="razon_social" class="form-control" >
                                                         </div>
                                                         <div class="form-group">
                                                             <label for="direccion_fiscal">Dirección Fiscal <span style="color:red;">*</span></label>
-                                                            <input type="text" name="direccion_fiscal" class="form-control" >
+                                                            <input type="text" name="direccion_fiscal" id="direccion_fiscal" class="form-control" >
                                                         </div>
                                                         <div class="form-group">
                                                             <label for="email_invoice_factura">Email (Opcional)</label>

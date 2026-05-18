@@ -267,4 +267,24 @@ class CustomerController extends Controller
             ], 422);
         }
     }
+
+    public function consultarDocumentoDecolecta($documento, DecolectaService $decolectaService)
+    {
+        try {
+            $result = $decolectaService->consultarDocumentoEnDecolecta($documento);
+
+            return response()->json([
+                'success'  => true,
+                'created'  => $result['created'],
+                'source'   => $result['source'],
+                'customer' => $result['customer'],
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }
