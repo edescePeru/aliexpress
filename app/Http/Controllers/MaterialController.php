@@ -3325,7 +3325,7 @@ class MaterialController extends Controller
         return response()->json($results);
     }
 
-    public function select2(Request $request)
+    public function select2Or(Request $request)
     {
         $q = trim((string)$request->get('q', ''));
         $page = max(1, (int)$request->get('page', 1));
@@ -3363,6 +3363,75 @@ class MaterialController extends Controller
         return response()->json([
             'results' => $results,
             'pagination' => ['more' => ($page * $perPage) < $total],
+        ]);
+    }
+
+    public function select2(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $page = max(1, (int) $request->get('page', 1));
+        $perPage = 10;
+
+        $query = StockItem::with([
+            'material:id,full_name,enable_status',
+            'variant:id,attribute_summary'
+        ])
+            ->where('is_active', 1)
+            ->whereHas('material', function ($mq) {
+                $mq->where('enable_status', 1);
+            });
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('sku', 'like', "%{$q}%")
+                    ->orWhere('barcode', 'like', "%{$q}%")
+                    ->orWhere('display_name', 'like', "%{$q}%")
+                    ->orWhere('id', 'like', "%{$q}%")
+                    ->orWhereHas('material', function ($mq) use ($q) {
+                        $mq->where('full_name', 'like', "%{$q}%")
+                            ->orWhere('id', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        $total = (clone $query)->count();
+
+        $items = $query
+            ->orderBy('display_name')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        $results = $items->map(function ($stockItem) {
+            $material = $stockItem->material;
+
+            $text = $stockItem->display_name
+                ?: optional($material)->full_name
+                    ?: 'Sin nombre';
+
+            return [
+                'id' => $stockItem->id,
+                'text' => $text,
+
+                // extra para el JS
+                'stock_item_id' => $stockItem->id,
+                'material_id' => $stockItem->material_id,
+
+                'codigo' => $stockItem->sku ?: (string) $stockItem->id,
+                'sku' => $stockItem->sku ?? '',
+                'barcode' => $stockItem->barcode ?? '',
+
+                'descripcion' => $text,
+                'material_name' => optional($material)->full_name ?? '',
+                'variant_text' => optional($stockItem->variant)->attribute_summary ?? '',
+            ];
+        });
+
+        return response()->json([
+            'results' => $results,
+            'pagination' => [
+                'more' => ($page * $perPage) < $total
+            ],
         ]);
     }
 

@@ -12,6 +12,7 @@ class ShippingGuideItem extends Model
         'shipping_guide_id',
         'line',
         'product_id',
+        'stock_item_id',
         'codigo',
         'descripcion',
         'detalle_adicional',

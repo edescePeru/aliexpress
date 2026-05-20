@@ -83,7 +83,7 @@
             'Venta: ' + (res.sale && res.sale.ref ? res.sale.ref : '') +
             ' | ' + (res.sale && res.sale.tipo ? res.sale.tipo : '') +
             ' | Cliente: ' + (res.sale && res.sale.cliente ? res.sale.cliente : '-') +
-            ' | Total: ' + (res.sale && res.sale.total ? res.sale.total : '-')
+            ' | Total: ' + (res.sale && res.sale.total ? parseFloat(res.sale.total).toFixed(2) : '-')
         );
 
         var rows = [];
@@ -92,7 +92,7 @@
                 '<tr>' +
                 '<td>' + (it.line || '') + '</td>' +
                 '<td>' + (it.descripcion || '') + '</td>' +
-                '<td class="text-right">' + (it.cantidad || 0) + '</td>' +
+                '<td class="text-right">' + (parseFloat(it.cantidad).toFixed(2) || 0) + '</td>' +
                 '<td>' + (it.unidad_medida || 'NIU') + '</td>' +
                 '</tr>'
             );
@@ -359,6 +359,7 @@
                 <select class="form-control manualMaterialSelect" style="width:100%"></select>
 
                 <input type="hidden" name="items[${idx}][product_id]" class="manualProductId">
+                <input type="hidden" name="items[${idx}][material_id]" class="manualMaterialId">
                 <input type="hidden" name="items[${idx}][codigo]" class="manualCodigo">
                 <input type="hidden" name="items[${idx}][descripcion]" class="manualDescripcion">
             </td>
@@ -386,7 +387,7 @@
     `;
     }
 
-    function initManualMaterialSelect2($select) {
+    /*function initManualMaterialSelect2($select) {
         $select.select2({
             theme: 'bootstrap4',
             placeholder: 'Buscar material...',
@@ -423,7 +424,7 @@
             row.find('.manualCodigo').val('');
             row.find('.manualDescripcion').val('');
         });
-    }
+    }*/
 
     function initManualMaterialSelect2($select) {
         $select.select2({
@@ -448,10 +449,12 @@
             const data = e.params.data || {};
 
             const materialId = data.material_id || data.id || '';
+            const stockItemId = data.stock_item_id || '';
             const descripcion = data.descripcion || data.text || '';
             const codigo = data.codigo || materialId || '';
 
-            row.find('.manualProductId').val(materialId);
+            row.find('.manualProductId').val(stockItemId);
+            row.find('.manualMaterialId').val(materialId);
             row.find('.manualCodigo').val(codigo);
             row.find('.manualDescripcion').val(descripcion);
         });
@@ -459,6 +462,7 @@
         $select.on('select2:clear', function () {
             const row = $(this).closest('tr');
             row.find('.manualProductId').val('');
+            row.find('.manualMaterialId').val('');
             row.find('.manualCodigo').val('');
             row.find('.manualDescripcion').val('');
         });

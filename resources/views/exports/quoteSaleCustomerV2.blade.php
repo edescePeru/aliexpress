@@ -288,7 +288,11 @@
         <td class="text-right">DESCUENTO (-)</td>
         <td style="text-align: right">
             {{ $quote->currency_invoice }}
-            {{ number_format($quote->discount_input_value, $quote->state_decimals ? 0 : 2) }}
+            @if ( $quote->discount_input_mode == 'with_igv' )
+                {{ number_format($quote->discount_input_value, $quote->state_decimals ? 0 : 2) }}
+            @elseif ( $quote->discount_input_mode == 'without_igv'  )
+                {{ number_format($quote->discount_input_value*1.18, $quote->state_decimals ? 0 : 2) }}
+            @endif
         </td>
     </tr>
 

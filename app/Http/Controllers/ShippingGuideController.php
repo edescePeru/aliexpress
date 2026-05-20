@@ -429,7 +429,8 @@ class ShippingGuideController extends Controller
                 'sale_id'    => ['required_if:items_mode,SALE', 'nullable', 'integer', 'exists:sales,id'],
 
                 'items' => ['required_if:items_mode,MANUAL', 'array'],
-                'items.*.product_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:materials,id'],
+                'items.*.product_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:stock_items,id'],
+                'items.*.material_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:materials,id'],
                 'items.*.descripcion' => ['required_if:items_mode,MANUAL', 'string', 'max:255'],
                 'items.*.cantidad'    => ['required_if:items_mode,MANUAL', 'numeric', 'min:0.001'],
                 'items.*.codigo'      => ['nullable', 'string', 'max:60'],
@@ -506,6 +507,9 @@ class ShippingGuideController extends Controller
 
                 'items.*.product_id.required_if' => 'Debes seleccionar un producto en cada item manual.',
                 'items.*.product_id.exists' => 'El producto seleccionado no existe.',
+
+                'items.*.material_id.required_if' => 'Debes seleccionar un material en cada item manual.',
+                'items.*.material_id.exists'      => 'El material seleccionado no existe.',
 
                 'items.*.descripcion.required_if' => 'La descripción del item es obligatoria.',
                 'items.*.descripcion.max'         => 'La descripción del item no debe exceder 255 caracteres.',
@@ -740,7 +744,8 @@ class ShippingGuideController extends Controller
                         'shipping_guide_id' => $guide->id,
                         'line' => $line++,
                         'product_id' => $detail->material_id,
-                        'codigo' => (string)$detail->material_id,
+                        'stock_item_id' => $detail->stock_item_id,
+                        'codigo' => (string)$detail->stock_item_id,
                         'descripcion' => $descripcion,
                         'detalle_adicional' => null,
                         'cantidad' => $cant,
@@ -757,12 +762,17 @@ class ShippingGuideController extends Controller
                         ? (int)$it['product_id']
                         : null;
 
+                    $materialId = isset($it['material_id']) && $it['material_id'] !== ''
+                        ? (int)$it['material_id']
+                        : null;
+
                     ShippingGuideItem::create([
                         'shipping_guide_id' => $guide->id,
                         'line' => $line++,
 
                         // ✅ referencia real a materials.id
-                        'product_id' => $productId,
+                        'product_id' => $materialId,
+                        'stock_item_id' => $productId,
 
                         // ✅ “codigo” repetido (id del material)
                         'codigo' => $it['codigo'] ?? ($productId ? (string)$productId : null),
