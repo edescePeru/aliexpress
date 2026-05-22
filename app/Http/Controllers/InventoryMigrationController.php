@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DetailEntry;
 use App\Entry;
 use App\InventoryLevel;
+use App\Item;
 use App\Material;
 use App\Output;
 use App\OutputDetail;
@@ -407,7 +408,7 @@ class InventoryMigrationController extends Controller
         }
     }
 
-    public function adjustMaterialOldOutput($materialId)
+    public function adjustMaterialOldOutput($materialId, $qty_ajusted)
     {
         DB::beginTransaction();
 
@@ -431,8 +432,13 @@ class InventoryMigrationController extends Controller
                 throw new \Exception("No hay stock_lots con stock para material_id {$materialId}");
             }
 
+            // Tomar el $lots->sum('qty_on_hand');
+            /*$available = (float) $lots->sum(function ($lot) {
+                return (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
+            });*/
             $totalQty = (float) $lots->sum('qty_on_hand');
 
+            // $available < Qty_consume
             if ($totalQty <= 0) {
                 throw new \Exception("El material {$materialId} no tiene stock disponible para ajustar.");
             }
@@ -449,6 +455,7 @@ class InventoryMigrationController extends Controller
 
             // 2. Crear output_details por cada lote y consumir stock_lots
             foreach ($lots as $lot) {
+                // $qtyToConsume = (float) Qty_consume;
                 $qtyToConsume = (float) $lot->qty_on_hand;
                 $unitCost = (float) ($lot->unit_cost ?? 0);
 
@@ -475,6 +482,7 @@ class InventoryMigrationController extends Controller
                     'total_cost' => $qtyToConsume * $unitCost,
                 ]);
 
+                // Resta
                 $lot->qty_on_hand = 0;
                 $lot->qty_reserved = 0;
                 $lot->save();
@@ -506,5 +514,376 @@ class InventoryMigrationController extends Controller
                 'line' => $e->getLine(),
             ], 422);
         }
+    }
+
+    public function adjustMaterialStockOutSinITems(int $materialId, float $qtyToAdjust): Output
+    {
+        if ($qtyToAdjust <= 0) {
+            throw new \Exception("La cantidad a ajustar debe ser mayor a cero.");
+        }
+
+        return DB::transaction(function () use ($materialId, $qtyToAdjust) {
+
+            $stockItem = StockItem::where('material_id', $materialId)
+                ->whereNull('variant_id')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$stockItem) {
+                throw new \Exception("No existe StockItem simple para material_id {$materialId}");
+            }
+
+            $lots = StockLot::where('stock_item_id', $stockItem->id)
+                ->where('qty_on_hand', '>', 0)
+                ->orderByRaw('expiration_date IS NULL ASC') // primero los que sí tienen vencimiento
+                ->orderBy('expiration_date')                // FEFO
+                ->orderBy('id')                             // FIFO si no hay vencimiento
+                ->lockForUpdate()
+                ->get();
+
+            if ($lots->isEmpty()) {
+                throw new \Exception("No hay lotes con stock para material_id {$materialId}");
+            }
+
+            $available = (float) $lots->sum(function ($lot) {
+                return max(0, (float) $lot->qty_on_hand - (float) $lot->qty_reserved);
+            });
+
+            if ($available < $qtyToAdjust) {
+                throw new \Exception(
+                    "Stock disponible insuficiente para material {$materialId}. " .
+                    "Disponible: {$available}. Requerido: {$qtyToAdjust}."
+                );
+            }
+
+            $output = Output::create([
+                'execution_order'  => 'AJUSTE-MATERIAL-' . $materialId . '-' . now()->format('YmdHis'),
+                'request_date'     => now(),
+                'requesting_user'  => Auth::id(),
+                'responsible_user' => Auth::id(),
+                'state'            => 'confirmed',
+                'indicator'        => 'or',
+            ]);
+
+            $remainingQty = $qtyToAdjust;
+            $affectedLevels = [];
+
+            foreach ($lots as $lot) {
+                if ($remainingQty <= 0) {
+                    break;
+                }
+
+                $lotAvailable = max(
+                    0,
+                    (float) $lot->qty_on_hand - (float) $lot->qty_reserved
+                );
+
+                if ($lotAvailable <= 0) {
+                    continue;
+                }
+
+                $consumeQty = min($remainingQty, $lotAvailable);
+                $unitCost = (float) ($lot->unit_cost ?? 0);
+
+                OutputDetail::create([
+                    'output_id'      => $output->id,
+                    'sale_detail_id' => null,
+                    'item_id'        => null,
+
+                    'material_id'   => $materialId,
+                    'stock_item_id' => $stockItem->id,
+                    'stock_lot_id'  => $lot->id,
+
+                    'warehouse_id' => $lot->warehouse_id,
+                    'location_id'  => $lot->location_id,
+
+                    'quote_id'     => null,
+                    'equipment_id' => null,
+
+                    'custom'     => 0,
+                    'percentage' => $consumeQty,
+                    'price'      => 0,
+
+                    'length' => null,
+                    'width'  => null,
+                    'activo' => null,
+
+                    'unit_cost'  => $unitCost,
+                    'total_cost' => $consumeQty * $unitCost,
+                ]);
+
+                $lot->qty_on_hand = (float) $lot->qty_on_hand - $consumeQty;
+                $lot->save();
+
+                $affectedLevels[] = [
+                    'stock_item_id' => $stockItem->id,
+                    'warehouse_id'  => $lot->warehouse_id,
+                    'location_id'   => $lot->location_id,
+                ];
+
+                $remainingQty -= $consumeQty;
+            }
+
+            if ($remainingQty > 0.00001) {
+                throw new \Exception("No se pudo completar el ajuste. Cantidad pendiente: {$remainingQty}");
+            }
+
+            foreach (collect($affectedLevels)->unique() as $level) {
+                $this->syncInventoryLevelFromLots(
+                    $level['stock_item_id'],
+                    $level['warehouse_id'],
+                    $level['location_id']
+                );
+            }
+
+            return $output;
+        });
+    }
+
+    public function adjustMaterialStockOut(int $materialId, float $qtyToAdjust): Output
+    {
+        if ($qtyToAdjust <= 0) {
+            throw new \Exception("La cantidad a ajustar debe ser mayor a cero.");
+        }
+
+        return DB::transaction(function () use ($materialId, $qtyToAdjust) {
+
+            $material = Material::lockForUpdate()->find($materialId);
+
+            if (!$material) {
+                throw new \Exception("No existe el material {$materialId}.");
+            }
+
+            $stockItem = StockItem::where('material_id', $materialId)
+                ->whereNull('variant_id')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$stockItem) {
+                throw new \Exception("No existe StockItem simple para material_id {$materialId}.");
+            }
+
+            $lots = StockLot::where('stock_item_id', $stockItem->id)
+                ->where('qty_on_hand', '>', 0)
+                ->orderByRaw('expiration_date IS NULL ASC')
+                ->orderBy('expiration_date')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($lots->isEmpty()) {
+                throw new \Exception("No hay lotes con stock para material_id {$materialId}.");
+            }
+
+            $available = (float) $lots->sum(function ($lot) {
+                return max(0, (float) $lot->qty_on_hand - (float) $lot->qty_reserved);
+            });
+
+            if ($available < $qtyToAdjust) {
+                throw new \Exception(
+                    "Stock disponible insuficiente para material {$materialId}. " .
+                    "Disponible: {$available}. Requerido: {$qtyToAdjust}."
+                );
+            }
+
+            $output = Output::create([
+                'execution_order'  => 'AJUSTE-MATERIAL-' . $materialId . '-' . now()->format('YmdHis'),
+                'request_date'     => now(),
+                'requesting_user'  => Auth::id(),
+                'responsible_user' => Auth::id(),
+                'state'            => 'confirmed',
+                'indicator'        => 'or',
+            ]);
+
+            $remainingQty = $qtyToAdjust;
+            $affectedLevels = [];
+
+            if ((int) $material->tipo_venta_id === 3) {
+
+                if (floor($qtyToAdjust) != $qtyToAdjust) {
+                    throw new \Exception(
+                        "El material {$materialId} es itemeable. La cantidad a ajustar debe ser entera."
+                    );
+                }
+
+                foreach ($lots as $lot) {
+                    if ($remainingQty <= 0) {
+                        break;
+                    }
+
+                    $lotAvailable = max(
+                        0,
+                        (float) $lot->qty_on_hand - (float) $lot->qty_reserved
+                    );
+
+                    if ($lotAvailable <= 0) {
+                        continue;
+                    }
+
+                    $consumeQty = min((int) $remainingQty, (int) $lotAvailable);
+
+                    $items = Item::where('stock_item_id', $stockItem->id)
+                        ->where('stock_lot_id', $lot->id)
+                        ->whereIn('state_item', ['entered', 'scrapped'])
+                        ->orderBy('id', 'asc')
+                        ->lockForUpdate()
+                        ->take($consumeQty)
+                        ->get();
+
+                    if ($items->count() < $consumeQty) {
+                        throw new \Exception(
+                            "Stock insuficiente de items para material {$materialId}, lote {$lot->id}. " .
+                            "Se requieren {$consumeQty} items y solo hay {$items->count()} disponibles."
+                        );
+                    }
+
+                    foreach ($items as $item) {
+                        $unitCost = (float) ($item->unit_cost ?? $lot->unit_cost ?? 0);
+
+                        OutputDetail::create([
+                            'output_id'      => $output->id,
+                            'sale_detail_id' => null,
+                            'item_id'        => $item->id,
+
+                            'material_id'   => $materialId,
+                            'stock_item_id' => $item->stock_item_id,
+                            'stock_lot_id'  => $item->stock_lot_id,
+
+                            'warehouse_id' => $item->warehouse_id,
+                            'location_id'  => $item->location_id,
+
+                            'quote_id'      => null,
+                            'equipment_id'  => null,
+                            'custom'        => 0,
+                            'percentage'    => 1,
+                            'price'         => 0,
+                            'length'        => $item->length,
+                            'width'         => $item->width,
+                            'activo'        => null,
+
+                            'unit_cost'  => $unitCost,
+                            'total_cost' => $unitCost,
+                        ]);
+
+                        $item->state_item = 'exited';
+                        $item->save();
+                    }
+
+                    $lot->qty_on_hand = (float) $lot->qty_on_hand - $consumeQty;
+                    $lot->save();
+
+                    $affectedLevels[] = [
+                        'stock_item_id' => $stockItem->id,
+                        'warehouse_id'  => $lot->warehouse_id,
+                        'location_id'   => $lot->location_id,
+                    ];
+
+                    $remainingQty -= $consumeQty;
+                }
+
+            } else {
+
+                foreach ($lots as $lot) {
+                    if ($remainingQty <= 0) {
+                        break;
+                    }
+
+                    $lotAvailable = max(
+                        0,
+                        (float) $lot->qty_on_hand - (float) $lot->qty_reserved
+                    );
+
+                    if ($lotAvailable <= 0) {
+                        continue;
+                    }
+
+                    $consumeQty = min($remainingQty, $lotAvailable);
+                    $unitCost = (float) ($lot->unit_cost ?? 0);
+
+                    OutputDetail::create([
+                        'output_id'      => $output->id,
+                        'sale_detail_id' => null,
+                        'item_id'        => null,
+
+                        'material_id'   => $materialId,
+                        'stock_item_id' => $stockItem->id,
+                        'stock_lot_id'  => $lot->id,
+
+                        'warehouse_id' => $lot->warehouse_id,
+                        'location_id'  => $lot->location_id,
+
+                        'quote_id'      => null,
+                        'equipment_id'  => null,
+                        'custom'        => 0,
+                        'percentage'    => $consumeQty,
+                        'price'         => 0,
+                        'length'        => null,
+                        'width'         => null,
+                        'activo'        => null,
+
+                        'unit_cost'  => $unitCost,
+                        'total_cost' => $consumeQty * $unitCost,
+                    ]);
+
+                    $lot->qty_on_hand = (float) $lot->qty_on_hand - $consumeQty;
+                    $lot->save();
+
+                    $affectedLevels[] = [
+                        'stock_item_id' => $stockItem->id,
+                        'warehouse_id'  => $lot->warehouse_id,
+                        'location_id'   => $lot->location_id,
+                    ];
+
+                    $remainingQty -= $consumeQty;
+                }
+            }
+
+            if ($remainingQty > 0.00001) {
+                throw new \Exception("No se pudo completar el ajuste. Cantidad pendiente: {$remainingQty}.");
+            }
+
+            foreach (collect($affectedLevels)->unique() as $level) {
+                $this->syncInventoryLevelFromLots(
+                    $level['stock_item_id'],
+                    $level['warehouse_id'],
+                    $level['location_id']
+                );
+            }
+
+            return $output;
+        });
+    }
+
+    protected function syncInventoryLevelFromLots(int $stockItemId, $warehouseId, $locationId): void
+    {
+        $qtyOnHand = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_on_hand');
+
+        $qtyReserved = (float) StockLot::where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->sum('qty_reserved');
+
+        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
+            [
+                'stock_item_id' => $stockItemId,
+                'warehouse_id'  => $warehouseId,
+                'location_id'   => $locationId,
+            ],
+            [
+                'qty_on_hand'   => 0,
+                'qty_reserved'  => 0,
+                'min_alert'     => 0,
+                'max_alert'     => 0,
+                'average_cost'  => 0,
+                'last_cost'     => 0,
+            ]
+        );
+
+        $inventoryLevel->qty_on_hand  = $qtyOnHand;
+        $inventoryLevel->qty_reserved = $qtyReserved;
+        $inventoryLevel->save();
     }
 }
