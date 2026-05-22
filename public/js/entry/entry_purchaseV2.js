@@ -57,7 +57,7 @@ $(document).ready(function () {
     $('#btn-add').on('click', function () {
 
         if (!$materialSelected) {
-            toastr.error('Debe seleccionar un material asdasd.', 'Error');
+            toastr.error('Debe seleccionar un material.', 'Error');
             return;
         }
 

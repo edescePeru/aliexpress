@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MaterialOrder extends Model
 {
     protected $fillable = [
-        'order_purchase_detail_id', 'material_id', 'quantity_request', 'quantity_entered'
+        'order_purchase_detail_id', 'material_id', 'quantity_request', 'quantity_entered', 'stock_item_id'
     ];
 
     public function material()

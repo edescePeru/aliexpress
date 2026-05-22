@@ -42,16 +42,8 @@ class StockItem extends Model
 
     public function getListPriceAttribute()
     {
-        if ($this->relationLoaded('priceListItems')) {
-            $priceListItem = $this->priceListItems->first(function ($item) {
-                return $item->priceList && $item->priceList->is_default && $item->priceList->is_active;
-            });
-
-            return $priceListItem ? (float) $priceListItem->price : 0;
-        }
-
-        $defaultPriceList = PriceList::where('is_default', true)
-            ->where('is_active', true)
+        $defaultPriceList = PriceList::where('is_default', 1)
+            ->where('is_active', 1)
             ->first();
 
         if (!$defaultPriceList) {

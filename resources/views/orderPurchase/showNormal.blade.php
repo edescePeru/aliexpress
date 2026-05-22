@@ -189,21 +189,21 @@
                                 <div class="col-md-1">
                                     <div class="form-group">
                                         <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-id value="{{ $detail->material->id }}" readonly>
+                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-id value="{{ optional($detail->stockItem)->id ?? $detail->material->id }}" readonly>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-1">
                                     <div class="form-group">
                                         <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-code value="{{ $detail->material->code }}" readonly>
+                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-code value="{{optional($detail->stockItem)->sku ?? $detail->material->code }}" readonly>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-description value="{{ $detail->material->full_description }}" readonly>
+                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-description value="{{ optional($detail->stockItem)->display_name ?? $detail->material->full_description }}" readonly>
                                         </div>
                                     </div>
                                 </div>

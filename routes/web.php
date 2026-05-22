@@ -3151,6 +3151,9 @@ Route::middleware('auth')->group(function (){
         Route::get('/materials/entry/search', 'MaterialController@getJsonMaterialsForEntry')
             ->name('materials.entry.search');
 
+        Route::get('/materials/order/purchase/search', 'MaterialController@getJsonMaterialsForOrderPurchase')
+            ->name('materials.order.purchase.search');
+
         Route::get('/materials/{material}/stock-items-entry', 'MaterialController@getStockItemsForEntry')
             ->name('materials.stock-items.entry');
 
@@ -3278,3 +3281,4 @@ Route::get('/inventory-migration/run', 'InventoryMigrationController@run')
     ->name('inventory.migration.run');
 Route::get('/fix-quotes-stock-items-simple', 'InventoryMigrationController@fixQuotesStockItemsSimple');
 Route::get('/fix/material-201/output-adjustment', 'InventoryMigrationController@adjustMaterial201Output');
+Route::get('/fix/material/output-adjustment/{material_id}', 'InventoryMigrationController@adjustMaterialOldOutput');

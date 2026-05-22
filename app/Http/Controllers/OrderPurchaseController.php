@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\DataGeneral;
 use App\Exports\OrderPurchaseExcelExport;
 use App\Exports\ReportOrderPurchaseExport;
 use App\Exports\ReportOrdersByMaterialExcelExport;
@@ -1987,11 +1988,11 @@ class OrderPurchaseController extends Controller
             'action' => 'Crear Orden compra Normal VISTA',
             'time' => $end
         ]);
-        return view('orderPurchase.createNormal', compact('users', 'codeOrder', 'suppliers', 'payment_deadlines', 'quotesRaised'));
+        return view('orderPurchase.createNormalV2', compact('users', 'codeOrder', 'suppliers', 'payment_deadlines', 'quotesRaised'));
 
     }
 
-    public function storeOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
+    public function storeOrderPurchaseNormalO(StoreOrderPurchaseRequest $request)
     {
         $begin = microtime(true);
         //dd($request);
@@ -2163,6 +2164,148 @@ class OrderPurchaseController extends Controller
 
     }
 
+    public function storeOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
+    {
+        $begin = microtime(true);
+        //dd($request);
+        $validated = $request->validated();
+
+        $fecha = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
+        $fechaFormato = $fecha->format('Y-m-d');
+        //$response = $this->getTipoDeCambio($fechaFormato);
+
+        $precioCompra = 1;
+        $precioVenta = 1;
+
+        $tipoMoneda = ($request->has('currency_order')) ? 'PEN':'USD';
+        if ( $tipoMoneda == 'USD' ) {
+            $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
+            $precioCompra = (float) $tipoCambioSunat->precioCompra;
+            $precioVenta = (float) $tipoCambioSunat->precioVenta;
+        }
+
+        DB::beginTransaction();
+        try {
+            $maxCode = OrderPurchase::withTrashed()->max('id');
+            $maxId = $maxCode + 1;
+            $length = 5;
+            //$codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
+
+            $orderPurchase = OrderPurchase::create([
+                'code' => '',
+                'quote_supplier' => $request->get('quote_supplier'),
+                'payment_deadline_id' => ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null,
+                'supplier_id' => ($request->has('supplier_id')) ? $request->get('supplier_id') : null,
+                'date_arrival' => ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now(),
+                'date_order' => ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
+                'approved_by' => ($request->has('approved_by')) ? $request->get('approved_by') : null,
+                'payment_condition' => ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '',
+                'currency_order' => ($request->has('currency_order')) ? 'PEN':'USD',
+                'currency_compra' => $precioCompra,
+                'currency_venta' => $precioVenta,
+                'observation' => $request->get('observation'),
+                'igv' => $request->get('taxes_send'),
+                'total' => $request->get('total_send'),
+                'type' => 'n',
+                'regularize' => ($request->has('regularize_order')) ? 'r':'nr',
+                'status_order' => 'stand_by',
+                'quote_id' => ($request->has('quote_id')) ? $request->get('quote_id') : null,
+
+            ]);
+            $codeOrder = '';
+            if ( $maxId < $orderPurchase->id ){
+                $codeOrder = 'OC-'.str_pad($orderPurchase->id,$length,"0", STR_PAD_LEFT);
+                $orderPurchase->code = $codeOrder;
+                $orderPurchase->save();
+            } else {
+                $codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
+                $orderPurchase->code = $codeOrder;
+                $orderPurchase->save();
+            }
+
+            $items = json_decode($request->get('items'));
+
+            for ($i = 0; $i < sizeof($items); $i++) {
+
+                $orderPurchaseDetail = OrderPurchaseDetail::create([
+                    'order_purchase_id' => $orderPurchase->id,
+                    'material_id' => $items[$i]->id_material,
+                    'stock_item_id' => $items[$i]->stock_item_id ?? null,
+                    'quantity' => (float) $items[$i]->quantity,
+                    'price' => (float) $items[$i]->price,
+                    'total_detail' => (float) $items[$i]->total,
+                ]);
+
+                $follows = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)->get();
+
+                if (!$follows->isEmpty()) {
+
+                    $notification = Notification::create([
+                        'content' => 'El material ' . $orderPurchaseDetail->material->full_description . ' ha sido pedido.',
+                        'reason_for_creation' => 'follow_material',
+                        'user_id' => Auth::user()->id,
+                        'url_go' => route('follow.index')
+                    ]);
+
+                    $users = User::role(['admin', 'operator'])->get();
+
+                    foreach ($users as $user) {
+                        $followUsers = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)
+                            ->where('user_id', $user->id)
+                            ->get();
+
+                        if (!$followUsers->isEmpty()) {
+                            foreach ($user->roles as $role) {
+                                NotificationUser::create([
+                                    'notification_id' => $notification->id,
+                                    'role_id' => $role->id,
+                                    'user_id' => $user->id,
+                                    'read' => false,
+                                    'date_read' => null,
+                                    'date_delete' => null
+                                ]);
+                            }
+                        }
+                    }
+
+                    foreach ($follows as $follow) {
+                        $follow->state = 'in_order';
+                        $follow->save();
+                    }
+                }
+
+                $total = $orderPurchaseDetail->total_detail;
+                $subtotal = $total / 1.18;
+                $igv = $total - $subtotal;
+
+                $orderPurchaseDetail->igv = $igv;
+                $orderPurchaseDetail->save();
+
+                MaterialOrder::create([
+                    'order_purchase_detail_id' => $orderPurchaseDetail->id,
+                    'material_id' => $orderPurchaseDetail->material_id,
+                    'stock_item_id' => $orderPurchaseDetail->stock_item_id,
+                    'quantity_request' => $orderPurchaseDetail->quantity,
+                    'quantity_entered' => 0
+                ]);
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Guardar Orden Compra Normal POST',
+                'time' => $end
+            ]);
+            DB::commit();
+        } catch ( \Throwable $e ) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+        return response()->json(['message' => 'Su orden normal con el código '.$codeOrder.' se guardó con éxito.'], 200);
+
+    }
+
     public function getAllOrderNormal()
     {
         $begin = microtime(true);
@@ -2196,7 +2339,7 @@ class OrderPurchaseController extends Controller
 
         $order = OrderPurchase::with(['supplier', 'approved_user', 'deadline'])->find($id);
         $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
-            ->with(['material'])->get();
+            ->with(['material.unitMeasure','stockItem'])->get();
 
         return view('orderPurchase.showNormal', compact('order', 'details', 'suppliers', 'users'));
 
@@ -2551,21 +2694,53 @@ class OrderPurchaseController extends Controller
 
     public function printOrderPurchase($id)
     {
-        $purchase_order = null;
-        $purchase_order = OrderPurchase::with('approved_user')
-            ->with('deadline')
-            ->with(['details' => function ($query) {
-                $query->with(['material']);
-            }])
-            ->where('id', $id)->first();
+        $purchase_order = OrderPurchase::with([
+            'approved_user',
+            'deadline',
+            'details' => function ($query) {
+                $query->with([
+                    'material.unitMeasure',
+                    'stockItem'
+                ]);
+            }
+        ])
+            ->where('id', $id)
+            ->first();
 
         $length = 5;
-        $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);
+        $codeOrder = ''.str_pad($id, $length, "0", STR_PAD_LEFT);
 
         $accounts = SupplierAccount::with('bank')
-            ->where('supplier_id', $purchase_order->supplier_id)->get();
+            ->where('supplier_id', $purchase_order->supplier_id)
+            ->get();
 
-        $view = view('exports.entryPurchaseV2', compact('purchase_order','codeOrder', 'accounts'));
+        $dataNombreEmpresa = DataGeneral::where('name', 'empresa')->first();
+        $nombreEmpresa = $dataNombreEmpresa->valueText;
+        $dataDireccionEmpresa = DataGeneral::where('name', 'address')->first();
+        $direccionEmpresa = $dataDireccionEmpresa->valueText;
+        $dataTelefonoEmpresa = DataGeneral::where('name', 'telefono')->first();
+        $telefonoEmpresa = $dataTelefonoEmpresa->valueText;
+        $dataEmailEmpresa = DataGeneral::where('name', 'email')->first();
+        $emailEmpresa = $dataEmailEmpresa->valueText;
+        $dataWebEmpresa = DataGeneral::where('name', 'web')->first();
+        $webEmpresa = $dataWebEmpresa->valueText;
+        $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
+        $rucEmpresa = $dataRucEmpresa->valueText;
+        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
+        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+
+        $view = view('exports.entryPurchaseV2', compact(
+            'purchase_order',
+            'codeOrder',
+            'accounts',
+            'nombreEmpresa',
+            'direccionEmpresa',
+            'telefonoEmpresa',
+            'emailEmpresa',
+            'webEmpresa',
+            'rucEmpresa',
+            'logotipoEmpresa'
+            ));
 
         $pdf = PDF::loadHTML($view);
 
@@ -2577,13 +2752,18 @@ class OrderPurchaseController extends Controller
     public function printOrderPurchaseDelete($id)
     {
         $purchase_order = null;
-        $purchase_order = OrderPurchase::withTrashed()
-            ->with('approved_user')
-            ->with('deadline')
-            ->with(['details' => function ($query) {
-                $query->withTrashed()->with(['material']);
-            }])
-            ->where('id', $id)->first();
+        $purchase_order = OrderPurchase::with([
+            'approved_user',
+            'deadline',
+            'details' => function ($query) {
+                $query->with([
+                    'material.unitMeasure',
+                    'stockItem'
+                ]);
+            }
+        ])
+            ->where('id', $id)
+            ->first();
 
         $length = 5;
         $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);
@@ -2591,7 +2771,33 @@ class OrderPurchaseController extends Controller
         $accounts = SupplierAccount::with('bank')
             ->where('supplier_id', $purchase_order->supplier_id)->get();
 
-        $view = view('exports.entryPurchaseV2', compact('purchase_order','codeOrder', 'accounts'));
+        $dataNombreEmpresa = DataGeneral::where('name', 'empresa')->first();
+        $nombreEmpresa = $dataNombreEmpresa->valueText;
+        $dataDireccionEmpresa = DataGeneral::where('name', 'address')->first();
+        $direccionEmpresa = $dataDireccionEmpresa->valueText;
+        $dataTelefonoEmpresa = DataGeneral::where('name', 'telefono')->first();
+        $telefonoEmpresa = $dataTelefonoEmpresa->valueText;
+        $dataEmailEmpresa = DataGeneral::where('name', 'email')->first();
+        $emailEmpresa = $dataEmailEmpresa->valueText;
+        $dataWebEmpresa = DataGeneral::where('name', 'web')->first();
+        $webEmpresa = $dataWebEmpresa->valueText;
+        $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
+        $rucEmpresa = $dataRucEmpresa->valueText;
+        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
+        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+
+        $view = view('exports.entryPurchaseV2', compact(
+            'purchase_order',
+            'codeOrder',
+            'accounts',
+            'nombreEmpresa',
+            'direccionEmpresa',
+            'telefonoEmpresa',
+            'emailEmpresa',
+            'webEmpresa',
+            'rucEmpresa',
+            'logotipoEmpresa'
+        ));
 
         $pdf = PDF::loadHTML($view);
 

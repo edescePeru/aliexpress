@@ -58,20 +58,19 @@
 
         {{-- Datos empresa --}}
         <td class="no-border" style="width:60%; padding-right:10px; vertical-align:top;">
-            <img src="{{ asset('/landing/img/logo_pdf.png') }}" style="max-height:60px; margin-bottom:5px;">
+            <img src="{{ asset('/images/logo/'.$logotipoEmpresa) }}" style="max-height:60px; margin-bottom:5px;">
 
-            <div class="title-empresa">SERVICIOS METAL MECÁNICOS INDUSTRIALES S.A.C.</div>
-            <div class="empresa-linea">Predio el Horcón - Sector el Horcón U.C 02972 - F-Moche</div>
-            <div class="empresa-linea">La Libertad - Perú</div>
-            <div class="empresa-linea">Teléfono: +51 959 332 205</div>
-            <div class="empresa-linea">Email: servicios@sermeind.com.pe</div>
-            <div class="empresa-linea">Web: www.sermeind.com.pe</div>
+            <div class="title-empresa">{{ $nombreEmpresa }}</div>
+            <div class="empresa-linea">{{ $direccionEmpresa }}</div>
+            <div class="empresa-linea">Teléfono: {{ $telefonoEmpresa }}</div>
+            <div class="empresa-linea">Email: {{ $emailEmpresa }}</div>
+            <div class="empresa-linea">Web: {{ $webEmpresa }}</div>
         </td>
 
         {{-- Caja del documento --}}
         <td class="no-border" style="width:40%; vertical-align:top;">
             <div class="doc-box">
-                <div class="doc-ruc">RUC 20540001384</div>
+                <div class="doc-ruc">RUC {{ $rucEmpresa }}</div>
                 <div class="doc-tipo">ORDEN DE COMPRA</div>
                 <div class="doc-serie-num">{{ $purchase_order->code }}</div>
             </div>
@@ -117,19 +116,19 @@
             <div class="box-title">DATOS DEL EMISOR</div>
 
             <div  class="mt-3"><span class="label">RAZÓN SOCIAL:</span>
-                <span class="texto">SERMEIND FABRICACIONES INDUSTRIALES S.A.C</span>
+                <span class="texto">{{ $nombreEmpresa }}</span>
             </div>
             <div  class="mt-3"><span class="label">RUC:</span>
-                <span class="texto">20540001384</span>
+                <span class="texto">{{ $rucEmpresa }}</span>
             </div>
             <div  class="mt-3"><span class="label">DIRECCIÓN:</span>
-                <span class="texto">Predio el Horcón - Sector el Horcón F-Moche - TRUJILLO</span>
+                <span class="texto">{{ $direccionEmpresa }}</span>
             </div>
             <div  class="mt-3"><span class="label">TELÉFONO:</span>
-                <span class="texto">(+51) 959 332 205</span>
+                <span class="texto">{{ $telefonoEmpresa }}</span>
             </div>
             <div  class="mt-3"><span class="label">CORREO:</span>
-                <span class="texto">KPAREDES@SERMEIND.COM</span>
+                <span class="texto">{{ $emailEmpresa }}</span>
             </div>
         </td>
 
@@ -218,7 +217,7 @@
     <tbody>
     @foreach($purchase_order->details as $detail)
         <tr>
-            <td style="text-align:left;">{{ $detail->material->full_description }}</td>
+            <td style="text-align:left;">{{ optional($detail->stockItem)->display_name ?? $detail->material->full_description }}</td>
             <td style="text-align:center;">{{ $detail->material->unitMeasure->name }}</td>
             <td style="text-align:center;">{{ $detail->quantity }}</td>
 
@@ -262,7 +261,7 @@
 {{-- ============================= --}}
 
 <div class="footer">
-    Predio el Horcón - Sector el Horcón U.C 02972 - F-Moche | +51 959 332 205
+    {{ $direccionEmpresa }} | {{ $telefonoEmpresa }}
 </div>
 
 </body>

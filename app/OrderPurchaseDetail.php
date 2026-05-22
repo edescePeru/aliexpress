@@ -12,6 +12,7 @@ class OrderPurchaseDetail extends Model
     public $fillable = [
         'order_purchase_id',
         'material_id',
+        'stock_item_id',
         'quantity',
         'price',
         'igv',
@@ -28,5 +29,10 @@ class OrderPurchaseDetail extends Model
     public function material()
     {
         return $this->belongsTo('App\Material');
+    }
+
+    public function stockItem()
+    {
+        return $this->belongsTo(StockItem::class, 'stock_item_id');
     }
 }
