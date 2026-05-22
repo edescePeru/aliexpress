@@ -3281,4 +3281,4 @@ Route::get('/inventory-migration/run', 'InventoryMigrationController@run')
     ->name('inventory.migration.run');
 Route::get('/fix-quotes-stock-items-simple', 'InventoryMigrationController@fixQuotesStockItemsSimple');
 Route::get('/fix/material-201/output-adjustment', 'InventoryMigrationController@adjustMaterial201Output');
-Route::get('/fix/material/output-adjustment/{material_id}', 'InventoryMigrationController@adjustMaterialOldOutput');
+Route::get('/fix/material/output-adjustment/{material_id}/{quantity}', 'InventoryMigrationController@adjustMaterialStockOut');
