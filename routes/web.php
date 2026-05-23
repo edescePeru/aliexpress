@@ -1127,6 +1127,10 @@ Route::middleware('auth')->group(function (){
             ->middleware('permission:update_orderPurchaseNormal');
         Route::post('/destroy/detail/order/purchase/normal/{idDetail}/material/{materialId}', 'OrderPurchaseController@destroyNormalDetail')
             ->middleware('permission:destroy_orderPurchaseNormal');
+        Route::post(
+            '/destroy/detail/order/purchase/normal/{idDetail}/stock-item/{stockItemId}',
+            'OrderPurchaseController@destroyNormalDetail'
+        )->middleware('permission:destroy_orderPurchaseNormal');
         Route::post('/update/detail/order/purchase/normal/{idDetail}', 'OrderPurchaseController@updateNormalDetail')
             ->middleware('permission:update_orderPurchaseNormal');
         Route::get('ver/orden/compra/normal/{id}', 'OrderPurchaseController@showOrderPurchaseNormal')

@@ -7,9 +7,13 @@ let $materialSelected = null;
 let $stockItemsVariantSelected = [];
 
 $(document).ready(function () {
+
+    fillItems();
+
     $("#element_loader").LoadingOverlay("show", {
         background  : "rgba(236, 91, 23, 0.5)"
     });
+
     /*$.ajax({
         url: "/dashboard/get/materials/entry",
         type: 'GET',
@@ -23,7 +27,6 @@ $(document).ready(function () {
             $("#element_loader").LoadingOverlay("hide", true);
         }
     });*/
-
     $.ajax({
         url: "/dashboard/get/materials/stock/items/entry",
         type: 'GET',
@@ -40,8 +43,8 @@ $(document).ready(function () {
 
     /*$('#material_search').typeahead({
             hint: true,
-            highlight: true, /!* Enable substring highlighting *!/
-            minLength: 1 /!* Specify minimum characters required for showing suggestions *!/
+            highlight: true,
+            minLength: 1
         },
         {
             limit: 12,
@@ -67,6 +70,8 @@ $(document).ready(function () {
     $('#btn-submit').on('click', storeOrderPurchase);
 
     $(document).on('click', '[data-delete]', deleteItem);
+
+    $(document).on('click', '[data-edit]', editItem);
 
     $formCreate = $("#formCreate");
 
@@ -264,6 +269,7 @@ $(document).ready(function () {
     $(document).on('input', '[data-total]', function () {
         updateMaterialRow($(this).closest('.material-row'), 'total');
     });
+
 });
 
 // Initializing the typeahead
@@ -291,6 +297,45 @@ var substringMatcher = function(strs) {
 
 let $formCreate;
 
+function fillItems() {
+    $("#element_loader").LoadingOverlay("show", {
+        background: "rgba(236, 91, 23, 0.5)"
+    });
+
+    $items = [];
+
+    $('.material-row').each(function () {
+        const $row = $(this);
+
+        const detailId = $row.find('[data-detail-id]').first().data('detail-id') || null;
+
+        const stockItemId = parseInt($row.find('[data-id]').val());
+        const stockItemSku = $row.find('[data-code]').val();
+        const description = $row.find('[data-description]').val();
+
+        const quantity = parseFloat($row.find('[data-quantity]').val()) || 0;
+        const price = parseFloat($row.find('[data-price]').val()) || 0;
+        const priceWithoutIgv = parseFloat($row.find('[data-price2]').val()) || 0;
+        const total = parseFloat($row.find('[data-total]').val()) || 0;
+
+        $items.push({
+            detail_id: detailId,
+
+            stock_item_id: stockItemId,
+            stock_item_sku: stockItemSku,
+
+            material: description,
+
+            price: price,
+            price_without_igv: priceWithoutIgv,
+            quantity: quantity,
+            total: total
+        });
+    });
+
+    $("#element_loader").LoadingOverlay("hide", true);
+}
+
 function agregarStockItemsVariantAEntrada(selectedRows) {
 
     let material = $materialSelected;
@@ -304,7 +349,7 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
         let totalPrice = parseFloat(unitPrice * quantity).toFixed(4);
 
         $items.push({
-            'id': $items.length + 1,
+            'detail_id': '',
             'price': unitPrice,
             'quantity': quantity,
             'material': row.display_name || material.material,
@@ -572,10 +617,12 @@ function addItemO() {
 
     if ( !flag )
     {
-        $items.push({'price': price, 'quantity':quantity ,'material': description, 'id_material': id, 'total': quantity*price });
+        $items.push({'detail_id':'', 'price': price, 'quantity':quantity ,'material': description, 'id_material': id, 'total': quantity*price });
         $('#material_search').val('');
         $('#quantity').val(0);
         renderTemplateMaterial(id, code, description, quantity, price);
+        $('#btn-submit').removeClass( "btn-outline-success" );
+        $('#btn-submit').addClass( "btn-outline-danger" );
         updateSummaryInvoice();
     }
 
@@ -624,7 +671,7 @@ function addItems() {
     let total_price = parseFloat(material_price_raw * quantity).toFixed(4);
 
     $items.push({
-        'id': $items.length + 1,
+        'detail_id': '',
         'price': unit_price,
         'quantity': quantity,
         'material': material.material,
@@ -721,40 +768,212 @@ function updateSummaryInvoice() {
         taxes = subtotal*0.18;
     }
 
-    /*$('#subtotal').html(subtotal.toFixed(2));
-    $('#taxes').html(taxes.toFixed(2));
-    $('#total').html(total.toFixed(2));*/
     $('#subtotal').val(subtotal.toFixed(2));
     $('#taxes').val(taxes.toFixed(2));
     $('#total').val(total.toFixed(2));
 
 }
 
-function deleteItem() {
-    var materialId = $(this).data('delete');
-    console.log(materialId);
-    $items = $items.filter(material => material.stock_item_id != materialId);
-    $(this).parent().parent().remove();
+function editItem() {
+    var button = $(this);
+    var detail_id = $(this).attr('data-edit');
+    var total = parseFloat($(this).parent().parent().prev().children().children().val());
+    var price = parseFloat($(this).parent().parent().prev().prev().prev().children().children().val());
+    var quantity = parseFloat($(this).parent().parent().prev().prev().prev().prev().children().children().val());
+    var description = $(this).parent().parent().prev().prev().prev().prev().prev().children().children().children().val();
+    var id = $(this).parent().parent().prev().prev().prev().prev().prev().prev().prev().children().children().children().val();
+    var modifiedItem = [];
+    modifiedItem.push({'detail_id':detail_id, 'price': price, 'quantity':quantity ,'material': description, 'id_material': id, 'total': total });
+    console.log(modifiedItem);
+    var valParam = JSON.stringify(modifiedItem);
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'green',
+        title: 'Guardar cambios',
+        content: 'Se guardará en la base de datos',
+        buttons: {
+            confirm: {
+                text: 'CONFIRMAR',
+                action: function (e) {
+                    $.ajax({
+                        url: '/dashboard/update/detail/order/purchase/normal/'+detail_id,
+                        method: 'POST',
+                        data: { items: valParam },
+                        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                        success: function (data) {
+                            console.log(data);
+                            button.removeClass('btn-outline-warning');
+                            button.addClass( "btn-outline-success" );
+                            updateSummaryInvoice();
+                            $('#btn-submit').removeClass( "btn-outline-success" );
+                            $('#btn-submit').addClass( "btn-outline-danger" );
+                            $.alert(data.message);
+                            setTimeout( function () {
+                                //location.reload();
+                            }, 2000 )
 
-    updateSummaryInvoice();
+                        },
+                        error: function (data) {
+                            if( data.responseJSON.message && !data.responseJSON.errors )
+                            {
+                                toastr.error(data.responseJSON.message, 'Error',
+                                    {
+                                        "closeButton": true,
+                                        "debug": false,
+                                        "newestOnTop": false,
+                                        "progressBar": true,
+                                        "positionClass": "toast-top-right",
+                                        "preventDuplicates": false,
+                                        "onclick": null,
+                                        "showDuration": "300",
+                                        "hideDuration": "1000",
+                                        "timeOut": "2000",
+                                        "extendedTimeOut": "1000",
+                                        "showEasing": "swing",
+                                        "hideEasing": "linear",
+                                        "showMethod": "fadeIn",
+                                        "hideMethod": "fadeOut"
+                                    });
+                            }
+                            for ( var property in data.responseJSON.errors ) {
+                                toastr.error(data.responseJSON.errors[property], 'Error',
+                                    {
+                                        "closeButton": true,
+                                        "debug": false,
+                                        "newestOnTop": false,
+                                        "progressBar": true,
+                                        "positionClass": "toast-top-right",
+                                        "preventDuplicates": false,
+                                        "onclick": null,
+                                        "showDuration": "300",
+                                        "hideDuration": "1000",
+                                        "timeOut": "2000",
+                                        "extendedTimeOut": "1000",
+                                        "showEasing": "swing",
+                                        "hideEasing": "linear",
+                                        "showMethod": "fadeIn",
+                                        "hideMethod": "fadeOut"
+                                    });
+                            }
+
+
+                        },
+                    });
+
+                },
+            },
+            cancel: {
+                text: 'CANCELAR',
+                action: function (e) {
+                    $.alert("Modificación cancelada. Si hay una modificación, por favor guarde los cambios.");
+                },
+            },
+        },
+    });
 }
 
-function renderTemplateMaterial(stock_item_id, stock_item_sku, material, quantity, unit, unit_price, subtotal, taxes, total) {
+function deleteItem() {
+    var button = $(this);
+
+    var stockItemId = button.data('stock-item');
+    var idDetail = button.data('delete');
+
+    if (idDetail) {
+        $.confirm({
+            icon: 'fas fa-frown',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'red',
+            title: 'Eliminar detalle',
+            content: 'Se eliminará en la base de datos',
+            buttons: {
+                confirm: {
+                    text: 'CONFIRMAR',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/destroy/detail/order/purchase/normal/' + idDetail + '/stock-item/' + stockItemId,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            processData: false,
+                            contentType: false,
+                            success: function (data) {
+                                $items = $items.filter(item =>
+                                    parseInt(item.stock_item_id) !== parseInt(stockItemId)
+                                );
+
+                                button.closest('.material-row').remove();
+
+                                updateSummaryInvoice();
+
+                                $('#btn-submit')
+                                    .removeClass('btn-outline-success')
+                                    .addClass('btn-outline-danger');
+
+                                $.alert(data.message);
+                            },
+                            error: function (data) {
+                                if (data.responseJSON && data.responseJSON.message && !data.responseJSON.errors) {
+                                    toastr.error(data.responseJSON.message, 'Error', {
+                                        closeButton: true,
+                                        progressBar: true,
+                                        positionClass: 'toast-top-right',
+                                        timeOut: '2000'
+                                    });
+                                }
+
+                                if (data.responseJSON && data.responseJSON.errors) {
+                                    for (var property in data.responseJSON.errors) {
+                                        toastr.error(data.responseJSON.errors[property], 'Error', {
+                                            closeButton: true,
+                                            progressBar: true,
+                                            positionClass: 'toast-top-right',
+                                            timeOut: '2000'
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    },
+                },
+                cancel: {
+                    text: 'CANCELAR',
+                    action: function () {
+                        $.alert('Eliminación cancelada.');
+                    },
+                },
+            },
+        });
+
+    } else {
+        $items = $items.filter(item =>
+            parseInt(item.stock_item_id) !== parseInt(stockItemId)
+        );
+
+        button.closest('.material-row').remove();
+
+        updateSummaryInvoice();
+
+    }
+}
+
+function renderTemplateMaterial(stock_item_id, stock_item_sku, material, quantity, unit, unit_price, subtotal,taxes,total) {
     var clone = activateTemplate('#materials-selected');
-
-    clone.querySelector("[data-id]").value = stock_item_id;
-    clone.querySelector("[data-code]").value = stock_item_sku;
-    clone.querySelector("[data-description]").value = material;
-
-    clone.querySelector("[data-quantity]").value = parseFloat(quantity).toFixed(2);
-    clone.querySelector("[data-quantity]").max = quantity;
-
-    clone.querySelector("[data-price]").value = parseFloat(unit_price).toFixed(2);
-    clone.querySelector("[data-price2]").value = (parseFloat(unit_price) / 1.18).toFixed(2);
-    clone.querySelector("[data-total]").value = (parseFloat(unit_price) * parseFloat(quantity)).toFixed(2);
-
-    clone.querySelector("[data-delete]").setAttribute('data-delete', stock_item_id);
-
+    clone.querySelector("[data-id]").setAttribute('value', stock_item_id);
+    clone.querySelector("[data-code]").setAttribute('value', stock_item_sku);
+    clone.querySelector("[data-description]").setAttribute('value', material);
+    clone.querySelector("[data-quantity]").setAttribute('value', (parseFloat(quantity)).toFixed(2) );
+    clone.querySelector("[data-quantity]").setAttribute('max', quantity);
+    clone.querySelector("[data-price]").setAttribute('value', (parseFloat(unit_price)).toFixed(2) );
+    clone.querySelector("[data-price2]").setAttribute('value', (parseFloat(unit_price)/1.18).toFixed(2) );
+    clone.querySelector("[data-total]").setAttribute('value', (parseFloat(unit_price)*parseFloat(quantity)).toFixed(2) );
+    clone.querySelector("[data-delete]").setAttribute('data-delete', "");
+    clone.querySelector("[data-delete]").setAttribute('data-stock-item', stock_item_id);
     $('#body-materials').append(clone);
 }
 
@@ -832,12 +1051,13 @@ function storeOrderPurchase() {
     // Obtener la URL
     $("#btn-submit").attr("disabled", true);
 
-    /*var subtotal_send = $('#subtotal').html();
-    var taxes_send = $('#taxes').html();
-    var total_send = $('#total').html();*/
     var subtotal_send = $('#subtotal').val();
     var taxes_send = $('#taxes').val();
     var total_send = $('#total').val();
+
+    var state = $('#btn-currency').bootstrapSwitch('state');
+    var regularize = $('#btn-regularize').bootstrapSwitch('state');
+    console.log(regularize);
 
     /*var arrayId = [];
     var arrayCode = [];
@@ -873,6 +1093,8 @@ function storeOrderPurchase() {
     form.append('subtotal_send', subtotal_send);
     form.append('taxes_send', taxes_send);
     form.append('total_send', total_send);
+    form.append('state', state);
+    form.append('regularize', regularize);
     $.ajax({
         url: createUrl,
         method: 'POST',
@@ -901,6 +1123,8 @@ function storeOrderPurchase() {
                 });
             setTimeout( function () {
                 $("#btn-submit").attr("disabled", false);
+                $('#btn-submit').removeClass( "btn-outline-danger" );
+                $('#btn-submit').addClass( "btn-outline-success" );
                 location.reload();
             }, 2000 )
         },
@@ -946,7 +1170,8 @@ function storeOrderPurchase() {
                         "hideMethod": "fadeOut"
                     });
             }
-
+            $('#btn-submit').removeClass( "btn-outline-danger" );
+            $('#btn-submit').addClass( "btn-outline-success" );
             $("#btn-submit").attr("disabled", false);
         },
     });

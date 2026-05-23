@@ -2354,13 +2354,13 @@ class OrderPurchaseController extends Controller
             ->with(['supplier', 'approved_user', 'deadline'])->find($id);
         $details = OrderPurchaseDetail::withTrashed()
             ->where('order_purchase_id', $order->id)
-            ->with(['material'])->get();
+            ->with(['material.unitMeasure','stockItem'])->get();
 
         return view('orderPurchase.showDelete', compact('order', 'details', 'suppliers', 'users'));
 
     }
 
-    public function destroyOrderPurchaseNormal($order_id)
+    public function destroyOrderPurchaseNormalO($order_id)
     {
         $begin = microtime(true);
         $orderPurchase = OrderPurchase::find($order_id);
@@ -2382,14 +2382,6 @@ class OrderPurchaseController extends Controller
 
         }
 
-        // Si la orden de servicio se elimina, y el credito es pendiente se debe eliminar
-        /*$credit = SupplierCredit::where('order_purchase_id', $orderPurchase->id)
-            ->where('state_credit', 'outstanding')->first();
-        if ( isset($credit) )
-        {
-            $credit->delete();
-        }*/
-
         $orderPurchase->delete();
 
         $end = microtime(true) - $begin;
@@ -2403,6 +2395,71 @@ class OrderPurchaseController extends Controller
 
     }
 
+    public function destroyOrderPurchaseNormal($order_id)
+    {
+        $begin = microtime(true);
+
+        DB::beginTransaction();
+
+        try {
+
+            $orderPurchase = OrderPurchase::findOrFail($order_id);
+
+            $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
+
+            foreach ($details as $detail) {
+
+                $materialOrderQuery = MaterialOrder::where('order_purchase_detail_id', $detail->id)
+                    ->where('material_id', $detail->material_id);
+
+                if (!empty($detail->stock_item_id)) {
+                    $materialOrderQuery->where('stock_item_id', $detail->stock_item_id);
+                }
+
+                $material_order = $materialOrderQuery->first();
+
+                if ($material_order) {
+
+                    if ((float) $material_order->quantity_entered > 0) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'message' => 'No se puede eliminar la orden porque ya hay un ingreso registrado.'
+                        ], 422);
+                    }
+
+                    $material_order->delete();
+                }
+
+                $detail->delete();
+            }
+
+            $orderPurchase->delete();
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Eliminar Orden Compra Normal',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Orden normal eliminada con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
     public function editOrderPurchaseNormal($id)
     {
         $suppliers = Supplier::all();
@@ -2412,11 +2469,11 @@ class OrderPurchaseController extends Controller
 
         $order = OrderPurchase::with(['supplier', 'approved_user'])->find($id);
         $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
-            ->with(['material'])->get();
+            ->with(['material.unitMeasure','stockItem'])->get();
 
         $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
 
-        return view('orderPurchase.editNormal', compact('order', 'details', 'suppliers', 'users', 'payment_deadlines', 'quotesRaised'));
+        return view('orderPurchase.editNormalV2', compact('order', 'details', 'suppliers', 'users', 'payment_deadlines', 'quotesRaised'));
     }
 
     public function updateNormalDetail(Request $request, $detail_id)
@@ -2549,26 +2606,13 @@ class OrderPurchaseController extends Controller
 
     }
 
-    public function destroyNormalDetail($idDetail, $idMaterial)
+    public function destroyNormalDetailO($idDetail, $idMaterial)
     {
         $begin = microtime(true);
         DB::beginTransaction();
         try {
             $detail = OrderPurchaseDetail::find($idDetail);
             $orderExpress = OrderPurchase::find($detail->order_purchase_id);
-            //$orderExpress->igv = $orderExpress->igv - $detail->igv;
-            //$orderExpress->total = $orderExpress->total - ($detail->quantity*$detail->price);
-            //$orderExpress->save();
-
-            // Si la orden de compra express se modifica, el credito tambien se modificara
-            /*$credit = SupplierCredit::where('order_purchase_id', $orderExpress->id)
-                ->where('state_credit', 'outstanding')->first();
-            if ( isset($credit) )
-            {
-                $credit->total_soles = ($orderExpress->currency_order == 'PEN') ? $orderExpress->total:null;
-                $credit->total_dollars = ($orderExpress->currency_order == 'USD') ? $orderExpress->total:null;
-                $credit->save();
-            }*/
 
             $material_order = MaterialOrder::where('material_id', $idMaterial)
                 ->where('order_purchase_detail_id', $detail->id)->first();
@@ -2599,6 +2643,62 @@ class OrderPurchaseController extends Controller
 
         return response()->json(['message' => 'Detalle normal eliminado con éxito.'], 200);
 
+    }
+
+    public function destroyNormalDetail($idDetail, $stockItemId)
+    {
+        $begin = microtime(true);
+
+        DB::beginTransaction();
+
+        try {
+            $detail = OrderPurchaseDetail::where('id', $idDetail)
+                ->where('stock_item_id', $stockItemId)
+                ->first();
+
+            if (!$detail) {
+                return response()->json([
+                    'message' => 'No se encontró el detalle de la orden.'
+                ], 422);
+            }
+
+            $materialOrder = MaterialOrder::where('stock_item_id', $stockItemId)
+                ->where('order_purchase_detail_id', $detail->id)
+                ->first();
+
+            if ($materialOrder) {
+                if ((float) $materialOrder->quantity_entered > 0) {
+                    return response()->json([
+                        'message' => 'No se puede eliminar el detalle porque ya hay un ingreso.'
+                    ], 422);
+                }
+
+                $materialOrder->delete();
+            }
+
+            $detail->delete();
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Eliminar Orden Compra Normal Detalle',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Detalle normal eliminado con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function updateOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
