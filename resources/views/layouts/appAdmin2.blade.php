@@ -1790,20 +1790,20 @@
                                         </a>
                                     </li>
                                 @endcanany--}}
-                                @can('list_orderPurchaseExpress')
-                                    {{--<li class="nav-item">
+                                {{--@can('list_orderPurchaseExpress')
+                                    <li class="nav-item">
                                         <a href="{{route('order.purchase.express.index')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listar express</p>
                                         </a>
-                                    </li>--}}
+                                    </li>
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.express.indexV2')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listar express</p>
                                         </a>
                                     </li>
-                                @endcan
+                                @endcan--}}
                                 @can('list_orderPurchaseNormal')
                                     {{--<li class="nav-item">
                                         <a href="{{route('order.purchase.normal.index')}}" class="nav-link @yield('activeListOrderPurchaseNormal')">
@@ -1814,11 +1814,11 @@
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.normal.indexV2')}}" class="nav-link @yield('activeListOrderPurchaseNormal')">
                                             <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar normal</p>
+                                            <p>Listar órdenes</p>
                                         </a>
                                     </li>
                                 @endcan
-                                @can('list_orderPurchaseFinance')
+                                {{--@can('list_orderPurchaseFinance')
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.finance.index')}}" class="nav-link @yield('activeListOrderPurchaseFinance')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -1833,16 +1833,16 @@
                                             <p>Crear Express</p>
                                         </a>
                                     </li>
-                                @endcan
+                                @endcan--}}
                                 @can('create_orderPurchaseNormal')
                                     <li class="nav-item">
                                         <a href="{{ route('order.purchase.normal.create') }}" class="nav-link @yield('activeCreateOrderPurchaseNormal')">
                                             <i class="far fa-circle nav-icon"></i>
-                                            <p>Crear Normal</p>
+                                            <p>Crear orden</p>
                                         </a>
                                     </li>
                                 @endcan
-                                @can('create_orderPurchaseFinance')
+                                {{--@can('create_orderPurchaseFinance')
                                     <li class="nav-item">
                                         <a href="{{ route('order.purchase.finance.create') }}" class="nav-link @yield('activeCreateOrderPurchaseFinance')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -1850,14 +1850,14 @@
                                         </a>
                                     </li>
                                 @endcan
-                                {{--@canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
+                                @canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
                                     <li class="nav-item">
                                         <a href="{{ route('order.purchase.list.regularize') }}" class="nav-link @yield('activeListOrderPurchaseRegularize')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listar regularizadas</p>
                                         </a>
                                     </li>
-                                @endcanany
+                                @endcanany--}}
                                 @canany('destroy_orderPurchaseNormal','destroy_orderPurchaseNormal')
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.delete')}}" class="nav-link @yield('activeListOrderPurchaseDelete')">
@@ -1865,7 +1865,7 @@
                                             <p>Listar eliminadas</p>
                                         </a>
                                     </li>
-                                @endcanany--}}
+                                @endcanany
                                 {{--@canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.list.lost')}}" class="nav-link @yield('activeListOrderPurchaseLost')">
@@ -1875,7 +1875,7 @@
                                     </li>
                                 @endcanany--}}
 
-                                @canany('list_orderPurchaseFinance')
+                                {{--@canany('list_orderPurchaseFinance')
                                     <li class="nav-item">
                                         <a href="{{ route('order.purchase.finance.list.regularize') }}" class="nav-link @yield('activeListOrderPurchaseFinanceRegularize')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -1898,7 +1898,7 @@
                                             <p>Ord. Finanzas perdidas</p>
                                         </a>
                                     </li>
-                                @endcanany
+                                @endcanany--}}
 
                             </ul>
                         </li>

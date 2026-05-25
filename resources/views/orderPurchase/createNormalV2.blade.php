@@ -13,7 +13,7 @@
 @endsection
 
 @section('title')
-    Orden de compra normal
+    Orden de compra
 @endsection
 
 @section('styles-plugins')
@@ -37,11 +37,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Crear orden de compra normal</h1>
+    <h1 class="page-title">Crear orden de compra</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Orden de compra normal</h5>
+    <h5 class="card-title">Orden de compra</h5>
 @endsection
 
 @section('page-breadcrumb')
@@ -50,7 +50,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-key"></i> Órdenes de compra</a>
+            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-key"></i> Órdenes de compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Crear</li>
     </ol>

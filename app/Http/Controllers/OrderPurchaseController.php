@@ -3027,7 +3027,7 @@ class OrderPurchaseController extends Controller
         return $pdf->stream($name);
     }
 
-    public function restoreOrderPurchaseDelete($id)
+    public function restoreOrderPurchaseDeleteO($id)
     {
         $begin = microtime(true);
         $orderPurchase = OrderPurchase::onlyTrashed()->find($id);
@@ -3055,6 +3055,64 @@ class OrderPurchaseController extends Controller
         ]);
         $orderPurchase->restore();
 
+    }
+
+    public function restoreOrderPurchaseDelete($id)
+    {
+        $begin = microtime(true);
+
+        DB::beginTransaction();
+
+        try {
+
+            $orderPurchase = OrderPurchase::onlyTrashed()->findOrFail($id);
+
+            $details = OrderPurchaseDetail::onlyTrashed()
+                ->where('order_purchase_id', $id)
+                ->get();
+
+            foreach ($details as $detail) {
+
+                $detail->restore();
+
+                $materialOrderExists = MaterialOrder::where('order_purchase_detail_id', $detail->id)
+                    ->exists();
+
+                if (!$materialOrderExists) {
+                    MaterialOrder::create([
+                        'order_purchase_detail_id' => $detail->id,
+                        'material_id' => $detail->material_id,
+                        'stock_item_id' => $detail->stock_item_id,
+                        'quantity_request' => $detail->quantity,
+                        'quantity_entered' => 0
+                    ]);
+                }
+            }
+
+            $orderPurchase->restore();
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Restaurar orden de compra',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Orden de compra restaurada con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function changeStatusOrderPurchase($order_id, $status)

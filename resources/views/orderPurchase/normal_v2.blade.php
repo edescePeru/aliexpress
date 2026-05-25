@@ -13,7 +13,7 @@
 @endsection
 
 @section('title')
-    Ordenes de compra normal
+    Ordenes de compra
 @endsection
 
 @section('styles-plugins')
@@ -96,13 +96,13 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Listado de Ordenes de compra normal</h1>
+    <h1 class="page-title">Listado de Ordenes de compra</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de Ordenes de compras normal</h5>
+    <h5 class="card-title">Listado de Ordenes de compras</h5>
     @can('create_orderPurchaseNormal')
-        <a href="{{ route('order.purchase.normal.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva orden normal </a>
+        <a href="{{ route('order.purchase.normal.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva orden </a>
     @endcan
 @endsection
 
@@ -112,7 +112,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra normal</a>
+            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>

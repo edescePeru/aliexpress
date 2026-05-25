@@ -44,7 +44,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra general</a>
+            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra general</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>

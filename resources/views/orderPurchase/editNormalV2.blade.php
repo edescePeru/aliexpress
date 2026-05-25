@@ -13,7 +13,7 @@
 @endsection
 
 @section('title')
-    Orden de compra normal
+    Orden de compra
 @endsection
 
 @section('styles-plugins')
@@ -37,11 +37,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Editar orden de compra normal</h1>
+    <h1 class="page-title">Editar orden de compra</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Orden de compra normal</h5>
+    <h5 class="card-title">Orden de compra</h5>
 @endsection
 
 @section('page-breadcrumb')
