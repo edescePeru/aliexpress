@@ -1517,6 +1517,10 @@ function updateMaterial(event) {
     let editUrl = $formEdit.data('url');
     let form = new FormData($('#formEdit')[0]);
 
+    if (uploadedImage) {
+        form.append('image', uploadedImage);
+    }
+
     let tipo = $('input[name="variantes"]:checked').val();
     let variantes_json = [];
 

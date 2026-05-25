@@ -1233,7 +1233,11 @@ class MaterialController extends Controller
 
     public function update(UpdateMaterialRequest $request)
     {
-        //dd($request);
+        /*dd(
+            $request->hasFile('image'),
+            $request->file('image'),
+            $request->all()
+        );*/
         DB::beginTransaction();
 
         try {
