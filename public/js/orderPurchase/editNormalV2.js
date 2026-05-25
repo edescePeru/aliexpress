@@ -254,7 +254,7 @@ $(document).ready(function () {
         }
     });
 
-    $(document).on('input', '[data-quantity]', function () {
+    /*$(document).on('input', '[data-quantity]', function () {
         updateMaterialRow($(this).closest('.material-row'), 'quantity');
     });
 
@@ -268,6 +268,21 @@ $(document).ready(function () {
 
     $(document).on('input', '[data-total]', function () {
         updateMaterialRow($(this).closest('.material-row'), 'total');
+    });*/
+    $(document).on('input', '[data-quantity], [data-price], [data-price2], [data-total]', function () {
+        let row = $(this).closest('.material-row');
+
+        if ($(this).is('[data-quantity]')) updateMaterialRow(row, 'quantity');
+        if ($(this).is('[data-price]')) updateMaterialRow(row, 'price');
+        if ($(this).is('[data-price2]')) updateMaterialRow(row, 'price2');
+        if ($(this).is('[data-total]')) updateMaterialRow(row, 'total');
+
+        let editButton = row.find('[data-edit]');
+
+        if (editButton.length > 0) {
+            editButton.removeClass('btn-outline-success');
+            editButton.addClass('btn-outline-warning');
+        }
     });
 
 });
@@ -774,7 +789,7 @@ function updateSummaryInvoice() {
 
 }
 
-function editItem() {
+function editItemO() {
     var button = $(this);
     var detail_id = $(this).attr('data-edit');
     var total = parseFloat($(this).parent().parent().prev().children().children().val());
@@ -875,6 +890,119 @@ function editItem() {
     });
 }
 
+function editItem() {
+
+    let button = $(this);
+    let row = button.closest('.material-row');
+    let detailId = button.attr('data-edit');
+
+    let deleteButton = row.find('[data-delete]');
+
+    let stockItemId = deleteButton.attr('data-stock-item') || null;
+    let materialId = deleteButton.attr('data-material') || null;
+
+    let quantity = parseFloat(row.find('[data-quantity]').val());
+    let price = parseFloat(row.find('[data-price]').val());
+    let total = parseFloat(row.find('[data-total]').val());
+
+    if (!detailId) {
+        toastr.error('No se encontró el detalle a editar.', 'Error', toastrOptions());
+        return;
+    }
+
+    if (!materialId) {
+        toastr.error('No se encontró el material del detalle.', 'Error', toastrOptions());
+        return;
+    }
+
+    if (!stockItemId) {
+        toastr.error('No se encontró el stock item del detalle.', 'Error', toastrOptions());
+        return;
+    }
+
+    if (isNaN(quantity) || quantity <= 0) {
+        toastr.error('Debe ingresar una cantidad válida.', 'Error', toastrOptions());
+        return;
+    }
+
+    if (isNaN(price) || price <= 0) {
+        toastr.error('Debe ingresar un precio válido.', 'Error', toastrOptions());
+        return;
+    }
+
+    if (isNaN(total) || total <= 0) {
+        toastr.error('Debe ingresar un total válido.', 'Error', toastrOptions());
+        return;
+    }
+
+    let modifiedItem = [{
+        detail_id: detailId,
+        id_material: materialId,
+        stock_item_id: stockItemId,
+        quantity: quantity,
+        price: price,
+        total: total
+    }];
+
+    let valParam = JSON.stringify(modifiedItem);
+
+    $.confirm({
+        icon: 'fas fa-save',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'green',
+        title: 'Guardar cambios',
+        content: 'Se guardarán los cambios de este detalle.',
+        buttons: {
+            confirm: {
+                text: 'CONFIRMAR',
+                btnClass: 'btn-green',
+                action: function () {
+                    $.ajax({
+                        url: '/dashboard/update/detail/order/purchase/normal/' + detailId,
+                        method: 'POST',
+                        data: {
+                            items: valParam
+                        },
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        beforeSend: function () {
+                            button.prop('disabled', true);
+                        },
+                        success: function (data) {
+                            button.removeClass('btn-outline-warning')
+                                .addClass('btn-outline-success');
+
+                            updateSummaryInvoice();
+
+                            $('#btn-submit')
+                                .removeClass('btn-outline-success')
+                                .addClass('btn-outline-danger');
+
+                            toastr.success(data.message, 'Correcto', toastrOptions());
+                        },
+                        error: function (data) {
+                            let message = data.responseJSON && data.responseJSON.message
+                                ? data.responseJSON.message
+                                : 'Ocurrió un error al guardar el detalle.';
+
+                            toastr.error(message, 'Error', toastrOptions());
+                        },
+                        complete: function () {
+                            button.prop('disabled', false);
+                        }
+                    });
+                }
+            },
+            cancel: {
+                text: 'CANCELAR'
+            }
+        }
+    });
+}
+
 function deleteItem() {
     var button = $(this);
 
@@ -889,7 +1017,7 @@ function deleteItem() {
             animation: 'zoom',
             type: 'red',
             title: 'Eliminar detalle',
-            content: 'Se eliminará en la base de datos',
+            content: 'Se eliminará de forma permanente',
             buttons: {
                 confirm: {
                     text: 'CONFIRMAR',
@@ -975,6 +1103,10 @@ function renderTemplateMaterial(stock_item_id, stock_item_sku, material, quantit
     clone.querySelector("[data-delete]").setAttribute('data-delete', "");
     clone.querySelector("[data-delete]").setAttribute('data-stock-item', stock_item_id);
     $('#body-materials').append(clone);
+
+    $('#btn-submit')
+        .removeClass('btn-outline-success')
+        .addClass('btn-outline-danger');
 }
 
 function updateMaterialRow($row, changedField) {
@@ -1058,33 +1190,6 @@ function storeOrderPurchase() {
     var state = $('#btn-currency').bootstrapSwitch('state');
     var regularize = $('#btn-regularize').bootstrapSwitch('state');
     console.log(regularize);
-
-    /*var arrayId = [];
-    var arrayCode = [];
-    var arrayDescription = [];
-    var arrayQuantity = [];
-    var arrayPrice = [];
-
-    $('[data-id]').each(function(e){
-        arrayId.push($(this).val());
-    });
-    $('[data-code]').each(function(e){
-        arrayCode.push($(this).val());
-    });
-    $('[data-description]').each(function(e){
-        arrayDescription.push($(this).val());
-    });
-    $('[data-quantity]').each(function(e){
-        arrayQuantity.push($(this).val());
-    });
-    $('[data-price]').each(function(e){
-        arrayPrice.push($(this).val());
-    });
-
-    var itemsArray = [];
-    for (let i = 0; i < arrayId.length; i++) {
-        itemsArray.push({'id':arrayId[i], 'code':arrayCode[i], 'description':arrayDescription[i], 'quantity': arrayQuantity[i], 'price': arrayPrice[i]});
-    }*/
 
     var createUrl = $formCreate.data('url');
     var items = JSON.stringify($items);

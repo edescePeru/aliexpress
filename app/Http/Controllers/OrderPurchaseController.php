@@ -2476,7 +2476,7 @@ class OrderPurchaseController extends Controller
         return view('orderPurchase.editNormalV2', compact('order', 'details', 'suppliers', 'users', 'payment_deadlines', 'quotesRaised'));
     }
 
-    public function updateNormalDetail(Request $request, $detail_id)
+    public function updateNormalDetailO(Request $request, $detail_id)
     {
         $begin = microtime(true);
         DB::beginTransaction();
@@ -2495,10 +2495,6 @@ class OrderPurchaseController extends Controller
                     if ( $material_order->quantity_entered > 0 ) {
                         return response()->json(['message' => 'No se puede modificar el detalle porque ya hay un ingreso.'], 422);
                     } else {
-                        //$total_last = $detail->price*$detail->quantity;
-                        //600
-                        //$igv_last = $detail->igv;
-                        //91.53
 
                         $quantity = (float) $items[$i]->quantity;
                         //4
@@ -2521,30 +2517,8 @@ class OrderPurchaseController extends Controller
                         $material_order->quantity_request =  round($quantity, 2);
                         $material_order->save();
 
-                        //$orderExpress->igv = round(($orderExpress->igv - $igv_last),2);
-                        //$orderExpress->total = round(($orderExpress->total - $total_last),2);
-                        //$orderExpress->save();
-
-                        //$orderExpress->igv = round(($orderExpress->igv + $igv),2);
-                        //$orderExpress->total = round(($orderExpress->total + $total),2);
-
-                        //$orderExpress->save();
-
-                        // Si la orden de compra express se modifica, el credito tambien se modificara
-                        /*$credit = SupplierCredit::where('order_purchase_id', $orderExpress->id)
-                            ->where('state_credit', 'outstanding')->first();
-                        if ( isset($credit) )
-                        {
-                            $credit->total_soles = ($orderExpress->currency_order == 'PEN') ? $orderExpress->total:null;
-                            $credit->total_dollars = ($orderExpress->currency_order == 'USD') ? $orderExpress->total:null;
-                            $credit->save();
-                        }*/
                     }
                 } else {
-                    //$total_last = $detail->price*$detail->quantity;
-                    //600
-                    //$igv_last = $detail->igv;
-                    //91.53
 
                     $quantity = (float) $items[$i]->quantity;
                     //4
@@ -2568,24 +2542,6 @@ class OrderPurchaseController extends Controller
                     $detail->total_detail = round($total,2);
                     $detail->save();
 
-                    //$orderExpress->igv = round(($orderExpress->igv - $igv_last),2);
-                    //$orderExpress->total = round(($orderExpress->total - $total_last),2);
-                    //$orderExpress->save();
-
-                    //$orderExpress->igv = round(($orderExpress->igv + $igv),2);
-                    //$orderExpress->total = round(($orderExpress->total + $total),2);
-
-                    //$orderExpress->save();
-
-                    // Si la orden de compra express se modifica, el credito tambien se modificara
-                    /*$credit = SupplierCredit::where('order_purchase_id', $orderExpress->id)
-                        ->where('state_credit', 'outstanding')->first();
-                    if ( isset($credit) )
-                    {
-                        $credit->total_soles = ($orderExpress->currency_order == 'PEN') ? $orderExpress->total:null;
-                        $credit->total_dollars = ($orderExpress->currency_order == 'USD') ? $orderExpress->total:null;
-                        $credit->save();
-                    }*/
                 }
 
             }
@@ -2604,6 +2560,85 @@ class OrderPurchaseController extends Controller
 
         return response()->json(['message' => 'Detalle normal modificado con éxito.'], 200);
 
+    }
+
+    public function updateNormalDetail(Request $request, $detail_id)
+    {
+        $begin = microtime(true);
+
+        DB::beginTransaction();
+
+        try {
+
+            $detail = OrderPurchaseDetail::findOrFail($detail_id);
+
+            $items = json_decode($request->get('items'));
+
+            if (!$items || count($items) === 0) {
+                throw new \Exception('No se recibió información del detalle.');
+            }
+
+            $item = $items[0];
+
+            $quantity = (float) $item->quantity;
+            $price = (float) $item->price;
+            $totalFinal = (float) $item->total;
+            $stockItemId = $item->stock_item_id ?? $detail->stock_item_id;
+
+            $materialOrderQuery = MaterialOrder::where('order_purchase_detail_id', $detail->id)
+                ->where('material_id', $detail->material_id);
+
+            if (!empty($stockItemId)) {
+                $materialOrderQuery->where('stock_item_id', $stockItemId);
+            }
+
+            $materialOrder = $materialOrderQuery->first();
+
+            if ($materialOrder && (float) $materialOrder->quantity_entered > 0) {
+                return response()->json([
+                    'message' => 'No se puede modificar el detalle porque ya hay un ingreso.'
+                ], 422);
+            }
+
+            $total = round($totalFinal, 2);
+            $subtotal = round($total / 1.18, 2);
+            $igv = $total - $subtotal;
+
+            $detail->quantity = round($quantity, 2);
+            $detail->price = round($price, 2);
+            $detail->igv = round($igv, 2);
+            $detail->total_detail = round($total, 2);
+            $detail->stock_item_id = $stockItemId;
+            $detail->save();
+
+            if ($materialOrder) {
+                $materialOrder->stock_item_id = $stockItemId;
+                $materialOrder->quantity_request = round($quantity, 2);
+                $materialOrder->save();
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Editar Orden Compra Normal Detalle',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Detalle normal modificado con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function destroyNormalDetailO($idDetail, $idMaterial)
@@ -2701,7 +2736,7 @@ class OrderPurchaseController extends Controller
         }
     }
 
-    public function updateOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
+    public function updateOrderPurchaseNormalO(StoreOrderPurchaseRequest $request)
     {
         $begin = microtime(true);
         $validated = $request->validated();
@@ -2754,28 +2789,6 @@ class OrderPurchaseController extends Controller
 
             }
 
-            // Si la orden de compra express se modifica, el credito tambien se modificara
-            /*$credit = SupplierCredit::where('order_purchase_id', $orderPurchase->id)
-                ->where('state_credit', 'outstanding')->first();
-            if ( isset($credit) )
-            {
-                $deadline = PaymentDeadline::find($orderPurchase->deadline->id);
-                //$fecha_issue = Carbon::parse($orderPurchase->date_order);
-                //$fecha_expiration = $fecha_issue->addDays($deadline->days);
-                // TODO: Poner dias
-                //$dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
-
-                $credit->supplier_id = $orderPurchase->supplier->id;
-                $credit->total_soles = ($orderPurchase->currency_order == 'PEN') ? $orderPurchase->total:null;
-                $credit->total_dollars = ($orderPurchase->currency_order == 'USD') ? $orderPurchase->total:null;
-                //$credit->date_issue = $orderPurchase->date_order;
-                //$credit->date_expiration = $fecha_expiration;
-                //$credit->days_to_expiration = $dias_to_expire;
-                $credit->code_order = $orderPurchase->code;
-                $credit->payment_deadline_id = $orderPurchase->payment_deadline_id;
-                $credit->save();
-            }*/
-
             $end = microtime(true) - $begin;
 
             Audit::create([
@@ -2790,6 +2803,114 @@ class OrderPurchaseController extends Controller
         }
         return response()->json(['message' => 'Orden compra normal modificada con éxito.'], 200);
 
+    }
+
+    public function updateOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
+    {
+        $begin = microtime(true);
+        $validated = $request->validated();
+
+        DB::beginTransaction();
+
+        try {
+
+            $orderPurchase = OrderPurchase::findOrFail($request->get('order_id'));
+
+            $orderPurchase->payment_deadline_id = ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null;
+            $orderPurchase->supplier_id = ($request->has('supplier_id')) ? $request->get('supplier_id') : null;
+            $orderPurchase->date_arrival = ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now();
+            $orderPurchase->date_order = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
+            $orderPurchase->approved_by = ($request->has('approved_by')) ? $request->get('approved_by') : null;
+            $orderPurchase->payment_condition = ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '';
+            $orderPurchase->currency_order = ($request->get('state') === 'true') ? 'PEN' : 'USD';
+            $orderPurchase->regularize = ($request->get('regularize') === 'true') ? 'r' : 'nr';
+            $orderPurchase->observation = $request->get('observation');
+            $orderPurchase->quote_supplier = $request->get('quote_supplier');
+            $orderPurchase->igv = (float) $request->get('taxes_send');
+            $orderPurchase->total = (float) $request->get('total_send');
+            $orderPurchase->quote_id = ($request->has('quote_id')) ? $request->get('quote_id') : null;
+            $orderPurchase->save();
+
+            $items = json_decode($request->get('items'));
+
+            if ($items && sizeof($items) > 0) {
+
+                foreach ($items as $item) {
+
+                    $detailId = $item->detail_id ?? '';
+
+                    if ($detailId !== '') {
+                        continue;
+                    }
+
+                    $stockItemId = $item->stock_item_id ?? null;
+
+                    if (!$stockItemId) {
+                        throw new \Exception('No se encontró el stock item del producto seleccionado.');
+                    }
+
+                    $quantity = (float) $item->quantity;
+                    $price = (float) $item->price;
+                    $totalFinal = (float) $item->total;
+
+                    if ($quantity <= 0) {
+                        throw new \Exception('La cantidad debe ser mayor a cero.');
+                    }
+
+                    if ($price <= 0) {
+                        throw new \Exception('El precio debe ser mayor a cero.');
+                    }
+
+                    if ($totalFinal <= 0) {
+                        throw new \Exception('El total debe ser mayor a cero.');
+                    }
+
+                    $total = round($totalFinal, 2);
+                    $subtotal = round($total / 1.18, 2);
+                    $igv = round($total - $subtotal, 2);
+
+                    $orderPurchaseDetail = OrderPurchaseDetail::create([
+                        'order_purchase_id' => $orderPurchase->id,
+                        'material_id' => $item->id_material,
+                        'stock_item_id' => $stockItemId,
+                        'quantity' => round($quantity, 2),
+                        'price' => round($price, 2),
+                        'igv' => $igv,
+                        'total_detail' => $total,
+                    ]);
+
+                    MaterialOrder::create([
+                        'order_purchase_detail_id' => $orderPurchaseDetail->id,
+                        'material_id' => $orderPurchaseDetail->material_id,
+                        'stock_item_id' => $orderPurchaseDetail->stock_item_id,
+                        'quantity_request' => $orderPurchaseDetail->quantity,
+                        'quantity_entered' => 0
+                    ]);
+                }
+            }
+
+            $end = microtime(true) - $begin;
+
+            Audit::create([
+                'user_id' => Auth::user()->id,
+                'action' => 'Modificar Orden Compra Normal',
+                'time' => $end
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Orden compra normal modificada con éxito.'
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function printOrderPurchase($id)
