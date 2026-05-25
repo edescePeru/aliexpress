@@ -349,7 +349,7 @@ function notAddProduct() {
     $modalQuantity.modal('hide');
 }
 
-function addProductCartSpecial() {
+function addProductCartSpecialO() {
     event.preventDefault(); // Evitar el comportamiento por defecto del enlace
 
     $modalQuantity.on('shown.bs.modal', function () {
@@ -416,6 +416,76 @@ function addProductCartSpecial() {
     showModalQuantity(productId, materialId,productPrice, productName, productUnit, productTax, productType, productStock);
 
 
+}
+
+function addProductCartSpecial() {
+    event.preventDefault();
+
+    let button = $(this);
+
+    let productPrice = parseFloat(button.data('product_price'));
+
+    if (isNaN(productPrice) || productPrice <= 0) {
+        $.confirm({
+            icon: 'fas fa-exclamation-triangle',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'orange',
+            title: 'Precio en cero',
+            content: 'El precio de este producto es 0. ¿Procedemos con la venta?',
+            buttons: {
+                confirm: {
+                    text: 'SÍ, CONTINUAR',
+                    btnClass: 'btn-orange',
+                    action: function () {
+                        continuarAddProductCartSpecial(button);
+                    }
+                },
+                cancel: {
+                    text: 'CANCELAR'
+                }
+            }
+        });
+
+        return;
+    }
+
+    continuarAddProductCartSpecial(button);
+}
+
+function continuarAddProductCartSpecial(button) {
+
+    $modalQuantity.on('shown.bs.modal', function () {
+        $('#quantity_total').trigger('focus');
+    });
+
+    let productId = button.data('product_id');
+    let materialId = button.data('material_id');
+    let productPrice = button.data('product_price');
+    let productStock = button.data('product_stock');
+    let productName = button.data('product_name');
+    let productUnit = button.data('product_unit');
+    let productTax = button.data('product_tax');
+    let productType = button.data('product_type');
+
+    if ($modeEdit == 0) {
+        toastr.error("Lo sentimos ya no puede agregar mas productos, anule o imprima el comprobante.", 'Error', {
+            "closeButton": true
+        });
+        return;
+    }
+
+    showModalQuantity(
+        productId,
+        materialId,
+        productPrice,
+        productName,
+        productUnit,
+        productTax,
+        productType,
+        productStock
+    );
 }
 
 /*function showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock) {
@@ -1360,7 +1430,7 @@ function getDiscountMaterial(product_id, quantity) {
     });
 }
 
-function addProductCart() {
+function addProductCartO() {
     event.preventDefault();
 
     let productId = $(this).data('product_id');
@@ -1417,6 +1487,101 @@ function addProductCart() {
     });
 
     // ✅ usa el nuevo render
+    renderDataCartRow(itemKey);
+
+    updateTotalOrder();
+}
+
+function addProductCart() {
+    event.preventDefault();
+
+    let button = $(this);
+
+    let productPrice = parseFloat(button.data('product_price'));
+
+    if (isNaN(productPrice) || productPrice <= 0) {
+        $.confirm({
+            icon: 'fas fa-exclamation-triangle',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'orange',
+            title: 'Precio en cero',
+            content: 'El precio de este producto es 0. ¿Procedemos con la venta?',
+            buttons: {
+                confirm: {
+                    text: 'SÍ, CONTINUAR',
+                    btnClass: 'btn-orange',
+                    action: function () {
+                        continuarAddProductCart(button);
+                    }
+                },
+                cancel: {
+                    text: 'CANCELAR',
+                    action: function () {
+                        return;
+                    }
+                }
+            }
+        });
+
+        return;
+    }
+
+    continuarAddProductCart(button);
+}
+
+function continuarAddProductCart(button) {
+
+    let productId = button.data('product_id');
+    let materialId = button.data('material_id');
+    let productPrice = parseFloat(button.data('product_price'));
+    let productStock = parseFloat(button.data('product_stock'));
+    let productName = button.data('product_name');
+    let productUnit = button.data('product_unit');
+    let productTax = parseFloat(button.data('product_tax'));
+    let productType = button.data('product_type');
+
+    if ($modeEdit == 0) {
+        toastr.error("Lo sentimos ya no puede agregar mas productos, anule o imprima el comprobante.", 'Error', { "closeButton": true });
+        return;
+    }
+
+    const itemKey = buildItemKey(productId, null);
+
+    let existing = $items.find(x => x.itemKey === itemKey);
+
+    if (existing) {
+        toastr.error(`El producto ${productName} (Unidad) ya está agregado. Use + / - para modificar.`, 'Error', { "closeButton": true });
+        return;
+    }
+
+    if (productStock < 1) {
+        toastr.error("Stock insuficiente.", 'Error', { "closeButton": true });
+        return;
+    }
+
+    $items.push({
+        itemKey: itemKey,
+        productId: productId,
+        materialId: materialId,
+        presentationId: null,
+        presentationQty: 1,
+        presentationLabel: 'Unidad',
+        priceEffective: productPrice,
+        productPrice: productPrice,
+        productName: productName,
+        productUnit: productUnit,
+        productTax: productTax,
+        productTotal: parseFloat(productPrice * 1).toFixed(2),
+        productTotalTaxes: parseFloat((productPrice * 1) * (1 + (productTax / 100))).toFixed(2),
+        productTaxes: parseFloat((productPrice * 1) * (productTax / 100)).toFixed(2),
+        productQuantity: 1,
+        unitsEquivalent: 1,
+        productDiscount: 0,
+        productType: productType
+    });
+
     renderDataCartRow(itemKey);
 
     updateTotalOrder();
