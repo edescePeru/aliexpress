@@ -295,7 +295,7 @@ $(document).ready(function () {
     `);
     });
 
-    $(document).on('click', '#btn-agregar-todos-stock-items', function () {
+    /*$(document).on('click', '#btn-agregar-todos-stock-items', function () {
         let addedCount = 0;
         let hasError = false;
 
@@ -320,9 +320,9 @@ $(document).ready(function () {
             const $presentationInput = $row.find('.input-presentations-selected');
             const hasPresentationsSelected = $presentationInput.length > 0;
 
-            /**
+            /!**
              * CASO 1: Tiene presentaciones seleccionadas
-             */
+             *!/
             if (hasPresentationsSelected) {
                 let presentations = [];
 
@@ -401,9 +401,9 @@ $(document).ready(function () {
                 return;
             }
 
-            /**
+            /!**
              * CASO 2: Sin presentaciones, venta por unidad
-             */
+             *!/
             const qtyToUse = parseFloat($row.find('.input-cantidad-stock-item').val()) || 0;
 
             if (qtyToUse <= 0) {
@@ -474,6 +474,82 @@ $(document).ready(function () {
         $('#modalStockItemsVenta').modal('hide');
 
         toastr.success('Productos agregados al carrito.');
+    });*/
+    $(document).on('click', '#btn-agregar-todos-stock-items', function () {
+
+        let button = $(this);
+
+        let hasZeroPrice = false;
+
+        $('#tbody-stock-items-venta tr').each(function () {
+            const $row = $(this);
+
+            const stockItemId = $row.data('stock-item-id');
+            const materialId = $row.data('material-id');
+
+            if (!stockItemId || !materialId) {
+                return;
+            }
+
+            const $presentationInput = $row.find('.input-presentations-selected');
+            const hasPresentationsSelected = $presentationInput.length > 0;
+
+            if (hasPresentationsSelected) {
+                let presentations = [];
+
+                try {
+                    presentations = JSON.parse($presentationInput.attr('data-presentations') || '[]');
+                } catch (e) {
+                    return;
+                }
+
+                presentations.forEach(function (r) {
+                    const packs = parseFloat(r.packs) || 0;
+                    const price = parseFloat(r.price) || 0;
+
+                    if (packs > 0 && price <= 0) {
+                        hasZeroPrice = true;
+                    }
+                });
+
+                return;
+            }
+
+            const qtyToUse = parseFloat($row.find('.input-cantidad-stock-item').val()) || 0;
+            const unitPrice = parseFloat($row.data('price')) || 0;
+
+            if (qtyToUse > 0 && unitPrice <= 0) {
+                hasZeroPrice = true;
+            }
+        });
+
+        if (hasZeroPrice) {
+            $.confirm({
+                icon: 'fas fa-exclamation-triangle',
+                theme: 'modern',
+                closeIcon: true,
+                animation: 'zoom',
+                type: 'orange',
+                title: 'Precio en cero',
+                content: 'Uno o más productos seleccionados tienen precio 0. ¿Procedemos con la venta?',
+                buttons: {
+                    confirm: {
+                        text: 'SÍ, CONTINUAR',
+                        btnClass: 'btn-orange',
+                        action: function () {
+                            continuarAgregarTodosStockItems();
+                        }
+                    },
+                    cancel: {
+                        text: 'CANCELAR'
+                    }
+                }
+            });
+
+            return;
+        }
+
+        continuarAgregarTodosStockItems();
     });
 
     $(document).on('keydown', '#dni, #ruc', function (e) {
@@ -521,6 +597,188 @@ let $sale_id = null;
 let $modalQuantity;
 
 let $presentationsCache = {}; // materialId -> array presentations
+
+function continuarAgregarTodosStockItems() {
+    let addedCount = 0;
+    let hasError = false;
+
+    $('#tbody-stock-items-venta tr').each(function () {
+        const $row = $(this);
+
+        const stockItemId = $row.data('stock-item-id');
+        const materialId = $row.data('material-id');
+
+        if (!stockItemId || !materialId) {
+            return;
+        }
+
+        const productId = stockItemId;
+        const productName = $row.data('product-name') || $row.find('td:first').text().trim();
+        const productUnit = $row.data('product-unit') || 'UND';
+        const productTax = parseFloat($row.data('product-tax')) || 0;
+        const productType = parseInt($row.data('product-type')) || 0;
+        const stockAvailable = parseFloat($row.data('stock')) || 0;
+        const unitPrice = parseFloat($row.data('price')) || 0;
+
+        const $presentationInput = $row.find('.input-presentations-selected');
+        const hasPresentationsSelected = $presentationInput.length > 0;
+
+        // aquí pegas exactamente el contenido que ya tenías
+        /**
+         * CASO 1: Tiene presentaciones seleccionadas
+         */
+        if (hasPresentationsSelected) {
+            let presentations = [];
+
+            try {
+                presentations = JSON.parse($presentationInput.attr('data-presentations') || '[]');
+            } catch (e) {
+                toastr.error('Error leyendo las presentaciones seleccionadas.');
+                hasError = true;
+                return false;
+            }
+
+            let totalUnits = presentations.reduce(function (sum, r) {
+                return sum + (parseFloat(r.quantity) || 0);
+            }, 0);
+
+            if (totalUnits > stockAvailable) {
+                toastr.error(`La cantidad seleccionada para ${productName} supera el stock disponible.`);
+                hasError = true;
+                return false;
+            }
+
+            presentations.forEach(function (r) {
+                const presentationId = r.material_presentation_id;
+                const presentationQty = parseFloat(r.unitsPerPack) || 1;
+                const packs = parseFloat(r.packs) || 0;
+                const price = parseFloat(r.price) || 0;
+
+                if (packs <= 0) {
+                    return;
+                }
+
+                const itemKey = buildItemKey(stockItemId, presentationId);
+
+                let existing = $items.find(x => x.itemKey === itemKey);
+
+                if (existing) {
+                    toastr.error(`El producto ${productName} (${presentationQty} unidades) ya está agregado. Use + / - para modificar.`, 'Error', {
+                        closeButton: true
+                    });
+                    hasError = true;
+                    return;
+                }
+
+                const total = parseFloat(packs * price).toFixed(2);
+
+                $items.push({
+                    itemKey: itemKey,
+                    productId: productId,
+                    stockItemId: stockItemId,
+                    materialId: materialId,
+
+                    presentationId: presentationId,
+                    presentationQty: presentationQty,
+                    presentationLabel: `${presentationQty} unidades`,
+
+                    priceEffective: price,
+                    productPrice: price,
+                    productName: productName,
+                    productUnit: productUnit,
+                    productTax: productTax,
+                    productType: productType,
+
+                    productTotal: total,
+                    productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
+                    productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
+
+                    productQuantity: packs,
+                    unitsEquivalent: packs * presentationQty,
+                    productDiscount: 0
+                });
+
+                renderDataCartRow(itemKey);
+                addedCount++;
+            });
+
+            return;
+        }
+
+        /**
+         * CASO 2: Sin presentaciones, venta por unidad
+         */
+        const qtyToUse = parseFloat($row.find('.input-cantidad-stock-item').val()) || 0;
+
+        if (qtyToUse <= 0) {
+            return;
+        }
+
+        if (qtyToUse > stockAvailable) {
+            toastr.error(`La cantidad ingresada para ${productName} supera el stock disponible.`);
+            hasError = true;
+            return false;
+        }
+
+        const itemKey = buildItemKey(stockItemId, null);
+
+        let existing = $items.find(x => x.itemKey === itemKey);
+
+        if (existing) {
+            toastr.error(`El producto ${productName} (Unidad) ya está agregado. Use + / - para modificar.`, 'Error', {
+                closeButton: true
+            });
+            hasError = true;
+            return false;
+        }
+
+        const total = parseFloat(qtyToUse * unitPrice).toFixed(2);
+
+        $items.push({
+            itemKey: itemKey,
+            productId: productId,
+            stockItemId: stockItemId,
+            materialId: materialId,
+
+            presentationId: null,
+            presentationQty: 1,
+            presentationLabel: 'Unidad',
+
+            priceEffective: unitPrice,
+            productPrice: unitPrice,
+            productName: productName,
+            productUnit: productUnit,
+            productTax: productTax,
+            productType: productType,
+
+            productTotal: total,
+            productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
+            productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
+
+            productQuantity: qtyToUse,
+            unitsEquivalent: qtyToUse,
+            productDiscount: 0
+        });
+
+        renderDataCartRow(itemKey);
+        addedCount++;
+    });
+
+    if (hasError) {
+        return;
+    }
+
+    if (addedCount === 0) {
+        toastr.warning('Debe ingresar una cantidad o seleccionar una presentación.');
+        return;
+    }
+
+    updateTotalOrder();
+
+    $('#modalStockItemsVenta').modal('hide');
+
+    toastr.success('Productos agregados al carrito.');
+}
 
 function consultarClientePorDocumento(documento, tipo) {
     $.ajax({
