@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use \App\Http\Controllers\MetaController;
 use \App\Http\Controllers\MaterialDetailSettingController;
 use \App\Http\Controllers\MaterialPresentationController;
+use \App\Http\Controllers\StoreWebController;
 
 /*
 |--------------------------------------------------------------------------
@@ -3169,6 +3170,14 @@ Route::middleware('auth')->group(function (){
         Route::get('/customer/decolecta/{documento}', 'CustomerController@consultarDocumentoDecolecta')
             ->name('customer.consultarDocumentoDecolecta');
     });
+});
+
+Route::prefix('store-web/')->group(function () {
+    Route::get('inicio/', [StoreWebController::class, 'home'])
+        ->name('store-web.home');
+    Route::get('catalogo/', [StoreWebController::class, 'catalog'])
+        ->name('store-web.catalog');
+
 });
 
 Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');
