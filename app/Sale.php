@@ -30,6 +30,7 @@ class Sale extends Model
         'cdr_path',
         'pdf_path',
         'type_document',
+        'pagos_parciales_venta',
         'sunat_ticket',
         'sunat_status',
         'sunat_message',

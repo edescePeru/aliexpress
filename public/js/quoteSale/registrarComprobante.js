@@ -124,7 +124,6 @@ $(document).ready(function () {
 
     });
 
-
     function consultarClientePorDocumento(documento, tipo) {
 
         $.ajax({
@@ -206,6 +205,70 @@ $(document).ready(function () {
                     $('#direccionCliente')
                         .prop('readonly', false);
                 }
+            }
+        });
+    }
+
+    // ==============================
+    // Pagos parciales
+    // ==============================
+
+    function esPagoParcialVenta() {
+        return $('#pagos_parciales_venta').length &&
+            $('#pagos_parciales_venta').is(':checked');
+    }
+
+    function limpiarDatosCajaPago() {
+        $('#pv_cash_box_id').val('').trigger('change');
+        $('#pv_cash_box_subtype_id').val('').trigger('change');
+        $('#pv_cash_box_subtype_wrap').hide();
+    }
+
+    function limpiarDatosClienteComprobante() {
+        $('#dniCliente').val('');
+        $('#nameCliente').val('');
+        $('#rucCliente').val('');
+        $('#razonCliente').val('');
+        $('#direccionCliente').val('');
+        $('#emailCliente').val('');
+    }
+
+    function ocultarDatosPagoNormal() {
+        limpiarDatosCajaPago();
+        limpiarDatosClienteComprobante();
+
+        $('#wrap_pv_cash_box').hide();
+        $('#pv_cash_box_subtype_wrap').hide();
+
+        $('#datosBoleta').hide();
+        $('#datosFactura').hide();
+    }
+
+    function mostrarDatosPagoNormal() {
+        $('#wrap_pv_cash_box').show();
+
+        $('#datosBoleta').show();
+        $('#datosFactura').show();
+    }
+
+    if ($('#pagos_parciales_venta').length) {
+        let disabledSwitch = $('#pagos_parciales_venta').data('disabled') === true ||
+            $('#pagos_parciales_venta').data('disabled') === 'true';
+
+        $('#pagos_parciales_venta').bootstrapSwitch({
+            state: false,
+            disabled: disabledSwitch,
+            onText: 'SI',
+            offText: 'NO',
+            onColor: 'success',
+            offColor: 'danger'
+        });
+
+        $('#pagos_parciales_venta').on('switchChange.bootstrapSwitch', function (event, state) {
+            if (state) {
+                ocultarDatosPagoNormal();
+            } else {
+                mostrarDatosPagoNormal();
             }
         });
     }
@@ -392,33 +455,45 @@ $(document).ready(function () {
         let quote_id         = $('#quote_id').val();
         let fechaDocumento   = $('#fechaDocumento').val();
 
-        // ✅ Caja/Subtipo (en lugar de tipoPago)
+        const pagosParcialesVenta = esPagoParcialVenta();
+
         const cashBoxId = $('#pv_cash_box_id').val();
         const $opt      = $('#pv_cash_box_id').find('option:selected');
         const boxType   = ($opt.data('type') || '').toString();
         const usesSub   = String($opt.data('uses_subtypes') || '0') === '1';
 
         let cashBoxSubtypeId = null;
-        if (boxType === 'bank' && usesSub) {
+
+        if (!pagosParcialesVenta && boxType === 'bank' && usesSub) {
             cashBoxSubtypeId = $('#pv_cash_box_subtype_id').val();
         }
 
         let nombre_cliente = '';
         let numero_documento = '';
         let direccion_cliente = '';
-        let email_cliente = $('#emailCliente').val();
+        let email_cliente = $('#emailCliente').val() || '';
 
-        if (!cashBoxId || !fechaDocumento) {
+        if (!fechaDocumento) {
             $.alert({
                 title: 'Campos incompletos',
-                content: 'Por favor complete Caja y Fecha',
+                content: 'Por favor complete la Fecha',
                 type: 'red',
                 buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
             });
             return;
         }
 
-        if (boxType === 'bank' && usesSub && !cashBoxSubtypeId) {
+        if (!pagosParcialesVenta && !cashBoxId) {
+            $.alert({
+                title: 'Campos incompletos',
+                content: 'Por favor complete Caja',
+                type: 'red',
+                buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+            });
+            return;
+        }
+
+        if (!pagosParcialesVenta && boxType === 'bank' && usesSub && !cashBoxSubtypeId) {
             $.alert({
                 title: 'Campos incompletos',
                 content: 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).',
@@ -428,78 +503,66 @@ $(document).ready(function () {
             return;
         }
 
-        if (typeComprobante === 'Boleta' || typeComprobante === 'Ticket') {
+        if (!pagosParcialesVenta) {
+            if (typeComprobante === 'Boleta' || typeComprobante === 'Ticket') {
+                nombre_cliente = $('#nameCliente').val().trim();
+                numero_documento = $('#dniCliente').val().trim();
 
-            nombre_cliente = $('#nameCliente').val().trim();
-            numero_documento = $('#dniCliente').val().trim();
+                if (!nombre_cliente || !numero_documento) {
+                    $.alert({
+                        title: 'Campos incompletos',
+                        content: 'Por favor complete Nombre y DNI',
+                        type: 'red',
+                        buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+                    });
+                    return;
+                }
 
-            if (!nombre_cliente || !numero_documento) {
-                $.alert({
-                    title: 'Campos incompletos',
-                    content: 'Por favor complete Nombre y DNI',
-                    type: 'red',
-                    buttons: {
-                        ok: {
-                            text: 'OK',
-                            btnClass: 'btn-danger'
-                        }
-                    }
-                });
-                return;
+                if (!/^\d{8}$/.test(numero_documento)) {
+                    $.alert({
+                        title: 'DNI inválido',
+                        content: 'El DNI debe contener exactamente 8 dígitos',
+                        type: 'red',
+                        buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+                    });
+                    return;
+                }
             }
 
-            // Validar DNI
-            if (!/^\d{8}$/.test(numero_documento)) {
-                $.alert({
-                    title: 'DNI inválido',
-                    content: 'El DNI debe contener exactamente 8 dígitos',
-                    type: 'red',
-                    buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
-                });
+            if (typeComprobante === 'Factura') {
+                numero_documento = $('#rucCliente').val().trim();
+                nombre_cliente = $('#razonCliente').val().trim();
+                direccion_cliente = $('#direccionCliente').val().trim();
 
-                return;
-            }
-        }
+                if (!numero_documento || !nombre_cliente || !direccion_cliente) {
+                    $.alert({
+                        title: 'Campos incompletos',
+                        content: 'Por favor complete RUC, Razón Social y Dirección Fiscal',
+                        type: 'red',
+                        buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+                    });
+                    return;
+                }
 
-        if (typeComprobante === 'Factura') {
-
-            numero_documento = $('#rucCliente').val().trim();
-            nombre_cliente = $('#razonCliente').val().trim();
-            direccion_cliente = $('#direccionCliente').val().trim();
-
-            if (!numero_documento || !nombre_cliente || !direccion_cliente) {
-                $.alert({
-                    title: 'Campos incompletos',
-                    content: 'Por favor complete RUC, Razón Social y Dirección Fiscal',
-                    type: 'red',
-                    buttons: {
-                        ok: {
-                            text: 'OK',
-                            btnClass: 'btn-danger'
-                        }
-                    }
-                });
-                return;
-            }
-
-            // Validar RUC
-            if (!/^\d{11}$/.test(numero_documento)) {
-                $.alert({
-                    title: 'RUC inválido',
-                    content: 'El RUC debe contener exactamente 11 dígitos.',
-                    type: 'red',
-                    buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
-                });
-
-                return;
+                if (!/^\d{11}$/.test(numero_documento)) {
+                    $.alert({
+                        title: 'RUC inválido',
+                        content: 'El RUC debe contener exactamente 11 dígitos.',
+                        type: 'red',
+                        buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+                    });
+                    return;
+                }
             }
         }
 
         let type_document = null;
-        if (typeComprobante === 'Factura') type_document = '01';
-        else if (typeComprobante === 'Boleta') type_document = '03';
 
-        // -------- Construcción del payload --------
+        if (!pagosParcialesVenta) {
+            if (typeComprobante === 'Factura') type_document = '01';
+            else if (typeComprobante === 'Boleta') type_document = '03';
+        }
+
         let payload = {
             quote_id: quote_id,
             type_document: type_document,
@@ -507,16 +570,20 @@ $(document).ready(function () {
             numero_documento_cliente: numero_documento,
             direccion_cliente: direccion_cliente,
             email_cliente: email_cliente,
-            tipo_documento_cliente: (typeComprobante === 'Factura' ? '6' : '1'),
+            tipo_documento_cliente: pagosParcialesVenta
+                ? null
+                : (typeComprobante === 'Factura' ? '6' : '1'),
             fechaDocumento: fechaDocumento,
 
-            pv_cash_box_id: cashBoxId,
-            pv_cash_box_subtype_id: cashBoxSubtypeId,
+            pv_cash_box_id: pagosParcialesVenta ? null : cashBoxId,
+            pv_cash_box_subtype_id: pagosParcialesVenta ? null : cashBoxSubtypeId,
+
+            pagos_parciales_venta: pagosParcialesVenta ? 's' : 'n',
+            negocio_acepta_pagos_parciales: $('#negocio_acepta_pagos_parciales').val(),
 
             detalles: []
         };
 
-        // Recolectamos detalles de los productos
         $('[data-bodyConsumable] [data-consumableId]').each(function () {
             let row = $(this).closest('.row');
 
@@ -530,10 +597,14 @@ $(document).ready(function () {
             });
         });
 
+        let textoConfirmacion = pagosParcialesVenta
+            ? '¿Está seguro de generar esta venta como pago parcial?'
+            : '¿Está seguro de generar el ' + typeComprobante + '?';
+
         // Confirmación
         $.confirm({
             title: 'Confirmar acción',
-            content: '¿Está seguro de generar el ' + typeComprobante + '?',
+            content: textoConfirmacion,
             type: 'green',
             buttons: {
                 confirmar: {
@@ -547,7 +618,7 @@ $(document).ready(function () {
                         jc.setContent(`
                           <div style="display:flex;align-items:center;gap:10px">
                             <i class="fa fa-spinner fa-spin"></i>
-                            <span>Generando ${typeComprobante}…</span>
+                            <span>${pagosParcialesVenta ? 'Generando venta parcial…' : `Generando ${typeComprobante}…`}</span>
                           </div>
                         `);
 
