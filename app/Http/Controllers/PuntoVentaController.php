@@ -2582,7 +2582,10 @@ class PuntoVentaController extends Controller
 
         $arrayYears = array_values($arrayYears);
 
-        return view('puntoVenta.list', compact('arrayYears'));
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+        return view('puntoVenta.list', compact('arrayYears', 'cashBoxes', 'subtypes'));
     }
 
     private function cleanUtf8($value)
@@ -2612,12 +2615,12 @@ class PuntoVentaController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::where('state_annulled', 0)->orderBy('created_at', 'DESC');
+            $query = Sale::with(['quote.customer'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
+            $query = Sale::with(['quote.customer'])->where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
                 ->orderBy('created_at', 'DESC');
         }
@@ -2644,19 +2647,6 @@ class PuntoVentaController extends Controller
             ->get();
 
         $arraySales = [];
-
-        /*foreach ($arraySales as $index => $row) {
-            foreach ($row as $key => $value) {
-                if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
-                    dd([
-                        'fila' => $index,
-                        'campo' => $key,
-                        'valor' => $value,
-                        'sale_id' => $row['id'] ?? null,
-                    ]);
-                }
-            }
-        }*/
 
         foreach ( $sales as $sale )
         {
@@ -2710,14 +2700,56 @@ class PuntoVentaController extends Controller
                 }
             }
 
+            $nombreCliente = 'SIN CLIENTE';
+
+            if ($sale->pagos_parciales_venta === 's') {
+                $nombreCliente = 'VENTA DIRECTA';
+            } else {
+                if ($sale->quote) {
+                    if ($sale->quote->customer) {
+                        $nombreCliente = $sale->quote->customer->business_name;
+                    } else {
+                        $nombreCliente = 'COTIZACION SIN CLIENTE';
+                    }
+                } else {
+                    $nombreCliente = $sale->nombre_cliente ?: 'SIN CLIENTE';
+                }
+            }
+
+            $totalVenta = (float) $sale->importe_total;
+            $totalAbonado = null;
+            $estadoPagoParcial = null;
+
+            if ($sale->pagos_parciales_venta === 's') {
+                $totalAbonado = \App\SalePartialPayment::where('sale_id', $sale->id)
+                    ->where('state', 1)
+                    ->sum('amount');
+
+                $porcentaje = $totalVenta > 0
+                    ? (($totalAbonado / $totalVenta) * 100)
+                    : 0;
+
+                if ($porcentaje >= 100) {
+                    $estadoPagoParcial = 'verde';
+                } elseif ($porcentaje >= 50) {
+                    $estadoPagoParcial = 'naranja';
+                } else {
+                    $estadoPagoParcial = 'rojo';
+                }
+
+                $totalTexto = number_format($totalAbonado, 2, '.', '') . ' / ' . number_format($totalVenta, 2, '.', '');
+            } else {
+                $totalTexto = number_format($totalVenta, 2, '.', '');
+            }
+
             array_push($arraySales, [
                 "id" => $sale->id,
                 "code" => "VENTA - ".$sale->id,
                 "date" => ($sale->date_sale != null) ? $sale->formatted_sale_date : "",
                 "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
-                "total" => number_format($sale->importe_total, 2, '.', ''),
+                //"total" => number_format($sale->importe_total, 2, '.', ''),
                 "tipo_pago" => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
-                "nombre_cliente" => $this->cleanUtf8($sale->nombre_cliente),
+                "nombre_cliente" => $this->cleanUtf8($nombreCliente),
                 "tipo_documento_cliente" => $tipo_documento_cliente,
                 "numero_documento_cliente" => $this->cleanUtf8($sale->numero_documento_cliente),
                 "direccion_cliente" => $this->cleanUtf8($sale->direccion_cliente),
@@ -2725,6 +2757,12 @@ class PuntoVentaController extends Controller
                 "tipo_comprobante" => $tipo_comprobante,
                 "print_url" => $this->cleanUtf8($printUrl),
                 "print_label" => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
+                "type_document" => $sale->type_document,
+                "sunat_status" => $sale->sunat_status,
+                "pagos_parciales_venta" => $sale->pagos_parciales_venta,
+                "total" => $totalTexto,
+                "total_abonado" => $totalAbonado,
+                "estado_pago_parcial" => $estadoPagoParcial,
             ]);
         }
 

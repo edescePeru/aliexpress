@@ -75,6 +75,11 @@ class Sale extends Model
         return $this->hasMany(CashMovement::class, 'sale_id');
     }
 
+    public function partialPayments()
+    {
+        return $this->hasMany(SalePartialPayment::class);
+    }
+
     public function getDataTotalsAttribute()
     {
         $sale = Sale::find($this->id);
