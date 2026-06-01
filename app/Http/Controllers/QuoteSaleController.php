@@ -5620,9 +5620,9 @@ class QuoteSaleController extends Controller
         }
 
         // ===========================
-// ✅ Validación CashBox/Subtype
-// Solo aplica si NO es pago parcial
-// ===========================
+        // ✅ Validación CashBox/Subtype
+        // Solo aplica si NO es pago parcial
+        // ===========================
         $cashBoxId = null;
         $cashBoxSubtypeId = null;
         $cashBox = null;
@@ -5741,6 +5741,7 @@ class QuoteSaleController extends Controller
                 'vuelto'           => 0,
 
                 'quote_id' => $quote->id,
+                'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente': 'despachado',
 
                 'type_document' => $pagosParcialesVenta === 's'
                     ? null

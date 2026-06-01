@@ -3175,6 +3175,9 @@ Route::middleware('auth')->group(function (){
         Route::post('/sale/partial-payment/store', 'SalePartialPaymentController@store');
         Route::delete('/sale/partial-payment/{id}', 'SalePartialPaymentController@destroy');
         Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale');
+        Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus');
+
+
     });
 });
 

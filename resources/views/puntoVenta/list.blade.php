@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.standalone.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.standalone.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 
 @endsection
 
@@ -206,7 +207,7 @@
                 <div class="mt-3 busqueda-avanzada">
                     <!-- Aquí coloca más campos de búsqueda avanzada -->
                     <div class="row">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="year">Año de registro:</label>
                             <select id="year" class="form-control form-control-sm select2" style="width: 100%;">
                                 <option value="">TODOS</option>
@@ -216,7 +217,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="campoExtra">Fechas de venta:</label>
                             <div class="col-md-12" id="sandbox-container">
                                 <div class="input-daterange input-group" id="datepicker">
@@ -225,6 +226,81 @@
                                     <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="filter_customer_id">Cliente:</label>
+                            <select id="filter_customer_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="venta_directa">VENTA DIRECTA</option>
+                                <option value="cotizacion_sin_cliente">COTIZACIÓN SIN CLIENTE</option>
+
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}">
+                                        {{ $customer->business_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="filter_payment_status">Cumplimiento:</label>
+                            <select id="filter_payment_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="rojo">Menos del 50%</option>
+                                <option value="naranja">50% a 99.99%</option>
+                                <option value="verde">100% o más</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="filter_dispatch_status">Despacho:</label>
+                            <select id="filter_dispatch_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="despachado">Despachado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+
+                        <div class="col-md-3">
+                            <label for="filter_cash_box_id">Método de pago / Caja:</label>
+                            <select id="filter_cash_box_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="pago_parcial">PAGO PARCIAL</option>
+
+                                @foreach($cashBoxes as $cashBox)
+                                    <option value="{{ $cashBox->id }}"
+                                            data-type="{{ $cashBox->type }}"
+                                            data-uses_subtypes="{{ $cashBox->uses_subtypes ? 1 : 0 }}">
+                                        {{ $cashBox->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3" id="filter_cash_box_subtype_wrap" style="display:none;">
+                            <label for="filter_cash_box_subtype_id">Canal / Subtipo:</label>
+                            <select id="filter_cash_box_subtype_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+
+                                @foreach($subtypes as $subtype)
+                                    <option value="{{ $subtype->id }}">
+                                        {{ $subtype->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="filter_invoice_status">Comprobante:</label>
+                            <select id="filter_invoice_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="con_comprobante">Con comprobante</option>
+                                <option value="sin_comprobante">Sin comprobante</option>
+                            </select>
                         </div>
 
                     </div>
@@ -265,6 +341,7 @@
                     <th>Moneda</th>
                     <th>Total</th>
                     <th>Metodo de Pago</th>
+                    <th>Estado Despacho</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
@@ -326,6 +403,7 @@
             <td data-currency></td>
             <td data-total></td>
             <td data-tipo_pago></td>
+            <td data-dispatch_status></td>
             <td data-buttons></td>
         </tr>
     </template>
@@ -670,7 +748,7 @@
     <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-
+    <script src="{{ asset('admin/plugins/bootstrap-switch/js/bootstrap-switch.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
 @endsection
@@ -680,7 +758,37 @@
         $(function () {
             //Initialize Select2 Elements
             $('#year').select2({
-                placeholder: "Selecione año",
+                placeholder: "Seleccione año",
+                allowClear: true
+            });
+
+            $('#filter_customer_id').select2({
+                placeholder: "Seleccione cliente",
+                allowClear: true
+            });
+
+            $('#filter_payment_status').select2({
+                placeholder: "Seleccione cumplimiento",
+                allowClear: true
+            });
+
+            $('#filter_dispatch_status').select2({
+                placeholder: "Seleccione despacho",
+                allowClear: true
+            });
+
+            $('#filter_cash_box_id').select2({
+                placeholder: "Seleccione caja",
+                allowClear: true
+            });
+
+            $('#filter_cash_box_subtype_id').select2({
+                placeholder: "Seleccione canal",
+                allowClear: true
+            });
+
+            $('#filter_invoice_status').select2({
+                placeholder: "Seleccione comprobante",
                 allowClear: true
             });
 

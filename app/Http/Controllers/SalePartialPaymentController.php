@@ -374,4 +374,30 @@ class SalePartialPaymentController extends Controller
             ], 422);
         }
     }
+
+    public function updateDispatchStatus(Request $request)
+    {
+        try {
+            $request->validate([
+                'sale_id' => 'required|exists:sales,id',
+                'dispatch_status' => 'required|in:pendiente,despachado',
+            ]);
+
+            $sale = Sale::findOrFail($request->sale_id);
+
+            $sale->update([
+                'dispatch_status' => $request->dispatch_status,
+            ]);
+
+            return response()->json([
+                'message' => 'Estado de despacho actualizado correctamente.',
+                'dispatch_status' => $sale->dispatch_status,
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }

@@ -603,6 +603,66 @@ $(document).ready(function () {
             }
         });
     });
+
+    $(document).on('switchChange.bootstrapSwitch', '.switch-dispatch-status', function (event, state) {
+        let $switch = $(this);
+        let saleId = $switch.data('sale_id');
+        let nuevoEstado = state ? 'despachado' : 'pendiente';
+
+        $.confirm({
+            title: 'Confirmar cambio',
+            content: '¿Desea cambiar el estado de despacho a <strong>' + nuevoEstado.toUpperCase() + '</strong>?',
+            type: state ? 'green' : 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, cambiar',
+                    btnClass: state ? 'btn-success' : 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/sale/update-dispatch-status',
+                            method: 'POST',
+                            data: {
+                                sale_id: saleId,
+                                dispatch_status: nuevoEstado
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (res) {
+                                toastr.success(res.message || 'Estado actualizado.');
+                            },
+                            error: function (err) {
+                                toastr.error(err.responseJSON?.message || 'No se pudo actualizar.');
+
+                                $switch.bootstrapSwitch('state', !state, true);
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary',
+                    action: function () {
+                        $switch.bootstrapSwitch('state', !state, true);
+                    }
+                }
+            }
+        });
+    });
+
+    $('#filter_cash_box_id').on('change', function () {
+        const $opt = $(this).find('option:selected');
+        const boxType = ($opt.data('type') || '').toString();
+        const usesSubtypes = String($opt.data('uses_subtypes')) === '1';
+
+        $('#filter_cash_box_subtype_id').val('').trigger('change');
+
+        if (boxType === 'bank' && usesSubtypes) {
+            $('#filter_cash_box_subtype_wrap').show();
+        } else {
+            $('#filter_cash_box_subtype_wrap').hide();
+        }
+    });
 });
 
 var $formDelete;
@@ -677,7 +737,6 @@ function limpiarModalGenerarComprobante() {
 
     $('#gc_boleta_tab').tab('show');
 }
-
 
 function resetFormularioPagoParcial() {
     $('#pp_fecha_pago').val(new Date().toISOString().slice(0, 10));
@@ -971,64 +1030,43 @@ function getDataOrders($numberPage) {
     var startDate = $('#start').val();
     var endDate = $('#end').val();
 
-    $.get('/dashboard/get/data/sales/'+$numberPage, {
+    var customerId = $('#filter_customer_id').val();
+    var paymentStatus = $('#filter_payment_status').val();
+    var dispatchStatus = $('#filter_dispatch_status').val();
+    var cashBoxId = $('#filter_cash_box_id').val();
+    var cashBoxSubtypeId = $('#filter_cash_box_subtype_id').val();
+    var invoiceStatus = $('#filter_invoice_status').val();
+
+    $.get('/dashboard/get/data/sales/' + $numberPage, {
         code: code,
         year: year,
         startDate: startDate,
         endDate: endDate,
+
+        customer_id: customerId,
+        payment_status: paymentStatus,
+        dispatch_status: dispatchStatus,
+        cash_box_id: cashBoxId,
+        cash_box_subtype_id: cashBoxSubtypeId,
+        invoice_status: invoiceStatus,
     }, function(data) {
-        if ( data.data.length == 0 )
-        {
+        if (data.data.length == 0) {
             renderDataOrdersEmpty(data);
         } else {
             renderDataOrders(data);
         }
-
-
     }).fail(function(jqXHR, textStatus, errorThrown) {
-        // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
+
         if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
+            toastr.error(jqXHR.responseJSON.message, 'Error');
         }
+
         for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
+            toastr.error(jqXHR.responseJSON.errors[property], 'Error');
         }
     }, 'json')
         .done(function() {
-            // Configuración de encabezados
             var headers = {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
             };
@@ -1141,6 +1179,19 @@ function renderDataTable(data) {
 
     clone.querySelector("[data-tipo_pago]").innerHTML = data.tipo_pago;
 
+    let dispatchChecked = data.dispatch_status === 'despachado';
+
+    clone.querySelector("[data-dispatch_status]").innerHTML = `
+    <input type="checkbox"
+           class="switch-dispatch-status"
+           data-sale_id="${data.id}"
+           ${dispatchChecked ? 'checked' : ''}
+           data-bootstrap-switch
+           data-on-text="Desp."
+           data-off-text="Pend."
+           data-on-color="success"
+           data-off-color="warning">`;
+
     var botones = clone.querySelector("[data-buttons]");
 
     var cloneBtnActive = activateTemplate('#template-active');
@@ -1191,6 +1242,7 @@ function renderDataTable(data) {
     botones.append(cloneBtnActive);
     $("#body-table").append(clone);
 
+    $('#body-table input.switch-dispatch-status').bootstrapSwitch();
     $('[data-toggle="tooltip"]').tooltip();
 }
 

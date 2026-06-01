@@ -504,7 +504,7 @@ $(document).ready(function () {
         }
 
         if (!pagosParcialesVenta) {
-            if (typeComprobante === 'Boleta' || typeComprobante === 'Ticket') {
+            if (typeComprobante === 'Boleta') {
                 nombre_cliente = $('#nameCliente').val().trim();
                 numero_documento = $('#dniCliente').val().trim();
 

@@ -8,6 +8,7 @@ use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
 use App\Category;
+use App\Customer;
 use App\DataGeneral;
 use App\Http\Controllers\Traits\NubefactTrait;
 use App\InventoryLevel;
@@ -752,6 +753,7 @@ class PuntoVentaController extends Controller
                 'importe_total' => $request->get('total_importe'),
                 'vuelto' => $request->get('total_vuelto'),
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => 'despachado',
 
                 // Facturación
                 'type_document' => $type_document,
@@ -1239,6 +1241,7 @@ class PuntoVentaController extends Controller
                 // ⚠️ Si aún tienes tipo_pago en tu front, puedes mantenerlo.
                 // Si ya lo migraste, puedes dejar null o mapearlo a cash_box_id.
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => 'despachado',
 
                 'type_document' => $type_document,
                 'numero_documento_cliente' => $numero_documento_cliente,
@@ -1777,6 +1780,7 @@ class PuntoVentaController extends Controller
                 'importe_total' => $request->get('total_importe'),
                 'vuelto' => $request->get('total_vuelto'),
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente':'despachado',
                 'type_document' => $type_document,
                 'pagos_parciales_venta' => $pagosParcialesVenta,
                 'numero_documento_cliente' => $numero_documento_cliente,
@@ -2585,7 +2589,9 @@ class PuntoVentaController extends Controller
         $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
         $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
 
-        return view('puntoVenta.list', compact('arrayYears', 'cashBoxes', 'subtypes'));
+        $customers = Customer::orderBy('business_name')->get();
+
+        return view('puntoVenta.list', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
     }
 
     private function cleanUtf8($value)
@@ -2613,6 +2619,13 @@ class PuntoVentaController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
+        $customerId = $request->input('customer_id');
+        $paymentStatus = $request->input('payment_status');
+        $dispatchStatus = $request->input('dispatch_status');
+        $cashBoxId = $request->input('cash_box_id');
+        $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
+        $invoiceStatus = $request->input('invoice_status');
+
         if ( $startDate == "" || $endDate == "" )
         {
             $query = Sale::with(['quote.customer'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
@@ -2634,6 +2647,112 @@ class PuntoVentaController extends Controller
         if ($year != "") {
             $query->whereYear('created_at', $year);
 
+        }
+
+        // Cliente
+        if ($customerId != "") {
+            if ($customerId === 'venta_directa') {
+                $query->whereNull('quote_id');
+            } elseif ($customerId === 'cotizacion_sin_cliente') {
+                $query->whereHas('quote', function ($q) {
+                    $q->whereNull('customer_id');
+                });
+            } else {
+                $query->whereHas('quote', function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId);
+                });
+            }
+        }
+
+// Estado despacho
+        if ($dispatchStatus != "") {
+            $query->where('dispatch_status', $dispatchStatus);
+        }
+
+// Comprobante
+        if ($invoiceStatus != "") {
+            if ($invoiceStatus === 'con_comprobante') {
+                $query->whereIn('type_document', ['01', '03'])
+                    ->where(function ($q) {
+                        $q->whereNull('sunat_status')
+                            ->orWhere('sunat_status', '!=', 'Error');
+                    });
+            }
+
+            if ($invoiceStatus === 'sin_comprobante') {
+                $query->where(function ($q) {
+                    $q->whereNull('type_document')
+                        ->orWhereNotIn('type_document', ['01', '03'])
+                        ->orWhere('sunat_status', 'Error');
+                });
+            }
+        }
+
+// Método de pago
+        if ($cashBoxId != "") {
+            if ($cashBoxId === 'pago_parcial') {
+                $query->where('pagos_parciales_venta', 's');
+            } else {
+                $query->whereHas('cashMovements', function ($q) use ($cashBoxId, $cashBoxSubtypeId) {
+                    $q->where('type', 'sale')
+                        ->whereHas('cashRegister', function ($qr) use ($cashBoxId) {
+                            $qr->where('cash_box_id', $cashBoxId);
+                        });
+
+                    if ($cashBoxSubtypeId != "") {
+                        $q->where('cash_box_subtype_id', $cashBoxSubtypeId);
+                    }
+                });
+            }
+        }
+
+// Cumplimiento de pago
+        if ($paymentStatus != "") {
+            if ($paymentStatus === 'verde') {
+                $query->where(function ($q) {
+                    $q->where('pagos_parciales_venta', 'n')
+                        ->orWhereRaw("
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) >= sales.importe_total
+                ");
+                });
+            }
+
+            if ($paymentStatus === 'naranja') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) >= (sales.importe_total * 0.5)
+            ")
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) < sales.importe_total
+            ");
+            }
+
+            if ($paymentStatus === 'rojo') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) < (sales.importe_total * 0.5)
+            ");
+            }
         }
 
         $totalFilteredRecords = $query->count();
@@ -2686,7 +2805,7 @@ class PuntoVentaController extends Controller
                 ? 'PAGO PARCIAL'
                 : 'SIN MOVIMIENTO';
 
-            if ($paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
+            if ($sale->pagos_parciales_venta === 'n' && $paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
                 $cashBox = $paymentMovement->cashRegister->cashBox;
 
                 if ($cashBox->type === 'cash') {
@@ -2703,7 +2822,16 @@ class PuntoVentaController extends Controller
             $nombreCliente = 'SIN CLIENTE';
 
             if ($sale->pagos_parciales_venta === 's') {
-                $nombreCliente = 'VENTA DIRECTA';
+
+                if ($sale->quote) {
+                    if ($sale->quote->customer) {
+                        $nombreCliente = $sale->quote->customer->business_name;
+                    } else {
+                        $nombreCliente = 'COTIZACION SIN CLIENTE';
+                    }
+                } else {
+                    $nombreCliente = 'VENTA DIRECTA';
+                }
             } else {
                 if ($sale->quote) {
                     if ($sale->quote->customer) {
@@ -2712,7 +2840,7 @@ class PuntoVentaController extends Controller
                         $nombreCliente = 'COTIZACION SIN CLIENTE';
                     }
                 } else {
-                    $nombreCliente = $sale->nombre_cliente ?: 'SIN CLIENTE';
+                    $nombreCliente = 'VENTA DIRECTA';
                 }
             }
 
@@ -2749,6 +2877,7 @@ class PuntoVentaController extends Controller
                 "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
                 //"total" => number_format($sale->importe_total, 2, '.', ''),
                 "tipo_pago" => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
+                "dispatch_status" => $sale->dispatch_status ?? 'despachado',
                 "nombre_cliente" => $this->cleanUtf8($nombreCliente),
                 "tipo_documento_cliente" => $tipo_documento_cliente,
                 "numero_documento_cliente" => $this->cleanUtf8($sale->numero_documento_cliente),

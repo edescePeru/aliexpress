@@ -162,11 +162,11 @@
                             <div class="col-md-2 text-center">
                                 <label for="fechaDocumento">&nbsp;</label>
                                 <button type="button" class="btn btn-warning btn-block btn-sm" data-toggle="modal" data-target="#modalBuscarComprobante">
-                                    RECUPERAR COMPROBANTE
+                                    RECUPERAR COTIZACIÓN
                                 </button>
                             </div>
                         </div>
-                        @if ( $typeComprobante == 'Boleta' || $typeComprobante == 'Ticket' )
+                        @if ( $typeComprobante == 'Boleta' )
                             <div class="form-group row" id="datosBoleta">
                                 <div class="col-md-4">
                                     <label for="dniCliente">DNI <span class="right badge badge-danger">(*)</span></label>

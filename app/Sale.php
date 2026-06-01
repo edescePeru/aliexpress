@@ -22,6 +22,7 @@ class Sale extends Model
         'vuelto',
         'tipo_pago_id',
         'state_annulled',
+        'dispatch_status',
 
         'quote_id',
 
