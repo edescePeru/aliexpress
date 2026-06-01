@@ -55,6 +55,7 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
             'Abonado',
             'Comisión',
             'Categoría',
+            'Observaciones',
             'Descripción'
         ];
     }
@@ -77,10 +78,12 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
         $cashBoxSubType = CashBoxSubtype::find($cashBoxSubTypeId);
 
         $categoria = "";
+        $observation = "";
         if ( $row->entry_id != null )
         {
             $entry = Entry::with('category_invoice')->find($row->entry_id);
             $categoria = $entry->category_invoice->name;
+            $observation = $entry->observation;
         }
 
         return [
@@ -95,6 +98,7 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
             $row->amount_regularize !== null ? number_format((float)$row->amount_regularize, 2, '.', '') : '-',
             $row->commission !== null ? number_format((float)$row->commission, 2, '.', '') : '-',
             $categoria,
+            $observation,
             $desc
         ];
     }
