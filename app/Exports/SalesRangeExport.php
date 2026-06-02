@@ -35,11 +35,15 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
     {
         $sales = Sale::with([
             'worker',
+            'quote.customer',
             'quote.equipments.workforces',
+            'partialPayments' => function ($q) {
+                $q->where('state', 1);
+            },
             'cashMovements' => function ($q) {
                 $q->where('type', 'sale')
-                    ->with('cashBoxSubtype')
-                    ->orderBy('id', 'asc');
+                    ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
+                    ->orderBy('id', 'desc');
             }
         ])
             ->whereBetween('created_at', [$this->start, $this->end])
@@ -58,10 +62,12 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
         return [
             'Código',
             'Fecha Venta',
+            'Cliente',
             'Moneda',
-            //'Total',
+            'Abonado',
             'Método de Pago',
-            'Regularizado',
+            'Estado Despacho',
+            'Comprobante',
             'Serv. Adic. No Facturados',
             'Total',
         ];
@@ -71,9 +77,17 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
     public function map($row): array
     {
         /** @var \App\Sale $row */
+        $cliente = $this->getNombreCliente($row);
+        $metodoPago = $this->getMetodoPago($row);
+        $totalTexto = $this->getTotalTexto($row);
+        $estadoDespacho = strtoupper($row->dispatch_status ?? 'despachado');
+        $estadoComprobante = $this->tieneComprobanteValido($row)
+            ? 'CON COMPROBANTE'
+            : 'SIN COMPROBANTE';
+
         $calc = $this->getAmountAndMethod($row);
 
-        $this->grandTotal += (float) $calc['amount'];
+        $this->grandTotal += (float) $row->importe_total;
 
         $totalNoBillable = 0;
 
@@ -90,11 +104,12 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
         return [
             'VENTA - ' . ($row->id),
             $row->formatted_sale_date ?? Carbon::parse($row->date_sale)->isoFormat('DD/MM/YYYY [a las] h:mm A'),
-            $row->currency ?? '',
-            //number_format($calc['amount'], 2, '.', ''),
-            $calc['method'],
-            $calc['is_regularized'] ? 'SI' : 'NO',
-            // 👇 NUEVO CAMPO (referencial)
+            $cliente,
+            ($row->currency == 'PEN') ? 'Soles' : 'Dólares',
+            $totalTexto,
+            $metodoPago,
+            $estadoDespacho,
+            $estadoComprobante,
             number_format($totalNoBillable, 2, '.', ''),
             number_format((float)$row->importe_total, 2, '.', ''),
         ];
@@ -109,11 +124,11 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
                 $totalRow = 1 + $this->rowCount + 1;
 
                 // Columnas: A Código, B Fecha, C Moneda, D Total, ...
-                $event->sheet->setCellValue('F' . $totalRow, 'TOTAL');
-                $event->sheet->setCellValue('G' . $totalRow, number_format($this->grandTotal, 2, '.', ''));
+                $event->sheet->setCellValue('I' . $totalRow, 'TOTAL');
+                $event->sheet->setCellValue('J' . $totalRow, number_format($this->grandTotal, 2, '.', ''));
 
                 // Estilo
-                $event->sheet->getStyle('G' . $totalRow . ':G' . $totalRow)->getFont()->setBold(true);
+                $event->sheet->getStyle('J' . $totalRow . ':J' . $totalRow)->getFont()->setBold(true);
             },
         ];
     }
@@ -175,5 +190,62 @@ class SalesRangeExport implements FromCollection, WithHeadings, WithMapping, Sho
             'method' => $method,
             'is_regularized' => true,
         ];
+    }
+
+    private function getNombreCliente($sale)
+    {
+        if ($sale->quote) {
+            if ($sale->quote->customer) {
+                return $sale->quote->customer->business_name;
+            }
+
+            return 'COTIZACION SIN CLIENTE';
+        }
+
+        return 'VENTA DIRECTA';
+    }
+
+    private function getMetodoPago($sale)
+    {
+        if ($sale->pagos_parciales_venta === 's') {
+            return 'PAGO PARCIAL';
+        }
+
+        $movement = $sale->cashMovements->first();
+
+        if (!$movement || !$movement->cashRegister || !$movement->cashRegister->cashBox) {
+            return 'SIN MOVIMIENTO';
+        }
+
+        $cashBox = $movement->cashRegister->cashBox;
+
+        if ($cashBox->type === 'cash') {
+            return strtoupper($cashBox->name);
+        }
+
+        if ($movement->cashBoxSubtype) {
+            return strtoupper($cashBox->name . ' - ' . $movement->cashBoxSubtype->name);
+        }
+
+        return strtoupper($cashBox->name);
+    }
+
+    private function getTotalTexto($sale)
+    {
+        $totalVenta = (float) $sale->importe_total;
+
+        if ($sale->pagos_parciales_venta === 's') {
+            $totalAbonado = (float) $sale->partialPayments->sum('amount');
+
+            return number_format($totalAbonado, 2, '.', '') . ' / ' . number_format($totalVenta, 2, '.', '');
+        }
+
+        return number_format($totalVenta, 2, '.', '');
+    }
+
+    private function tieneComprobanteValido($sale)
+    {
+        return in_array($sale->type_document, ['01', '03'])
+            && $sale->sunat_status !== 'Error';
     }
 }

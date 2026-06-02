@@ -2628,14 +2628,24 @@ class PuntoVentaController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::with(['quote.customer'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
+            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::with(['quote.customer'])->where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
+            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
                 ->orderBy('created_at', 'DESC');
+        }
+
+        $user = Auth::user();
+
+        $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
+
+        if (!$canSeeAllSales) {
+            $query->whereHas('worker.user', function ($q) use ($user) {
+                $q->where('id', $user->id);
+            });
         }
 
         // Aplicar filtros si se proporcionan
@@ -2664,12 +2674,12 @@ class PuntoVentaController extends Controller
             }
         }
 
-// Estado despacho
+        // Estado despacho
         if ($dispatchStatus != "") {
             $query->where('dispatch_status', $dispatchStatus);
         }
 
-// Comprobante
+        // Comprobante
         if ($invoiceStatus != "") {
             if ($invoiceStatus === 'con_comprobante') {
                 $query->whereIn('type_document', ['01', '03'])
@@ -2688,25 +2698,26 @@ class PuntoVentaController extends Controller
             }
         }
 
-// Método de pago
+        // Método de pago
         if ($cashBoxId != "") {
             if ($cashBoxId === 'pago_parcial') {
                 $query->where('pagos_parciales_venta', 's');
             } else {
-                $query->whereHas('cashMovements', function ($q) use ($cashBoxId, $cashBoxSubtypeId) {
-                    $q->where('type', 'sale')
-                        ->whereHas('cashRegister', function ($qr) use ($cashBoxId) {
-                            $qr->where('cash_box_id', $cashBoxId);
-                        });
+                $query->where('pagos_parciales_venta', 'n')
+                    ->whereHas('cashMovements', function ($q) use ($cashBoxId, $cashBoxSubtypeId) {
+                        $q->where('type', 'sale')
+                            ->whereHas('cashRegister', function ($qr) use ($cashBoxId) {
+                                $qr->where('cash_box_id', $cashBoxId);
+                            });
 
-                    if ($cashBoxSubtypeId != "") {
-                        $q->where('cash_box_subtype_id', $cashBoxSubtypeId);
-                    }
-                });
+                        if ($cashBoxSubtypeId != "") {
+                            $q->where('cash_box_subtype_id', $cashBoxSubtypeId);
+                        }
+                    });
             }
         }
 
-// Cumplimiento de pago
+        // Cumplimiento de pago
         if ($paymentStatus != "") {
             if ($paymentStatus === 'verde') {
                 $query->where(function ($q) {

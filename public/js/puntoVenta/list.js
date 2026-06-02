@@ -336,6 +336,7 @@ $(document).ready(function () {
                                             action: function () {
                                                 resetFormularioPagoParcial();
                                                 cargarPagosParciales(saleId);
+                                                reloadCurrentPageOrders();
                                             }
                                         }
                                     }
@@ -546,7 +547,7 @@ $(document).ready(function () {
                                             text: 'Ver PDF',
                                             btnClass: 'btn-primary',
                                             action: function () {
-                                                if (res.url_print) {
+                                                /*if (res.url_print) {
                                                     window.open(res.url_print, '_blank');
                                                 }
 
@@ -556,20 +557,22 @@ $(document).ready(function () {
                                                     getData();
                                                 } else {
                                                     location.reload();
-                                                }
+                                                }*/
+                                                finalizarGeneracionComprobante(res, true);
                                             }
                                         },
                                         cerrar: {
                                             text: 'Cerrar',
                                             btnClass: 'btn-secondary',
                                             action: function () {
-                                                $('#modalGenerarComprobante').modal('hide');
+                                                /*$('#modalGenerarComprobante').modal('hide');
 
                                                 if (typeof getData === 'function') {
                                                     getData();
                                                 } else {
                                                     location.reload();
-                                                }
+                                                }*/
+                                                finalizarGeneracionComprobante(res, false);
                                             }
                                         }
                                     }
@@ -1007,6 +1010,28 @@ function showDetails() {
             });
         }
     });
+}
+
+function finalizarGeneracionComprobante(res, abrirPdf) {
+    if (abrirPdf && res.url_print) {
+        window.open(res.url_print, '_blank');
+    }
+
+    limpiarModalGenerarComprobante();
+    $('#modalGenerarComprobante').modal('hide');
+
+    reloadCurrentPageOrders();
+}
+
+function getCurrentPageOrders() {
+    let currentPage = $('#pagination li.active a.page-link').attr('data-item');
+
+    return currentPage ? parseInt(currentPage) : 1;
+}
+
+function reloadCurrentPageOrders() {
+    let currentPage = getCurrentPageOrders();
+    getDataOrders(currentPage);
 }
 
 function showDataSearch() {
