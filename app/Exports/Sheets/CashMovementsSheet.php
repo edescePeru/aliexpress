@@ -82,7 +82,7 @@ class CashMovementsSheet implements FromCollection, WithHeadings, WithMapping, S
         if ( $row->entry_id != null )
         {
             $entry = Entry::with('category_invoice')->find($row->entry_id);
-            $categoria = $entry->category_invoice->name;
+            $categoria = ($entry->category_invoice) ? $entry->category_invoice->name: "Sin Categoría";
             $observation = $entry->observation;
         }
 
