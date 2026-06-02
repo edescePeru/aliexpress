@@ -575,6 +575,18 @@ $(document).ready(function () {
 
         consultarClientePorDocumento(documento, tipo);
     });
+
+    $('#pagos_parciales_venta').on('switchChange.bootstrapSwitch', function (event, state) {
+        if (state) {
+            limpiarDatosPagoNormal();
+
+            $('#wrap_pago_normal').hide();
+            $('#wrap_comprobante').hide();
+        } else {
+            $('#wrap_pago_normal').show();
+            $('#wrap_comprobante').show();
+        }
+    });
 });
 
 let $items = [];
@@ -597,6 +609,34 @@ let $sale_id = null;
 let $modalQuantity;
 
 let $presentationsCache = {}; // materialId -> array presentations
+
+function limpiarDatosPagoNormal() {
+    $('#pv_cash_box_id').val('').trigger('change');
+    $('#pv_cash_box_subtype_id').val('').trigger('change');
+
+    $('#wrap_pv_subtype').hide();
+    $('#pv_subtype_hint').hide();
+
+    limpiarDatosComprobante();
+}
+
+function limpiarDatosComprobante() {
+    $('#radio_none').prop('checked', true).trigger('change');
+
+    $('#dni').val('');
+    $('#name').val('');
+    $('input[name="email_invoice_boleta"]').val('');
+
+    $('#ruc').val('');
+    $('#razon_social').val('');
+    $('#direccion_fiscal').val('');
+    $('input[name="email_invoice_factura"]').val('');
+
+    $('#datos_boleta').addClass('d-none');
+    $('#datos_factura').addClass('d-none');
+
+    $('#collapseOneInvoice').collapse('hide');
+}
 
 function continuarAgregarTodosStockItems() {
     let addedCount = 0;
@@ -1586,6 +1626,15 @@ function payNow() {
         return;
     }
 
+    const pagosParcialesVenta =
+        $('#pagos_parciales_venta').length && $('#pagos_parciales_venta').is(':checked');
+
+    if (pagosParcialesVenta) {
+        window.PV_SELECTED_WORKER_ID = null;
+        guardarVenta();
+        return;
+    }
+
     // 2) Validar CashBox seleccionado
     const cashBoxId = $('#pv_cash_box_id').val();
     if (!cashBoxId) {
@@ -1731,41 +1780,46 @@ function guardarVenta() {
         return;
     }
 
-    let tipo = $('input[name="invoice_type"]:checked').val();
+    const pagosParcialesVenta =
+        $('#pagos_parciales_venta').length && $('#pagos_parciales_venta').is(':checked');
 
-    if (tipo === 'boleta') {
-        let dni = $('input[name="dni"]').val().trim();
-        if (dni === '' || dni.length !== 8 || isNaN(dni)) {
-            toastr.error('Debe ingresar un DNI válido de 8 dígitos');
-            $("#btn-pay").attr("disabled", false);
-            return;
-        }
-        let name = $('input[id="name"]').val().trim();
-        console.log(name);
-        if (name === '') {
-            toastr.error('Debe ingresar el nombre del cliente.');
-            $("#btn-pay").attr("disabled", false);
-            return;
-        }
-    } else if (tipo === 'factura') {
-        let ruc = $('input[name="ruc"]').val().trim();
-        let razon = $('input[name="razon_social"]').val().trim();
-        let direccion = $('input[name="direccion_fiscal"]').val().trim();
+    if (!pagosParcialesVenta) {
+        let tipo = $('input[name="invoice_type"]:checked').val();
 
-        if (ruc === '' || ruc.length !== 11 || isNaN(ruc)) {
-            toastr.error('Debe ingresar un RUC válido de 11 dígitos');
-            $("#btn-pay").attr("disabled", false);
-            return;
-        }
-        if (razon === '') {
-            toastr.error('Debe ingresar la Razón Social');
-            $("#btn-pay").attr("disabled", false);
-            return;
-        }
-        if (direccion === '') {
-            toastr.error('Debe ingresar la Dirección Fiscal');
-            $("#btn-pay").attr("disabled", false);
-            return;
+        if (tipo === 'boleta') {
+            let dni = $('input[name="dni"]').val().trim();
+            if (dni === '' || dni.length !== 8 || isNaN(dni)) {
+                toastr.error('Debe ingresar un DNI válido de 8 dígitos');
+                $("#btn-pay").attr("disabled", false);
+                return;
+            }
+            let name = $('input[id="name"]').val().trim();
+            console.log(name);
+            if (name === '') {
+                toastr.error('Debe ingresar el nombre del cliente.');
+                $("#btn-pay").attr("disabled", false);
+                return;
+            }
+        } else if (tipo === 'factura') {
+            let ruc = $('input[name="ruc"]').val().trim();
+            let razon = $('input[name="razon_social"]').val().trim();
+            let direccion = $('input[name="direccion_fiscal"]').val().trim();
+
+            if (ruc === '' || ruc.length !== 11 || isNaN(ruc)) {
+                toastr.error('Debe ingresar un RUC válido de 11 dígitos');
+                $("#btn-pay").attr("disabled", false);
+                return;
+            }
+            if (razon === '') {
+                toastr.error('Debe ingresar la Razón Social');
+                $("#btn-pay").attr("disabled", false);
+                return;
+            }
+            if (direccion === '') {
+                toastr.error('Debe ingresar la Dirección Fiscal');
+                $("#btn-pay").attr("disabled", false);
+                return;
+            }
         }
     }
 
@@ -1774,32 +1828,38 @@ function guardarVenta() {
     // ==============================
     let paymentText = '';
 
-    // Caja seleccionada
-    const $cashBoxOpt = $('#pv_cash_box_id option:selected');
-    const cashBoxName = $cashBoxOpt.text().trim();
-    const cashBoxType = $cashBoxOpt.data('type');
-    const usesSubtypes = String($cashBoxOpt.data('uses_subtypes')) === '1';
-
-    // Subtipo (si aplica)
-    let subtypeName = '';
-
-    if (cashBoxType === 'bank' && usesSubtypes) {
-        const $subOpt = $('#pv_cash_box_subtype_id option:selected');
-        subtypeName = $subOpt.length ? $subOpt.text().trim() : '';
-    }
-
-    // Texto final
-    if (subtypeName) {
-        paymentText = cashBoxName + ' – ' + subtypeName;
+    if (pagosParcialesVenta) {
+        paymentText = 'venta con pagos parciales';
     } else {
-        paymentText = cashBoxName;
-    }
 
+        // Caja seleccionada
+        const $cashBoxOpt = $('#pv_cash_box_id option:selected');
+        const cashBoxName = $cashBoxOpt.text().trim();
+        const cashBoxType = $cashBoxOpt.data('type');
+        const usesSubtypes = String($cashBoxOpt.data('uses_subtypes')) === '1';
+
+        // Subtipo (si aplica)
+        let subtypeName = '';
+
+        if (cashBoxType === 'bank' && usesSubtypes) {
+            const $subOpt = $('#pv_cash_box_subtype_id option:selected');
+            subtypeName = $subOpt.length ? $subOpt.text().trim() : '';
+        }
+
+        // Texto final
+        if (subtypeName) {
+            paymentText = cashBoxName + ' – ' + subtypeName;
+        } else {
+            paymentText = cashBoxName;
+        }
+    }
 
     // Confirmación con jQuery Confirm
     $.confirm({
         title: 'Confirmar pago',
-        content: '¿Está seguro de realizar el pago usando <strong>' + paymentText + '</strong>?',
+        content: pagosParcialesVenta
+            ? '¿Está seguro de registrar esta venta como <strong>venta con pagos parciales</strong>?'
+            : '¿Está seguro de realizar el pago usando <strong>' + paymentText + '</strong>?',
         type: 'blue',
         buttons: {
             confirmar: {
@@ -1824,10 +1884,12 @@ function guardarVenta() {
                     // ⬇️ NUEVO: worker elegido (si no hay, va vacío)
                     form.append('worker_id', window.PV_SELECTED_WORKER_ID || '');
 
-                    form.append('cash_box_id', $('#pv_cash_box_id').val());
-                    form.append('cash_box_subtype_id', $('#pv_cash_box_subtype_id').val() || '');
-                    form.append('vuelto_cash_box_id', $('#pv_vuelto_cash_box_id').val() || '');
-                    form.append('vuelto_cash_box_subtype_id', $('#pv_vuelto_subtype_id').val() || '');
+                    form.append('cash_box_id', pagosParcialesVenta ? '' : $('#pv_cash_box_id').val());
+                    form.append('cash_box_subtype_id', pagosParcialesVenta ? '' : ($('#pv_cash_box_subtype_id').val() || ''));
+                    form.append('vuelto_cash_box_id', pagosParcialesVenta ? '' : ($('#pv_vuelto_cash_box_id').val() || ''));
+                    form.append('vuelto_cash_box_subtype_id', pagosParcialesVenta ? '' : ($('#pv_vuelto_subtype_id').val() || ''));
+
+                    form.append('pagos_parciales_venta', pagosParcialesVenta ? 's' : 'n');
 
                     const tipoComprobante = $('input[name="invoice_type"]:checked').val();
 

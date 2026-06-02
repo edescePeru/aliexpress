@@ -79,15 +79,20 @@
 
                             <input type="hidden" id="quote_id" name="quote_id">
 
+                            <input type="hidden"
+                                   name="negocio_acepta_pagos_parciales"
+                                   id="negocio_acepta_pagos_parciales"
+                                   value="{{ $pagos_parciales }}">
+
                             <div class="col-md-2">
-                                <label for="typeComprobante">Tipo de comprobante </label>
+                                <label for="typeComprobante">Tipo Comprobante</label>
                                 <input type="text" id="typeComprobante" name="typeComprobante" value="{{ $typeComprobante }}" class="form-control form-control-sm" readonly>
                             </div>
                             <div class="col-md-1" style="display: none">
                                 <label for="numDocumento">Documento </label>
                                 <input type="text" id="numDocumento" name="numDocumento" class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-1">
                                 <label for="moneda">Moneda </label>
                                 <input type="text" id="moneda" name="moneda" value="{{ ($currency == 'pen') ? 'SOLES':'DOLARES' }}" class="form-control form-control-sm" readonly>
                             </div>
@@ -99,7 +104,25 @@
                                        class="form-control form-control-sm"
                                        value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
                             </div>
-                            <div class="col-md-2">
+
+                            @if ($pagos_parciales == 's')
+                                <div class="col-md-1">
+                                    <label>Parcial</label><br>
+
+                                    <input type="checkbox"
+                                           id="pagos_parciales_venta"
+                                           value="s"
+                                           data-bootstrap-switch
+                                           data-on-text="SI"
+                                           data-off-text="NO"
+                                           data-on-color="success"
+                                           data-off-color="danger"
+                                           data-state="false"
+                                           data-disabled="{{ $typeComprobante == 'Boleta' || $typeComprobante == 'Factura' ? 'true' : 'false' }}">
+                                </div>
+                            @endif
+
+                            <div class="col-md-2" id="wrap_pv_cash_box">
                                 <label for="pv_cash_box_id">
                                     Caja <span class="right badge badge-danger">(*)</span>
                                 </label>
@@ -139,11 +162,11 @@
                             <div class="col-md-2 text-center">
                                 <label for="fechaDocumento">&nbsp;</label>
                                 <button type="button" class="btn btn-warning btn-block btn-sm" data-toggle="modal" data-target="#modalBuscarComprobante">
-                                    RECUPERAR COMPROBANTE
+                                    RECUPERAR COTIZACIÓN
                                 </button>
                             </div>
                         </div>
-                        @if ( $typeComprobante == 'Boleta' || $typeComprobante == 'Ticket' )
+                        @if ( $typeComprobante == 'Boleta' )
                             <div class="form-group row" id="datosBoleta">
                                 <div class="col-md-4">
                                     <label for="dniCliente">DNI <span class="right badge badge-danger">(*)</span></label>
@@ -733,9 +756,7 @@
                 multidate: false,
                 autoclose: true
             });
-            $("input[data-bootstrap-switch]").each(function(){
-                $(this).bootstrapSwitch();
-            });
+
         })
     </script>
 

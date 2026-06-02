@@ -422,6 +422,11 @@
                                 </div>
                                 <div class="col-md-12 px-1 py-1">
 
+                                    <input type="hidden"
+                                           name="negocio_acepta_pagos_parciales"
+                                           id="negocio_acepta_pagos_parciales"
+                                           value="{{ $pagos_parciales }}">
+
                                     <div data-mdb-input-init class="form-outline mb-1">
                                         {{--@foreach( $tipoPagos as $tipoPago )
                                             <div class="form-group clearfix">
@@ -433,39 +438,55 @@
                                                 </div>
                                             </div>
                                         @endforeach--}}
-                                        <div class="form-group">
-                                            <label><b>Caja (CashBox)</b></label>
-                                            <select id="pv_cash_box_id" class="form-control select2" style="width:100%;">
-                                                <option value="">Seleccione caja...</option>
-                                                @foreach($cashBoxes as $b)
-                                                    <option value="{{ $b->id }}"
-                                                            data-type="{{ $b->type }}"
-                                                            data-uses_subtypes="{{ $b->uses_subtypes ? 1 : 0 }}">
-                                                        {{ $b->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
+                                        @if ($pagos_parciales == 's')
+                                            <div class="form-group">
+                                                <label>Pagos parciales</label>
 
-                                        <div class="form-group" id="wrap_pv_subtype" style="display:none;">
-                                            <label><b>Subtipo bancario</b></label>
-                                            <select id="pv_cash_box_subtype_id" class="form-control select2" style="width:100%;">
-                                                <option value="">Seleccione subtipo...</option>
-                                                @foreach($subtypes as $st)
-                                                    <option value="{{ $st->id }}"
-                                                            data-is_deferred="{{ $st->is_deferred ? 1 : 0 }}">
-                                                        {{ $st->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            <small class="text-muted" id="pv_subtype_hint" style="display:none;">
-                                                Este canal es diferido: quedará pendiente hasta regularización.
-                                            </small>
+                                                <input type="checkbox"
+                                                       id="pagos_parciales_venta"
+                                                       value="s"
+                                                       data-bootstrap-switch
+                                                       data-on-text="SI"
+                                                       data-off-text="NO"
+                                                       data-on-color="success"
+                                                       data-off-color="danger">
+                                            </div>
+                                        @endif
+                                        <div id="wrap_pago_normal">
+                                            <div class="form-group">
+                                                <label><b>Caja (CashBox)</b></label>
+                                                <select id="pv_cash_box_id" class="form-control select2" style="width:100%;">
+                                                    <option value="">Seleccione caja...</option>
+                                                    @foreach($cashBoxes as $b)
+                                                        <option value="{{ $b->id }}"
+                                                                data-type="{{ $b->type }}"
+                                                                data-uses_subtypes="{{ $b->uses_subtypes ? 1 : 0 }}">
+                                                            {{ $b->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="form-group" id="wrap_pv_subtype" style="display:none;">
+                                                <label><b>Subtipo bancario</b></label>
+                                                <select id="pv_cash_box_subtype_id" class="form-control select2" style="width:100%;">
+                                                    <option value="">Seleccione subtipo...</option>
+                                                    @foreach($subtypes as $st)
+                                                        <option value="{{ $st->id }}"
+                                                                data-is_deferred="{{ $st->is_deferred ? 1 : 0 }}">
+                                                            {{ $st->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <small class="text-muted" id="pv_subtype_hint" style="display:none;">
+                                                    Este canal es diferido: quedará pendiente hasta regularización.
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="col-md-12 px-1 py-1">
+                                <div class="col-md-12 px-1 py-1" id="wrap_comprobante">
                                     <div class="accordion" id="accordionInvoice">
                                         <!-- Sección del acordeón -->
                                         <div class="card">
@@ -942,9 +963,11 @@
 @section('scripts')
     <script src="{{asset('admin/plugins/typehead/typeahead.bundle.js')}}"></script>
     <script>
-        $("input[data-bootstrap-switch]").each(function(){
-            $(this).bootstrapSwitch();
+
+        $("input[data-bootstrap-switch]").each(function () {
+            $(this).bootstrapSwitch('state', false);
         });
+
         $('#category_id').select2({
             placeholder: "Categorías",
             allowClear: true

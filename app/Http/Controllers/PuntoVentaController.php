@@ -8,6 +8,7 @@ use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
 use App\Category;
+use App\Customer;
 use App\DataGeneral;
 use App\Http\Controllers\Traits\NubefactTrait;
 use App\InventoryLevel;
@@ -65,6 +66,9 @@ class PuntoVentaController extends Controller
             ['valueText' => 'no']
         );
 
+        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
+        $pagos_parciales = $data_pagos_parciales->valueText;
+
         // True solo si está configurado en "si"
         $askWorker = strtolower($cfg->valueText) === 'si';
 
@@ -83,7 +87,7 @@ class PuntoVentaController extends Controller
             'tipoPagos',
             'askWorker',
             'workers',
-            'cashBoxes','subtypes'
+            'cashBoxes','subtypes', 'pagos_parciales'
         ));
     }
 
@@ -110,13 +114,15 @@ class PuntoVentaController extends Controller
         $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
         $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
 
+        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
+        $pagos_parciales = $data_pagos_parciales->valueText;
 
         return view('puntoVenta.indexV2', compact(
             'categories',
             'tipoPagos',
             'askWorker',
             'workers',
-            'cashBoxes','subtypes'
+            'cashBoxes','subtypes', 'pagos_parciales'
         ));
     }
 
@@ -747,6 +753,7 @@ class PuntoVentaController extends Controller
                 'importe_total' => $request->get('total_importe'),
                 'vuelto' => $request->get('total_vuelto'),
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => 'despachado',
 
                 // Facturación
                 'type_document' => $type_document,
@@ -1234,6 +1241,7 @@ class PuntoVentaController extends Controller
                 // ⚠️ Si aún tienes tipo_pago en tu front, puedes mantenerlo.
                 // Si ya lo migraste, puedes dejar null o mapearlo a cash_box_id.
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => 'despachado',
 
                 'type_document' => $type_document,
                 'numero_documento_cliente' => $numero_documento_cliente,
@@ -1747,6 +1755,17 @@ class PuntoVentaController extends Controller
 
             }
 
+            $negocioAceptaPagosParciales = $request->input('negocio_acepta_pagos_parciales', 'n');
+            $pagosParcialesVenta = $request->input('pagos_parciales_venta', 'n');
+
+            if (!in_array($pagosParcialesVenta, ['s', 'n'])) {
+                throw new \Exception("Valor inválido para pagos parciales.");
+            }
+
+            if ($pagosParcialesVenta === 's' && $negocioAceptaPagosParciales !== 's') {
+                throw new \Exception("Este negocio no tiene habilitados los pagos parciales.");
+            }
+
             $sale = Sale::create([
                 'date_sale' => Carbon::now(),
                 'serie' => $this->generateRandomString(),
@@ -1761,7 +1780,9 @@ class PuntoVentaController extends Controller
                 'importe_total' => $request->get('total_importe'),
                 'vuelto' => $request->get('total_vuelto'),
                 'tipo_pago_id' => $request->get('tipo_pago'),
+                'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente':'despachado',
                 'type_document' => $type_document,
+                'pagos_parciales_venta' => $pagosParcialesVenta,
                 'numero_documento_cliente' => $numero_documento_cliente,
                 'tipo_documento_cliente' => $tipo_documento_cliente,
                 'nombre_cliente' => $nombre_cliente,
@@ -2038,105 +2059,107 @@ class PuntoVentaController extends Controller
                 }
             }
 
-            $cashBoxId   = $request->input('cash_box_id');
-            $subtypeId   = $request->input('cash_box_subtype_id');
-            $vuelto      = (float) $request->get('total_vuelto');
-            $vueltoBoxId = $request->input('vuelto_cash_box_id');
+            if ($pagosParcialesVenta === 'n') {
+                $cashBoxId = $request->input('cash_box_id');
+                $subtypeId = $request->input('cash_box_subtype_id');
+                $vuelto = (float)$request->get('total_vuelto');
+                $vueltoBoxId = $request->input('vuelto_cash_box_id');
 
-            if (!$cashBoxId) {
-                return response()->json(['message' => 'Debe seleccionar una caja (CashBox).'], 422);
-            }
-
-            $cashRegister = CashRegister::where('cash_box_id', $cashBoxId)
-                ->where('user_id', Auth::id())
-                ->where('status', 1)
-                ->latest()
-                ->first();
-
-            if (!$cashRegister) {
-                return response()->json(['message' => 'No hay sesión abierta para la caja seleccionada.'], 422);
-            }
-
-            $cashBox = $cashRegister->cashBox;
-            if (!$cashBox) {
-                return response()->json(['message' => 'La sesión seleccionada no tiene CashBox asociado.'], 422);
-            }
-
-            $regularize = 1;
-            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
-                if (!$subtypeId) {
-                    return response()->json(['message' => 'Debe seleccionar el subtipo bancario (Yape/Plin/POS/Transfer).'], 422);
+                if (!$cashBoxId) {
+                    return response()->json(['message' => 'Debe seleccionar una caja (CashBox).'], 422);
                 }
 
-                $subtype = CashBoxSubtype::findOrFail($subtypeId);
-                $regularize = $subtype->is_deferred ? 0 : 1;
-            } else {
-                $subtypeId = null;
-            }
-
-            $amountSale = (float)$request->get('total_importe') + (float)$request->get('total_vuelto');
-
-            CashMovement::create([
-                'cash_register_id'      => $cashRegister->id,
-                'type'                  => 'sale',
-                'amount'                => $amountSale,
-                'description'           => 'Venta registrada',
-                'observation'           => ($cashBox->type === 'bank') ? 'Pago bancario' : 'Pago efectivo',
-                'regularize'            => $regularize,
-                'cash_box_subtype_id'   => $subtypeId,
-                'sale_id'               => $sale->id,
-            ]);
-
-            if ($regularize == 1) {
-                $cashRegister->current_balance += $amountSale;
-                $cashRegister->total_sales     += $amountSale;
-                $cashRegister->save();
-            }
-
-            if ($vuelto > 0) {
-                $vueltoSubtypeId = $request->input('vuelto_cash_box_subtype_id');
-
-                if (!$vueltoBoxId) {
-                    return response()->json(['message' => 'Seleccione la caja desde donde se dará el vuelto.'], 422);
-                }
-
-                $vueltoRegister = CashRegister::where('cash_box_id', $vueltoBoxId)
+                $cashRegister = CashRegister::where('cash_box_id', $cashBoxId)
                     ->where('user_id', Auth::id())
                     ->where('status', 1)
                     ->latest()
                     ->first();
 
-                if (!$vueltoRegister) {
-                    return response()->json(['message' => 'No hay sesión abierta para la caja del vuelto.'], 422);
+                if (!$cashRegister) {
+                    return response()->json(['message' => 'No hay sesión abierta para la caja seleccionada.'], 422);
                 }
 
-                $vueltoCashBox = $vueltoRegister->cashBox;
-                if (!$vueltoCashBox) {
-                    return response()->json(['message' => 'La sesión del vuelto no tiene CashBox asociado.'], 422);
+                $cashBox = $cashRegister->cashBox;
+                if (!$cashBox) {
+                    return response()->json(['message' => 'La sesión seleccionada no tiene CashBox asociado.'], 422);
                 }
 
-                $vueltoSubtypeToSave = null;
-                if ($vueltoCashBox->type === 'bank' && (int)$vueltoCashBox->uses_subtypes === 1) {
-                    if (!$vueltoSubtypeId) {
-                        return response()->json(['message' => 'Seleccione el subtipo bancario para el vuelto (Yape/Plin/Transfer/POS).'], 422);
+                $regularize = 1;
+                if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+                    if (!$subtypeId) {
+                        return response()->json(['message' => 'Debe seleccionar el subtipo bancario (Yape/Plin/POS/Transfer).'], 422);
                     }
-                    $vueltoSubtypeToSave = CashBoxSubtype::findOrFail($vueltoSubtypeId)->id;
+
+                    $subtype = CashBoxSubtype::findOrFail($subtypeId);
+                    $regularize = $subtype->is_deferred ? 0 : 1;
+                } else {
+                    $subtypeId = null;
                 }
+
+                $amountSale = (float)$request->get('total_importe') + (float)$request->get('total_vuelto');
 
                 CashMovement::create([
-                    'cash_register_id' => $vueltoRegister->id,
-                    'type' => 'expense',
-                    'amount' => $vuelto,
-                    'description' => 'Vuelto entregado de la venta',
-                    'observation' => 'Vuelto aplicado',
-                    'regularize' => 1,
-                    'cash_box_subtype_id' => $vueltoSubtypeToSave,
-                    'sale_id' => $sale->id
+                    'cash_register_id' => $cashRegister->id,
+                    'type' => 'sale',
+                    'amount' => $amountSale,
+                    'description' => 'Venta registrada',
+                    'observation' => ($cashBox->type === 'bank') ? 'Pago bancario' : 'Pago efectivo',
+                    'regularize' => $regularize,
+                    'cash_box_subtype_id' => $subtypeId,
+                    'sale_id' => $sale->id,
                 ]);
 
-                $vueltoRegister->current_balance -= $vuelto;
-                $vueltoRegister->total_expenses  += $vuelto;
-                $vueltoRegister->save();
+                if ($regularize == 1) {
+                    $cashRegister->current_balance += $amountSale;
+                    $cashRegister->total_sales += $amountSale;
+                    $cashRegister->save();
+                }
+
+                if ($vuelto > 0) {
+                    $vueltoSubtypeId = $request->input('vuelto_cash_box_subtype_id');
+
+                    if (!$vueltoBoxId) {
+                        return response()->json(['message' => 'Seleccione la caja desde donde se dará el vuelto.'], 422);
+                    }
+
+                    $vueltoRegister = CashRegister::where('cash_box_id', $vueltoBoxId)
+                        ->where('user_id', Auth::id())
+                        ->where('status', 1)
+                        ->latest()
+                        ->first();
+
+                    if (!$vueltoRegister) {
+                        return response()->json(['message' => 'No hay sesión abierta para la caja del vuelto.'], 422);
+                    }
+
+                    $vueltoCashBox = $vueltoRegister->cashBox;
+                    if (!$vueltoCashBox) {
+                        return response()->json(['message' => 'La sesión del vuelto no tiene CashBox asociado.'], 422);
+                    }
+
+                    $vueltoSubtypeToSave = null;
+                    if ($vueltoCashBox->type === 'bank' && (int)$vueltoCashBox->uses_subtypes === 1) {
+                        if (!$vueltoSubtypeId) {
+                            return response()->json(['message' => 'Seleccione el subtipo bancario para el vuelto (Yape/Plin/Transfer/POS).'], 422);
+                        }
+                        $vueltoSubtypeToSave = CashBoxSubtype::findOrFail($vueltoSubtypeId)->id;
+                    }
+
+                    CashMovement::create([
+                        'cash_register_id' => $vueltoRegister->id,
+                        'type' => 'expense',
+                        'amount' => $vuelto,
+                        'description' => 'Vuelto entregado de la venta',
+                        'observation' => 'Vuelto aplicado',
+                        'regularize' => 1,
+                        'cash_box_subtype_id' => $vueltoSubtypeToSave,
+                        'sale_id' => $sale->id
+                    ]);
+
+                    $vueltoRegister->current_balance -= $vuelto;
+                    $vueltoRegister->total_expenses += $vuelto;
+                    $vueltoRegister->save();
+                }
             }
 
             $notification = Notification::create([
@@ -2172,7 +2195,7 @@ class PuntoVentaController extends Controller
 
             DB::commit();
 
-            $nubefactResult = null;
+            /*$nubefactResult = null;
 
             if (in_array($sale->type_document, ['01', '03'])) {
                 try {
@@ -2206,6 +2229,62 @@ class PuntoVentaController extends Controller
                     $urlPrint  = $nubefactResult['enlace_del_pdf'];
                     $printType = 'sunat_pdf';
                 }
+            }*/
+
+            $nubefactResult = null;
+
+            $urlPrint = route('puntoVenta.print', $sale->id);
+            $printType = 'ticket';
+
+            if ($pagosParcialesVenta === 'n') {
+
+                if (in_array($sale->type_document, ['01', '03'])) {
+                    try {
+                        $sale->loadMissing(['details.material', 'details.stockItem']);
+
+                        $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
+
+                        $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
+
+                    } catch (\Throwable $e) {
+                        $sale->update([
+                            'sunat_status'  => 'Error',
+                            'sunat_message' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                if (in_array($sale->type_document, ['01', '03'])) {
+                    if (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint = $nubefactResult['enlace_del_pdf'];
+                    }
+
+                    if (!empty($sale->pdf_path)) {
+                        $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+
+                        if (file_exists($localPath)) {
+                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                            $printType = 'sunat_pdf';
+                        }
+                    } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
+                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
+                        $printType = 'sunat_pdf';
+                    }
+                }
+
+            } else {
+                // Pago parcial: siempre ticket local
+                $urlPrint = route('puntoVenta.print', $sale->id);
+                $printType = 'ticket';
+
+                // Opcional pero recomendado:
+                // asegurar que no quede como boleta/factura
+                // si por alguna manipulación llegó type_document 01 o 03
+                $sale->update([
+                    'type_document' => null, // o '00' si usas código para ticket
+                    'sunat_status' => null,
+                    'sunat_message' => null,
+                ]);
             }
 
             return response()->json([
@@ -2507,7 +2586,29 @@ class PuntoVentaController extends Controller
 
         $arrayYears = array_values($arrayYears);
 
-        return view('puntoVenta.list', compact('arrayYears'));
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+        $customers = Customer::orderBy('business_name')->get();
+
+        return view('puntoVenta.list', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
+    }
+
+    private function cleanUtf8($value)
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+        }
+
+        return $value;
     }
 
     public function getSalesAdmin(Request $request, $pageNumber = 1)
@@ -2518,16 +2619,33 @@ class PuntoVentaController extends Controller
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
 
+        $customerId = $request->input('customer_id');
+        $paymentStatus = $request->input('payment_status');
+        $dispatchStatus = $request->input('dispatch_status');
+        $cashBoxId = $request->input('cash_box_id');
+        $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
+        $invoiceStatus = $request->input('invoice_status');
+
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::where('state_annulled', 0)->orderBy('created_at', 'DESC');
+            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
+            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
                 ->orderBy('created_at', 'DESC');
+        }
+
+        $user = Auth::user();
+
+        $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
+
+        if (!$canSeeAllSales) {
+            $query->whereHas('worker.user', function ($q) use ($user) {
+                $q->where('id', $user->id);
+            });
         }
 
         // Aplicar filtros si se proporcionan
@@ -2539,6 +2657,113 @@ class PuntoVentaController extends Controller
         if ($year != "") {
             $query->whereYear('created_at', $year);
 
+        }
+
+        // Cliente
+        if ($customerId != "") {
+            if ($customerId === 'venta_directa') {
+                $query->whereNull('quote_id');
+            } elseif ($customerId === 'cotizacion_sin_cliente') {
+                $query->whereHas('quote', function ($q) {
+                    $q->whereNull('customer_id');
+                });
+            } else {
+                $query->whereHas('quote', function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId);
+                });
+            }
+        }
+
+        // Estado despacho
+        if ($dispatchStatus != "") {
+            $query->where('dispatch_status', $dispatchStatus);
+        }
+
+        // Comprobante
+        if ($invoiceStatus != "") {
+            if ($invoiceStatus === 'con_comprobante') {
+                $query->whereIn('type_document', ['01', '03'])
+                    ->where(function ($q) {
+                        $q->whereNull('sunat_status')
+                            ->orWhere('sunat_status', '!=', 'Error');
+                    });
+            }
+
+            if ($invoiceStatus === 'sin_comprobante') {
+                $query->where(function ($q) {
+                    $q->whereNull('type_document')
+                        ->orWhereNotIn('type_document', ['01', '03'])
+                        ->orWhere('sunat_status', 'Error');
+                });
+            }
+        }
+
+        // Método de pago
+        if ($cashBoxId != "") {
+            if ($cashBoxId === 'pago_parcial') {
+                $query->where('pagos_parciales_venta', 's');
+            } else {
+                $query->where('pagos_parciales_venta', 'n')
+                    ->whereHas('cashMovements', function ($q) use ($cashBoxId, $cashBoxSubtypeId) {
+                        $q->where('type', 'sale')
+                            ->whereHas('cashRegister', function ($qr) use ($cashBoxId) {
+                                $qr->where('cash_box_id', $cashBoxId);
+                            });
+
+                        if ($cashBoxSubtypeId != "") {
+                            $q->where('cash_box_subtype_id', $cashBoxSubtypeId);
+                        }
+                    });
+            }
+        }
+
+        // Cumplimiento de pago
+        if ($paymentStatus != "") {
+            if ($paymentStatus === 'verde') {
+                $query->where(function ($q) {
+                    $q->where('pagos_parciales_venta', 'n')
+                        ->orWhereRaw("
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) >= sales.importe_total
+                ");
+                });
+            }
+
+            if ($paymentStatus === 'naranja') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) >= (sales.importe_total * 0.5)
+            ")
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) < sales.importe_total
+            ");
+            }
+
+            if ($paymentStatus === 'rojo') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                (
+                    SELECT COALESCE(SUM(spp.amount), 0)
+                    FROM sale_partial_payments spp
+                    WHERE spp.sale_id = sales.id
+                    AND spp.state = 1
+                ) < (sales.importe_total * 0.5)
+            ");
+            }
         }
 
         $totalFilteredRecords = $query->count();
@@ -2579,32 +2804,81 @@ class PuntoVentaController extends Controller
             }
 
             // ===============================
-// NUEVO: obtener canal de pago desde CashMovement
-// ===============================
-            $paymentMovement = \App\CashMovement::where('sale_id', $sale->id)
+            // NUEVO: obtener canal de pago desde CashMovement
+            // ===============================
+            $paymentMovement = CashMovement::where('sale_id', $sale->id)
                 ->where('type', 'sale')
                 ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
                 ->orderBy('id', 'desc')
                 ->first();
 
-            $tipoPagoLabel = '—';
+            $tipoPagoLabel = $sale->pagos_parciales_venta === 's'
+                ? 'PAGO PARCIAL'
+                : 'SIN MOVIMIENTO';
 
-            if ($paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
+            if ($sale->pagos_parciales_venta === 'n' && $paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
                 $cashBox = $paymentMovement->cashRegister->cashBox;
 
                 if ($cashBox->type === 'cash') {
-                    // Ej: "Efectivo"
                     $tipoPagoLabel = $cashBox->name;
                 } else {
-                    // Bancario
                     if ($paymentMovement->cashBoxSubtype) {
-                        // Ej: "BCP - Yape"
                         $tipoPagoLabel = $cashBox->name . ' - ' . $paymentMovement->cashBoxSubtype->name;
                     } else {
-                        // Ej: "BCP"
                         $tipoPagoLabel = $cashBox->name;
                     }
                 }
+            }
+
+            $nombreCliente = 'SIN CLIENTE';
+
+            if ($sale->pagos_parciales_venta === 's') {
+
+                if ($sale->quote) {
+                    if ($sale->quote->customer) {
+                        $nombreCliente = $sale->quote->customer->business_name;
+                    } else {
+                        $nombreCliente = 'COTIZACION SIN CLIENTE';
+                    }
+                } else {
+                    $nombreCliente = 'VENTA DIRECTA';
+                }
+            } else {
+                if ($sale->quote) {
+                    if ($sale->quote->customer) {
+                        $nombreCliente = $sale->quote->customer->business_name;
+                    } else {
+                        $nombreCliente = 'COTIZACION SIN CLIENTE';
+                    }
+                } else {
+                    $nombreCliente = 'VENTA DIRECTA';
+                }
+            }
+
+            $totalVenta = (float) $sale->importe_total;
+            $totalAbonado = null;
+            $estadoPagoParcial = null;
+
+            if ($sale->pagos_parciales_venta === 's') {
+                $totalAbonado = \App\SalePartialPayment::where('sale_id', $sale->id)
+                    ->where('state', 1)
+                    ->sum('amount');
+
+                $porcentaje = $totalVenta > 0
+                    ? (($totalAbonado / $totalVenta) * 100)
+                    : 0;
+
+                if ($porcentaje >= 100) {
+                    $estadoPagoParcial = 'verde';
+                } elseif ($porcentaje >= 50) {
+                    $estadoPagoParcial = 'naranja';
+                } else {
+                    $estadoPagoParcial = 'rojo';
+                }
+
+                $totalTexto = number_format($totalAbonado, 2, '.', '') . ' / ' . number_format($totalVenta, 2, '.', '');
+            } else {
+                $totalTexto = number_format($totalVenta, 2, '.', '');
             }
 
             array_push($arraySales, [
@@ -2612,17 +2886,23 @@ class PuntoVentaController extends Controller
                 "code" => "VENTA - ".$sale->id,
                 "date" => ($sale->date_sale != null) ? $sale->formatted_sale_date : "",
                 "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
-                //"total" => $sale->importe_total,
-                "total" => number_format($sale->importe_total, 2, '.', ''),
-                "tipo_pago" => strtoupper($tipoPagoLabel),
-                "nombre_cliente" => $sale->nombre_cliente,
+                //"total" => number_format($sale->importe_total, 2, '.', ''),
+                "tipo_pago" => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
+                "dispatch_status" => $sale->dispatch_status ?? 'despachado',
+                "nombre_cliente" => $this->cleanUtf8($nombreCliente),
                 "tipo_documento_cliente" => $tipo_documento_cliente,
-                "numero_documento_cliente" => $sale->numero_documento_cliente,
-                "direccion_cliente" => $sale->direccion_cliente,
-                "email_cliente" => $sale->email_cliente,
+                "numero_documento_cliente" => $this->cleanUtf8($sale->numero_documento_cliente),
+                "direccion_cliente" => $this->cleanUtf8($sale->direccion_cliente),
+                "email_cliente" => $this->cleanUtf8($sale->email_cliente),
                 "tipo_comprobante" => $tipo_comprobante,
-                "print_url" => $printUrl,
+                "print_url" => $this->cleanUtf8($printUrl),
                 "print_label" => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
+                "type_document" => $sale->type_document,
+                "sunat_status" => $sale->sunat_status,
+                "pagos_parciales_venta" => $sale->pagos_parciales_venta,
+                "total" => $totalTexto,
+                "total_abonado" => $totalAbonado,
+                "estado_pago_parcial" => $estadoPagoParcial,
             ]);
         }
 

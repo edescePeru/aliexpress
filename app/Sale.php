@@ -22,6 +22,7 @@ class Sale extends Model
         'vuelto',
         'tipo_pago_id',
         'state_annulled',
+        'dispatch_status',
 
         'quote_id',
 
@@ -30,6 +31,7 @@ class Sale extends Model
         'cdr_path',
         'pdf_path',
         'type_document',
+        'pagos_parciales_venta',
         'sunat_ticket',
         'sunat_status',
         'sunat_message',
@@ -72,6 +74,11 @@ class Sale extends Model
     public function cashMovements()
     {
         return $this->hasMany(CashMovement::class, 'sale_id');
+    }
+
+    public function partialPayments()
+    {
+        return $this->hasMany(SalePartialPayment::class);
     }
 
     public function getDataTotalsAttribute()

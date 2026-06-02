@@ -1011,23 +1011,64 @@ function deleteConsumable() {
 
 function addConsumable() {
 
-    var consumableID = $(this).parent().parent().find('[data-consumable]').val();
+    let button = $(this);
+
+    var consumableID = button.parent().parent().find('[data-consumable]').val();
+
     if (!consumableID) {
         toastr.error('Debe seleccionar un producto', 'Error');
         return;
     }
 
-    // tu render original (mantengo tu lógica)
-    var render = $(this).parent().parent().next().next();
+    // tu render original
+    var render = button.parent().parent().next().next();
 
     var consumable = $consumables.find(mat => mat.id === parseInt(consumableID));
+
     if (!consumable) {
         toastr.error('Producto no encontrado', 'Error');
         return;
     }
 
+    console.log(consumable);
+    let consumablePrice = parseFloat(consumable.list_price) || 0;
+
+    // 👇 VALIDACIÓN NUEVA
+    if (consumablePrice <= 0) {
+
+        $.confirm({
+            icon: 'fas fa-exclamation-triangle',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'orange',
+            title: 'Precio en cero',
+            content: 'El precio de este producto es 0. ¿Procedemos con la venta?',
+            buttons: {
+                confirm: {
+                    text: 'SÍ, CONTINUAR',
+                    btnClass: 'btn-orange',
+                    action: function () {
+
+                        // limpiar UI
+                        button.parent().parent().find('[data-cantidad]').val(0);
+                        $(".consumable_search").empty().trigger('change');
+
+                        // abrir modal
+                        showModalQuantityConsumable(render, consumable);
+                    }
+                },
+                cancel: {
+                    text: 'CANCELAR'
+                }
+            }
+        });
+
+        return;
+    }
+
     // limpiar UI
-    $(this).parent().parent().find('[data-cantidad]').val(0);
+    button.parent().parent().find('[data-cantidad]').val(0);
     $(".consumable_search").empty().trigger('change');
 
     // abrir modal

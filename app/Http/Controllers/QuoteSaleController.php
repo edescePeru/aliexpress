@@ -4182,12 +4182,16 @@ class QuoteSaleController extends Controller
             ->values();
         /*dump($cashBoxes);
         dd();*/
+
+        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
+        $pagos_parciales = $data_pagos_parciales->valueText;
+
         return view('quoteSale.registrarComprobante', compact(
             'typeComprobante',
             'permissions',
             'currency',
             'igv',
-            'cashBoxes','subtypes'
+            'cashBoxes','subtypes', 'pagos_parciales'
         ));
     }
 
@@ -5604,39 +5608,59 @@ class QuoteSaleController extends Controller
         $dataCurrency = DataGeneral::where('name', 'type_current')->first();
         $currency = $dataCurrency ? $dataCurrency->valueText : 'pen';
 
+        $negocioAceptaPagosParciales = $request->input('negocio_acepta_pagos_parciales', 'n');
+        $pagosParcialesVenta = $request->input('pagos_parciales_venta', 'n');
+
+        if (!in_array($pagosParcialesVenta, ['s', 'n'])) {
+            throw new \Exception("Valor inválido para pagos parciales.");
+        }
+
+        if ($pagosParcialesVenta === 's' && $negocioAceptaPagosParciales !== 's') {
+            throw new \Exception("Este negocio no tiene habilitados los pagos parciales.");
+        }
+
         // ===========================
         // ✅ Validación CashBox/Subtype
+        // Solo aplica si NO es pago parcial
         // ===========================
-        $cashBoxId        = $request->input('pv_cash_box_id');
-        $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+        $cashBoxId = null;
+        $cashBoxSubtypeId = null;
+        $cashBox = null;
+        $needSubtype = false;
 
-        if (!$cashBoxId) {
-            return response()->json(['message' => 'Seleccione una caja (CashBox).'], 422);
-        }
+        if ($pagosParcialesVenta === 'n') {
 
-        $cashBox = CashBox::find($cashBoxId);
+            $cashBoxId = $request->input('pv_cash_box_id');
+            $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
 
-        if (!$cashBox || !(bool)$cashBox->is_active) {
-            return response()->json(['message' => 'La caja seleccionada no es válida o está inactiva.'], 422);
-        }
-
-        $needSubtype = ($cashBox->type === 'bank' && (bool)$cashBox->uses_subtypes);
-
-        if ($needSubtype) {
-            if (!$cashBoxSubtypeId) {
-                return response()->json(['message' => 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).'], 422);
+            if (!$cashBoxId) {
+                return response()->json(['message' => 'Seleccione una caja (CashBox).'], 422);
             }
 
-            $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
-                ->where('is_active', 1)
-                ->where('id', (int)$cashBoxSubtypeId)
-                ->first();
+            $cashBox = CashBox::find($cashBoxId);
 
-            if (!$validSubtype) {
-                return response()->json(['message' => 'El subtipo seleccionado no es válido o está inactivo.'], 422);
+            if (!$cashBox || !(bool)$cashBox->is_active) {
+                return response()->json(['message' => 'La caja seleccionada no es válida o está inactiva.'], 422);
             }
-        } else {
-            $cashBoxSubtypeId = null;
+
+            $needSubtype = ($cashBox->type === 'bank' && (bool)$cashBox->uses_subtypes);
+
+            if ($needSubtype) {
+                if (!$cashBoxSubtypeId) {
+                    return response()->json(['message' => 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).'], 422);
+                }
+
+                $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
+                    ->where('is_active', 1)
+                    ->where('id', (int)$cashBoxSubtypeId)
+                    ->first();
+
+                if (!$validSubtype) {
+                    return response()->json(['message' => 'El subtipo seleccionado no es válido o está inactivo.'], 422);
+                }
+            } else {
+                $cashBoxSubtypeId = null;
+            }
         }
 
         DB::beginTransaction();
@@ -5660,31 +5684,38 @@ class QuoteSaleController extends Controller
                 throw new \Exception("La cotización ya fue convertida en una venta activa.");
             }
 
-            $tipoComprobante = $request->tipo_documento_cliente; // 01 boleta, 03 factura
+            /* $tipoComprobante = $request->tipo_documento_cliente; // 01 factura, 03 boleta
             $typeDocument = $request->type_document; // 1 DNI, 6 RUC
-            $numeroDocumento = preg_replace('/\D/', '', $request->numero_documento_cliente);
+            $numeroDocumento = preg_replace('/\D/', '', $request->numero_documento_cliente);*/
 
-            // Boleta = DNI
-            if ($tipoComprobante === '01') {
+            $tipoComprobante = $request->type_document; // 01 factura, 03 boleta
+            $typeDocument = $request->tipo_documento_cliente; // 1 DNI, 6 RUC
+            $numeroDocumento = preg_replace('/\D/', '', $request->numero_documento_cliente ?? '');
 
-                if ((string) $typeDocument !== '1') {
-                    throw new \Exception("Para emitir una boleta, el tipo de documento debe ser DNI.");
+            if ($pagosParcialesVenta === 'n') {
+
+                // Boleta = DNI
+                if ($tipoComprobante === '03') {
+
+                    if ((string)$typeDocument !== '1') {
+                        throw new \Exception("Para emitir una boleta, el tipo de documento debe ser DNI.");
+                    }
+
+                    if (!preg_match('/^\d{8}$/', $numeroDocumento)) {
+                        throw new \Exception("El DNI debe contener exactamente 8 dígitos.");
+                    }
                 }
 
-                if (!preg_match('/^\d{8}$/', $numeroDocumento)) {
-                    throw new \Exception("El DNI debe contener exactamente 8 dígitos.");
-                }
-            }
+                // Factura = RUC
+                if ($tipoComprobante === '01') {
 
-            // Factura = RUC
-            if ($tipoComprobante === '03') {
+                    if ((string)$typeDocument !== '6') {
+                        throw new \Exception("Para emitir una factura, el tipo de documento debe ser RUC.");
+                    }
 
-                if ((string) $typeDocument !== '6') {
-                    throw new \Exception("Para emitir una factura, el tipo de documento debe ser RUC.");
-                }
-
-                if (!preg_match('/^\d{11}$/', $numeroDocumento)) {
-                    throw new \Exception("El RUC debe contener exactamente 11 dígitos.");
+                    if (!preg_match('/^\d{11}$/', $numeroDocumento)) {
+                        throw new \Exception("El RUC debe contener exactamente 11 dígitos.");
+                    }
                 }
             }
 
@@ -5710,13 +5741,33 @@ class QuoteSaleController extends Controller
                 'vuelto'           => 0,
 
                 'quote_id' => $quote->id,
+                'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente': 'despachado',
 
-                'type_document'            => $request->type_document,
-                'numero_documento_cliente' => $numeroDocumento,
-                'tipo_documento_cliente'   => $request->tipo_documento_cliente,
-                'nombre_cliente'           => $request->nombre_cliente,
-                'direccion_cliente'        => $request->direccion_cliente,
-                'email_cliente'            => $request->email_cliente,
+                'type_document' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $request->type_document,
+
+                'numero_documento_cliente' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $numeroDocumento,
+
+                'tipo_documento_cliente' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $request->tipo_documento_cliente,
+
+                'nombre_cliente' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $request->nombre_cliente,
+
+                'direccion_cliente' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $request->direccion_cliente,
+
+                'email_cliente' => $pagosParcialesVenta === 's'
+                    ? null
+                    : $request->email_cliente,
+
+                'pagos_parciales_venta' => $pagosParcialesVenta,
 
                 'serie_sunat'   => null,
                 'numero'        => null,
@@ -5987,64 +6038,67 @@ class QuoteSaleController extends Controller
 
             // ===========================
             // 4) Caja: movimiento (SIN VUELTO)
+            // Solo aplica si NO es pago parcial
             // ===========================
-            $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
-                ->where('user_id', Auth::id())
-                ->where('status', 1)
-                ->latest();
+            if ($pagosParcialesVenta === 'n') {
+                $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
+                    ->where('user_id', Auth::id())
+                    ->where('status', 1)
+                    ->latest();
 
-            if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
-                $cashRegisterQuery->where('cash_box_subtype_id', (int)$cashBoxSubtypeId);
-            }
-
-            $cashRegister = $cashRegisterQuery->first();
-
-            if (!$cashRegister) {
-                return response()->json(['message' => 'No hay caja abierta para la caja/canal seleccionado.'], 422);
-            }
-
-            $amount = (float)$quote->total_importe;
-
-            $description = 'Venta desde cotización - ' . ($cashBox->name ?? 'Caja');
-            if ($needSubtype && $cashBoxSubtypeId) {
-                $sub = CashBoxSubtype::find((int)$cashBoxSubtypeId);
-                if ($sub) $description .= ' (' . $sub->name . ')';
-            }
-
-            $regularize = 1;
-
-            if ($cashBox->type === 'bank' && (int) $cashBox->uses_subtypes === 1) {
-                if (!$cashBoxSubtypeId) {
-                    return response()->json([
-                        'message' => 'Debe seleccionar el subtipo bancario (Yape / Plin / POS / Transfer).'
-                    ], 422);
+                if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
+                    $cashRegisterQuery->where('cash_box_subtype_id', (int)$cashBoxSubtypeId);
                 }
 
-                $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
-                $regularize = $subtype->is_deferred ? 0 : 1;
-            } else {
-                $cashBoxSubtypeId = null;
-            }
+                $cashRegister = $cashRegisterQuery->first();
 
-            $movement = [
-                'cash_register_id'      => $cashRegister->id,
-                'type'                  => 'sale',
-                'amount'                => $amount,
-                'description'           => $description,
-                'sale_id'               => $sale->id,
-                'regularize'            => $regularize,
-            ];
+                if (!$cashRegister) {
+                    return response()->json(['message' => 'No hay caja abierta para la caja/canal seleccionado.'], 422);
+                }
 
-            if (!is_null($cashBoxSubtypeId)) {
-                $movement['cash_box_subtype_id'] = (int) $cashBoxSubtypeId;
-            }
+                $amount = (float)$quote->total_importe;
 
-            CashMovement::create($movement);
+                $description = 'Venta desde cotización - ' . ($cashBox->name ?? 'Caja');
+                if ($needSubtype && $cashBoxSubtypeId) {
+                    $sub = CashBoxSubtype::find((int)$cashBoxSubtypeId);
+                    if ($sub) $description .= ' (' . $sub->name . ')';
+                }
 
-            if ($regularize == 1) {
-                $cashRegister->current_balance += $amount;
-                $cashRegister->total_sales     += $amount;
-                $cashRegister->save();
+                $regularize = 1;
+
+                if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+                    if (!$cashBoxSubtypeId) {
+                        return response()->json([
+                            'message' => 'Debe seleccionar el subtipo bancario (Yape / Plin / POS / Transfer).'
+                        ], 422);
+                    }
+
+                    $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
+                    $regularize = $subtype->is_deferred ? 0 : 1;
+                } else {
+                    $cashBoxSubtypeId = null;
+                }
+
+                $movement = [
+                    'cash_register_id' => $cashRegister->id,
+                    'type' => 'sale',
+                    'amount' => $amount,
+                    'description' => $description,
+                    'sale_id' => $sale->id,
+                    'regularize' => $regularize,
+                ];
+
+                if (!is_null($cashBoxSubtypeId)) {
+                    $movement['cash_box_subtype_id'] = (int)$cashBoxSubtypeId;
+                }
+
+                CashMovement::create($movement);
+
+                if ($regularize == 1) {
+                    $cashRegister->current_balance += $amount;
+                    $cashRegister->total_sales += $amount;
+                    $cashRegister->save();
+                }
             }
 
             // ===========================
@@ -6086,7 +6140,7 @@ class QuoteSaleController extends Controller
             // ===========================
             $nubefactResult = null;
 
-            if (in_array($sale->type_document, ['01', '03'])) {
+            if ($pagosParcialesVenta === 'n' && in_array($sale->type_document, ['01', '03'])) {
                 try {
                     $sale->loadMissing(['details.material']);
                     $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
@@ -6106,10 +6160,12 @@ class QuoteSaleController extends Controller
                         $pdfContent = Http::get($nubefactResult['enlace_del_pdf'])->body();
                         file_put_contents(public_path('comprobantes/pdfs/' . $pdfFilename), $pdfContent);
                     }
+
                     if (!empty($nubefactResult['enlace_del_xml'])) {
                         $xmlContent = Http::get($nubefactResult['enlace_del_xml'])->body();
                         file_put_contents(public_path('comprobantes/xmls/' . $xmlFilename), $xmlContent);
                     }
+
                     if (!empty($nubefactResult['enlace_del_cdr'])) {
                         $cdrContent = Http::get($nubefactResult['enlace_del_cdr'])->body();
                         file_put_contents(public_path('comprobantes/cdrs/' . $cdrFilename), $cdrContent);
@@ -6138,12 +6194,14 @@ class QuoteSaleController extends Controller
             $urlPrint  = route('puntoVenta.print', $sale->id);
             $printType = 'ticket';
 
-            if (in_array($sale->type_document, ['01', '03'])) {
+            if ($pagosParcialesVenta === 'n' && in_array($sale->type_document, ['01', '03'])) {
                 if (!empty($nubefactResult['enlace_del_pdf'])) {
                     $urlPrint = $nubefactResult['enlace_del_pdf'];
                 }
+
                 if (!empty($sale->pdf_path)) {
                     $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
+
                     if (file_exists($localPath)) {
                         $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
                         $printType = 'sunat_pdf';

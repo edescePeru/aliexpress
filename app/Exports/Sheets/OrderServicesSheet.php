@@ -28,7 +28,7 @@ class OrderServicesSheet implements FromCollection, WithHeadings, WithMapping, S
 
     public function title(): string
     {
-        return 'SERVICIOS';
+        return 'ORDENES DE SERVICIOS';
     }
 
     public function collection()

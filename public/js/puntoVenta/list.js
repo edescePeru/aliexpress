@@ -203,12 +203,624 @@ $(document).ready(function () {
             }
         });
     });
+
+    $(document).on('click', '[data-pagos_parciales]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $('#pp_sale_id').val(saleId);
+        $('#pp_fecha_pago').val(new Date().toISOString().slice(0, 10));
+        $('#pp_monto').val('');
+        let efectivoOption = $('#pp_cash_box_id option').filter(function () {
+            return $(this).text().trim().toLowerCase() === 'efectivo';
+        }).first();
+
+        if (efectivoOption.length) {
+            $('#pp_cash_box_id').val(efectivoOption.val()).trigger('change');
+        } else {
+            $('#pp_cash_box_id').val('').trigger('change');
+        }
+        $('#pp_cash_box_subtype_id').val('').trigger('change');
+        $('#pp_cash_box_subtype_wrap').hide();
+
+        cargarPagosParciales(saleId);
+
+        $('#modalPagosParciales').modal('show');
+    });
+
+    $('#pp_cash_box_id').on('change', function () {
+        let $opt = $(this).find('option:selected');
+        let boxType = ($opt.data('type') || '').toString();
+        let usesSub = String($opt.data('uses_subtypes')) === '1';
+
+        $('#pp_cash_box_subtype_id').val('').trigger('change');
+
+        if (boxType === 'bank' && usesSub) {
+            $('#pp_cash_box_subtype_wrap').show();
+        } else {
+            $('#pp_cash_box_subtype_wrap').hide();
+        }
+    });
+
+    $('#btnGuardarPagoParcial').on('click', function () {
+        let saleId = $('#pp_sale_id').val();
+        let fecha = $('#pp_fecha_pago').val();
+        let monto = $('#pp_monto').val();
+        let cashBoxId = $('#pp_cash_box_id').val();
+
+        const $opt = $('#pp_cash_box_id').find('option:selected');
+        const boxType = ($opt.data('type') || '').toString();
+        const usesSub = String($opt.data('uses_subtypes') || '0') === '1';
+
+        let cashBoxSubtypeId = null;
+
+        if (boxType === 'bank' && usesSub) {
+            cashBoxSubtypeId = $('#pp_cash_box_subtype_id').val();
+        }
+
+        if (!saleId || !fecha || !monto || parseFloat(monto) <= 0 || !cashBoxId) {
+            $.alert({
+                title: 'Campos incompletos',
+                content: 'Complete fecha, monto y caja.',
+                type: 'red',
+                buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+            });
+            return;
+        }
+
+        if (boxType === 'bank' && usesSub && !cashBoxSubtypeId) {
+            $.alert({
+                title: 'Campos incompletos',
+                content: 'Seleccione el canal/subtipo.',
+                type: 'red',
+                buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+            });
+            return;
+        }
+
+        let cashBoxText = $opt.text().trim();
+        let subtypeText = '';
+
+        if (cashBoxSubtypeId) {
+            subtypeText = $('#pp_cash_box_subtype_id option:selected').text().trim();
+        }
+
+        let metodoPago = subtypeText ? cashBoxText + ' - ' + subtypeText : cashBoxText;
+
+        $.confirm({
+            title: 'Confirmar pago parcial',
+            content: `
+            <div>
+                <p>¿Está seguro de registrar este pago?</p>
+                <ul>
+                    <li><b>Fecha:</b> ${fecha}</li>
+                    <li><b>Monto:</b> S/ ${parseFloat(monto).toFixed(2)}</li>
+                    <li><b>Caja:</b> ${metodoPago}</li>
+                </ul>
+            </div>
+        `,
+            type: 'blue',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, registrar',
+                    btnClass: 'btn-primary',
+                    action: function () {
+                        const jc = this;
+
+                        jc.buttons.confirmar.disable();
+                        jc.buttons.cancelar.disable();
+
+                        $.ajax({
+                            url: '/dashboard/sale/partial-payment/store',
+                            method: 'POST',
+                            data: {
+                                sale_id: saleId,
+                                payment_date: fecha,
+                                amount: monto,
+                                cash_box_id: cashBoxId,
+                                cash_box_subtype_id: cashBoxSubtypeId
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (res) {
+                                jc.close();
+
+                                $.alert({
+                                    title: 'Éxito',
+                                    content: res.message || 'Pago registrado con éxito.',
+                                    type: 'green',
+                                    buttons: {
+                                        ok: {
+                                            text: 'OK',
+                                            btnClass: 'btn-success',
+                                            action: function () {
+                                                resetFormularioPagoParcial();
+                                                cargarPagosParciales(saleId);
+                                                reloadCurrentPageOrders();
+                                            }
+                                        }
+                                    }
+                                });
+                            },
+                            error: function (err) {
+                                jc.buttons.confirmar.enable();
+                                jc.buttons.cancelar.enable();
+
+                                $.alert({
+                                    title: 'Error',
+                                    content: err.responseJSON?.message || 'No se pudo registrar el pago.',
+                                    type: 'red',
+                                    buttons: { ok: { text: 'OK', btnClass: 'btn-danger' } }
+                                });
+                            }
+                        });
+
+                        return false;
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-eliminar_pago_parcial]', function () {
+        let paymentId = $(this).data('id');
+        let saleId = $('#pp_sale_id').val();
+
+        $.confirm({
+            title: 'Eliminar pago parcial',
+            content: '¿Está seguro de eliminar este pago? Se generará la reversión del movimiento de caja.',
+            type: 'red',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, eliminar',
+                    btnClass: 'btn-danger',
+                    action: function () {
+                        const jc = this;
+
+                        jc.buttons.confirmar.disable();
+                        jc.buttons.cancelar.disable();
+
+                        $.ajax({
+                            url: '/dashboard/sale/partial-payment/' + paymentId,
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (res) {
+                                jc.close();
+
+                                $.alert({
+                                    title: 'Eliminado',
+                                    content: res.message || 'Pago parcial eliminado correctamente.',
+                                    type: 'green',
+                                    buttons: {
+                                        ok: {
+                                            text: 'OK',
+                                            btnClass: 'btn-success',
+                                            action: function () {
+                                                resetFormularioPagoParcial();
+                                                cargarPagosParciales(saleId);
+                                            }
+                                        }
+                                    }
+                                });
+                            },
+                            error: function (err) {
+                                jc.buttons.confirmar.enable();
+                                jc.buttons.cancelar.enable();
+
+                                $.alert({
+                                    title: 'Error',
+                                    content: err.responseJSON?.message || 'No se pudo eliminar el pago.',
+                                    type: 'red',
+                                    buttons: {
+                                        ok: {
+                                            text: 'OK',
+                                            btnClass: 'btn-danger'
+                                        }
+                                    }
+                                });
+                            }
+                        });
+
+                        return false;
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-generar_comprobante]', function () {
+        let saleId = $(this).data('sale_id');
+
+        limpiarModalGenerarComprobante();
+
+        $('#gc_sale_id').val(saleId);
+        $('#modalGenerarComprobante').modal('show');
+    });
+
+    $('a[data-toggle="tab"][href="#gc_boleta"], a[data-toggle="tab"][href="#gc_factura"]').on('shown.bs.tab', function () {
+        $('#gc_dni').val('');
+        $('#gc_name').val('').prop('readonly', true);
+        $('#gc_email_boleta').val('');
+
+        $('#gc_ruc').val('');
+        $('#gc_razon_social').val('').prop('readonly', true);
+        $('#gc_direccion_fiscal').val('').prop('readonly', true);
+        $('#gc_email_factura').val('');
+    });
+
+    $('#gc_dni').on('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+
+        e.preventDefault();
+
+        let dni = $(this).val().trim();
+
+        if (!/^\d{8}$/.test(dni)) {
+            toastr.warning('Ingrese un DNI válido de 8 dígitos.');
+            return;
+        }
+
+        consultarClienteComprobante(dni, 'dni');
+    });
+
+    $('#gc_ruc').on('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+
+        e.preventDefault();
+
+        let ruc = $(this).val().trim();
+
+        if (!/^\d{11}$/.test(ruc)) {
+            toastr.warning('Ingrese un RUC válido de 11 dígitos.');
+            return;
+        }
+
+        consultarClienteComprobante(ruc, 'ruc');
+    });
+
+    $('#btnConfirmarGenerarComprobante').on('click', function () {
+        let saleId = $('#gc_sale_id').val();
+
+        let activeTab = $('#gc_tabs .nav-link.active').attr('href');
+        let tipoComprobante = activeTab === '#gc_factura' ? 'factura' : 'boleta';
+
+        let payload = {
+            sale_id: saleId,
+            tipo_comprobante: tipoComprobante,
+            dni: $('#gc_dni').val(),
+            name: $('#gc_name').val(),
+            email_boleta: $('#gc_email_boleta').val(),
+
+            ruc: $('#gc_ruc').val(),
+            razon_social: $('#gc_razon_social').val(),
+            direccion_fiscal: $('#gc_direccion_fiscal').val(),
+            email_factura: $('#gc_email_factura').val()
+        };
+
+        $.confirm({
+            title: 'Confirmar comprobante',
+            content: '¿Está seguro de generar el comprobante electrónico?',
+            type: 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, generar',
+                    btnClass: 'btn-warning',
+                    action: function () {
+                        const jc = this;
+
+                        jc.buttons.confirmar.disable();
+                        jc.buttons.cancelar.disable();
+
+                        jc.setContent(`
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            <span>Generando comprobante electrónico...</span>
+                        </div>
+                    `);
+
+                        $.ajax({
+                            url: '/dashboard/sale/generate-invoice',
+                            method: 'POST',
+                            data: payload,
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (res) {
+                                jc.close();
+
+                                $.alert({
+                                    title: 'Éxito',
+                                    content: res.message || 'Comprobante generado correctamente.',
+                                    type: 'green',
+                                    buttons: {
+                                        ver: {
+                                            text: 'Ver PDF',
+                                            btnClass: 'btn-primary',
+                                            action: function () {
+                                                /*if (res.url_print) {
+                                                    window.open(res.url_print, '_blank');
+                                                }
+
+                                                $('#modalGenerarComprobante').modal('hide');
+
+                                                if (typeof getData === 'function') {
+                                                    getData();
+                                                } else {
+                                                    location.reload();
+                                                }*/
+                                                finalizarGeneracionComprobante(res, true);
+                                            }
+                                        },
+                                        cerrar: {
+                                            text: 'Cerrar',
+                                            btnClass: 'btn-secondary',
+                                            action: function () {
+                                                /*$('#modalGenerarComprobante').modal('hide');
+
+                                                if (typeof getData === 'function') {
+                                                    getData();
+                                                } else {
+                                                    location.reload();
+                                                }*/
+                                                finalizarGeneracionComprobante(res, false);
+                                            }
+                                        }
+                                    }
+                                });
+                            },
+                            error: function (err) {
+                                jc.buttons.confirmar.enable();
+                                jc.buttons.cancelar.enable();
+
+                                $.alert({
+                                    title: 'Error al generar comprobante',
+                                    content: err.responseJSON?.message || 'No se pudo generar el comprobante.',
+                                    type: 'red',
+                                    buttons: {
+                                        ok: {
+                                            text: 'OK',
+                                            btnClass: 'btn-danger'
+                                        }
+                                    }
+                                });
+                            }
+                        });
+
+                        return false;
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary'
+                }
+            }
+        });
+    });
+
+    $(document).on('switchChange.bootstrapSwitch', '.switch-dispatch-status', function (event, state) {
+        let $switch = $(this);
+        let saleId = $switch.data('sale_id');
+        let nuevoEstado = state ? 'despachado' : 'pendiente';
+
+        $.confirm({
+            title: 'Confirmar cambio',
+            content: '¿Desea cambiar el estado de despacho a <strong>' + nuevoEstado.toUpperCase() + '</strong>?',
+            type: state ? 'green' : 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, cambiar',
+                    btnClass: state ? 'btn-success' : 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/sale/update-dispatch-status',
+                            method: 'POST',
+                            data: {
+                                sale_id: saleId,
+                                dispatch_status: nuevoEstado
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (res) {
+                                toastr.success(res.message || 'Estado actualizado.');
+                            },
+                            error: function (err) {
+                                toastr.error(err.responseJSON?.message || 'No se pudo actualizar.');
+
+                                $switch.bootstrapSwitch('state', !state, true);
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    btnClass: 'btn-secondary',
+                    action: function () {
+                        $switch.bootstrapSwitch('state', !state, true);
+                    }
+                }
+            }
+        });
+    });
+
+    $('#filter_cash_box_id').on('change', function () {
+        const $opt = $(this).find('option:selected');
+        const boxType = ($opt.data('type') || '').toString();
+        const usesSubtypes = String($opt.data('uses_subtypes')) === '1';
+
+        $('#filter_cash_box_subtype_id').val('').trigger('change');
+
+        if (boxType === 'bank' && usesSubtypes) {
+            $('#filter_cash_box_subtype_wrap').show();
+        } else {
+            $('#filter_cash_box_subtype_wrap').hide();
+        }
+    });
 });
 
 var $formDelete;
 var $modalDelete;
 
 var $permissions;
+
+function consultarClienteComprobante(documento, tipo) {
+    $.ajax({
+        url: `/dashboard/customer/decolecta/${documento}`,
+        type: 'GET',
+        dataType: 'json',
+        beforeSend: function () {
+            if (tipo === 'dni') {
+                $('#gc_name').val('Consultando...');
+            }
+
+            if (tipo === 'ruc') {
+                $('#gc_razon_social').val('Consultando...');
+                $('#gc_direccion_fiscal').val('Consultando...');
+            }
+        },
+        success: function (response) {
+            if (!response.success) {
+                toastr.error(response.message || 'No se pudo consultar el documento.', 'Error');
+                return;
+            }
+
+            let customer = response.customer;
+
+            if (tipo === 'dni') {
+                $('#gc_dni').val(customer.RUC);
+                $('#gc_name').val(customer.business_name || '');
+            }
+
+            if (tipo === 'ruc') {
+                $('#gc_ruc').val(customer.RUC);
+                $('#gc_razon_social').val(customer.business_name || '');
+                $('#gc_direccion_fiscal').val(customer.address || '');
+            }
+
+            toastr.success('Documento consultado correctamente.', 'Correcto');
+        },
+        error: function (xhr) {
+            let message = xhr.responseJSON?.message || 'No se encontró información.';
+
+            toastr.warning(message + ' Puede ingresarlo manualmente.', 'Consulta sin resultado');
+
+            if (tipo === 'dni') {
+                $('#gc_name').val('').prop('readonly', false).focus();
+            }
+
+            if (tipo === 'ruc') {
+                $('#gc_razon_social').val('').prop('readonly', false).focus();
+                $('#gc_direccion_fiscal').val('').prop('readonly', false);
+            }
+        }
+    });
+}
+
+function limpiarModalGenerarComprobante() {
+    $('#gc_sale_id').val('');
+
+    $('#gc_dni').val('');
+    $('#gc_name').val('').prop('readonly', true);
+    $('#gc_email_boleta').val('');
+
+    $('#gc_ruc').val('');
+    $('#gc_razon_social').val('').prop('readonly', true);
+    $('#gc_direccion_fiscal').val('').prop('readonly', true);
+    $('#gc_email_factura').val('');
+
+    $('#gc_boleta_tab').tab('show');
+}
+
+function resetFormularioPagoParcial() {
+    $('#pp_fecha_pago').val(new Date().toISOString().slice(0, 10));
+    $('#pp_monto').val('');
+
+    let efectivoOption = $('#pp_cash_box_id option').filter(function () {
+        return $(this).text().trim().toLowerCase() === 'efectivo';
+    }).first();
+
+    if (efectivoOption.length) {
+        $('#pp_cash_box_id').val(efectivoOption.val()).trigger('change');
+    } else {
+        $('#pp_cash_box_id').val('').trigger('change');
+    }
+
+    $('#pp_cash_box_subtype_id').val('').trigger('change');
+    $('#pp_cash_box_subtype_wrap').hide();
+}
+
+function pintarResumenPagos(totalVenta, totalAbonado) {
+    totalVenta = parseFloat(totalVenta || 0);
+    totalAbonado = parseFloat(totalAbonado || 0);
+
+    let porcentaje = totalVenta > 0 ? (totalAbonado / totalVenta) * 100 : 0;
+
+    let normalWidth = Math.min(porcentaje, 100);
+    let overWidth = porcentaje > 100 ? Math.min(porcentaje - 100, 20) : 0;
+
+    $('#pp_total_venta').val(totalVenta.toFixed(2));
+    $('#pp_total_abonado').val(totalAbonado.toFixed(2));
+
+    $('#pp_progress_bar').css('width', normalWidth + '%');
+
+    $('#pp_progress_over').css({
+        'left': '100%',
+        'width': overWidth + '%'
+    });
+
+    $('#pp_progress_text').text(porcentaje.toFixed(2) + '%');
+}
+
+function renderPagosParciales(pagos) {
+    let html = '';
+
+    if (!pagos || pagos.length === 0) {
+        html = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No se encontraron pagos registrados
+                </td>
+            </tr>
+        `;
+
+        $('#pp_body_pagos').html(html);
+        return;
+    }
+
+    pagos.forEach(function (pago) {
+        html += `
+            <tr>
+                <td>${pago.payment_date}</td>
+                <td>${parseFloat(pago.amount).toFixed(2)}</td>
+                <td>${pago.cash_box_label || '-'}</td>
+                <td class="text-center">
+                    <button class="btn btn-danger btn-sm" data-eliminar_pago_parcial data-id="${pago.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    $('#pp_body_pagos').html(html);
+}
+
+function cargarPagosParciales(saleId) {
+    $.get('/dashboard/sale/partial-payment/' + saleId, function (res) {
+        pintarResumenPagos(res.total_venta, res.total_abonado);
+        renderPagosParciales(res.pagos);
+    });
+}
 
 function anularOrder() {
     var order_id = $(this).data('id');
@@ -400,6 +1012,28 @@ function showDetails() {
     });
 }
 
+function finalizarGeneracionComprobante(res, abrirPdf) {
+    if (abrirPdf && res.url_print) {
+        window.open(res.url_print, '_blank');
+    }
+
+    limpiarModalGenerarComprobante();
+    $('#modalGenerarComprobante').modal('hide');
+
+    reloadCurrentPageOrders();
+}
+
+function getCurrentPageOrders() {
+    let currentPage = $('#pagination li.active a.page-link').attr('data-item');
+
+    return currentPage ? parseInt(currentPage) : 1;
+}
+
+function reloadCurrentPageOrders() {
+    let currentPage = getCurrentPageOrders();
+    getDataOrders(currentPage);
+}
+
 function showDataSearch() {
     getDataOrders(1)
 }
@@ -421,64 +1055,43 @@ function getDataOrders($numberPage) {
     var startDate = $('#start').val();
     var endDate = $('#end').val();
 
-    $.get('/dashboard/get/data/sales/'+$numberPage, {
+    var customerId = $('#filter_customer_id').val();
+    var paymentStatus = $('#filter_payment_status').val();
+    var dispatchStatus = $('#filter_dispatch_status').val();
+    var cashBoxId = $('#filter_cash_box_id').val();
+    var cashBoxSubtypeId = $('#filter_cash_box_subtype_id').val();
+    var invoiceStatus = $('#filter_invoice_status').val();
+
+    $.get('/dashboard/get/data/sales/' + $numberPage, {
         code: code,
         year: year,
         startDate: startDate,
         endDate: endDate,
+
+        customer_id: customerId,
+        payment_status: paymentStatus,
+        dispatch_status: dispatchStatus,
+        cash_box_id: cashBoxId,
+        cash_box_subtype_id: cashBoxSubtypeId,
+        invoice_status: invoiceStatus,
     }, function(data) {
-        if ( data.data.length == 0 )
-        {
+        if (data.data.length == 0) {
             renderDataOrdersEmpty(data);
         } else {
             renderDataOrders(data);
         }
-
-
     }).fail(function(jqXHR, textStatus, errorThrown) {
-        // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
+
         if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
+            toastr.error(jqXHR.responseJSON.message, 'Error');
         }
+
         for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
+            toastr.error(jqXHR.responseJSON.errors[property], 'Error');
         }
     }, 'json')
         .done(function() {
-            // Configuración de encabezados
             var headers = {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
             };
@@ -568,9 +1181,41 @@ function renderDataTable(data) {
 
     clone.querySelector("[data-code]").innerHTML = data.code;
     clone.querySelector("[data-date]").innerHTML = data.date;
+    clone.querySelector("[data-customer]").innerHTML = data.nombre_cliente;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
-    clone.querySelector("[data-total]").innerHTML = data.total;
+    //clone.querySelector("[data-total]").innerHTML = data.total;
+    const tdTotal = clone.querySelector("[data-total]");
+
+    tdTotal.innerHTML = data.total;
+
+    tdTotal.classList.remove(
+        'bg-pago-parcial-rojo',
+        'bg-pago-parcial-naranja',
+        'bg-pago-parcial-verde'
+    );
+
+    if (data.estado_pago_parcial === 'rojo') {
+        tdTotal.classList.add('bg-pago-parcial-rojo');
+    } else if (data.estado_pago_parcial === 'naranja') {
+        tdTotal.classList.add('bg-pago-parcial-naranja');
+    } else if (data.estado_pago_parcial === 'verde') {
+        tdTotal.classList.add('bg-pago-parcial-verde');
+    }
+
     clone.querySelector("[data-tipo_pago]").innerHTML = data.tipo_pago;
+
+    let dispatchChecked = data.dispatch_status === 'despachado';
+
+    clone.querySelector("[data-dispatch_status]").innerHTML = `
+    <input type="checkbox"
+           class="switch-dispatch-status"
+           data-sale_id="${data.id}"
+           ${dispatchChecked ? 'checked' : ''}
+           data-bootstrap-switch
+           data-on-text="Desp."
+           data-off-text="Pend."
+           data-on-color="success"
+           data-off-color="warning">`;
 
     var botones = clone.querySelector("[data-buttons]");
 
@@ -596,9 +1241,33 @@ function renderDataTable(data) {
 
     cloneBtnActive.querySelector("[data-anular]").setAttribute("data-id", data.id);
 
+    const btnGenerarComprobante = cloneBtnActive.querySelector("[data-generar_comprobante]");
+    const btnPagosParciales = cloneBtnActive.querySelector("[data-pagos_parciales]");
+
+    // Tiene comprobante válido si tiene type_document 01/03 y sunat_status no es Error
+    const tieneComprobanteValido =
+        (data.type_document === '01' || data.type_document === '03') &&
+        data.sunat_status !== 'Error';
+
+    // Botón generar comprobante
+    if (tieneComprobanteValido) {
+        btnGenerarComprobante.remove();
+    } else {
+        btnGenerarComprobante.setAttribute("data-sale_id", data.id);
+        btnGenerarComprobante.setAttribute("href", "#");
+    }
+
+    // Botón pagos parciales
+    if (data.pagos_parciales_venta === 's') {
+        btnPagosParciales.setAttribute("data-sale_id", data.id);
+    } else {
+        btnPagosParciales.remove();
+    }
+
     botones.append(cloneBtnActive);
     $("#body-table").append(clone);
 
+    $('#body-table input.switch-dispatch-status').bootstrapSwitch();
     $('[data-toggle="tooltip"]').tooltip();
 }
 

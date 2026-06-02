@@ -60,7 +60,7 @@ class CashFlowSummarySheet implements FromArray, WithTitle
             //['Egresos Finanzas', number_format($this->expenseFinanzas, 2, '.', '')],
             ['Servicios Adicionales sin Facturar', number_format($this->totalServiciosAdicionalesSinFacturar, 2, '.', '')],
             ['Compras', number_format($this->compras, 2, '.', '')],
-            ['Servicios', number_format($this->servicios, 2, '.', '')],
+            ['Ordenes de Servicios', number_format($this->servicios, 2, '.', '')],
 
             ['Total Egresos', number_format($this->totalExpense, 2, '.', '')],
             ['Utilidad', number_format($this->profit, 2, '.', '')],

@@ -49,7 +49,8 @@ class DataGeneralController extends Controller
         'cci_cuenta_2',
         'img_cuenta_2',
         'owner_cuenta_2',
-        'show_alert_stock_minimos'
+        'show_alert_stock_minimos',
+        'pagos_parciales'
     ];
 
     public function index()

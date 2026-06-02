@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.standalone.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.standalone.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 
 @endsection
 
@@ -92,6 +93,69 @@
         .datepicker-orient-top {
             top: 100px !important;
         }
+
+        .bg-pago-parcial-rojo {
+            background-color: #f8d7da !important;
+            color: #000 !important;
+        }
+
+        .bg-pago-parcial-naranja {
+            background-color: #ffe5b4 !important;
+            color: #000 !important;
+        }
+
+        .bg-pago-parcial-verde {
+            background-color: #d4edda !important;
+            color: #000 !important;
+        }
+
+        .pp-progress-container {
+            padding-right: 60px;
+        }
+
+        .pp-progress-wrap {
+            position: relative;
+            height: 26px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: visible;
+        }
+
+        .pp-progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #b7e4c7;
+        }
+
+        .pp-progress-over {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            height: 100%;
+            width: 0%;
+            background-color: #ffd6a5;
+        }
+
+        .pp-progress-mark-100 {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            height: 100%;
+            width: 2px;
+            background-color: #198754;
+        }
+
+        .pp-progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 26px;
+            line-height: 26px;
+            text-align: center;
+            font-weight: bold;
+            color: #000;
+        }
     </style>
 @endsection
 
@@ -143,7 +207,7 @@
                 <div class="mt-3 busqueda-avanzada">
                     <!-- Aquí coloca más campos de búsqueda avanzada -->
                     <div class="row">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="year">Año de registro:</label>
                             <select id="year" class="form-control form-control-sm select2" style="width: 100%;">
                                 <option value="">TODOS</option>
@@ -153,7 +217,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="campoExtra">Fechas de venta:</label>
                             <div class="col-md-12" id="sandbox-container">
                                 <div class="input-daterange input-group" id="datepicker">
@@ -162,6 +226,81 @@
                                     <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="filter_customer_id">Cliente:</label>
+                            <select id="filter_customer_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="venta_directa">VENTA DIRECTA</option>
+                                <option value="cotizacion_sin_cliente">COTIZACIÓN SIN CLIENTE</option>
+
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}">
+                                        {{ $customer->business_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="filter_payment_status">Cumplimiento:</label>
+                            <select id="filter_payment_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="rojo">Menos del 50%</option>
+                                <option value="naranja">50% a 99.99%</option>
+                                <option value="verde">100% o más</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="filter_dispatch_status">Despacho:</label>
+                            <select id="filter_dispatch_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="despachado">Despachado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+
+                        <div class="col-md-3">
+                            <label for="filter_cash_box_id">Método de pago / Caja:</label>
+                            <select id="filter_cash_box_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="pago_parcial">PAGO PARCIAL</option>
+
+                                @foreach($cashBoxes as $cashBox)
+                                    <option value="{{ $cashBox->id }}"
+                                            data-type="{{ $cashBox->type }}"
+                                            data-uses_subtypes="{{ $cashBox->uses_subtypes ? 1 : 0 }}">
+                                        {{ $cashBox->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3" id="filter_cash_box_subtype_wrap" style="display:none;">
+                            <label for="filter_cash_box_subtype_id">Canal / Subtipo:</label>
+                            <select id="filter_cash_box_subtype_id" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+
+                                @foreach($subtypes as $subtype)
+                                    <option value="{{ $subtype->id }}">
+                                        {{ $subtype->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="filter_invoice_status">Comprobante:</label>
+                            <select id="filter_invoice_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                <option value="con_comprobante">Con comprobante</option>
+                                <option value="sin_comprobante">Sin comprobante</option>
+                            </select>
                         </div>
 
                     </div>
@@ -198,9 +337,11 @@
                     {{--<th>ID</th>--}}
                     <th>Código</th>
                     <th>Fecha Venta</th>
+                    <th>Cliente</th>
                     <th>Moneda</th>
                     <th>Total</th>
                     <th>Metodo de Pago</th>
+                    <th>Estado Despacho</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
@@ -258,9 +399,11 @@
             {{--<td data-id></td>--}}
             <td data-code></td>
             <td data-date></td>
+            <td data-customer></td>
             <td data-currency></td>
             <td data-total></td>
             <td data-tipo_pago></td>
+            <td data-dispatch_status></td>
             <td data-buttons></td>
         </tr>
     </template>
@@ -276,9 +419,13 @@
         <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fas fa-list-ol"></i></button>
         <button data-anular data-id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
 
-        {{--<a href="" data-id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Ver comprobante">
+        <button href="" data-generar_comprobante data-sale_id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar comprobante">
             <img src="{{ asset('images/sale/facturacion_electronica.png') }}" alt="Generar" style="width: 16px; height: 16px;">
-        </a>--}}
+        </button>
+
+        <button data-pagos_parciales data-sale_id="" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Pagos Parciales">
+            <img src="{{ asset('images/sale/dinero.png') }}" alt="Generar" style="width: 18px; height: 18px;">
+        </button>
     </template>
 
     <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
@@ -387,6 +534,213 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalPagosParciales" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header bg-info">
+                    <h5 class="modal-title">Pagos Parciales</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="pp_sale_id">
+
+                    <!-- 1. Progreso -->
+                    <div class="mb-3">
+                        <label><b>Avance de pago</b></label>
+
+                        <div class="pp-progress-container">
+                            <div class="pp-progress-wrap">
+                                <div id="pp_progress_bar" class="pp-progress-fill"></div>
+                                <div id="pp_progress_over" class="pp-progress-over"></div>
+                                <div class="pp-progress-mark-100"></div>
+                                <div id="pp_progress_text" class="pp-progress-text">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Totales -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label>Total venta</label>
+                            <input type="text" id="pp_total_venta" class="form-control form-control-sm" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Total abonado</label>
+                            <input type="text" id="pp_total_abonado" class="form-control form-control-sm" readonly>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- 3. Formulario nuevo pago -->
+                    <h6><b>Datos del pago nuevo</b></h6>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Fecha <span class="right badge badge-danger">(*)</span></label>
+                            <input type="date" id="pp_fecha_pago" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label>Monto <span class="right badge badge-danger">(*)</span></label>
+                            <input type="number" step="0.01" min="0" id="pp_monto" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label>Caja <span class="right badge badge-danger">(*)</span></label>
+                            <select id="pp_cash_box_id" class="form-control form-control-sm select2" style="width:100%;">
+                                <option value=""></option>
+                                @foreach($cashBoxes as $b)
+                                    <option value="{{ $b['id'] }}"
+                                            data-type="{{ $b['type'] }}"
+                                            data-uses_subtypes="{{ $b['uses_subtypes'] ? 1 : 0 }}">
+                                        {{ $b['name'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3" id="pp_cash_box_subtype_wrap" style="display:none;">
+                            <label>Canal / Subtipo <span class="right badge badge-danger">(*)</span></label>
+                            <select id="pp_cash_box_subtype_id" class="form-control form-control-sm select2" style="width:100%;">
+                                <option value=""></option>
+                                @foreach($subtypes as $st)
+                                    <option value="{{ $st['id'] }}"
+                                            data-is_deferred="{{ $st['is_deferred'] ?? 0 }}">
+                                        {{ $st['name'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-right mt-3">
+                        <button type="button" id="btnGuardarPagoParcial" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Agregar pago
+                        </button>
+                    </div>
+
+                    <hr>
+
+                    <!-- 4. Listado pagos -->
+                    <h6><b>Pagos realizados</b></h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Caja</th>
+                                <th width="50">Acción</th>
+                            </tr>
+                            </thead>
+                            <tbody id="pp_body_pagos">
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalGenerarComprobante" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">Generar comprobante</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="gc_sale_id">
+
+                    <ul class="nav nav-tabs" id="gc_tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="gc_boleta_tab" data-toggle="tab" href="#gc_boleta" role="tab">
+                                Boleta
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="gc_factura_tab" data-toggle="tab" href="#gc_factura" role="tab">
+                                Factura
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content pt-3">
+
+                        <div class="tab-pane fade show active" id="gc_boleta" role="tabpanel">
+                            <div class="form-group">
+                                <label>DNI <span class="text-danger">*</span></label>
+                                <input type="text" maxlength="8" id="gc_dni" class="form-control form-control-sm">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Nombre <span class="text-danger">*</span></label>
+                                <input type="text" id="gc_name" class="form-control form-control-sm" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email (Opcional)</label>
+                                <input type="text" id="gc_email_boleta" class="form-control form-control-sm">
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="gc_factura" role="tabpanel">
+                            <div class="form-group">
+                                <label>RUC <span class="text-danger">*</span></label>
+                                <input type="text" maxlength="11" id="gc_ruc" class="form-control form-control-sm">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Razón Social <span class="text-danger">*</span></label>
+                                <input type="text" id="gc_razon_social" class="form-control form-control-sm" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Dirección Fiscal <span class="text-danger">*</span></label>
+                                <input type="text" id="gc_direccion_fiscal" class="form-control form-control-sm" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email (Opcional)</label>
+                                <input type="text" id="gc_email_factura" class="form-control form-control-sm">
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="btnConfirmarGenerarComprobante" class="btn btn-warning btn-sm">
+                        Generar comprobante
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')
@@ -394,7 +748,7 @@
     <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-
+    <script src="{{ asset('admin/plugins/bootstrap-switch/js/bootstrap-switch.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
 @endsection
@@ -404,7 +758,37 @@
         $(function () {
             //Initialize Select2 Elements
             $('#year').select2({
-                placeholder: "Selecione año",
+                placeholder: "Seleccione año",
+                allowClear: true
+            });
+
+            $('#filter_customer_id').select2({
+                placeholder: "Seleccione cliente",
+                allowClear: true
+            });
+
+            $('#filter_payment_status').select2({
+                placeholder: "Seleccione cumplimiento",
+                allowClear: true
+            });
+
+            $('#filter_dispatch_status').select2({
+                placeholder: "Seleccione despacho",
+                allowClear: true
+            });
+
+            $('#filter_cash_box_id').select2({
+                placeholder: "Seleccione caja",
+                allowClear: true
+            });
+
+            $('#filter_cash_box_subtype_id').select2({
+                placeholder: "Seleccione canal",
+                allowClear: true
+            });
+
+            $('#filter_invoice_status').select2({
+                placeholder: "Seleccione comprobante",
                 allowClear: true
             });
 
