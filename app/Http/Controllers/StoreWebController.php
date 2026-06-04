@@ -417,6 +417,23 @@ class StoreWebController extends Controller
         $dataShowPresentations = DataGeneral::where('name', 'show_presentations')->first();
         $showPresentationsEmpresa = $dataShowPresentations->valueText;
 
+        $dataDescriptionFooterEmpresa = DataGeneral::where('name', 'description_footer')->first();
+        $descriptionFooterEmpresa = $dataDescriptionFooterEmpresa->valueText;
+
+        $socialNames = [
+            'facebook',
+            'twitter',
+            'youtube',
+            'instagram',
+            'pinterest',
+            'tiktok',
+        ];
+
+        $socialNetworksEmpresa = DataGeneral::whereIn('name', $socialNames)
+            ->get()
+            ->pluck('valueText', 'name')
+            ->toArray();
+
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)
             ->first();
@@ -540,7 +557,7 @@ class StoreWebController extends Controller
             'images',
             'logotipoEmpresa',
             'whatsappEmpresa',
-            'showPricesCatalogEmpresa', 'showPresentationsEmpresa'
+            'showPricesCatalogEmpresa', 'showPresentationsEmpresa', 'descriptionFooterEmpresa', 'socialNetworksEmpresa'
         ));
     }
 
