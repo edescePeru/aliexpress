@@ -75,8 +75,8 @@
                 <div class="col-xl-6 col-lg-7">
                     <nav class="header__menu">
                         <ul>
-                            <li class="@yield('activeHome')"><a href="{{ route('store-web.home') }}">Home</a></li>
-                            <li class="@yield('activeShop')"><a href="{{ route('store-web.catalog') }}">Shop</a></li>
+                            {{--<li class="@yield('activeHome')"><a href="{{ route('store-web.home') }}">Home</a></li>--}}
+                            <li class="@yield('activeShop')"><a href="{{ route('store-web.catalog') }}">TIENDA</a></li>
                             {{--<li><a href="#">Dashboard</a></li>
                             <li><a href="#">Pages</a>
                                 <ul class="dropdown">

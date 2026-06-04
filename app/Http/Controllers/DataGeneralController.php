@@ -50,7 +50,10 @@ class DataGeneralController extends Controller
         'img_cuenta_2',
         'owner_cuenta_2',
         'show_alert_stock_minimos',
-        'pagos_parciales'
+        'pagos_parciales',
+        'whatsapp',
+        'show_prices_catalog',
+        'show_presentations'
     ];
 
     public function index()

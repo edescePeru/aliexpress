@@ -251,15 +251,16 @@
                 </div>
             </div>
 
-            {{--<div class="user-panel mt-3 pb-3 mb-3 d-flex">
+            @can('showStoreWeb_dashboard')
+            <div class="user-panel mt-3 pb-3 mb-3 d-flex">
                 <div class="image">
                     <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
                 </div>
                 <div class="info">
-                    <a href="{{ route('store-web.home') }}" class="d-block">Tienda Web</a>
+                    <a href="{{ route('store-web.catalog') }}" class="d-block">Tienda Web</a>
                 </div>
-            </div>--}}
-
+            </div>
+            @endcan
             <!-- Sidebar Menu -->
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">

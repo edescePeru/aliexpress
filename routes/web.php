@@ -3186,7 +3186,20 @@ Route::prefix('store-web/')->group(function () {
         ->name('store-web.home');
     Route::get('catalogo/', [StoreWebController::class, 'catalog'])
         ->name('store-web.catalog');
-
+    Route::get('tienda/', [StoreWebController::class, 'tienda'])
+        ->name('store-web.tienda');
+    Route::get('products/data/{pageNumber?}', [StoreWebController::class, 'getDataProductsV2'])
+        ->name('shop.products.data');
+    Route::get('categories/data', [StoreWebController::class, 'getCategoriesData'])
+        ->name('shop.categories.data');
+    Route::get('sizes/data', [StoreWebController::class, 'getSizesData'])
+        ->name('shop.sizes.data');
+    Route::get('colors/data', [StoreWebController::class, 'getColorsData'])
+        ->name('shop.colors.data');
+    Route::get('product/{material}', [StoreWebController::class, 'showProduct'])
+        ->name('shop.product.show');
+    Route::get('producto/{material}', [StoreWebController::class, 'showProduct'])
+        ->name('shop.product.show.not.price');
 });
 
 Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');

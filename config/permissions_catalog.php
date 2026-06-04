@@ -4,6 +4,7 @@ return [
     'VBFinances_quote' => 'Dar visto bueno de finanzas',
     'VBOperations_quote' => 'Dar visto bueno de operaciones',
     'access_dashboard' => 'Acceder al dashboard',
+    'showStoreWeb_dashboard' => 'Ver tienda en el dashboard',
     'showboxes_dashboard' => 'Ver recuentos en dashboard',
     'showBoxAlmacen_dashboard' => 'Ver recuentos de almacen en dashboard',
     'showBoxMetas_dashboard' => 'Ver recuentos de metas en dashboard',

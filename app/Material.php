@@ -338,4 +338,9 @@ class Material extends Model
     {
         return $this->hasMany(StockItem::class, 'material_id');
     }
+
+    public function presentations()
+    {
+        return $this->hasMany(MaterialPresentation::class, 'material_id');
+    }
 }

@@ -138,7 +138,6 @@
                                 </div>
                             </div>
                         </div>
-                        @if( $showPricesCatalogEmpresa == "s" )
                         <div class="sidebar__filter">
                             <div class="section-title">
                                 <h4>Filtrar por precio</h4>
@@ -164,7 +163,6 @@
 
                             <a href="#" id="btn-filter-price" class="btn-filter-price">Filtrar</a>
                         </div>
-                        @endcan
                         <div class="sidebar__sizes">
                             <div class="section-title">
                                 <h4>Filtrar por talla</h4>
@@ -223,12 +221,10 @@
                 CATEGORIES: "{{ route('shop.categories.data') }}",
                 SIZES: "{{ route('shop.sizes.data') }}",
                 COLORS: "{{ route('shop.colors.data') }}",
-                WHATSAPP: "https://wa.me/{{ $whatsappEmpresa }}",
-                CAN_SHOW_PRICES: "{{ $showPricesCatalogEmpresa }}",
-                CAN_SHOW_PRESENTATIONS: "{{ $showPresentationsEmpresa }}"
+                WHATSAPP: "https://wa.me/51921867035"
             }
         };
     </script>
-    <script src="{{ asset('js/shop/catalog.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/shop/catalogNoPrice.js') }}?v={{ time() }}"></script>
 
 @endsection
