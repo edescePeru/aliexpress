@@ -53,7 +53,15 @@ class DataGeneralController extends Controller
         'pagos_parciales',
         'whatsapp',
         'show_prices_catalog',
-        'show_presentations'
+        'show_presentations',
+        'description_footer',
+
+        'facebook',
+        'twitter',
+        'youtube',
+        'instagram',
+        'pinterest',
+        'tiktok'
     ];
 
     public function index()

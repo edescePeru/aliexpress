@@ -43,12 +43,12 @@
         <div class="offcanvas__close">+</div>
         <ul class="offcanvas__widget">
             <li><span class="icon_search search-switch"></span></li>
-            <li><a href="#"><span class="icon_heart_alt"></span>
+            {{--<li><a href="#"><span class="icon_heart_alt"></span>
                     <div class="tip">2</div>
                 </a></li>
             <li><a href="#"><span class="icon_bag_alt"></span>
                     <div class="tip">2</div>
-                </a></li>
+                </a></li>--}}
         </ul>
         <div class="offcanvas__logo">
             @yield('logotipo')
@@ -56,8 +56,9 @@
         </div>
         <div id="mobile-menu-wrap"></div>
         <div class="offcanvas__auth">
-            <a href="#">Login</a>
-            <a href="#">Register</a>
+            @can('access_dashboard')
+                <a href="{{ route('dashboard.principal') }}">DASHBOARD</a>
+            @endcan
         </div>
     </div>
     <!-- Offcanvas Menu End -->
@@ -192,6 +193,17 @@
     </div>--}}
     <!-- Instagram End -->
 
+    <!-- Search Begin -->
+    <div class="search-model">
+        <div class="h-100 d-flex align-items-center justify-content-center">
+            <div class="search-close-switch">+</div>
+            <form class="search-model-form">
+                <input type="text" id="search-input" placeholder="Buscar producto...">
+            </form>
+        </div>
+    </div>
+    <!-- Search End -->
+
     <!-- Footer Section Begin -->
     <footer class="footer">
         <div class="container">
@@ -201,22 +213,12 @@
                         <div class="footer__logo">
                             @yield('logotipo')
                         </div>
-                        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-                            cilisis.</p>
+                        @yield('description_footer')
                     </div>
                 </div>
 
                 <div class="col-lg-4 col-md-8 col-sm-8">
-                    <div class="footer__newslatter">
-                        <h6>REDES SOCIALES</h6>
-                        <div class="footer__social">
-                            <a href="#"><i class="fa fa-facebook"></i></a>
-                            <a href="#"><i class="fa fa-twitter"></i></a>
-                            <a href="#"><i class="fa fa-youtube-play"></i></a>
-                            <a href="#"><i class="fa fa-instagram"></i></a>
-                            <a href="#"><i class="fa fa-pinterest"></i></a>
-                        </div>
-                    </div>
+                    @yield('footer__newslatter')
                 </div>
             </div>
             <div class="row">
@@ -244,6 +246,12 @@
     <script src="{{ asset('shop/js/jquery.nicescroll.min.js') }}"></script>
     <script src="{{ asset('shop/js/main.js') }}"></script>
 
+    <script>
+        window.APP_SHOP_SEARCH = {
+            URL: "{{ route('shop.product.search') }}"
+        };
+    </script>
+    <script src="{{ asset('js/shop/search.js') }}?v={{ time() }}"></script>
     @yield('scripts')
 </body>
 </html>

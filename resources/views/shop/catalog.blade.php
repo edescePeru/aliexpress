@@ -93,6 +93,12 @@
             color: #fff;
         }
 
+        .social-icon-tiktok {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            vertical-align: middle;
+        }
     </style>
 @endsection
 
@@ -199,15 +205,65 @@
     </section>
 
     <!-- Search Begin -->
-    <div class="search-model">
+    {{--<div class="search-model">
         <div class="h-100 d-flex align-items-center justify-content-center">
             <div class="search-close-switch">+</div>
             <form class="search-model-form">
                 <input type="text" id="search-input" placeholder="Search here.....">
             </form>
         </div>
-    </div>
+    </div>--}}
     <!-- Search End -->
+@endsection
+
+@section('description_footer')
+    <p>{{ $descriptionFooterEmpresa }}</p>
+@endsection
+
+@section('footer__newslatter')
+    <div class="footer__newslatter">
+        <h6>REDES SOCIALES</h6>
+
+        <div class="footer__social">
+            @if(!empty($socialNetworksEmpresa['facebook']))
+                <a href="{{ $socialNetworksEmpresa['facebook'] }}" target="_blank">
+                    <i class="fa fa-facebook"></i>
+                </a>
+            @endif
+
+            @if(!empty($socialNetworksEmpresa['twitter']))
+                <a href="{{ $socialNetworksEmpresa['twitter'] }}" target="_blank">
+                    <i class="fa fa-twitter"></i>
+                </a>
+            @endif
+
+            @if(!empty($socialNetworksEmpresa['youtube']))
+                <a href="{{ $socialNetworksEmpresa['youtube'] }}" target="_blank">
+                    <i class="fa fa-youtube-play"></i>
+                </a>
+            @endif
+
+            @if(!empty($socialNetworksEmpresa['instagram']))
+                <a href="{{ $socialNetworksEmpresa['instagram'] }}" target="_blank">
+                    <i class="fa fa-instagram"></i>
+                </a>
+            @endif
+
+            @if(!empty($socialNetworksEmpresa['pinterest']))
+                <a href="{{ $socialNetworksEmpresa['pinterest'] }}" target="_blank">
+                    <i class="fa fa-pinterest"></i>
+                </a>
+            @endif
+
+                @if(!empty($socialNetworksEmpresa['tiktok']))
+                    <a href="{{ $socialNetworksEmpresa['tiktok'] }}" target="_blank">
+                        <img src="{{ asset('images/logo/tiktok.png') }}"
+                             alt="TikTok"
+                             class="social-icon-tiktok">
+                    </a>
+                @endif
+        </div>
+    </div>
 @endsection
 
 @section('plugins')

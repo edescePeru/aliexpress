@@ -72,8 +72,24 @@ class StoreWebController extends Controller
         $dataShowPresentations = DataGeneral::where('name', 'show_presentations')->first();
         $showPresentationsEmpresa = $dataShowPresentations->valueText;
 
-        //return view('shop.catalogNoPrice', compact('logotipoEmpresa', 'maxPrice'));
-        return view('shop.catalog', compact('logotipoEmpresa', 'maxPrice', 'whatsappEmpresa', 'showPricesCatalogEmpresa', 'showPresentationsEmpresa'));
+        $dataDescriptionFooterEmpresa = DataGeneral::where('name', 'description_footer')->first();
+        $descriptionFooterEmpresa = $dataDescriptionFooterEmpresa->valueText;
+
+        $socialNames = [
+            'facebook',
+            'twitter',
+            'youtube',
+            'instagram',
+            'pinterest',
+            'tiktok',
+        ];
+
+        $socialNetworksEmpresa = DataGeneral::whereIn('name', $socialNames)
+            ->get()
+            ->pluck('valueText', 'name')
+            ->toArray();
+
+        return view('shop.catalog', compact('logotipoEmpresa', 'maxPrice', 'whatsappEmpresa', 'showPricesCatalogEmpresa', 'showPresentationsEmpresa', 'descriptionFooterEmpresa', 'socialNetworksEmpresa'));
     }
 
     public function getDataProductsV2(Request $request, $pageNumber = 1)
@@ -526,5 +542,42 @@ class StoreWebController extends Controller
             'whatsappEmpresa',
             'showPricesCatalogEmpresa', 'showPresentationsEmpresa'
         ));
+    }
+
+    public function searchProduct(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ingrese un producto para buscar.'
+            ], 422);
+        }
+
+        $material = Material::where('enable_status', 1)
+            ->where('full_name', 'like', '%' . $search . '%')
+            ->orderByRaw("
+            CASE
+                WHEN full_name = ? THEN 0
+                WHEN full_name LIKE ? THEN 1
+                ELSE 2
+            END
+        ", [$search, $search . '%'])
+            ->orderBy('full_name', 'asc')
+            ->first();
+
+        if (!$material) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró ningún producto.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'product_id' => $material->id,
+            'url' => route('shop.product.show', $material->id)
+        ]);
     }
 }

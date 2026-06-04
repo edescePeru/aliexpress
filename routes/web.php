@@ -3200,6 +3200,9 @@ Route::prefix('store-web/')->group(function () {
         ->name('shop.product.show');
     Route::get('producto/{material}', [StoreWebController::class, 'showProduct'])
         ->name('shop.product.show.not.price');
+
+    Route::get('search-product', [StoreWebController::class, 'searchProduct'])
+        ->name('shop.product.search');
 });
 
 Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');
