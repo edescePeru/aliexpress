@@ -96,6 +96,81 @@ $(document).ready(function () {
             }
         });
     });
+
+    $(document).on('click', '[data-ajustar_stock]', function () {
+        const stockItemId = $(this).data('id');
+        const displayName = $(this).data('display-name') || '';
+        const stockActual = parseFloat($(this).data('stock-actual') || 0);
+
+        if (!stockItemId) {
+            toastr.error('No se encontró el stock item.');
+            return;
+        }
+
+        $('#adjust_stock_item_id').val(stockItemId);
+        $('#adjust_display_name').val(displayName);
+        $('#adjust_stock_actual').val(stockActual);
+        $('#adjust_quantity').val('');
+
+        $('#modalAdjustStock').modal('show');
+    });
+
+    $('#formAdjustStock').on('submit', function (e) {
+        e.preventDefault();
+
+        const stockItemId = $('#adjust_stock_item_id').val();
+        const quantity = parseFloat($('#adjust_quantity').val() || 0);
+        const stockActual = parseFloat($('#adjust_stock_actual').val() || 0);
+
+        if (!stockItemId) {
+            toastr.error('No se encontró el stock item.');
+            return;
+        }
+
+        if (quantity <= 0) {
+            toastr.error('La cantidad debe ser mayor a cero.');
+            return;
+        }
+
+        if (quantity > stockActual) {
+            toastr.error('La cantidad no puede ser mayor al stock actual.');
+            return;
+        }
+
+        $.ajax({
+            url: window.APP.URLS.ADJUST_STOCK_ITEM,
+            method: 'POST',
+            data: {
+                stock_item_id: stockItemId,
+                quantity: quantity,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            beforeSend: function () {
+                $('#formAdjustStock button[type="submit"]').prop('disabled', true);
+            },
+            success: function (response) {
+                toastr.success(response.message || 'Stock ajustado correctamente.');
+
+                $('#modalAdjustStock').modal('hide');
+
+                // Aquí llamas tu función para recargar la tabla
+                // Ejemplo:
+                loadStockItems();
+            },
+            error: function (xhr) {
+                let message = 'No se pudo ajustar el stock.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                toastr.error(message);
+            },
+            complete: function () {
+                $('#formAdjustStock button[type="submit"]').prop('disabled', false);
+            }
+        });
+    });
 });
 
 var $permissions;
@@ -345,6 +420,19 @@ function renderStockItemsTable(items) {
                     data-variant="${item.variant_id || ''}"
                     data-ver_inventario>
                     Ver Inventario
+                </button>
+            `;
+        }
+
+        if (can('ajustarStock_material')) {
+            buttons += `
+                <button class="btn btn-sm btn-outline-success"
+                    data-id="${item.id}"
+                    data-variant="${item.variant_id || ''}"
+                    data-display-name="${escapeHtml(item.display_name || '')}"
+                    data-stock-actual="${stockActual}"
+                    data-ajustar_stock>
+                    Ajustar Stock
                 </button>
             `;
         }

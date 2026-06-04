@@ -220,6 +220,52 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="modalAdjustStock" tabindex="-1" role="dialog" aria-labelledby="modalAdjustStockLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <form id="formAdjustStock">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ajustar Stock</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" id="adjust_stock_item_id">
+
+                        <div class="form-group">
+                            <label>Producto</label>
+                            <input type="text" id="adjust_display_name" class="form-control" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Stock actual</label>
+                            <input type="text" id="adjust_stock_actual" class="form-control" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cantidad a descontar</label>
+                            <input type="number" id="adjust_quantity" class="form-control" min="0.01" step="0.01">
+                            <small class="text-muted">
+                                Esta cantidad se descontará del stock actual.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            Confirmar ajuste
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')
@@ -246,7 +292,8 @@
     <script>
         window.APP = {
             URLS: {
-                STOCK_ITEMS: "{{ route('stockitems.list') }}"
+                STOCK_ITEMS: "{{ route('stockitems.list') }}",
+                ADJUST_STOCK_ITEM: "{{ route('stock-item.output-adjustment') }}"
             }
         };
     </script>

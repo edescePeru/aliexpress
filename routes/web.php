@@ -3178,6 +3178,8 @@ Route::middleware('auth')->group(function (){
         Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus');
 
 
+        Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
+            ->name('stock-item.output-adjustment');
     });
 });
 
@@ -3203,6 +3205,8 @@ Route::prefix('store-web/')->group(function () {
 
     Route::get('search-product', [StoreWebController::class, 'searchProduct'])
         ->name('shop.product.search');
+
+
 });
 
 Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');

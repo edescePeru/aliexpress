@@ -453,6 +453,7 @@ return [
     'configInventariable_material' => 'Configurar inventariable de stock items',
     'configActive_material' => 'Configurar activo de stock items',
     'verInventario_material' => 'Ver Inventario de stock items',
+    'ajustarStock_material' => 'Ajustar Stock de stock items',
 
     'update_materialType' => 'Modificar Tipos de Materiales',
     'update_orderPurchaseExpress' => 'Modificar Ordenes Compra Express',
