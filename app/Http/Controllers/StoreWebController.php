@@ -54,14 +54,15 @@ class StoreWebController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        $maxPrice = 0;
+        //$maxPrice = 0;
 
-        if ($defaultPriceList) {
-            $maxPrice = PriceListItem::where('price_list_id', $defaultPriceList->id)
-                ->max('price');
-        }
-
-        $maxPrice = ceil($maxPrice ?? 0);
+        $maxPrice = PriceListItem::query()
+            ->join('stock_items', 'price_list_items.stock_item_id', '=', 'stock_items.id')
+            ->join('inventory_levels', 'stock_items.id', '=', 'inventory_levels.stock_item_id')
+            ->where('price_list_items.price_list_id', $defaultPriceList->id)
+            ->groupBy('price_list_items.id', 'price_list_items.price')
+            ->havingRaw('SUM(inventory_levels.qty_on_hand - inventory_levels.qty_reserved) > 0')
+            ->max('price_list_items.price');
 
         $dataWhatsappEmpresa = DataGeneral::where('name', 'whatsapp')->first();
         $whatsappEmpresa = $dataWhatsappEmpresa->valueText;
@@ -186,13 +187,18 @@ class StoreWebController extends Controller
             });
 
             $materialsQuery->orderByRaw("
-            CASE
-                WHEN full_name = ? THEN 0
-                WHEN code = ? THEN 0
-                WHEN codigo = ? THEN 0
-                ELSE 1
-            END
-        ", [$search, $search, $search]);
+                CASE
+                    WHEN full_name = ? THEN 0
+                    WHEN code = ? THEN 0
+                    WHEN codigo = ? THEN 0
+                    ELSE 1
+                END
+            ", [$search, $search, $search]);
+
+            $materialsQuery->orderBy('full_name', 'asc');
+        }
+        else {
+            $materialsQuery->orderBy('full_name', 'asc');
         }
 
         if (!empty($sizeIds)) {
