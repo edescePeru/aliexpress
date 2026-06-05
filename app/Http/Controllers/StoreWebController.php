@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Category;
 use App\Color;
 use App\DataGeneral;
+use App\InventoryLevel;
 use App\Material;
 use App\PriceList;
 use App\PriceListItem;
@@ -56,13 +57,20 @@ class StoreWebController extends Controller
 
         //$maxPrice = 0;
 
-        $maxPrice = PriceListItem::query()
-            ->join('stock_items', 'price_list_items.stock_item_id', '=', 'stock_items.id')
-            ->join('inventory_levels', 'stock_items.id', '=', 'inventory_levels.stock_item_id')
-            ->where('price_list_items.price_list_id', $defaultPriceList->id)
-            ->groupBy('price_list_items.id', 'price_list_items.price')
-            ->havingRaw('SUM(inventory_levels.qty_on_hand - inventory_levels.qty_reserved) > 0')
-            ->max('price_list_items.price');
+        $maxPrice = 0;
+
+        if ($defaultPriceList) {
+            $stockItemsWithStock = InventoryLevel::query()
+                ->select('stock_item_id')
+                ->groupBy('stock_item_id')
+                ->havingRaw('SUM(qty_on_hand - qty_reserved) > 0');
+
+            $maxPrice = PriceListItem::where('price_list_id', $defaultPriceList->id)
+                ->whereIn('stock_item_id', $stockItemsWithStock)
+                ->max('price');
+        }
+
+        $maxPrice = ceil($maxPrice ?? 0);
 
         $dataWhatsappEmpresa = DataGeneral::where('name', 'whatsapp')->first();
         $whatsappEmpresa = $dataWhatsappEmpresa->valueText;
