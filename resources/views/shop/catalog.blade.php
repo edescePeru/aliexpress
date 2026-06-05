@@ -60,7 +60,7 @@
         .price-values {
             display: flex;
             align-items: center;
-            gap: 6px;
+            /*gap: 6px;*/
             margin-bottom: 12px;
         }
 
