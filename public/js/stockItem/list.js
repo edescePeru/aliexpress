@@ -461,7 +461,77 @@ function renderStockItemsTable(items) {
     $('#tbody-stock-items').html(html);
 }
 
+function getPaginationPages(currentPage, lastPage) {
+    currentPage = parseInt(currentPage);
+    lastPage = parseInt(lastPage);
+
+    if (lastPage <= 7) {
+        return Array.from({ length: lastPage }, (_, i) => i + 1);
+    }
+
+    if (currentPage <= 2) {
+        return [1, 2, 3, 4, '...', lastPage];
+    }
+
+    if (currentPage === 3) {
+        return [1, 2, 3, 4, '...', lastPage];
+    }
+
+    if (currentPage >= lastPage - 2) {
+        return [1, '...', lastPage - 3, lastPage - 2, lastPage - 1, lastPage];
+    }
+
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', lastPage];
+}
+
 function renderStockItemsPagination(response) {
+    let html = '';
+
+    if (response.last_page <= 1) {
+        $('#stock-items-pagination').html('');
+        return;
+    }
+
+    let currentPage = parseInt(response.current_page);
+    let lastPage = parseInt(response.last_page);
+    let pages = getPaginationPages(currentPage, lastPage);
+
+    html += '<ul class="pagination pagination-sm mb-0 pagination-stock-item">';
+
+    html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a href="#" class="page-link" data-page="${currentPage - 1}">«</a>
+        </li>
+    `;
+
+    pages.forEach(function (page) {
+        if (page === '...') {
+            html += `
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            `;
+        } else {
+            html += `
+                <li class="page-item ${currentPage === page ? 'active' : ''}">
+                    <a href="#" class="page-link" data-page="${page}">${page}</a>
+                </li>
+            `;
+        }
+    });
+
+    html += `
+        <li class="page-item ${currentPage === lastPage ? 'disabled' : ''}">
+            <a href="#" class="page-link" data-page="${currentPage + 1}">»</a>
+        </li>
+    `;
+
+    html += '</ul>';
+
+    $('#stock-items-pagination').html(html);
+}
+
+function renderStockItemsPaginationO(response) {
     let html = '';
 
     if (response.last_page <= 1) {
