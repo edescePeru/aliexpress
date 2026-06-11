@@ -251,4 +251,197 @@ trait NubefactTrait
             'fecha_emision' => now()->toDateString(),
         ]);
     }
+
+    private function buildNubefactVoidData(Sale $sale, string $motivo): array
+    {
+        if (!$sale->type_document || !in_array($sale->type_document, ['01', '03'], true)) {
+            throw new \Exception('La venta no tiene factura o boleta electrónica para anular.');
+        }
+
+        if (empty($sale->serie_sunat) || empty($sale->numero)) {
+            throw new \Exception('La venta no tiene serie o número SUNAT para anular.');
+        }
+
+        return [
+            "operacion" => "generar_anulacion",
+            "tipo_de_comprobante" => $sale->type_document === '01' ? "1" : "2",
+            "serie" => $sale->serie_sunat,
+            "numero" => (string) $sale->numero,
+            "motivo" => $motivo ?: "Anulación de comprobante",
+            "codigo_unico" => (string) Str::uuid(),
+        ];
+    }
+
+    private function anularComprobanteNubefact(Sale $sale, string $motivo): array
+    {
+        $data = $this->buildNubefactVoidData($sale, $motivo);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact en .env.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Nubefact respondió error HTTP al anular: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception('Error desde Nubefact al anular: ' . $result['errors']);
+        }
+
+        return $result;
+    }
+
+    private function persistNubefactAnnulmentResult(Sale $sale, array $result, string $motivo): void
+    {
+        $accepted = (bool) ($result['aceptada_por_sunat'] ?? false);
+
+        $description = $result['sunat_description'] ?? null;
+        $note = $result['sunat_note'] ?? null;
+        $soapError = $result['sunat_soap_error'] ?? null;
+        $responseCode = $result['sunat_responsecode'] ?? null;
+
+        $ticket = $result['sunat_ticket_numero']
+            ?? $result['sunat_ticket']
+            ?? null;
+
+        $key = $result['key'] ?? null;
+
+        $pdfUrl = $result['enlace_del_pdf'] ?? null;
+        $xmlUrl = $result['enlace_del_xml'] ?? null;
+        $cdrUrl = $result['enlace_del_cdr'] ?? null;
+
+        $filename = 'ANULACION_ORD' . $sale->id;
+
+        $pdfFilename = $filename . '.pdf';
+        $xmlFilename = $filename . '.xml';
+        $cdrFilename = $filename . '.cdr';
+
+        foreach ([
+                     'anulaciones/pdfs',
+                     'anulaciones/xmls',
+                     'anulaciones/cdrs',
+                 ] as $folder) {
+            if (!file_exists(public_path("comprobantes/$folder"))) {
+                mkdir(public_path("comprobantes/$folder"), 0777, true);
+            }
+        }
+
+        if (!empty($pdfUrl)) {
+            $pdfContent = Http::get($pdfUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename), $pdfContent);
+        }
+
+        if (!empty($xmlUrl)) {
+            $xmlContent = Http::get($xmlUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename), $xmlContent);
+        }
+
+        if (!empty($cdrUrl)) {
+            $cdrContent = Http::get($cdrUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename), $cdrContent);
+        }
+
+        $finalMessage = $soapError
+            ?: ($note ?: ($description ?: null));
+
+        $sale->annulment_response = json_encode($result, JSON_UNESCAPED_UNICODE);
+        $sale->annulment_ticket = $ticket;
+        $sale->annulment_key = $key;
+        $sale->annulment_reason = $motivo;
+        $sale->annulment_requested_at = $sale->annulment_requested_at ?: now();
+
+        $sale->annulment_pdf_url = $pdfUrl;
+        $sale->annulment_xml_url = $xmlUrl;
+        $sale->annulment_cdr_url = $cdrUrl;
+
+        $sale->annulment_pdf_path = file_exists(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename)) ? $pdfFilename : null;
+        $sale->annulment_xml_path = file_exists(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename)) ? $xmlFilename : null;
+        $sale->annulment_cdr_path = file_exists(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename)) ? $cdrFilename : null;
+
+        $sale->annulment_sunat_responsecode = $responseCode;
+
+        if ($accepted) {
+            $sale->annulment_status = 'accepted';
+            $sale->annulment_accepted_at = now();
+            $sale->annulment_sunat_status = 'Aceptado';
+            $sale->annulment_sunat_message = $finalMessage ?: 'Anulación aceptada por SUNAT.';
+            $sale->annulment_error = null;
+        } elseif (!empty($soapError) || !empty($responseCode)) {
+            $sale->annulment_status = 'rejected';
+            $sale->annulment_sunat_status = 'Rechazado';
+            $sale->annulment_sunat_message = $finalMessage ?: 'SUNAT rechazó la anulación.';
+            $sale->annulment_error = $finalMessage ?: 'SUNAT rechazó la anulación.';
+        } else {
+            $sale->annulment_status = 'pending';
+            $sale->annulment_sunat_status = 'Pendiente';
+            $sale->annulment_sunat_message = $finalMessage ?: 'Anulación enviada a Nubefact. Pendiente de aceptación SUNAT.';
+            $sale->annulment_error = null;
+        }
+
+        $sale->save();
+    }
+
+    private function buildNubefactConsultAnnulmentData(Sale $sale): array
+    {
+        if (!$sale->type_document || !in_array($sale->type_document, ['01', '03'], true)) {
+            throw new \Exception('La venta no tiene factura o boleta electrónica para consultar anulación.');
+        }
+
+        if (empty($sale->serie_sunat) || empty($sale->numero)) {
+            throw new \Exception('La venta no tiene serie o número SUNAT.');
+        }
+
+        return [
+            "operacion" => "consultar_anulacion",
+            "tipo_de_comprobante" => $sale->type_document === '01' ? 1 : 2,
+            "serie" => $sale->serie_sunat,
+            "numero" => (int) $sale->numero,
+        ];
+    }
+
+    private function consultarAnulacionNubefact(Sale $sale): array
+    {
+        $data = $this->buildNubefactConsultAnnulmentData($sale);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Error HTTP consultando anulación en Nubefact: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception(
+                is_array($result['errors'])
+                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
+                    : $result['errors']
+            );
+        }
+
+        return $result;
+    }
+
 }

@@ -666,6 +666,54 @@ $(document).ready(function () {
             $('#filter_cash_box_subtype_wrap').hide();
         }
     });
+
+    $(document).on('click', '[data-consultar_anulacion]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.ajax({
+            url: '/dashboard/consultar/anulacion/' + saleId,
+            method: 'POST',
+            headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                $.alert({
+                    title: 'Consulta realizada',
+                    content: data.message,
+                    type: 'green',
+                    buttons: {
+                        ok: {
+                            text: 'Aceptar',
+                            btnClass: 'btn-success'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+            error: function (xhr) {
+                let message = "Sucedió un error al consultar la anulación.";
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                $.alert({
+                    title: 'Aviso',
+                    content: message,
+                    type: 'orange',
+                    buttons: {
+                        ok: {
+                            text: 'Entendido',
+                            btnClass: 'btn-warning'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+        });
+    });
 });
 
 var $formDelete;
@@ -847,12 +895,34 @@ function anularOrder() {
                             console.log(data);
                             $.alert(data.message);
                             setTimeout( function () {
-                                getDataOrders(1);
+                                reloadCurrentPageOrders()
                             }, 2000 )
                         },
-                        error: function (data) {
-                            $.alert("Sucedió un error en el servidor. Intente nuevamente.");
-                        },
+                        error: function (xhr) {
+                            console.log(xhr);
+
+                            let message = "Sucedió un error en el servidor. Intente nuevamente.";
+
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            } else if (xhr.responseText) {
+                                message = xhr.responseText;
+                            }
+
+                            $.alert({
+                                title: 'Aviso',
+                                content: message,
+                                type: 'orange',
+                                buttons: {
+                                    ok: {
+                                        text: 'Entendido',
+                                        btnClass: 'btn-warning'
+                                    }
+                                }
+                            });
+
+                            reloadCurrentPageOrders()
+                        }
                     });
                 },
             },
@@ -1061,6 +1131,13 @@ function getDataOrders($numberPage) {
     var cashBoxId = $('#filter_cash_box_id').val();
     var cashBoxSubtypeId = $('#filter_cash_box_subtype_id').val();
     var invoiceStatus = $('#filter_invoice_status').val();
+    var saleStatus = $('#filter_sale_status').val();
+
+    if (saleStatus === 'annulled') {
+        $('#th-dispatch-or-annulled').text('Fecha Anulación');
+    } else {
+        $('#th-dispatch-or-annulled').text('Estado Despacho');
+    }
 
     $.get('/dashboard/get/data/sales/' + $numberPage, {
         code: code,
@@ -1074,6 +1151,7 @@ function getDataOrders($numberPage) {
         cash_box_id: cashBoxId,
         cash_box_subtype_id: cashBoxSubtypeId,
         invoice_status: invoiceStatus,
+        sale_status: saleStatus
     }, function(data) {
         if (data.data.length == 0) {
             renderDataOrdersEmpty(data);
@@ -1183,9 +1261,8 @@ function renderDataTable(data) {
     clone.querySelector("[data-date]").innerHTML = data.date;
     clone.querySelector("[data-customer]").innerHTML = data.nombre_cliente;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
-    //clone.querySelector("[data-total]").innerHTML = data.total;
-    const tdTotal = clone.querySelector("[data-total]");
 
+    const tdTotal = clone.querySelector("[data-total]");
     tdTotal.innerHTML = data.total;
 
     tdTotal.classList.remove(
@@ -1204,52 +1281,164 @@ function renderDataTable(data) {
 
     clone.querySelector("[data-tipo_pago]").innerHTML = data.tipo_pago;
 
-    let dispatchChecked = data.dispatch_status === 'despachado';
+    if (parseInt(data.is_annulled) === 1) {
+        clone.querySelector("[data-dispatch_status]").innerHTML =
+            data.annulment_accepted_at || 'ANULADA';
+    } else {
+        let dispatchChecked = data.dispatch_status === 'despachado';
 
-    clone.querySelector("[data-dispatch_status]").innerHTML = `
-    <input type="checkbox"
-           class="switch-dispatch-status"
-           data-sale_id="${data.id}"
-           ${dispatchChecked ? 'checked' : ''}
-           data-bootstrap-switch
-           data-on-text="Desp."
-           data-off-text="Pend."
-           data-on-color="success"
-           data-off-color="warning">`;
+        clone.querySelector("[data-dispatch_status]").innerHTML = `
+            <input type="checkbox"
+                   class="switch-dispatch-status"
+                   data-sale_id="${data.id}"
+                   ${dispatchChecked ? 'checked' : ''}
+                   data-bootstrap-switch
+                   data-on-text="Desp."
+                   data-off-text="Pend."
+                   data-on-color="success"
+                   data-off-color="warning">`;
+    }
+
+    let estadoComprobante = data.estado_comprobante || 'SIN COMPROBANTE';
+    let badgeClass = 'badge-secondary';
+
+    if (data.sunat_status === 'Error') {
+        badgeClass = 'badge-danger';
+    } else if (data.annulment_status === 'accepted') {
+        badgeClass = 'badge-dark';
+    } else if (data.annulment_status === 'waiting_sunat_process') {
+        badgeClass = 'badge-warning';
+    } else if (data.annulment_status === 'pending') {
+        badgeClass = 'badge-info';
+    } else if (data.annulment_status === 'requires_credit_note') {
+        badgeClass = 'badge-warning';
+    } else if (data.type_document === '01' || data.type_document === '03') {
+        badgeClass = 'badge-success';
+    }
+
+    clone.querySelector("[data-estado_comprobante]").innerHTML =
+        `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
 
     var botones = clone.querySelector("[data-buttons]");
 
+    /*
+     * ============================================================
+     * VENTAS ANULADAS
+     * ============================================================
+     */
+    if (parseInt(data.is_annulled) === 1) {
+        var cloneBtnAnnulled = activateTemplate('#template-annulled');
+
+        cloneBtnAnnulled.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
+
+        const printOriginal = cloneBtnAnnulled.querySelector("[data-print_recibo]");
+        printOriginal.setAttribute("data-id", data.id);
+        printOriginal.setAttribute("href", data.print_url || "#");
+        printOriginal.setAttribute("title", data.print_label || "Ver comprobante original");
+
+        if (!data.print_url) {
+            printOriginal.classList.add('disabled');
+            printOriginal.removeAttribute('target');
+            printOriginal.addEventListener('click', function (e) {
+                e.preventDefault();
+            });
+        } else {
+            printOriginal.setAttribute('target', '_blank');
+        }
+
+        const pdfAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_pdf]");
+        const xmlAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_xml]");
+        const cdrAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_cdr]");
+
+        if (data.annulment_pdf_url_local) {
+            pdfAnulacion.setAttribute("href", data.annulment_pdf_url_local);
+            pdfAnulacion.setAttribute("target", "_blank");
+        } else {
+            pdfAnulacion.remove();
+        }
+
+        if (data.annulment_xml_url_local) {
+            xmlAnulacion.setAttribute("href", data.annulment_xml_url_local);
+            xmlAnulacion.setAttribute("target", "_blank");
+        } else {
+            xmlAnulacion.remove();
+        }
+
+        if (data.annulment_cdr_url_local) {
+            cdrAnulacion.setAttribute("href", data.annulment_cdr_url_local);
+            cdrAnulacion.setAttribute("target", "_blank");
+        } else {
+            cdrAnulacion.remove();
+        }
+
+        botones.append(cloneBtnAnnulled);
+        $("#body-table").append(clone);
+
+        $('[data-toggle="tooltip"]').tooltip();
+        return;
+    }
+
+    /*
+     * ============================================================
+     * VENTAS ACTIVAS
+     * ============================================================
+     */
     var cloneBtnActive = activateTemplate('#template-active');
 
     cloneBtnActive.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
 
     const printBtn = cloneBtnActive.querySelector("[data-print_recibo]");
     printBtn.setAttribute("data-id", data.id);
-
-    // ✅ URL viene del backend (pdf o ticket)
     printBtn.setAttribute("href", data.print_url || "#");
     printBtn.setAttribute("title", data.print_label || "Ver comprobante");
 
     if (!data.print_url) {
         printBtn.classList.add('disabled');
         printBtn.removeAttribute('target');
-        printBtn.addEventListener('click', function (e) { e.preventDefault(); });
+        printBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+        });
     } else {
-        // por si acaso
         printBtn.setAttribute('target', '_blank');
     }
 
-    cloneBtnActive.querySelector("[data-anular]").setAttribute("data-id", data.id);
+    const btnAnular = cloneBtnActive.querySelector("[data-anular]");
+
+    if (
+        data.annulment_status === 'pending' ||
+        data.annulment_status === 'waiting_sunat_process' ||
+        data.annulment_status === 'accepted'
+    ) {
+        btnAnular.remove();
+    } else {
+        btnAnular.setAttribute("data-id", data.id);
+    }
+
+    const btnConsultarAnulacion = cloneBtnActive.querySelector("[data-consultar_anulacion]");
+
+    if (
+        data.annulment_status === 'pending' ||
+        data.annulment_status === 'waiting_sunat_process'
+    ) {
+        btnConsultarAnulacion.setAttribute("data-sale_id", data.id);
+    } else {
+        btnConsultarAnulacion.remove();
+    }
 
     const btnGenerarComprobante = cloneBtnActive.querySelector("[data-generar_comprobante]");
     const btnPagosParciales = cloneBtnActive.querySelector("[data-pagos_parciales]");
+    const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
 
-    // Tiene comprobante válido si tiene type_document 01/03 y sunat_status no es Error
+    if (data.can_generate_credit_note) {
+        btnNotaCredito.setAttribute("data-sale_id", data.id);
+    } else {
+        btnNotaCredito.remove();
+    }
+
     const tieneComprobanteValido =
         (data.type_document === '01' || data.type_document === '03') &&
         data.sunat_status !== 'Error';
 
-    // Botón generar comprobante
     if (tieneComprobanteValido) {
         btnGenerarComprobante.remove();
     } else {
@@ -1257,7 +1446,6 @@ function renderDataTable(data) {
         btnGenerarComprobante.setAttribute("href", "#");
     }
 
-    // Botón pagos parciales
     if (data.pagos_parciales_venta === 's') {
         btnPagosParciales.setAttribute("data-sale_id", data.id);
     } else {

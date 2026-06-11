@@ -303,6 +303,13 @@
                             </select>
                         </div>
 
+                        <div class="col-md-3">
+                            <label for="filter_sale_status">Estado Venta</label>
+                            <select id="filter_sale_status" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="active" selected>Activas</option>
+                                <option value="annulled">Anuladas</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Añade más campos según lo necesario -->
@@ -341,7 +348,8 @@
                     <th>Moneda</th>
                     <th>Total</th>
                     <th>Metodo de Pago</th>
-                    <th>Estado Despacho</th>
+                    <th id="th-dispatch-or-annulled">Estado Despacho</th>
+                    <th>Estado Comprobante</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
@@ -404,6 +412,7 @@
             <td data-total></td>
             <td data-tipo_pago></td>
             <td data-dispatch_status></td>
+            <td data-estado_comprobante></td>
             <td data-buttons></td>
         </tr>
     </template>
@@ -419,6 +428,10 @@
         <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fas fa-list-ol"></i></button>
         <button data-anular data-id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
 
+        <button data-consultar_anulacion data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Anulación">
+            <img src="{{ asset('images/sale/consultar_anulacion2.png') }}" alt="Generar" style="width: 18px; height: 18px;">
+        </button>
+
         <button href="" data-generar_comprobante data-sale_id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar comprobante">
             <img src="{{ asset('images/sale/facturacion_electronica.png') }}" alt="Generar" style="width: 16px; height: 16px;">
         </button>
@@ -426,6 +439,32 @@
         <button data-pagos_parciales data-sale_id="" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Pagos Parciales">
             <img src="{{ asset('images/sale/dinero.png') }}" alt="Generar" style="width: 18px; height: 18px;">
         </button>
+
+        <button data-generar_nota_credito data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Generar Nota de Crédito">
+            <i class="fas fa-file-invoice-dollar"></i>
+        </button>
+    </template>
+
+    <template id="template-annulled">
+        <a href="" target="_blank" data-print_recibo data-id="" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Ver comprobante original">
+            <i class="fas fa-print"></i>
+        </a>
+
+        <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles">
+            <i class="fas fa-list-ol"></i>
+        </button>
+
+        <a href="" target="_blank" data-print_anulacion_pdf class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Ver PDF Anulación">
+            <i class="fas fa-file-pdf"></i>
+        </a>
+
+        <a href="" target="_blank" data-print_anulacion_xml class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver XML Anulación">
+            <i class="fas fa-file-code"></i>
+        </a>
+
+        <a href="" target="_blank" data-print_anulacion_cdr class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver CDR Anulación">
+            <i class="fas fa-file-archive"></i>
+        </a>
     </template>
 
     <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
@@ -788,6 +827,11 @@
             });
 
             $('#filter_invoice_status').select2({
+                placeholder: "Seleccione comprobante",
+                allowClear: true
+            });
+
+            $('#filter_sale_status').select2({
                 placeholder: "Seleccione comprobante",
                 allowClear: true
             });

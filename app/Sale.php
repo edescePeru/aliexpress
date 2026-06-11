@@ -24,6 +24,28 @@ class Sale extends Model
         'state_annulled',
         'dispatch_status',
 
+        'annulment_status',
+        'annulment_type',
+        'annulment_reason',
+        'annulment_requested_at',
+        'annulment_accepted_at',
+        'annulment_error',
+        'annulment_ticket',
+        'annulment_response',
+        'annulment_key',
+        'annulment_sunat_status',
+        'annulment_sunat_message',
+        'annulment_sunat_responsecode',
+        'annulment_pdf_path',
+        'annulment_xml_path',
+        'annulment_cdr_path',
+        'annulment_pdf_url',
+        'annulment_xml_url',
+        'annulment_cdr_url',
+
+        'annulment_requested_by',
+        'annulled_by',
+
         'quote_id',
 
         'numero',
@@ -119,5 +141,75 @@ class Sale extends Model
                 "items" => $items,
             ];
 
+    }
+
+    public function hasElectronicDocument(): bool
+    {
+        return in_array($this->type_document, ['01', '03'], true)
+            && !empty($this->serie_sunat)
+            && !empty($this->numero)
+            && $this->sunat_status !== 'Error';
+    }
+
+    public function hasSunatError(): bool
+    {
+        return in_array($this->type_document, ['01', '03'], true)
+            && $this->sunat_status === 'Error';
+    }
+
+    public function hasNoElectronicDocument(): bool
+    {
+        return empty($this->type_document);
+    }
+
+    public function isInvoice(): bool
+    {
+        return $this->type_document === '01';
+    }
+
+    public function isReceipt(): bool
+    {
+        return $this->type_document === '03';
+    }
+
+    public function isReceiptFromToday(): bool
+    {
+        if (!$this->isReceipt()) {
+            return false;
+        }
+
+        $emissionDate = $this->fecha_emision ?: $this->date_sale;
+
+        if (!$emissionDate) {
+            return false;
+        }
+
+        return Carbon::parse($emissionDate)->isToday();
+    }
+
+    public function canAttemptNubefactAnnulment(): bool
+    {
+        if (!$this->hasElectronicDocument()) {
+            return false;
+        }
+
+        if ($this->isReceiptFromToday()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function isWithinAnnulmentDeadline(int $days = 7): bool
+    {
+        $emissionDate = $this->fecha_emision ?: $this->date_sale;
+
+        if (!$emissionDate) {
+            return false;
+        }
+
+        return Carbon::parse($emissionDate)
+                ->startOfDay()
+                ->diffInDays(now()->startOfDay()) <= $days;
     }
 }

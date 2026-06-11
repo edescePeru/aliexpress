@@ -3177,6 +3177,7 @@ Route::middleware('auth')->group(function (){
         Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale');
         Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus');
 
+        Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion');
 
         Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
             ->name('stock-item.output-adjustment');
