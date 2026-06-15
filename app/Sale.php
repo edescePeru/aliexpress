@@ -103,6 +103,11 @@ class Sale extends Model
         return $this->hasMany(SalePartialPayment::class);
     }
 
+    public function creditNotes()
+    {
+        return $this->hasMany(CreditNote::class);
+    }
+
     public function getDataTotalsAttribute()
     {
         $sale = Sale::find($this->id);

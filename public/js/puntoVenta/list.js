@@ -714,6 +714,122 @@ $(document).ready(function () {
             },
         });
     });
+
+    $(document).on('click', '[data-generar_nota_credito]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.confirm({
+            title: 'Generar Nota de Crédito',
+            content: 'Se generará una Nota de Crédito total por anulación de la operación. ¿Desea continuar?',
+            type: 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, generar',
+                    btnClass: 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/generar/nota-credito/total/' + saleId,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            processData: false,
+                            contentType: false,
+                            success: function (data) {
+                                $.alert({
+                                    title: 'Correcto',
+                                    content: data.message,
+                                    type: 'green',
+                                    buttons: {
+                                        ok: {
+                                            text: 'Aceptar',
+                                            btnClass: 'btn-success'
+                                        }
+                                    }
+                                });
+
+                                reloadCurrentPageOrders();
+                            },
+                            error: function (xhr) {
+                                let message = 'No se pudo generar la Nota de Crédito.';
+
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+
+                                $.alert({
+                                    title: 'Aviso',
+                                    content: message,
+                                    type: 'orange',
+                                    buttons: {
+                                        ok: {
+                                            text: 'Entendido',
+                                            btnClass: 'btn-warning'
+                                        }
+                                    }
+                                });
+
+                                reloadCurrentPageOrders();
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-consultar_nota_credito]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.ajax({
+            url: '/dashboard/consultar/nota-credito/' + saleId,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                $.alert({
+                    title: 'Consulta realizada',
+                    content: data.message,
+                    type: 'green',
+                    buttons: {
+                        ok: {
+                            text: 'Aceptar',
+                            btnClass: 'btn-success'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+            error: function (xhr) {
+                let message = 'No se pudo consultar la Nota de Crédito.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                $.alert({
+                    title: 'Aviso',
+                    content: message,
+                    type: 'orange',
+                    buttons: {
+                        ok: {
+                            text: 'Entendido',
+                            btnClass: 'btn-warning'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            }
+        });
+    });
 });
 
 var $formDelete;
@@ -1304,20 +1420,41 @@ function renderDataTable(data) {
 
     if (data.sunat_status === 'Error') {
         badgeClass = 'badge-danger';
-    } else if (data.annulment_status === 'accepted') {
-        badgeClass = 'badge-dark';
-    } else if (data.annulment_status === 'waiting_sunat_process') {
-        badgeClass = 'badge-warning';
     } else if (data.annulment_status === 'pending') {
         badgeClass = 'badge-info';
+    } else if (data.annulment_status === 'waiting_sunat_process') {
+        badgeClass = 'badge-warning';
+    } else if (data.has_pending_credit_note) {
+        badgeClass = 'badge-info';
+    } else if (data.has_rejected_credit_note) {
+        badgeClass = 'badge-danger';
     } else if (data.annulment_status === 'requires_credit_note') {
         badgeClass = 'badge-warning';
+    } else if (data.annulment_status === 'accepted') {
+        badgeClass = 'badge-dark';
     } else if (data.type_document === '01' || data.type_document === '03') {
         badgeClass = 'badge-success';
     }
 
-    clone.querySelector("[data-estado_comprobante]").innerHTML =
-        `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
+    /*clone.querySelector("[data-estado_comprobante]").innerHTML =
+        `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;*/
+    let htmlEstado = `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
+
+    if (
+        data.annulment_status === 'accepted' &&
+        data.annulment_type === 'credit_note'
+    ) {
+        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR NOTA DE CRÉDITO</span>`;
+    }
+
+    if (
+        data.annulment_status === 'accepted' &&
+        data.annulment_type === 'nubefact_baja'
+    ) {
+        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR BAJA</span>`;
+    }
+
+    clone.querySelector("[data-estado_comprobante]").innerHTML = htmlEstado;
 
     var botones = clone.querySelector("[data-buttons]");
 
@@ -1350,14 +1487,17 @@ function renderDataTable(data) {
         const xmlAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_xml]");
         const cdrAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_cdr]");
 
-        if (data.annulment_pdf_url_local) {
-            pdfAnulacion.setAttribute("href", data.annulment_pdf_url_local);
-            pdfAnulacion.setAttribute("target", "_blank");
-        } else {
-            pdfAnulacion.remove();
+        let pdfUrl = data.annulment_pdf_url_local;
+        let xmlUrl = data.annulment_xml_url_local;
+        let cdrUrl = data.annulment_cdr_url_local;
+
+        if (data.is_credit_note_annulment) {
+            pdfUrl = data.credit_note_pdf_url_local;
+            xmlUrl = data.credit_note_xml_url_local;
+            cdrUrl = data.credit_note_cdr_url_local;
         }
 
-        if (data.annulment_xml_url_local) {
+        /*if (data.annulment_xml_url_local) {
             xmlAnulacion.setAttribute("href", data.annulment_xml_url_local);
             xmlAnulacion.setAttribute("target", "_blank");
         } else {
@@ -1369,6 +1509,32 @@ function renderDataTable(data) {
             cdrAnulacion.setAttribute("target", "_blank");
         } else {
             cdrAnulacion.remove();
+        }*/
+        if (pdfUrl) {
+            pdfAnulacion.setAttribute("href", pdfUrl);
+            pdfAnulacion.setAttribute("target", "_blank");
+        } else {
+            pdfAnulacion.remove();
+        }
+
+        if (xmlUrl) {
+            xmlAnulacion.setAttribute("href", xmlUrl);
+            xmlAnulacion.setAttribute("target", "_blank");
+        } else {
+            xmlAnulacion.remove();
+        }
+
+        if (cdrUrl) {
+            cdrAnulacion.setAttribute("href", cdrUrl);
+            cdrAnulacion.setAttribute("target", "_blank");
+        } else {
+            cdrAnulacion.remove();
+        }
+
+        if (data.is_credit_note_annulment) {
+            pdfAnulacion.setAttribute("title", "Ver PDF Nota de Crédito");
+            xmlAnulacion.setAttribute("title", "Ver XML Nota de Crédito");
+            cdrAnulacion.setAttribute("title", "Ver CDR Nota de Crédito");
         }
 
         botones.append(cloneBtnAnnulled);
@@ -1427,12 +1593,47 @@ function renderDataTable(data) {
 
     const btnGenerarComprobante = cloneBtnActive.querySelector("[data-generar_comprobante]");
     const btnPagosParciales = cloneBtnActive.querySelector("[data-pagos_parciales]");
-    const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
 
-    if (data.can_generate_credit_note) {
-        btnNotaCredito.setAttribute("data-sale_id", data.id);
-    } else {
+    const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
+    const btnConsultarNotaCredito = cloneBtnActive.querySelector("[data-consultar_nota_credito]");
+
+    /*
+     * ============================================================
+     * NOTA DE CRÉDITO PENDIENTE
+     * ============================================================
+     */
+    if (data.has_pending_credit_note) {
+        btnConsultarNotaCredito.setAttribute("data-sale_id", data.id);
         btnNotaCredito.remove();
+
+    } else if (data.has_rejected_credit_note) {
+        btnNotaCredito.remove();
+        btnConsultarNotaCredito.remove();
+
+    }
+    /*
+     * ============================================================
+     * PUEDE GENERAR NOTA DE CRÉDITO
+     * ============================================================
+     */
+    else if (data.can_generate_credit_note) {
+
+        btnNotaCredito.setAttribute(
+            "data-sale_id",
+            data.id
+        );
+
+        btnConsultarNotaCredito.remove();
+    }
+    /*
+     * ============================================================
+     * NO APLICA
+     * ============================================================
+     */
+    else {
+
+        btnNotaCredito.remove();
+        btnConsultarNotaCredito.remove();
     }
 
     const tieneComprobanteValido =

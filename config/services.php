@@ -39,6 +39,12 @@ return [
     'nubefact' => [
         'token' => env('NUBEFACT_TOKEN'),
         'url'   => env('NUBEFACT_API_URL'),
+
+        'serie_factura' => env('NUBEFACT_SERIE_FACTURA', 'FFF1'),
+        'serie_boleta' => env('NUBEFACT_SERIE_BOLETA', 'BBB1'),
+
+        'serie_nc_factura' => env('NUBEFACT_SERIE_NC_FACTURA', 'FFF1'),
+        'serie_nc_boleta' => env('NUBEFACT_SERIE_NC_BOLETA', 'BBB1'),
     ],
 
     'decolecta' => [

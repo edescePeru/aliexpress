@@ -3179,6 +3179,9 @@ Route::middleware('auth')->group(function (){
 
         Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion');
 
+        Route::post('/generar/nota-credito/total/{id}', 'PuntoVentaController@generarNotaCreditoTotal');
+        Route::post('/consultar/nota-credito/{id}', 'PuntoVentaController@consultarNotaCredito');
+
         Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
             ->name('stock-item.output-adjustment');
     });

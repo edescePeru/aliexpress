@@ -443,6 +443,10 @@
         <button data-generar_nota_credito data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Generar Nota de Crédito">
             <i class="fas fa-file-invoice-dollar"></i>
         </button>
+
+        <button data-consultar_nota_credito data-sale_id="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Nota de Crédito">
+            <img src="{{ asset('images/sale/nota_credito.png') }}" alt="Generar" style="width: 18px; height: 18px;">
+        </button>
     </template>
 
     <template id="template-annulled">
