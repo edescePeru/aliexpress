@@ -542,8 +542,8 @@ class StoreWebController extends Controller
                 })
                 ->map(function ($variant) {
                     return [
-                        'image' => asset('images/variant/' . $variant->image),
-                        'thumb' => asset('images/variant/' . $variant->image),
+                        'image' => asset('images/material/variants/' . $variant->image),
+                        'thumb' => asset('images/material/variants/' . $variant->image),
                         'label' => $variant->attribute_summary,
                     ];
                 })
@@ -553,7 +553,7 @@ class StoreWebController extends Controller
         if ($images->isEmpty()) {
             $image = $material->image
                 ? asset('images/material/' . $material->image)
-                : asset('shop/img/no-image.png');
+                : asset('images/material/no-image.png');
 
             $images->push([
                 'image' => $image,
