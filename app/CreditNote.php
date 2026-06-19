@@ -34,6 +34,14 @@ class CreditNote extends Model
         'cdr_url',
         'created_by',
         'accepted_at',
+
+        'internal_reversal_status',
+        'internal_reversed_at',
+        'internal_reversed_by',
+        'cash_refund_status',
+        'cash_refund_at',
+        'cash_refund_by',
+        'cash_movement_id',
     ];
 
     protected $dates = [
@@ -53,5 +61,20 @@ class CreditNote extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function internalReversedBy()
+    {
+        return $this->belongsTo(User::class, 'internal_reversed_by');
+    }
+
+    public function cashRefundBy()
+    {
+        return $this->belongsTo(User::class, 'cash_refund_by');
+    }
+
+    public function cashMovement()
+    {
+        return $this->belongsTo(CashMovement::class, 'cash_movement_id');
     }
 }

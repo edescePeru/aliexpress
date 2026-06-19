@@ -447,6 +447,14 @@
         <button data-consultar_nota_credito data-sale_id="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Nota de Crédito">
             <img src="{{ asset('images/sale/nota_credito.png') }}" alt="Generar" style="width: 18px; height: 18px;">
         </button>
+
+        <button data-generar_nota_credito_parcial data-sale_id="" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar Nota de Crédito Parcial">
+            <i class="fas fa-file-invoice"></i>
+        </button>
+
+        <a href="" target="_blank" data-ver_nc_parcial_pdf class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver PDF Nota de Crédito Parcial">
+            <i class="fas fa-file-pdf"></i>
+        </a>
     </template>
 
     <template id="template-annulled">
@@ -777,6 +785,58 @@
                         Generar comprobante
                     </button>
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalNotaCreditoParcial" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Nota de Crédito Parcial</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" id="nc_partial_sale_id">
+
+                    <div class="mb-2">
+                        <strong>Venta:</strong> <span id="nc_partial_sale_code"></span><br>
+                        <strong>Cliente:</strong> <span id="nc_partial_customer"></span><br>
+                        <strong>Comprobante:</strong> <span id="nc_partial_document"></span>
+                    </div>
+
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                        <tr>
+                            <th>Producto / Servicio</th>
+                            <th>Vendido</th>
+                            <th>Ya Devuelto</th>
+                            <th>Disponible</th>
+                            <th>Devolver</th>
+                            <th>Total NC</th>
+                        </tr>
+                        </thead>
+                        <tbody id="body-nc-partial-items"></tbody>
+                    </table>
+
+                    <div class="text-right">
+                        <strong>Total Nota de Crédito: S/ <span id="nc_partial_total">0.00</span></strong>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button id="btn-submit-nc-partial" class="btn btn-warning">
+                        Generar Nota de Crédito Parcial
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
                         Cerrar
                     </button>
                 </div>

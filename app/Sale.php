@@ -46,6 +46,12 @@ class Sale extends Model
         'annulment_requested_by',
         'annulled_by',
 
+        'credit_note_status',
+
+        'internal_reversal_status',
+        'internal_reversed_at',
+        'internal_reversed_by',
+
         'quote_id',
 
         'numero',

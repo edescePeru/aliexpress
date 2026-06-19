@@ -830,6 +830,165 @@ $(document).ready(function () {
             }
         });
     });
+
+    $(document).on('click', '[data-generar_nota_credito_parcial]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.get('/dashboard/nota-credito/parcial/data/' + saleId, function (data) {
+            $('#nc_partial_sale_id').val(data.sale_id);
+            $('#nc_partial_sale_code').text(data.code);
+            $('#nc_partial_customer').text(data.cliente);
+            $('#nc_partial_document').text((data.type_document === '01' ? 'Factura' : 'Boleta') + ' ' + data.serie_sunat + '-' + data.numero);
+
+            $('#body-nc-partial-items').empty();
+
+            data.items.forEach(function (item) {
+                $('#body-nc-partial-items').append(`
+                <tr>
+                    <td>${item.description}</td>
+                    <td>${item.sold_quantity}</td>
+                    <td>${item.credited_quantity}</td>
+                    <td>${item.available_quantity}</td>
+                    <td>
+                        <input type="number"
+                               class="form-control form-control-sm nc-partial-qty"
+                               data-sale_detail_id="${item.sale_detail_id}"
+                               data-price="${item.price}"
+                               data-max="${item.available_quantity}"
+                               min="0"
+                               max="${item.available_quantity}"
+                               step="0.01"
+                               value="0">
+                    </td>
+                    <td>S/ <span class="nc-partial-line-total">0.00</span></td>
+                </tr>
+            `);
+            });
+
+            $('#nc_partial_total').text('0.00');
+            $('#modalNotaCreditoParcial').modal('show');
+
+        }).fail(function (xhr) {
+            let message = 'No se pudo obtener la información de la venta.';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+
+            $.alert({
+                title: 'Aviso',
+                content: message,
+                type: 'orange',
+            });
+        });
+    });
+
+    $(document).on('input', '.nc-partial-qty', function () {
+        let input = $(this);
+        let qty = parseFloat(input.val()) || 0;
+        let max = parseFloat(input.data('max')) || 0;
+        let price = parseFloat(input.data('price')) || 0;
+
+        if (qty > max) {
+            qty = max;
+            input.val(max);
+        }
+
+        if (qty < 0) {
+            qty = 0;
+            input.val(0);
+        }
+
+        let totalLine = qty * price;
+
+        input.closest('tr').find('.nc-partial-line-total').text(totalLine.toFixed(2));
+
+        let total = 0;
+
+        $('.nc-partial-qty').each(function () {
+            let q = parseFloat($(this).val()) || 0;
+            let p = parseFloat($(this).data('price')) || 0;
+            total += q * p;
+        });
+
+        $('#nc_partial_total').text(total.toFixed(2));
+    });
+
+    $(document).on('click', '#btn-submit-nc-partial', function () {
+        let saleId = $('#nc_partial_sale_id').val();
+
+        let items = [];
+
+        $('.nc-partial-qty').each(function () {
+            let qty = parseFloat($(this).val()) || 0;
+
+            if (qty > 0) {
+                items.push({
+                    sale_detail_id: $(this).data('sale_detail_id'),
+                    quantity: qty
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            toastr.error('Debe ingresar al menos una cantidad a devolver.', 'Error');
+            return;
+        }
+
+        $.confirm({
+            title: 'Confirmar Nota de Crédito Parcial',
+            content: 'Se generará una Nota de Crédito parcial por los productos seleccionados. ¿Desea continuar?',
+            type: 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, generar',
+                    btnClass: 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/generar/nota-credito/parcial/' + saleId,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            data: JSON.stringify({
+                                reason_code: '07',
+                                reason_description: 'Devolución parcial',
+                                items: items
+                            }),
+                            contentType: 'application/json',
+                            success: function (data) {
+                                $('#modalNotaCreditoParcial').modal('hide');
+
+                                $.alert({
+                                    title: 'Correcto',
+                                    content: data.message,
+                                    type: 'green'
+                                });
+
+                                getDataOrders(1);
+                            },
+                            error: function (xhr) {
+                                let message = 'No se pudo generar la Nota de Crédito parcial.';
+
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+
+                                $.alert({
+                                    title: 'Aviso',
+                                    content: message,
+                                    type: 'orange'
+                                });
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar'
+                }
+            }
+        });
+    });
 });
 
 var $formDelete;
@@ -1440,6 +1599,10 @@ function renderDataTable(data) {
         `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;*/
     let htmlEstado = `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
 
+    if (data.credit_note_status === 'partial') {
+        htmlEstado += `<br><span class="badge badge-warning mt-1">NC PARCIAL</span>`;
+    }
+
     if (
         data.annulment_status === 'accepted' &&
         data.annulment_type === 'credit_note'
@@ -1597,6 +1760,15 @@ function renderDataTable(data) {
     const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
     const btnConsultarNotaCredito = cloneBtnActive.querySelector("[data-consultar_nota_credito]");
 
+    const btnVerNcParcialPdf = cloneBtnActive.querySelector("[data-ver_nc_parcial_pdf]");
+
+    if (data.has_partial_credit_note && data.partial_credit_note_pdf_url_local) {
+        btnVerNcParcialPdf.setAttribute("href", data.partial_credit_note_pdf_url_local);
+        btnVerNcParcialPdf.setAttribute("target", "_blank");
+    } else {
+        btnVerNcParcialPdf.remove();
+    }
+
     /*
      * ============================================================
      * NOTA DE CRÉDITO PENDIENTE
@@ -1651,6 +1823,27 @@ function renderDataTable(data) {
         btnPagosParciales.setAttribute("data-sale_id", data.id);
     } else {
         btnPagosParciales.remove();
+    }
+
+    /*
+     * ============================================================
+     * Boton de generar nota de credito parcial
+     * ============================================================
+     */
+
+    const btnNotaCreditoParcial = cloneBtnActive.querySelector("[data-generar_nota_credito_parcial]");
+
+    const puedeGenerarNotaParcial =
+        (data.type_document === '01' || data.type_document === '03') &&
+        data.sunat_status !== 'Error' &&
+        parseInt(data.is_annulled) !== 1 &&
+        !data.has_pending_credit_note &&
+        !data.has_rejected_credit_note;
+
+    if (puedeGenerarNotaParcial) {
+        btnNotaCreditoParcial.setAttribute("data-sale_id", data.id);
+    } else {
+        btnNotaCreditoParcial.remove();
     }
 
     botones.append(cloneBtnActive);

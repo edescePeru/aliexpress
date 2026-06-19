@@ -692,4 +692,105 @@ trait NubefactTrait
 
         return $result;
     }
+
+    private function generarNotaCreditoParcialNubefact(Sale $sale, CreditNote $creditNote): array
+    {
+        $data = $this->buildNubefactCreditNotePartialData($sale, $creditNote);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result)
+                ? json_encode($result, JSON_UNESCAPED_UNICODE)
+                : $response->body();
+
+            throw new \Exception('Nubefact respondió error HTTP al generar Nota de Crédito parcial: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception(
+                is_array($result['errors'])
+                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
+                    : $result['errors']
+            );
+        }
+
+        return $result;
+    }
+
+    private function buildNubefactCreditNotePartialData(Sale $sale, CreditNote $creditNote): array
+    {
+        $creditNote->loadMissing(['details']);
+
+        if ($creditNote->details->isEmpty()) {
+            throw new \Exception('La Nota de Crédito parcial no tiene detalles.');
+        }
+
+        $isFactura = $sale->type_document === '01';
+
+        $serieNotaCredito = $isFactura
+            ? config('services.nubefact.serie_nc_factura', 'FFF1')
+            : config('services.nubefact.serie_nc_boleta', 'BBB1');
+
+        $items = $creditNote->details->map(function ($detail) {
+            return [
+                "unidad_de_medida" => "NIU",
+                "codigo" => "",
+                "descripcion" => $detail->description,
+                "cantidad" => (float) $detail->quantity,
+                "valor_unitario" => (float) $detail->valor_unitario,
+                "precio_unitario" => (float) $detail->price,
+                "subtotal" => (float) $detail->subtotal,
+                "tipo_de_igv" => "1",
+                "igv" => (float) $detail->igv,
+                "total" => (float) $detail->total,
+            ];
+        })->toArray();
+
+        return [
+            "operacion" => "generar_comprobante",
+            "tipo_de_comprobante" => "3",
+            "serie" => $serieNotaCredito,
+            "numero" => "",
+            "codigo_unico" => 'NC-PARCIAL-' . $sale->id . '-' . now()->timestamp . '-' . \Illuminate\Support\Str::random(8),
+
+            "sunat_transaction" => "1",
+
+            "cliente_tipo_de_documento" => $sale->tipo_documento_cliente,
+            "cliente_numero_de_documento" => $sale->numero_documento_cliente,
+            "cliente_denominacion" => $sale->nombre_cliente,
+            "cliente_direccion" => $sale->direccion_cliente ?: "",
+            "cliente_email" => $sale->email_cliente ?: "",
+
+            "fecha_de_emision" => now()->format('d-m-Y'),
+            "moneda" => "1",
+            "porcentaje_de_igv" => 18.00,
+
+            "tipo_de_nota_de_credito" => $creditNote->reason_code ?: "07",
+            "motivo_o_sustento_de_nota_de_credito" => $creditNote->reason_description ?: "Devolución parcial",
+
+            "documento_que_se_modifica_tipo" => $sale->type_document === '01' ? "1" : "2",
+            "documento_que_se_modifica_serie" => $sale->serie_sunat,
+            "documento_que_se_modifica_numero" => $sale->numero,
+
+            "total_gravada" => (float) $creditNote->op_gravada,
+            "total_igv" => (float) $creditNote->igv,
+            "total" => (float) $creditNote->importe_total,
+            "total_a_pagar" => (float) $creditNote->importe_total,
+
+            "items" => $items,
+        ];
+    }
 }
