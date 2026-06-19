@@ -2760,7 +2760,9 @@ Route::middleware('auth')->group(function (){
         Route::post('/sales/update-invoice-data', 'PuntoVentaController@updateInvoiceData');
         Route::post('/facturador/generar', 'NubefactController@generarComprobante')->name('facturador.generar');
 
-
+        Route::get('/listado/ventas/error/', 'PuntoVentaController@listarErrors')
+            ->name('puntoVenta.listError');
+        Route::get('/get/data/sales/error/{page}', 'PuntoVentaController@getSalesErrorAdmin');
         //get/data/products
 
         // TODO: Rutas Punto de Venta

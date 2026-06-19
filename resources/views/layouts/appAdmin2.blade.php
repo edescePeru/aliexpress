@@ -299,6 +299,14 @@
                                 </a>
                             </li>
                             @endcan
+                            @can('listErrors_puntoVenta')
+                                <li class="nav-item">
+                                    <a href="{{ route('puntoVenta.listError') }}" class="nav-link @yield('activeListErrorPuntoVenta')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Listar ventas error</p>
+                                    </a>
+                                </li>
+                            @endcan
                         </ul>
                     </li>
                     @endcan

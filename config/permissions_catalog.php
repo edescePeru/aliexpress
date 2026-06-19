@@ -320,6 +320,7 @@ return [
     'list_projection' => 'Listar Poyecciones',
     'list_promotionLimit' => 'Ver listado de promociones por límite',
     'list_puntoVenta' => 'Listar ventas en punto de venta',
+    'listErrors_puntoVenta' => 'Listar ventas con error en punto de venta',
     'list_quality' => 'Listar calidades',
     'list_quote' => 'Listar Cotizaciones',
     'list_quoteSale' => 'Ver listado de cotizaciones de ventas',
