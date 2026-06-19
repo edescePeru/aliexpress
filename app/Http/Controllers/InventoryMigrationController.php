@@ -11,6 +11,7 @@ use App\Output;
 use App\OutputDetail;
 use App\PriceListItem;
 use App\Quote;
+use App\SaleDetail;
 use App\StockItem;
 use App\StockLot;
 use Illuminate\Http\Request;
@@ -1121,5 +1122,355 @@ class InventoryMigrationController extends Controller
 
             return $output;
         });
+    }
+
+    public function adjustEntryCost(Request $request)
+    {
+        $request->validate([
+            'entry_id' => 'required|integer',
+            'stock_item_id' => 'required|integer',
+            'output_id' => 'nullable|integer',
+            'new_total_detail' => 'required|numeric|min:0.01',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $entryId = (int) $request->entry_id;
+        $stockItemId = (int) $request->stock_item_id;
+        $outputId = $request->filled('output_id') ? (int) $request->output_id : null;
+        $newTotalDetail = round((float) $request->new_total_detail, 4);
+        $reason = $request->reason;
+
+        DB::beginTransaction();
+
+        try {
+            /*
+            |--------------------------------------------------------------------------
+            | 1. Validar ingreso
+            |--------------------------------------------------------------------------
+            */
+            $entry = Entry::query()
+                ->lockForUpdate()
+                ->find($entryId);
+
+            if (!$entry) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ingreso no encontrado.',
+                ], 404);
+            }
+
+            if ((int) $entry->state_annulled === 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede ajustar un ingreso anulado.',
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 2. Buscar DetailEntry
+            |--------------------------------------------------------------------------
+            | Se busca por entry_id + stock_item_id.
+            | Si hay más de una línea con el mismo stock_item_id, se bloquea por seguridad.
+            */
+            $details = DetailEntry::query()
+                ->where('entry_id', $entryId)
+                ->where('stock_item_id', $stockItemId)
+                ->lockForUpdate()
+                ->get();
+
+            if ($details->isEmpty()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró detalle de ingreso para el stock_item_id enviado.',
+                ], 404);
+            }
+
+            if ($details->count() > 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hay más de un detalle con este stock_item_id en el ingreso. Para evitar errores, envía detail_entry_id o ajusta la búsqueda.',
+                    'detail_entry_ids' => $details->pluck('id'),
+                ], 422);
+            }
+
+            $detailEntry = $details->first();
+
+            if ((float) $detailEntry->entered_quantity <= 0) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El detalle de ingreso no tiene cantidad ingresada válida.',
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 3. Validar material
+            |--------------------------------------------------------------------------
+            */
+            $material = Material::query()
+                ->lockForUpdate()
+                ->find($detailEntry->material_id);
+
+            if (!$material) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Material no encontrado.',
+                ], 404);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 4. Calcular nuevo costo
+            |--------------------------------------------------------------------------
+            */
+            $enteredQuantity = (float) $detailEntry->entered_quantity;
+
+            $oldUnitCost = round((float) $detailEntry->unit_price, 4);
+            $oldTotalDetail = round((float) $detailEntry->total_detail, 4);
+
+            $newUnitCost = round($newTotalDetail / $enteredQuantity, 4);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 5. Actualizar DetailEntry
+            |--------------------------------------------------------------------------
+            */
+            $detailEntry->unit_price = $newUnitCost;
+            $detailEntry->total_detail = $newTotalDetail;
+            $detailEntry->save();
+
+            /*
+            |--------------------------------------------------------------------------
+            | 6. Buscar StockLots del DetailEntry
+            |--------------------------------------------------------------------------
+            | Esto es clave para no tocar salidas de otros lotes.
+            */
+            $stockLots = StockLot::query()
+                ->where('detail_entry_id', $detailEntry->id)
+                ->where('stock_item_id', $stockItemId)
+                ->lockForUpdate()
+                ->get();
+
+            if ($stockLots->isEmpty()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron lotes relacionados al detalle de ingreso.',
+                ], 404);
+            }
+
+            $stockLotIds = $stockLots->pluck('id');
+
+            /*
+            |--------------------------------------------------------------------------
+            | 7. Actualizar costo de StockLots
+            |--------------------------------------------------------------------------
+            */
+            foreach ($stockLots as $stockLot) {
+                $stockLot->unit_cost = $newUnitCost;
+                $stockLot->save();
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 8. Actualizar Items si el material es itemeable
+            |--------------------------------------------------------------------------
+            | tipo_venta_id = 3 => itemeable.
+            | No tocamos price, solo unit_cost.
+            */
+            $itemIds = collect();
+
+            if ((int) $material->tipo_venta_id === 3) {
+                $items = Item::query()
+                    ->where('detail_entry_id', $detailEntry->id)
+                    ->where('stock_item_id', $stockItemId)
+                    ->where('material_id', $material->id)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($items as $item) {
+                    $item->unit_cost = $newUnitCost;
+                    $item->save();
+                }
+
+                $itemIds = $items->pluck('id');
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 9. Buscar OutputDetails afectados
+            |--------------------------------------------------------------------------
+            | Aquí se filtra por stock_lot_id para asegurar que solo se cambian salidas
+            | del lote generado por este detail_entry.
+            */
+            $outputDetailsQuery = OutputDetail::query()
+                ->where('stock_item_id', $stockItemId)
+                ->where('material_id', $material->id)
+                ->whereIn('stock_lot_id', $stockLotIds)
+                ->lockForUpdate();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Si envías output_id, solo corrige esa salida específica.
+            | Si no envías output_id, corrige todas las salidas relacionadas a ese lote.
+            |--------------------------------------------------------------------------
+            */
+            if ($outputId) {
+                $outputDetailsQuery->where('output_id', $outputId);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Si es itemeable, también filtramos por item_id.
+            | Esto añade una segunda capa de seguridad.
+            |--------------------------------------------------------------------------
+            */
+            if ((int) $material->tipo_venta_id === 3) {
+                if ($itemIds->isEmpty()) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El material es itemeable, pero no se encontraron items relacionados al ingreso.',
+                    ], 422);
+                }
+
+                $outputDetailsQuery->whereIn('item_id', $itemIds);
+            }
+
+            $outputDetails = $outputDetailsQuery->get();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Puede que aún no haya salidas.
+            | En ese caso igual está bien corregir DetailEntry + StockLot + Items.
+            |--------------------------------------------------------------------------
+            */
+            $affectedSaleDetailIds = collect();
+
+            foreach ($outputDetails as $outputDetail) {
+                /*
+                |--------------------------------------------------------------------------
+                | percentage:
+                | - si es item: normalmente 1
+                | - si no es item: cantidad que salió
+                |--------------------------------------------------------------------------
+                */
+                $quantityOutput = (float) $outputDetail->percentage;
+
+                if ($quantityOutput <= 0) {
+                    $quantityOutput = 1;
+                }
+
+                $newOutputTotalCost = round($newUnitCost * $quantityOutput, 4);
+
+                $outputDetail->unit_cost = $newUnitCost;
+                $outputDetail->total_cost = $newOutputTotalCost;
+                $outputDetail->save();
+
+                if ($outputDetail->sale_detail_id) {
+                    $affectedSaleDetailIds->push($outputDetail->sale_detail_id);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 10. Recalcular SaleDetails afectados
+            |--------------------------------------------------------------------------
+            | Se recalcula desde OutputDetails porque una venta puede tener varias salidas.
+            */
+            $affectedSaleDetailIds = $affectedSaleDetailIds->unique()->values();
+
+            foreach ($affectedSaleDetailIds as $saleDetailId) {
+                $saleDetail = SaleDetail::query()
+                    ->lockForUpdate()
+                    ->find($saleDetailId);
+
+                if (!$saleDetail) {
+                    continue;
+                }
+
+                $sumTotalCost = OutputDetail::query()
+                    ->where('sale_detail_id', $saleDetail->id)
+                    ->sum('total_cost');
+
+                $quantitySale = (float) $saleDetail->quantity;
+
+                $saleDetail->total_cost = round($sumTotalCost, 4);
+                $saleDetail->unit_cost = $quantitySale > 0
+                    ? round($sumTotalCost / $quantitySale, 4)
+                    : 0;
+
+                $saleDetail->save();
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 11. Auditoría opcional
+            |--------------------------------------------------------------------------
+            | Si ya tienes tabla de logs, aquí puedes registrar el cambio.
+            */
+            /*
+            CostAdjustmentLog::create([
+                'user_id' => Auth::id(),
+                'entry_id' => $entry->id,
+                'detail_entry_id' => $detailEntry->id,
+                'material_id' => $material->id,
+                'stock_item_id' => $stockItemId,
+                'output_id' => $outputId,
+                'old_unit_cost' => $oldUnitCost,
+                'old_total_detail' => $oldTotalDetail,
+                'new_unit_cost' => $newUnitCost,
+                'new_total_detail' => $newTotalDetail,
+                'reason' => $reason,
+            ]);
+            */
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Costo de ingreso ajustado correctamente.',
+                'data' => [
+                    'entry_id' => $entry->id,
+                    'detail_entry_id' => $detailEntry->id,
+                    'material_id' => $material->id,
+                    'stock_item_id' => $stockItemId,
+                    'output_id' => $outputId,
+                    'old_unit_cost' => $oldUnitCost,
+                    'old_total_detail' => $oldTotalDetail,
+                    'new_unit_cost' => $newUnitCost,
+                    'new_total_detail' => $newTotalDetail,
+                    'updated_stock_lots' => $stockLotIds->values(),
+                    'updated_items' => $itemIds->values(),
+                    'updated_output_details' => $outputDetails->pluck('id')->values(),
+                    'updated_sale_details' => $affectedSaleDetailIds,
+                    'reason' => $reason,
+                ],
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al ajustar el costo de ingreso.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
