@@ -1127,16 +1127,16 @@ class InventoryMigrationController extends Controller
     public function adjustEntryCost(Request $request)
     {
         $request->validate([
-            'entry_id' => 'required|integer',
-            'stock_item_id' => 'required|integer',
+            'detail_entry_id' => 'required|integer',
             'output_id' => 'nullable|integer',
+            'output_detail_id' => 'nullable|integer',
             'new_total_detail' => 'required|numeric|min:0.01',
             'reason' => 'nullable|string|max:500',
         ]);
 
-        $entryId = (int) $request->entry_id;
-        $stockItemId = (int) $request->stock_item_id;
+        $detailEntryId = (int) $request->detail_entry_id;
         $outputId = $request->filled('output_id') ? (int) $request->output_id : null;
+        $outputDetailId = $request->filled('output_detail_id') ? (int) $request->output_detail_id : null;
         $newTotalDetail = round((float) $request->new_total_detail, 4);
         $reason = $request->reason;
 
@@ -1145,7 +1145,38 @@ class InventoryMigrationController extends Controller
         try {
             /*
             |--------------------------------------------------------------------------
-            | 1. Validar ingreso
+            | 1. Buscar DetailEntry exacto
+            |--------------------------------------------------------------------------
+            */
+            $detailEntry = DetailEntry::query()
+                ->lockForUpdate()
+                ->find($detailEntryId);
+
+            if (!$detailEntry) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Detalle de ingreso no encontrado.',
+                ], 404);
+            }
+
+            $entryId = (int) $detailEntry->entry_id;
+            $stockItemId = (int) $detailEntry->stock_item_id;
+            $materialId = (int) $detailEntry->material_id;
+
+            if ((float) $detailEntry->entered_quantity <= 0) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El detalle de ingreso no tiene cantidad ingresada válida.',
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 2. Validar ingreso
             |--------------------------------------------------------------------------
             */
             $entry = Entry::query()
@@ -1172,55 +1203,12 @@ class InventoryMigrationController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 2. Buscar DetailEntry
-            |--------------------------------------------------------------------------
-            | Se busca por entry_id + stock_item_id.
-            | Si hay más de una línea con el mismo stock_item_id, se bloquea por seguridad.
-            */
-            $details = DetailEntry::query()
-                ->where('entry_id', $entryId)
-                ->where('stock_item_id', $stockItemId)
-                ->lockForUpdate()
-                ->get();
-
-            if ($details->isEmpty()) {
-                DB::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontró detalle de ingreso para el stock_item_id enviado.',
-                ], 404);
-            }
-
-            if ($details->count() > 1) {
-                DB::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Hay más de un detalle con este stock_item_id en el ingreso. Para evitar errores, envía detail_entry_id o ajusta la búsqueda.',
-                    'detail_entry_ids' => $details->pluck('id'),
-                ], 422);
-            }
-
-            $detailEntry = $details->first();
-
-            if ((float) $detailEntry->entered_quantity <= 0) {
-                DB::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El detalle de ingreso no tiene cantidad ingresada válida.',
-                ], 422);
-            }
-
-            /*
-            |--------------------------------------------------------------------------
             | 3. Validar material
             |--------------------------------------------------------------------------
             */
             $material = Material::query()
                 ->lockForUpdate()
-                ->find($detailEntry->material_id);
+                ->find($materialId);
 
             if (!$material) {
                 DB::rollBack();
@@ -1233,7 +1221,7 @@ class InventoryMigrationController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 4. Calcular nuevo costo
+            | 4. Calcular nuevo costo unitario
             |--------------------------------------------------------------------------
             */
             $enteredQuantity = (float) $detailEntry->entered_quantity;
@@ -1241,7 +1229,7 @@ class InventoryMigrationController extends Controller
             $oldUnitCost = round((float) $detailEntry->unit_price, 4);
             $oldTotalDetail = round((float) $detailEntry->total_detail, 4);
 
-            $newUnitCost = round($newTotalDetail / $enteredQuantity, 4);
+            $newUnitCost = round($newTotalDetail / $enteredQuantity, 6);
 
             /*
             |--------------------------------------------------------------------------
@@ -1256,7 +1244,7 @@ class InventoryMigrationController extends Controller
             |--------------------------------------------------------------------------
             | 6. Buscar StockLots del DetailEntry
             |--------------------------------------------------------------------------
-            | Esto es clave para no tocar salidas de otros lotes.
+            | Esto asegura que solo se toquen lotes nacidos de este detalle.
             */
             $stockLots = StockLot::query()
                 ->where('detail_entry_id', $detailEntry->id)
@@ -1314,8 +1302,10 @@ class InventoryMigrationController extends Controller
             |--------------------------------------------------------------------------
             | 9. Buscar OutputDetails afectados
             |--------------------------------------------------------------------------
-            | Aquí se filtra por stock_lot_id para asegurar que solo se cambian salidas
-            | del lote generado por este detail_entry.
+            | Prioridad:
+            | 1. Si viene output_detail_id, se corrige solo ese registro.
+            | 2. Si viene output_id, se corrigen las líneas de ese output que pertenezcan al lote.
+            | 3. Si no viene ninguno, se corrigen todas las salidas relacionadas al lote.
             */
             $outputDetailsQuery = OutputDetail::query()
                 ->where('stock_item_id', $stockItemId)
@@ -1323,20 +1313,15 @@ class InventoryMigrationController extends Controller
                 ->whereIn('stock_lot_id', $stockLotIds)
                 ->lockForUpdate();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Si envías output_id, solo corrige esa salida específica.
-            | Si no envías output_id, corrige todas las salidas relacionadas a ese lote.
-            |--------------------------------------------------------------------------
-            */
-            if ($outputId) {
+            if ($outputDetailId) {
+                $outputDetailsQuery->where('id', $outputDetailId);
+            } elseif ($outputId) {
                 $outputDetailsQuery->where('output_id', $outputId);
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Si es itemeable, también filtramos por item_id.
-            | Esto añade una segunda capa de seguridad.
+            | Seguridad extra para itemeables
             |--------------------------------------------------------------------------
             */
             if ((int) $material->tipo_venta_id === 3) {
@@ -1356,27 +1341,43 @@ class InventoryMigrationController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Puede que aún no haya salidas.
-            | En ese caso igual está bien corregir DetailEntry + StockLot + Items.
+            | Validación especial si se envió output_detail_id
             |--------------------------------------------------------------------------
+            | Si el output_detail_id no pertenece al lote del detail_entry, se detiene.
+            */
+            if ($outputDetailId && $outputDetails->isEmpty()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El output_detail_id enviado no pertenece al lote generado por este detail_entry_id.',
+                    'detail_entry_id' => $detailEntry->id,
+                    'stock_lot_ids_validos' => $stockLotIds->values(),
+                    'output_detail_id_enviado' => $outputDetailId,
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 10. Actualizar OutputDetails
+            |--------------------------------------------------------------------------
+            | percentage:
+            | - si es item: normalmente 1
+            | - si no es item: cantidad que salió
             */
             $affectedSaleDetailIds = collect();
 
             foreach ($outputDetails as $outputDetail) {
-                /*
-                |--------------------------------------------------------------------------
-                | percentage:
-                | - si es item: normalmente 1
-                | - si no es item: cantidad que salió
-                |--------------------------------------------------------------------------
-                */
                 $quantityOutput = (float) $outputDetail->percentage;
 
                 if ($quantityOutput <= 0) {
                     $quantityOutput = 1;
                 }
 
-                $newOutputTotalCost = round($newUnitCost * $quantityOutput, 4);
+                $oldOutputUnitCost = round((float) $outputDetail->unit_cost, 6);
+                $oldOutputTotalCost = round((float) $outputDetail->total_cost, 6);
+
+                $newOutputTotalCost = round($newUnitCost * $quantityOutput, 6);
 
                 $outputDetail->unit_cost = $newUnitCost;
                 $outputDetail->total_cost = $newOutputTotalCost;
@@ -1389,9 +1390,10 @@ class InventoryMigrationController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 10. Recalcular SaleDetails afectados
+            | 11. Recalcular SaleDetails afectados
             |--------------------------------------------------------------------------
-            | Se recalcula desde OutputDetails porque una venta puede tener varias salidas.
+            | No se toca precio de venta, total de venta, comprobante ni descuento.
+            | Solo unit_cost y total_cost.
             */
             $affectedSaleDetailIds = $affectedSaleDetailIds->unique()->values();
 
@@ -1410,9 +1412,9 @@ class InventoryMigrationController extends Controller
 
                 $quantitySale = (float) $saleDetail->quantity;
 
-                $saleDetail->total_cost = round($sumTotalCost, 4);
+                $saleDetail->total_cost = round($sumTotalCost, 6);
                 $saleDetail->unit_cost = $quantitySale > 0
-                    ? round($sumTotalCost / $quantitySale, 4)
+                    ? round($sumTotalCost / $quantitySale, 6)
                     : 0;
 
                 $saleDetail->save();
@@ -1420,9 +1422,9 @@ class InventoryMigrationController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 11. Auditoría opcional
+            | 12. Auditoría opcional
             |--------------------------------------------------------------------------
-            | Si ya tienes tabla de logs, aquí puedes registrar el cambio.
+            | Recomendado para producción.
             */
             /*
             CostAdjustmentLog::create([
@@ -1432,6 +1434,7 @@ class InventoryMigrationController extends Controller
                 'material_id' => $material->id,
                 'stock_item_id' => $stockItemId,
                 'output_id' => $outputId,
+                'output_detail_id' => $outputDetailId,
                 'old_unit_cost' => $oldUnitCost,
                 'old_total_detail' => $oldTotalDetail,
                 'new_unit_cost' => $newUnitCost,
@@ -1451,6 +1454,7 @@ class InventoryMigrationController extends Controller
                     'material_id' => $material->id,
                     'stock_item_id' => $stockItemId,
                     'output_id' => $outputId,
+                    'output_detail_id' => $outputDetailId,
                     'old_unit_cost' => $oldUnitCost,
                     'old_total_detail' => $oldTotalDetail,
                     'new_unit_cost' => $newUnitCost,
