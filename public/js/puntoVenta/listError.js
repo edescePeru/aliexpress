@@ -965,7 +965,7 @@ $(document).ready(function () {
                                     type: 'green'
                                 });
 
-                                reloadCurrentPageOrders();
+                                getDataOrders(1);
                             },
                             error: function (xhr) {
                                 let message = 'No se pudo generar la Nota de Crédito parcial.';
@@ -990,23 +990,104 @@ $(document).ready(function () {
         });
     });
 
-    $(document).on('click', '[data-ver_solucion_sunat_error]', function () {
-        const message = $(this).data('message') || 'Sin motivo registrado.';
-        const date = $(this).data('date') || '';
+    $(document).on('click', '[data-ver_error_sunat]', function () {
+        const message = $(this).data('message') || 'Error no especificado.';
 
         $.alert({
-            title: 'Solución del comprobante',
-            content: `
-            <strong>Fecha:</strong> ${escapeHtml(date)}<br>
-            <strong>Detalle:</strong><br>
-            ${escapeHtml(message)}
-        `,
-            type: 'green',
+            title: 'Error SUNAT / Nubefact',
+            content: escapeHtml(message),
+            type: 'red',
             columnClass: 'medium',
             buttons: {
                 ok: {
                     text: 'Cerrar',
-                    btnClass: 'btn-success'
+                    btnClass: 'btn-danger'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-descartar_error_comprobante]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.confirm({
+            title: 'Descartar comprobante con error',
+            content: `
+            <p>
+                Esta acción quitará este comprobante de la bandeja de errores.
+                No cambiará el estado SUNAT original.
+            </p>
+
+            <div class="form-group">
+                <label>Motivo:</label>
+                <select id="discard_reason_select" class="form-control form-control-sm">
+                    <option value="Generado manualmente en Nubefact">Generado manualmente en Nubefact</option>
+                    <option value="Generado manualmente en SUNAT">Generado manualmente en SUNAT</option>
+                    <option value="No corresponde emitir comprobante">No corresponde emitir comprobante</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Comentario adicional:</label>
+                <textarea id="discard_reason_text"
+                          class="form-control form-control-sm"
+                          rows="3"
+                          placeholder="Opcional"></textarea>
+            </div>
+        `,
+            type: 'red',
+            columnClass: 'medium',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, descartar',
+                    btnClass: 'btn-danger',
+                    action: function () {
+                        let reasonSelect = $('#discard_reason_select').val();
+                        let reasonText = $('#discard_reason_text').val();
+
+                        let reason = reasonSelect;
+
+                        if (reasonText && reasonText.trim() !== '') {
+                            reason += ' - ' + reasonText.trim();
+                        }
+
+                        $.ajax({
+                            url: '/dashboard/sales/errors/' + saleId + '/discard',
+                            method: 'POST',
+                            data: {
+                                reason: reason
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (data) {
+                                $.alert({
+                                    title: 'Correcto',
+                                    content: data.message,
+                                    type: 'green'
+                                });
+
+                                reloadCurrentPageOrders();
+                            },
+                            error: function (xhr) {
+                                let message = 'No se pudo descartar el error.';
+
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+
+                                $.alert({
+                                    title: 'Aviso',
+                                    content: message,
+                                    type: 'orange'
+                                });
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar'
                 }
             }
         });
@@ -1413,6 +1494,7 @@ function showData() {
 }
 
 function getDataOrders($numberPage) {
+
     $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
@@ -1423,39 +1505,29 @@ function getDataOrders($numberPage) {
     var endDate = $('#end').val();
 
     var customerId = $('#filter_customer_id').val();
-    var paymentStatus = $('#filter_payment_status').val();
-    var dispatchStatus = $('#filter_dispatch_status').val();
     var cashBoxId = $('#filter_cash_box_id').val();
     var cashBoxSubtypeId = $('#filter_cash_box_subtype_id').val();
-    var invoiceStatus = $('#filter_invoice_status').val();
-    var saleStatus = $('#filter_sale_status').val();
 
-    if (saleStatus === 'annulled') {
-        $('#th-dispatch-or-annulled').text('Fecha Anulación');
-    } else {
-        $('#th-dispatch-or-annulled').text('Estado Despacho');
-    }
-
-    $.get('/dashboard/get/data/sales/' + $numberPage, {
+    $.get('/dashboard/get/data/sales/error/' + $numberPage, {
         code: code,
         year: year,
         startDate: startDate,
         endDate: endDate,
 
         customer_id: customerId,
-        payment_status: paymentStatus,
-        dispatch_status: dispatchStatus,
         cash_box_id: cashBoxId,
-        cash_box_subtype_id: cashBoxSubtypeId,
-        invoice_status: invoiceStatus,
-        sale_status: saleStatus
+        cash_box_subtype_id: cashBoxSubtypeId
+
     }, function(data) {
+
         if (data.data.length == 0) {
             renderDataOrdersEmpty(data);
         } else {
             renderDataOrders(data);
         }
+
     }).fail(function(jqXHR, textStatus, errorThrown) {
+
         console.error(textStatus, errorThrown);
 
         if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
@@ -1465,8 +1537,10 @@ function getDataOrders($numberPage) {
         for (var property in jqXHR.responseJSON.errors) {
             toastr.error(jqXHR.responseJSON.errors[property], 'Error');
         }
+
     }, 'json')
         .done(function() {
+
             var headers = {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
             };
@@ -1474,7 +1548,22 @@ function getDataOrders($numberPage) {
             $.ajaxSetup({
                 headers: headers
             });
+
         });
+
+}
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function renderDataOrdersEmpty(data) {
@@ -1554,214 +1643,62 @@ function renderDataTableEmpty() {
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
 
-    clone.querySelector("[data-code]").innerHTML = data.code;
-    clone.querySelector("[data-date]").innerHTML = data.date;
-    clone.querySelector("[data-customer]").innerHTML = data.nombre_cliente;
-    clone.querySelector("[data-currency]").innerHTML = data.currency;
+    clone.querySelector("[data-code]").innerHTML = escapeHtml(data.code);
+    clone.querySelector("[data-date]").innerHTML = escapeHtml(data.date);
 
-    const tdTotal = clone.querySelector("[data-total]");
-    tdTotal.innerHTML = data.total;
+    clone.querySelector("[data-customer]").innerHTML = `
+        <div>${escapeHtml(data.nombre_cliente)}</div>
+        <small class="text-muted">
+            ${escapeHtml(data.tipo_documento_cliente || '')}
+            ${escapeHtml(data.numero_documento_cliente || '')}
+        </small>
+    `;
 
-    tdTotal.classList.remove(
-        'bg-pago-parcial-rojo',
-        'bg-pago-parcial-naranja',
-        'bg-pago-parcial-verde'
-    );
+    let comprobanteLabel = 'SIN COMPROBANTE';
+    let comprobanteClass = 'badge-secondary';
 
-    if (data.estado_pago_parcial === 'rojo') {
-        tdTotal.classList.add('bg-pago-parcial-rojo');
-    } else if (data.estado_pago_parcial === 'naranja') {
-        tdTotal.classList.add('bg-pago-parcial-naranja');
-    } else if (data.estado_pago_parcial === 'verde') {
-        tdTotal.classList.add('bg-pago-parcial-verde');
+    if (data.type_document === '01') {
+        comprobanteLabel = 'FACTURA';
+        comprobanteClass = 'badge-primary';
+    } else if (data.type_document === '03') {
+        comprobanteLabel = 'BOLETA';
+        comprobanteClass = 'badge-info';
     }
 
-    clone.querySelector("[data-tipo_pago]").innerHTML = data.tipo_pago;
-
-    if (parseInt(data.is_annulled) === 1) {
-        clone.querySelector("[data-dispatch_status]").innerHTML =
-            data.annulment_accepted_at || 'ANULADA';
-    } else {
-        let dispatchChecked = data.dispatch_status === 'despachado';
-
-        clone.querySelector("[data-dispatch_status]").innerHTML = `
-            <input type="checkbox"
-                   class="switch-dispatch-status"
-                   data-sale_id="${data.id}"
-                   ${dispatchChecked ? 'checked' : ''}
-                   data-bootstrap-switch
-                   data-on-text="Desp."
-                   data-off-text="Pend."
-                   data-on-color="success"
-                   data-off-color="warning">`;
-    }
-
-    let estadoComprobante = data.estado_comprobante || 'SIN COMPROBANTE';
-    let badgeClass = 'badge-secondary';
-
-    if (data.sunat_status === 'Error') {
-        badgeClass = 'badge-danger';
-    } else if (data.annulment_status === 'pending') {
-        badgeClass = 'badge-info';
-    } else if (data.annulment_status === 'waiting_sunat_process') {
-        badgeClass = 'badge-warning';
-    } else if (data.has_pending_credit_note) {
-        badgeClass = 'badge-info';
-    } else if (data.has_rejected_credit_note) {
-        badgeClass = 'badge-danger';
-    } else if (data.annulment_status === 'requires_credit_note') {
-        badgeClass = 'badge-warning';
-    } else if (data.annulment_status === 'accepted') {
-        badgeClass = 'badge-dark';
-    } else if (data.type_document === '01' || data.type_document === '03') {
-        badgeClass = 'badge-success';
-    }
-
-    /*clone.querySelector("[data-estado_comprobante]").innerHTML =
-        `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;*/
-    let htmlEstado = `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
-
-    if (data.sunat_error_is_discarded) {
-        const reason = data.sunat_error_discard_reason || 'Sin motivo registrado';
-
-        htmlEstado += `
+    clone.querySelector("[data-comprobante]").innerHTML = `
+        <span class="badge ${comprobanteClass}">${comprobanteLabel}</span>
         <br>
-        <span class="badge badge-success mt-1">SOLUCIONADO</span>
+        <small class="text-muted">
+            ${escapeHtml(data.serie_sunat || '')}
+            ${data.numero ? '-' + escapeHtml(data.numero) : ''}
+        </small>
+    `;
+
+    clone.querySelector("[data-currency]").innerHTML = escapeHtml(data.currency);
+    clone.querySelector("[data-total]").innerHTML = escapeHtml(data.total);
+    clone.querySelector("[data-tipo_pago]").innerHTML = escapeHtml(data.tipo_pago);
+
+    const errorText = data.sunat_message || 'Error no especificado';
+
+    clone.querySelector("[data-sunat_error]").innerHTML = `
+        <span class="badge badge-danger">ERROR</span>
         <button type="button"
                 class="btn btn-link btn-sm p-0 ml-1"
-                data-ver_solucion_sunat_error
-                data-message="${escapeHtml(reason)}"
-                data-date="${escapeHtml(data.sunat_error_discarded_at || '')}"
+                data-ver_error_sunat
+                data-message="${escapeHtml(errorText)}"
                 data-toggle="tooltip"
-                title="Ver solución">
-            <i class="fas fa-info-circle text-success"></i>
+                title="Ver error">
+            <i class="fas fa-info-circle text-danger"></i>
         </button>
     `;
-    }
-
-
-
-    if (data.credit_note_status === 'partial') {
-        htmlEstado += `<br><span class="badge badge-warning mt-1">NC PARCIAL</span>`;
-    }
-
-    if (
-        data.annulment_status === 'accepted' &&
-        data.annulment_type === 'credit_note'
-    ) {
-        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR NOTA DE CRÉDITO</span>`;
-    }
-
-    if (
-        data.annulment_status === 'accepted' &&
-        data.annulment_type === 'nubefact_baja'
-    ) {
-        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR BAJA</span>`;
-    }
-
-    clone.querySelector("[data-estado_comprobante]").innerHTML = htmlEstado;
 
     var botones = clone.querySelector("[data-buttons]");
+    var cloneBtn = activateTemplate('#template-error-actions');
 
-    /*
-     * ============================================================
-     * VENTAS ANULADAS
-     * ============================================================
-     */
-    if (parseInt(data.is_annulled) === 1) {
-        var cloneBtnAnnulled = activateTemplate('#template-annulled');
-
-        cloneBtnAnnulled.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
-
-        const printOriginal = cloneBtnAnnulled.querySelector("[data-print_recibo]");
-        printOriginal.setAttribute("data-id", data.id);
-        printOriginal.setAttribute("href", data.print_url || "#");
-        printOriginal.setAttribute("title", data.print_label || "Ver comprobante original");
-
-        if (!data.print_url) {
-            printOriginal.classList.add('disabled');
-            printOriginal.removeAttribute('target');
-            printOriginal.addEventListener('click', function (e) {
-                e.preventDefault();
-            });
-        } else {
-            printOriginal.setAttribute('target', '_blank');
-        }
-
-        const pdfAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_pdf]");
-        const xmlAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_xml]");
-        const cdrAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_cdr]");
-
-        let pdfUrl = data.annulment_pdf_url_local;
-        let xmlUrl = data.annulment_xml_url_local;
-        let cdrUrl = data.annulment_cdr_url_local;
-
-        if (data.is_credit_note_annulment) {
-            pdfUrl = data.credit_note_pdf_url_local;
-            xmlUrl = data.credit_note_xml_url_local;
-            cdrUrl = data.credit_note_cdr_url_local;
-        }
-
-        /*if (data.annulment_xml_url_local) {
-            xmlAnulacion.setAttribute("href", data.annulment_xml_url_local);
-            xmlAnulacion.setAttribute("target", "_blank");
-        } else {
-            xmlAnulacion.remove();
-        }
-
-        if (data.annulment_cdr_url_local) {
-            cdrAnulacion.setAttribute("href", data.annulment_cdr_url_local);
-            cdrAnulacion.setAttribute("target", "_blank");
-        } else {
-            cdrAnulacion.remove();
-        }*/
-        if (pdfUrl) {
-            pdfAnulacion.setAttribute("href", pdfUrl);
-            pdfAnulacion.setAttribute("target", "_blank");
-        } else {
-            pdfAnulacion.remove();
-        }
-
-        if (xmlUrl) {
-            xmlAnulacion.setAttribute("href", xmlUrl);
-            xmlAnulacion.setAttribute("target", "_blank");
-        } else {
-            xmlAnulacion.remove();
-        }
-
-        if (cdrUrl) {
-            cdrAnulacion.setAttribute("href", cdrUrl);
-            cdrAnulacion.setAttribute("target", "_blank");
-        } else {
-            cdrAnulacion.remove();
-        }
-
-        if (data.is_credit_note_annulment) {
-            pdfAnulacion.setAttribute("title", "Ver PDF Nota de Crédito");
-            xmlAnulacion.setAttribute("title", "Ver XML Nota de Crédito");
-            cdrAnulacion.setAttribute("title", "Ver CDR Nota de Crédito");
-        }
-
-        botones.append(cloneBtnAnnulled);
-        $("#body-table").append(clone);
-
-        $('[data-toggle="tooltip"]').tooltip();
-        return;
-    }
-
-    /*
-     * ============================================================
-     * VENTAS ACTIVAS
-     * ============================================================
-     */
-    var cloneBtnActive = activateTemplate('#template-active');
-
-    cloneBtnActive.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
-
-    const printBtn = cloneBtnActive.querySelector("[data-print_recibo]");
+    const printBtn = cloneBtn.querySelector("[data-print_recibo]");
     printBtn.setAttribute("data-id", data.id);
     printBtn.setAttribute("href", data.print_url || "#");
-    printBtn.setAttribute("title", data.print_label || "Ver comprobante");
+    printBtn.setAttribute("title", data.print_label || "Ver ticket");
 
     if (!data.print_url) {
         printBtn.classList.add('disabled');
@@ -1773,139 +1710,26 @@ function renderDataTable(data) {
         printBtn.setAttribute('target', '_blank');
     }
 
-    const btnAnular = cloneBtnActive.querySelector("[data-anular]");
+    cloneBtn.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
 
-    if (
-        data.annulment_status === 'pending' ||
-        data.annulment_status === 'waiting_sunat_process' ||
-        data.annulment_status === 'accepted'
-    ) {
-        btnAnular.remove();
+    const btnRetry = cloneBtn.querySelector("[data-reintentar_comprobante]");
+    if (data.can_retry_invoice) {
+        btnRetry.setAttribute("data-sale_id", data.id);
     } else {
-        btnAnular.setAttribute("data-id", data.id);
+        btnRetry.remove();
     }
 
-    const btnConsultarAnulacion = cloneBtnActive.querySelector("[data-consultar_anulacion]");
-
-    if (
-        data.annulment_status === 'pending' ||
-        data.annulment_status === 'waiting_sunat_process'
-    ) {
-        btnConsultarAnulacion.setAttribute("data-sale_id", data.id);
+    const btnDiscard = cloneBtn.querySelector("[data-descartar_error_comprobante]");
+    if (data.can_discard_error) {
+        btnDiscard.setAttribute("data-sale_id", data.id);
     } else {
-        btnConsultarAnulacion.remove();
+        btnDiscard.remove();
     }
 
-    const btnGenerarComprobante = cloneBtnActive.querySelector("[data-generar_comprobante]");
-    const btnPagosParciales = cloneBtnActive.querySelector("[data-pagos_parciales]");
-
-    const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
-    const btnConsultarNotaCredito = cloneBtnActive.querySelector("[data-consultar_nota_credito]");
-
-    const btnVerNcParcialPdf = cloneBtnActive.querySelector("[data-ver_nc_parcial_pdf]");
-
-    if (data.has_partial_credit_note && data.partial_credit_note_pdf_url_local) {
-        btnVerNcParcialPdf.setAttribute("href", data.partial_credit_note_pdf_url_local);
-        btnVerNcParcialPdf.setAttribute("target", "_blank");
-    } else {
-        btnVerNcParcialPdf.remove();
-    }
-
-    /*
-     * ============================================================
-     * NOTA DE CRÉDITO PENDIENTE
-     * ============================================================
-     */
-    if (data.has_pending_credit_note) {
-        btnConsultarNotaCredito.setAttribute("data-sale_id", data.id);
-        btnNotaCredito.remove();
-
-    } else if (data.has_rejected_credit_note) {
-        btnNotaCredito.remove();
-        btnConsultarNotaCredito.remove();
-
-    }
-    /*
-     * ============================================================
-     * PUEDE GENERAR NOTA DE CRÉDITO
-     * ============================================================
-     */
-    else if (data.can_generate_credit_note) {
-
-        btnNotaCredito.setAttribute(
-            "data-sale_id",
-            data.id
-        );
-
-        btnConsultarNotaCredito.remove();
-    }
-    /*
-     * ============================================================
-     * NO APLICA
-     * ============================================================
-     */
-    else {
-
-        btnNotaCredito.remove();
-        btnConsultarNotaCredito.remove();
-    }
-
-    const tieneComprobanteValido =
-        (data.type_document === '01' || data.type_document === '03') &&
-        data.sunat_status !== 'Error';
-
-    if (tieneComprobanteValido) {
-        btnGenerarComprobante.remove();
-    } else {
-        btnGenerarComprobante.setAttribute("data-sale_id", data.id);
-        btnGenerarComprobante.setAttribute("href", "#");
-    }
-
-    if (data.pagos_parciales_venta === 's') {
-        btnPagosParciales.setAttribute("data-sale_id", data.id);
-    } else {
-        btnPagosParciales.remove();
-    }
-
-    /*
-     * ============================================================
-     * Boton de generar nota de credito parcial
-     * ============================================================
-     */
-
-    const btnNotaCreditoParcial = cloneBtnActive.querySelector("[data-generar_nota_credito_parcial]");
-
-    const puedeGenerarNotaParcial =
-        (data.type_document === '01' || data.type_document === '03') &&
-        data.sunat_status !== 'Error' &&
-        parseInt(data.is_annulled) !== 1 &&
-        !data.has_pending_credit_note &&
-        !data.has_rejected_credit_note;
-
-    if (puedeGenerarNotaParcial) {
-        btnNotaCreditoParcial.setAttribute("data-sale_id", data.id);
-    } else {
-        btnNotaCreditoParcial.remove();
-    }
-
-    botones.append(cloneBtnActive);
+    botones.append(cloneBtn);
     $("#body-table").append(clone);
 
-    $('#body-table input.switch-dispatch-status').bootstrapSwitch();
     $('[data-toggle="tooltip"]').tooltip();
-}
-
-function escapeHtml(value) {
-    if (value === null || value === undefined) {
-        return '';
-    }
-
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
 }
 
 function renderPreviousPage($numberPage) {

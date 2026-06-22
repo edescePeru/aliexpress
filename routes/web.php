@@ -2763,6 +2763,7 @@ Route::middleware('auth')->group(function (){
         Route::get('/listado/ventas/error/', 'PuntoVentaController@listarErrors')
             ->name('puntoVenta.listError');
         Route::get('/get/data/sales/error/{page}', 'PuntoVentaController@getSalesErrorAdmin');
+        Route::post('/sales/errors/{id}/discard', 'PuntoVentaController@discardSunatError');
         //get/data/products
 
         // TODO: Rutas Punto de Venta

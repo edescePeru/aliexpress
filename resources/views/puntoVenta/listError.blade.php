@@ -8,7 +8,7 @@
     active
 @endsection
 
-@section('activeListPuntoVenta')
+@section('activeListErrorPuntoVenta')
     active
 @endsection
 
@@ -160,18 +160,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Pedidos de Clientes</h1>
+    <h1 class="page-title">Ventas de Clientes</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de pedidos</h5>
-
-    {{--@can('create_referralGuide')
-        <a href="{{ route('referral.guide.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva Guía de remisión </a>
-    @endcan
-    @can('download_referralGuide')
-        <button type="button" id="btn-download" class="btn btn-outline-success btn-sm float-right mr-2" > <i class="fas fa-download"></i> Exportar guías</button>
-    @endcan--}}
+    <h5 class="card-title">Listado de ventas con error</h5>
 @endsection
 
 @section('page-breadcrumb')
@@ -243,24 +236,6 @@
                             </select>
                         </div>
 
-                        <div class="col-md-2">
-                            <label for="filter_payment_status">Cumplimiento:</label>
-                            <select id="filter_payment_status" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                <option value="rojo">Menos del 50%</option>
-                                <option value="naranja">50% a 99.99%</option>
-                                <option value="verde">100% o más</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label for="filter_dispatch_status">Despacho:</label>
-                            <select id="filter_dispatch_status" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                <option value="pendiente">Pendiente</option>
-                                <option value="despachado">Despachado</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div class="row mt-2">
@@ -294,22 +269,6 @@
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label for="filter_invoice_status">Comprobante:</label>
-                            <select id="filter_invoice_status" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                <option value="con_comprobante">Con comprobante</option>
-                                <option value="sin_comprobante">Sin comprobante</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="filter_sale_status">Estado Venta</label>
-                            <select id="filter_sale_status" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="active" selected>Activas</option>
-                                <option value="annulled">Anuladas</option>
-                            </select>
-                        </div>
                     </div>
 
                     <!-- Añade más campos según lo necesario -->
@@ -341,15 +300,14 @@
             <table class="table table-bordered letraTabla table-hover table-sm mb-5">
                 <thead>
                 <tr class="normal-title">
-                    {{--<th>ID</th>--}}
                     <th>Código</th>
                     <th>Fecha Venta</th>
                     <th>Cliente</th>
+                    <th>Comprobante</th>
                     <th>Moneda</th>
                     <th>Total</th>
-                    <th>Metodo de Pago</th>
-                    <th id="th-dispatch-or-annulled">Estado Despacho</th>
-                    <th>Estado Comprobante</th>
+                    <th>Método de Pago</th>
+                    <th>Error SUNAT</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
@@ -404,15 +362,14 @@
 
     <template id="item-table">
         <tr>
-            {{--<td data-id></td>--}}
             <td data-code></td>
             <td data-date></td>
             <td data-customer></td>
+            <td data-comprobante></td>
             <td data-currency></td>
             <td data-total></td>
             <td data-tipo_pago></td>
-            <td data-dispatch_status></td>
-            <td data-estado_comprobante></td>
+            <td data-sunat_error></td>
             <td data-buttons></td>
         </tr>
     </template>
@@ -423,60 +380,22 @@
         </tr>
     </template>
 
-    <template id="template-active">
-        <a href="" target="_blank" data-print_recibo data-id="" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir boleta"><i class="fas fa-print"></i></a>
-        <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fas fa-list-ol"></i></button>
-        <button data-anular data-id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
-
-        <button data-consultar_anulacion data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Anulación">
-            <img src="{{ asset('images/sale/consultar_anulacion2.png') }}" alt="Generar" style="width: 18px; height: 18px;">
-        </button>
-
-        <button href="" data-generar_comprobante data-sale_id="" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar comprobante">
-            <img src="{{ asset('images/sale/facturacion_electronica.png') }}" alt="Generar" style="width: 16px; height: 16px;">
-        </button>
-
-        <button data-pagos_parciales data-sale_id="" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Pagos Parciales">
-            <img src="{{ asset('images/sale/dinero.png') }}" alt="Generar" style="width: 18px; height: 18px;">
-        </button>
-
-        <button data-generar_nota_credito data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Generar Nota de Crédito">
-            <i class="fas fa-file-invoice-dollar"></i>
-        </button>
-
-        <button data-consultar_nota_credito data-sale_id="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Nota de Crédito">
-            <img src="{{ asset('images/sale/nota_credito.png') }}" alt="Generar" style="width: 18px; height: 18px;">
-        </button>
-
-        <button data-generar_nota_credito_parcial data-sale_id="" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Generar Nota de Crédito Parcial">
-            <i class="fas fa-file-invoice"></i>
-        </button>
-
-        <a href="" target="_blank" data-ver_nc_parcial_pdf class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver PDF Nota de Crédito Parcial">
-            <i class="fas fa-file-pdf"></i>
-        </a>
-    </template>
-
-    <template id="template-annulled">
-        <a href="" target="_blank" data-print_recibo data-id="" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Ver comprobante original">
+    <template id="template-error-actions">
+        <a href="" target="_blank" data-print_recibo data-id="" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" title="Ver ticket">
             <i class="fas fa-print"></i>
         </a>
 
-        <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles">
+        <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" title="Ver detalles">
             <i class="fas fa-list-ol"></i>
         </button>
 
-        <a href="" target="_blank" data-print_anulacion_pdf class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Ver PDF Anulación">
-            <i class="fas fa-file-pdf"></i>
-        </a>
+        <button data-reintentar_comprobante data-sale_id="" class="btn btn-warning btn-sm" data-toggle="tooltip" title="Reintentar comprobante">
+            <img src="{{ asset('images/sale/facturacion_electronica.png') }}" alt="Reintentar" style="width: 16px; height: 16px;">
+        </button>
 
-        <a href="" target="_blank" data-print_anulacion_xml class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver XML Anulación">
-            <i class="fas fa-file-code"></i>
-        </a>
-
-        <a href="" target="_blank" data-print_anulacion_cdr class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver CDR Anulación">
-            <i class="fas fa-file-archive"></i>
-        </a>
+        <button data-descartar_error_comprobante data-sale_id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" title="Descartar error">
+            <i class="fas fa-ban"></i>
+        </button>
     </template>
 
     <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
@@ -902,6 +821,6 @@
 
         })
     </script>
-    <script src="{{ asset('js/puntoVenta/list.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/puntoVenta/listError.js') }}?v={{ time() }}"></script>
 
 @endsection

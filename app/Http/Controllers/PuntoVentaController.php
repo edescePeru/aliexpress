@@ -3052,6 +3052,16 @@ class PuntoVentaController extends Controller
                 "partial_credit_note_pdf_url_local" => $acceptedPartialCreditNote && $acceptedPartialCreditNote->pdf_path
                     ? asset('comprobantes/notas_credito/pdfs/' . $acceptedPartialCreditNote->pdf_path)
                     : null,
+
+                "sunat_error_discarded_at" => $sale->sunat_error_discarded_at
+                    ? Carbon::parse($sale->sunat_error_discarded_at)->format('d/m/Y h:i A')
+                    : null,
+
+                "sunat_error_discarded_by" => $sale->sunat_error_discarded_by,
+
+                "sunat_error_discard_reason" => $this->cleanUtf8($sale->sunat_error_discard_reason),
+
+                "sunat_error_is_discarded" => !empty($sale->sunat_error_discarded_at),
             ]);
         }
 
@@ -4911,6 +4921,7 @@ class PuntoVentaController extends Controller
     public function getSalesErrorAdmin(Request $request, $pageNumber = 1)
     {
         $perPage = 10;
+
         $code = $request->input('code');
         $year = $request->input('year');
         $startDate = $request->input('startDate');
@@ -4921,26 +4932,34 @@ class PuntoVentaController extends Controller
         $dispatchStatus = $request->input('dispatch_status');
         $cashBoxId = $request->input('cash_box_id');
         $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
-        $invoiceStatus = $request->input('invoice_status');
+        $documentType = $request->input('document_type'); // 01 factura, 03 boleta
 
-        if ( $startDate == "" || $endDate == "" )
-        {
-            $query = Sale::with(['quote.customer', 'worker.user'])
-                ->where('state_annulled', 0)
-                ->orderBy('created_at', 'DESC');
-        } else {
+        $query = Sale::with(['quote.customer', 'worker.user'])
+            ->where('state_annulled', 0)
+            ->whereIn('type_document', ['01', '03'])
+            ->where('sunat_status', 'Error')
+            ->whereNull('sunat_error_discarded_at')
+            ->orderBy('created_at', 'DESC');
+
+        /*
+         * ============================================================
+         * FILTRO POR FECHAS
+         * ============================================================
+         */
+        if ($startDate != "" && $endDate != "") {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::with(['quote.customer', 'worker.user'])
-                ->where('state_annulled', 0)
-                ->whereDate('created_at', '>=', $fechaInicio)
-                ->whereDate('created_at', '<=', $fechaFinal)
-                ->orderBy('created_at', 'DESC');
+            $query->whereDate('created_at', '>=', $fechaInicio)
+                ->whereDate('created_at', '<=', $fechaFinal);
         }
 
+        /*
+         * ============================================================
+         * PERMISOS POR USUARIO
+         * ============================================================
+         */
         $user = Auth::user();
-
         $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
 
         if (!$canSeeAllSales) {
@@ -4949,18 +4968,28 @@ class PuntoVentaController extends Controller
             });
         }
 
-        // Aplicar filtros si se proporcionan
+        /*
+         * ============================================================
+         * FILTROS GENERALES
+         * ============================================================
+         */
         if ($code != "") {
-            $query->where('id', 'LIKE', '%'.$code.'%');
-
+            $query->where('id', 'LIKE', '%' . $code . '%');
         }
 
         if ($year != "") {
             $query->whereYear('created_at', $year);
-
         }
 
-        // Cliente
+        if ($documentType != "") {
+            $query->where('type_document', $documentType);
+        }
+
+        /*
+         * ============================================================
+         * FILTRO CLIENTE
+         * ============================================================
+         */
         if ($customerId != "") {
             if ($customerId === 'venta_directa') {
                 $query->whereNull('quote_id');
@@ -4975,31 +5004,20 @@ class PuntoVentaController extends Controller
             }
         }
 
-        // Estado despacho
+        /*
+         * ============================================================
+         * FILTRO ESTADO DESPACHO
+         * ============================================================
+         */
         if ($dispatchStatus != "") {
             $query->where('dispatch_status', $dispatchStatus);
         }
 
-        // Comprobante
-        if ($invoiceStatus != "") {
-            if ($invoiceStatus === 'con_comprobante') {
-                $query->whereIn('type_document', ['01', '03'])
-                    ->where(function ($q) {
-                        $q->whereNull('sunat_status')
-                            ->orWhere('sunat_status', '!=', 'Error');
-                    });
-            }
-
-            if ($invoiceStatus === 'sin_comprobante') {
-                $query->where(function ($q) {
-                    $q->whereNull('type_document')
-                        ->orWhereNotIn('type_document', ['01', '03'])
-                        ->orWhere('sunat_status', 'Error');
-                });
-            }
-        }
-
-        // Método de pago
+        /*
+         * ============================================================
+         * FILTRO MÉTODO DE PAGO
+         * ============================================================
+         */
         if ($cashBoxId != "") {
             if ($cashBoxId === 'pago_parcial') {
                 $query->where('pagos_parciales_venta', 's');
@@ -5018,55 +5036,64 @@ class PuntoVentaController extends Controller
             }
         }
 
-        // Cumplimiento de pago
+        /*
+         * ============================================================
+         * FILTRO CUMPLIMIENTO DE PAGO
+         * ============================================================
+         */
         if ($paymentStatus != "") {
             if ($paymentStatus === 'verde') {
                 $query->where(function ($q) {
                     $q->where('pagos_parciales_venta', 'n')
                         ->orWhereRaw("
-                    (
-                        SELECT COALESCE(SUM(spp.amount), 0)
-                        FROM sale_partial_payments spp
-                        WHERE spp.sale_id = sales.id
-                        AND spp.state = 1
-                    ) >= sales.importe_total
-                ");
+                        (
+                            SELECT COALESCE(SUM(spp.amount), 0)
+                            FROM sale_partial_payments spp
+                            WHERE spp.sale_id = sales.id
+                            AND spp.state = 1
+                        ) >= sales.importe_total
+                    ");
                 });
             }
 
             if ($paymentStatus === 'naranja') {
                 $query->where('pagos_parciales_venta', 's')
                     ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) >= (sales.importe_total * 0.5)
-            ")
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) >= (sales.importe_total * 0.5)
+                ")
                     ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) < sales.importe_total
-            ");
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) < sales.importe_total
+                ");
             }
 
             if ($paymentStatus === 'rojo') {
                 $query->where('pagos_parciales_venta', 's')
                     ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) < (sales.importe_total * 0.5)
-            ");
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) < (sales.importe_total * 0.5)
+                ");
             }
         }
 
+        /*
+         * ============================================================
+         * PAGINACIÓN
+         * ============================================================
+         */
         $totalFilteredRecords = $query->count();
         $totalPages = ceil($totalFilteredRecords / $perPage);
 
@@ -5079,34 +5106,53 @@ class PuntoVentaController extends Controller
 
         $arraySales = [];
 
-        foreach ( $sales as $sale )
-        {
-            $tipo_comprobante = null;
-            if ($sale->type_document == '01')
-            {
-                $tipo_comprobante = 'factura';
-            } elseif ( $sale->type_document == '03' ) {
-                $tipo_comprobante = 'boleta';
+        foreach ($sales as $sale) {
+
+            /*
+             * ============================================================
+             * TIPO COMPROBANTE
+             * ============================================================
+             */
+            $tipoComprobante = null;
+            $tipoComprobanteLabel = 'SIN COMPROBANTE';
+
+            if ($sale->type_document === '01') {
+                $tipoComprobante = 'factura';
+                $tipoComprobanteLabel = 'FACTURA';
+            } elseif ($sale->type_document === '03') {
+                $tipoComprobante = 'boleta';
+                $tipoComprobanteLabel = 'BOLETA';
             }
 
-            $tipo_documento_cliente = null;
-            if ($sale->tipo_documento_cliente == 1)
-            {
-                $tipo_documento_cliente = 'dni';
-            } elseif ( $sale->tipo_documento_cliente == 6 ) {
-                $tipo_documento_cliente = 'ruc';
+            /*
+             * ============================================================
+             * TIPO DOCUMENTO CLIENTE
+             * ============================================================
+             */
+            $tipoDocumentoCliente = null;
+
+            if ($sale->tipo_documento_cliente == 1) {
+                $tipoDocumentoCliente = 'dni';
+            } elseif ($sale->tipo_documento_cliente == 6) {
+                $tipoDocumentoCliente = 'ruc';
             }
 
-            $printUrl = route('puntoVenta.print', $sale->id); // ticket por defecto
+            /*
+             * ============================================================
+             * URL IMPRESIÓN
+             * ============================================================
+             */
+            $printUrl = route('puntoVenta.print', $sale->id);
 
             if (!empty($sale->pdf_path)) {
-                // PDF local guardado
                 $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
             }
 
-            // ===============================
-            // NUEVO: obtener canal de pago desde CashMovement
-            // ===============================
+            /*
+             * ============================================================
+             * MÉTODO DE PAGO
+             * ============================================================
+             */
             $paymentMovement = CashMovement::where('sale_id', $sale->id)
                 ->where('type', 'sale')
                 ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
@@ -5123,39 +5169,32 @@ class PuntoVentaController extends Controller
                 if ($cashBox->type === 'cash') {
                     $tipoPagoLabel = $cashBox->name;
                 } else {
-                    if ($paymentMovement->cashBoxSubtype) {
-                        $tipoPagoLabel = $cashBox->name . ' - ' . $paymentMovement->cashBoxSubtype->name;
-                    } else {
-                        $tipoPagoLabel = $cashBox->name;
-                    }
+                    $tipoPagoLabel = $paymentMovement->cashBoxSubtype
+                        ? $cashBox->name . ' - ' . $paymentMovement->cashBoxSubtype->name
+                        : $cashBox->name;
                 }
             }
 
-            $nombreCliente = 'SIN CLIENTE';
+            /*
+             * ============================================================
+             * CLIENTE
+             * ============================================================
+             */
+            $nombreCliente = 'VENTA DIRECTA';
 
-            if ($sale->pagos_parciales_venta === 's') {
-
-                if ($sale->quote) {
-                    if ($sale->quote->customer) {
-                        $nombreCliente = $sale->quote->customer->business_name;
-                    } else {
-                        $nombreCliente = 'COTIZACION SIN CLIENTE';
-                    }
+            if ($sale->quote) {
+                if ($sale->quote->customer) {
+                    $nombreCliente = $sale->quote->customer->business_name;
                 } else {
-                    $nombreCliente = 'VENTA DIRECTA';
-                }
-            } else {
-                if ($sale->quote) {
-                    if ($sale->quote->customer) {
-                        $nombreCliente = $sale->quote->customer->business_name;
-                    } else {
-                        $nombreCliente = 'COTIZACION SIN CLIENTE';
-                    }
-                } else {
-                    $nombreCliente = 'VENTA DIRECTA';
+                    $nombreCliente = 'COTIZACION SIN CLIENTE';
                 }
             }
 
+            /*
+             * ============================================================
+             * PAGO PARCIAL
+             * ============================================================
+             */
             $totalVenta = (float) $sale->importe_total;
             $totalAbonado = null;
             $estadoPagoParcial = null;
@@ -5182,174 +5221,152 @@ class PuntoVentaController extends Controller
                 $totalTexto = number_format($totalVenta, 2, '.', '');
             }
 
-            $pendingCreditNote = $sale->creditNotes()
-                ->where('status', 'pending')
-                ->latest()
-                ->first();
+            /*
+             * ============================================================
+             * ERROR SUNAT
+             * ============================================================
+             */
+            $sunatMessage = $sale->sunat_message ?: 'Error no especificado.';
 
-            $rejectedCreditNote = $sale->creditNotes()
-                ->where('status', 'rejected')
-                ->latest()
-                ->first();
-
-            $estadoComprobante = 'SIN COMPROBANTE';
-
-            if ($sale->type_document === '01') {
-                $estadoComprobante = 'FACTURA';
-            } elseif ($sale->type_document === '03') {
-                $estadoComprobante = 'BOLETA';
-            }
-
-            if ($sale->sunat_status === 'Error') {
-                $estadoComprobante .= ' - ERROR';
-
-            } elseif ($sale->annulment_status === 'waiting_sunat_process') {
-                $estadoComprobante .= ' - ESPERANDO PROCESO SUNAT';
-
-            } elseif ($sale->annulment_status === 'pending') {
-                $estadoComprobante .= ' - PENDIENTE ANULACIÓN';
-
-            } elseif (!is_null($pendingCreditNote)) {
-                $estadoComprobante .= ' - NC PENDIENTE';
-
-            } elseif (!is_null($rejectedCreditNote)) {
-                $estadoComprobante .= ' - NC RECHAZADA';
-
-            } elseif ($sale->annulment_status === 'requires_credit_note') {
-                $estadoComprobante .= ' - REQUIERE NOTA DE CRÉDITO';
-
-            } elseif ($sale->annulment_status === 'accepted') {
-                $estadoComprobante .= ' - ANULADO';
-
-            } elseif ($sale->annulment_status === 'rejected') {
-                $estadoComprobante .= ' - ANULACIÓN RECHAZADA';
-
-            } elseif (!empty($sale->sunat_status)) {
-                $estadoComprobante .= ' - ' . mb_strtoupper($sale->sunat_status, 'UTF-8');
-            }
-
-            $estadoAnulacion = 'NO ANULADA';
-
-            switch ($sale->annulment_status) {
-                case 'waiting_sunat_process':
-                    $estadoAnulacion = 'ESPERAR PROCESO SUNAT';
-                    break;
-
-                case 'pending':
-                    $estadoAnulacion = 'ANULACIÓN PENDIENTE';
-                    break;
-
-                case 'accepted':
-                    $estadoAnulacion = 'ANULADA';
-                    break;
-
-                case 'rejected':
-                    $estadoAnulacion = 'ANULACIÓN RECHAZADA';
-                    break;
-
-                case 'requires_credit_note':
-                    $estadoAnulacion = 'REQUIERE NOTA DE CRÉDITO';
-                    break;
-            }
-
-            $acceptedCreditNote = $sale->creditNotes()
-                ->where('status', 'accepted')
-                ->latest()
-                ->first();
-
-            $acceptedPartialCreditNote = $sale->creditNotes()
-                ->where('status', 'accepted')
-                ->where('credit_note_type', 'partial')
-                ->latest()
-                ->first();
+            $shortSunatMessage = mb_strlen($sunatMessage, 'UTF-8') > 180
+                ? mb_substr($sunatMessage, 0, 180, 'UTF-8') . '...'
+                : $sunatMessage;
 
             array_push($arraySales, [
-                "id" => $sale->id,
-                "code" => "VENTA - ".$sale->id,
-                "date" => ($sale->date_sale != null) ? $sale->formatted_sale_date : "",
-                "currency" => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
-                //"total" => number_format($sale->importe_total, 2, '.', ''),
-                "tipo_pago" => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
-                "dispatch_status" => $sale->dispatch_status ?? 'despachado',
-                "nombre_cliente" => $this->cleanUtf8($nombreCliente),
-                "tipo_documento_cliente" => $tipo_documento_cliente,
-                "numero_documento_cliente" => $this->cleanUtf8($sale->numero_documento_cliente),
-                "direccion_cliente" => $this->cleanUtf8($sale->direccion_cliente),
-                "email_cliente" => $this->cleanUtf8($sale->email_cliente),
-                "tipo_comprobante" => $tipo_comprobante,
-                "print_url" => $this->cleanUtf8($printUrl),
-                "print_label" => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
-                "type_document" => $sale->type_document,
-                "sunat_status" => $sale->sunat_status,
-                "pagos_parciales_venta" => $sale->pagos_parciales_venta,
-                "total" => $totalTexto,
-                "total_abonado" => $totalAbonado,
-                "estado_pago_parcial" => $estadoPagoParcial,
+                'id' => $sale->id,
+                'code' => 'VENTA - ' . $sale->id,
+                'date' => ($sale->date_sale != null) ? $sale->formatted_sale_date : '',
+                'created_at' => $sale->created_at ? Carbon::parse($sale->created_at)->format('d/m/Y h:i A') : '',
 
-                "annulment_status" => $sale->annulment_status,
-                "annulment_type" => $sale->annulment_type,
-                "estado_anulacion" => $estadoAnulacion,
-                "estado_comprobante" => $estadoComprobante,
-                "can_annul" => (int) $sale->state_annulled !== 1,
-                "can_generate_credit_note" => $sale->annulment_status === 'requires_credit_note',
-                "can_retry_annulment" => in_array($sale->annulment_status, ['waiting_sunat_process', 'rejected']),
+                'currency' => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
+                'total' => $totalTexto,
+                'importe_total' => number_format((float) $sale->importe_total, 2, '.', ''),
+                'total_abonado' => $totalAbonado,
+                'estado_pago_parcial' => $estadoPagoParcial,
 
-                "is_annulled" => (int) $sale->state_annulled,
-                "annulment_accepted_at" => $sale->annulment_accepted_at
-                    ? Carbon::parse($sale->annulment_accepted_at)->format('d/m/Y h:i A')
-                    : '',
+                'tipo_pago' => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
+                'dispatch_status' => $sale->dispatch_status ?? 'despachado',
 
-                "annulment_pdf_url_local" => $sale->annulment_pdf_path
-                    ? asset('comprobantes/anulaciones/pdfs/' . $sale->annulment_pdf_path)
-                    : null,
+                'nombre_cliente' => $this->cleanUtf8($nombreCliente),
+                'tipo_documento_cliente' => $tipoDocumentoCliente,
+                'numero_documento_cliente' => $this->cleanUtf8($sale->numero_documento_cliente),
+                'direccion_cliente' => $this->cleanUtf8($sale->direccion_cliente),
+                'email_cliente' => $this->cleanUtf8($sale->email_cliente),
 
-                "annulment_xml_url_local" => $sale->annulment_xml_path
-                    ? asset('comprobantes/anulaciones/xmls/' . $sale->annulment_xml_path)
-                    : null,
+                'type_document' => $sale->type_document,
+                'tipo_comprobante' => $tipoComprobante,
+                'tipo_comprobante_label' => $tipoComprobanteLabel,
+                'serie_sunat' => $sale->serie_sunat,
+                'numero' => $sale->numero,
 
-                "annulment_cdr_url_local" => $sale->annulment_cdr_path
-                    ? asset('comprobantes/anulaciones/cdrs/' . $sale->annulment_cdr_path)
-                    : null,
+                'sunat_status' => $sale->sunat_status,
+                'sunat_message' => $this->cleanUtf8($sunatMessage),
+                'sunat_message_short' => $this->cleanUtf8($shortSunatMessage),
 
-                'has_pending_credit_note' => !is_null($pendingCreditNote),
-                'pending_credit_note_id' => optional($pendingCreditNote)->id,
+                'print_url' => $this->cleanUtf8($printUrl),
+                'print_label' => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
 
-                "has_rejected_credit_note" => !is_null($rejectedCreditNote),
-                "rejected_credit_note_message" => optional($rejectedCreditNote)->sunat_message,
-
-                "is_credit_note_annulment" => !is_null($acceptedCreditNote),
-
-                "credit_note_pdf_url_local" => $acceptedCreditNote && $acceptedCreditNote->pdf_path
-                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedCreditNote->pdf_path)
-                    : null,
-
-                "credit_note_xml_url_local" => $acceptedCreditNote && $acceptedCreditNote->xml_path
-                    ? asset('comprobantes/notas_credito/xmls/' . $acceptedCreditNote->xml_path)
-                    : null,
-
-                "credit_note_cdr_url_local" => $acceptedCreditNote && $acceptedCreditNote->cdr_path
-                    ? asset('comprobantes/notas_credito/cdrs/' . $acceptedCreditNote->cdr_path)
-                    : null,
-
-                "credit_note_status" => $sale->credit_note_status,
-
-                "has_partial_credit_note" => !is_null($acceptedPartialCreditNote),
-
-                "partial_credit_note_pdf_url_local" => $acceptedPartialCreditNote && $acceptedPartialCreditNote->pdf_path
-                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedPartialCreditNote->pdf_path)
-                    : null,
+                'can_retry_invoice' => true,
+                'can_discard_error' => true,
             ]);
         }
 
         $pagination = [
-            'currentPage' => (int)$pageNumber,
-            'totalPages' => (int)$totalPages,
+            'currentPage' => (int) $pageNumber,
+            'totalPages' => (int) $totalPages,
             'startRecord' => $startRecord,
             'endRecord' => $endRecord,
             'totalRecords' => $totalFilteredRecords,
-            'totalFilteredRecords' => $totalFilteredRecords
+            'totalFilteredRecords' => $totalFilteredRecords,
         ];
 
-        return ['data' => $arraySales, 'pagination' => $pagination];
+        return [
+            'data' => $arraySales,
+            'pagination' => $pagination,
+        ];
+    }
+
+    public function listarErrors() {
+        $registros = Sale::all();
+
+        $arrayYears = $registros->pluck('created_at')->map(function ($date) {
+            return Carbon::parse($date)->format('Y');
+        })->unique()->toArray();
+
+        $arrayYears = array_values($arrayYears);
+
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+        $customers = Customer::orderBy('business_name')->get();
+
+        return view('puntoVenta.listError', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
+    }
+
+    public function discardSunatError(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::lockForUpdate()->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'No se puede descartar el error porque la venta ya está anulada.',
+                ], 422);
+            }
+
+            if (!in_array($sale->type_document, ['01', '03'], true)) {
+                return response()->json([
+                    'message' => 'La venta no tiene factura o boleta asociada.',
+                ], 422);
+            }
+
+            if ($sale->sunat_status !== 'Error') {
+                return response()->json([
+                    'message' => 'Esta venta no se encuentra en estado Error SUNAT.',
+                ], 422);
+            }
+
+            if (!empty($sale->sunat_error_discarded_at)) {
+                return response()->json([
+                    'message' => 'Este error ya fue descartado anteriormente.',
+                ], 422);
+            }
+
+            $reason = trim((string) $request->input('reason', ''));
+
+            if ($reason === '') {
+                return response()->json([
+                    'message' => 'Debe ingresar un motivo para descartar el error.',
+                ], 422);
+            }
+
+            $sale->sunat_error_discarded_at = now();
+            $sale->sunat_error_discarded_by = auth()->id();
+            $sale->sunat_error_discard_reason = $reason;
+            $sale->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'El comprobante con error fue descartado correctamente.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
     }
 }
