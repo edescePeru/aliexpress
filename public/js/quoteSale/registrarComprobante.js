@@ -91,7 +91,7 @@ $(document).ready(function () {
 
     bloquearDatosComprobante();
 
-    $(document).on('keydown', '#dniCliente, #rucCliente', function (e) {
+    /*$(document).on('keydown', '#dniCliente, #rucCliente', function (e) {
 
         let typeComprobante = $('#typeComprobante').val();
 
@@ -122,7 +122,48 @@ $(document).ready(function () {
             consultarClientePorDocumento(documento, tipo);
         }
 
+    });*/
+
+    $(document).on('keydown', '#dniCliente, #rucCliente', function (e) {
+        if (e.key !== 'Enter') {
+            return;
+        }
+
+        e.preventDefault();
+
+        consultarDocumentoCliente($(this));
     });
+
+    $(document).on('click', '.btnConsultarCliente', function () {
+        let selectorInput = $(this).data('input');
+        let input = $(selectorInput);
+
+        consultarDocumentoCliente(input);
+    });
+
+    function consultarDocumentoCliente(input) {
+        let typeComprobante = $('#typeComprobante').val();
+        let documento = input.val().replace(/\D/g, '');
+        let tipo = input.attr('id');
+
+        input.val(documento);
+
+        if (tipo === 'dniCliente' && documento.length !== 8) {
+            toastr.error('El DNI debe tener exactamente 8 dígitos.', 'Documento inválido');
+            input.focus();
+            return;
+        }
+
+        if (tipo === 'rucCliente' && documento.length !== 11) {
+            toastr.error('El RUC debe tener exactamente 11 dígitos.', 'Documento inválido');
+            input.focus();
+            return;
+        }
+
+        if (typeComprobante !== 'Ticket') {
+            consultarClientePorDocumento(documento, tipo);
+        }
+    }
 
     function consultarClientePorDocumento(documento, tipo) {
 

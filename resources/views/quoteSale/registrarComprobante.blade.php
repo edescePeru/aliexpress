@@ -168,9 +168,37 @@
                         </div>
                         @if ( $typeComprobante == 'Boleta' )
                             <div class="form-group row" id="datosBoleta">
-                                <div class="col-md-4">
+                                {{--<div class="col-md-4">
                                     <label for="dniCliente">DNI <span class="right badge badge-danger">(*)</span></label>
                                     <input type="text" maxlength="8" id="dniCliente" name="dniCliente" class="form-control form-control-sm">
+                                </div>--}}
+                                <div class="col-md-4">
+                                    <label for="dniCliente">
+                                        DNI <span class="right badge badge-danger">(*)</span>
+                                    </label>
+
+                                    <div class="input-group input-group-sm">
+                                        <input
+                                                type="text"
+                                                maxlength="8"
+                                                id="dniCliente"
+                                                name="dniCliente"
+                                                class="form-control"
+                                                inputmode="numeric"
+                                                enterkeyhint="search"
+                                        >
+
+                                        <div class="input-group-append">
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-primary btnConsultarCliente"
+                                                    data-input="#dniCliente"
+                                                    title="Consultar DNI"
+                                            >
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
                                     <label for="nameCliente">Nombre cliente <span class="right badge badge-danger">(*)</span></label>
@@ -183,9 +211,38 @@
                             </div>
                         @elseif( $typeComprobante == 'Factura' )
                             <div class="form-group row" id="datosFactura">
-                                <div class="col-md-3">
+                                {{--<div class="col-md-3">
                                     <label for="rucCliente">RUC <span class="right badge badge-danger">(*)</span></label>
                                     <input type="text" id="rucCliente" name="rucCliente" value="" class="form-control form-control-sm">
+                                </div>--}}
+                                <div class="col-md-3">
+                                    <label for="rucCliente">
+                                        RUC <span class="right badge badge-danger">(*)</span>
+                                    </label>
+
+                                    <div class="input-group input-group-sm">
+                                        <input
+                                                type="text"
+                                                maxlength="11"
+                                                id="rucCliente"
+                                                name="rucCliente"
+                                                value=""
+                                                class="form-control"
+                                                inputmode="numeric"
+                                                enterkeyhint="search"
+                                        >
+
+                                        <div class="input-group-append">
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-primary btnConsultarCliente"
+                                                    data-input="#rucCliente"
+                                                    title="Consultar RUC"
+                                            >
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="razonCliente">Razón Social <span class="right badge badge-danger">(*)</span></label>
