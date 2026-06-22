@@ -437,6 +437,19 @@ function renderStockItemsTable(items) {
             `;
         }
 
+        /*if (can('ajustarStock_material')) {
+            buttons += `
+                <button class="btn btn-sm btn-outline-success"
+                    data-id="${item.id}"
+                    data-variant="${item.variant_id || ''}"
+                    data-display-name="${escapeHtml(item.display_name || '')}"
+                    data-stock-actual="${stockActual}"
+                    data-ajustar_stock>
+                    Ajustar Stock
+                </button>
+            `;
+        }*/
+
         if (buttons === '') {
             buttons = `<span class="text-muted">Sin acciones</span>`;
         }
