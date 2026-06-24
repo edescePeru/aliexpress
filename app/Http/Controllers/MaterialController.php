@@ -2106,6 +2106,12 @@ class MaterialController extends Controller
 
     }
 
+    public function getItemsStockItems($id)
+    {
+        $stockMaterial = StockItem::find($id);
+        return view('material.stockItems_items', compact('stockMaterial'));
+    }
+
     public function getItemsMaterialActivo($id)
     {
 
@@ -2158,6 +2164,24 @@ class MaterialController extends Controller
             }])
             ->with('material')
             ->with('typescrap')
+            ->with('DetailEntry')->get();
+
+        //dd(datatables($items)->toJson());
+        return datatables($items)->toJson();
+
+    }
+
+    public function getItemsStockItemsMaterial($id)
+    {
+
+        $items = Item::where('stock_item_id', $id)
+            ->whereIn('state_item', ['entered', 'scraped'])
+            ->with(['location' => function ($query) {
+                $query->with(['area', 'warehouse', 'shelf', 'level', 'container', 'position']);
+            }])
+            ->with('material')
+            ->with('typescrap')
+            ->with('stockItem')
             ->with('DetailEntry')->get();
 
         //dd(datatables($items)->toJson());

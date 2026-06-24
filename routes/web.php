@@ -559,6 +559,10 @@ Route::middleware('auth')->group(function (){
 // Eliminar ubicación ocupada y devolver stock
         Route::post('/ubicaciones/eliminar-ocupada', 'MaterialController@eliminarUbicacionOcupada')->name('ubicaciones.eliminar');
 
+        Route::get('view/stock/material/items/{id}', 'MaterialController@getItemsStockItems')->name('material.stock.getItems');
+        Route::get('view/stock/material/all/items/{id}', 'MaterialController@getItemsStockItemsMaterial')->name('material.stock.getItemsMaterial');
+
+
         //AREAS
         Route::get('areas', 'AreaController@index')->name('area.index')
             ->middleware('permission:list_area');

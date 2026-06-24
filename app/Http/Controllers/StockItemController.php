@@ -17,7 +17,7 @@ class StockItemController extends Controller
         $search = trim($request->get('search', ''));
 
         $query = StockItem::with([
-            'material:id,full_name,description,brand_id,exampler_id',
+            'material:id,full_name,description,brand_id,exampler_id,tipo_venta_id',
             'variant:id,material_id,quality_id,color_id,attribute_summary,is_active',
             'variant.talla:id,name,short_name',
             'variant.color:id,name,short_name',
