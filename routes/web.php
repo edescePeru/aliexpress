@@ -559,6 +559,13 @@ Route::middleware('auth')->group(function (){
 // Eliminar ubicación ocupada y devolver stock
         Route::post('/ubicaciones/eliminar-ocupada', 'MaterialController@eliminarUbicacionOcupada')->name('ubicaciones.eliminar');
 
+        Route::get('view/stock/material/items/{id}', 'MaterialController@getItemsStockItems')->name('material.stock.getItems');
+        Route::get('view/stock/material/all/items/{id}', 'MaterialController@getItemsStockItemsMaterial')->name('material.stock.getItemsMaterial');
+        Route::put(
+            '/stock/material/item/{item}/code',
+            'MaterialController@updateCode'
+        )->name('items.update.code')->middleware('permission:editarCodeItems_material');
+
         //AREAS
         Route::get('areas', 'AreaController@index')->name('area.index')
             ->middleware('permission:list_area');
@@ -2760,7 +2767,10 @@ Route::middleware('auth')->group(function (){
         Route::post('/sales/update-invoice-data', 'PuntoVentaController@updateInvoiceData');
         Route::post('/facturador/generar', 'NubefactController@generarComprobante')->name('facturador.generar');
 
-
+        Route::get('/listado/ventas/error/', 'PuntoVentaController@listarErrors')
+            ->name('puntoVenta.listError');
+        Route::get('/get/data/sales/error/{page}', 'PuntoVentaController@getSalesErrorAdmin');
+        Route::post('/sales/errors/{id}/discard', 'PuntoVentaController@discardSunatError');
         //get/data/products
 
         // TODO: Rutas Punto de Venta
@@ -3177,6 +3187,13 @@ Route::middleware('auth')->group(function (){
         Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale');
         Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus');
 
+        Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion');
+
+        Route::post('/generar/nota-credito/total/{id}', 'PuntoVentaController@generarNotaCreditoTotal');
+        Route::post('/consultar/nota-credito/{id}', 'PuntoVentaController@consultarNotaCredito');
+
+        Route::get('/nota-credito/parcial/data/{id}', 'PuntoVentaController@getCreditNotePartialData');
+        Route::post('/generar/nota-credito/parcial/{id}', 'PuntoVentaController@generarNotaCreditoParcial');
 
         Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
             ->name('stock-item.output-adjustment');

@@ -421,11 +421,21 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        #modalStockItemsVenta .modal-body,
+        /*#modalStockItemsVenta .modal-body,
         #modalStockItemsVenta .table-responsive,
         #modalStockItemsVenta table,
         #modalStockItemsVenta td {
             overflow: visible !important;
+        }*/
+
+        #modalStockItemsVenta .modal-body {
+            overflow: hidden;
+        }
+
+        #modalStockItemsVenta .table-responsive {
+            max-height: calc(100vh - 220px);
+            overflow-y: auto !important;
+            overflow-x: auto;
         }
     </style>
 @endsection

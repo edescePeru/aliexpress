@@ -43,4 +43,9 @@ class SaleDetail extends Model
     {
         return $this->belongsTo(StockItem::class, 'stock_item_id');
     }
+
+    public function creditNoteDetails()
+    {
+        return $this->hasMany(CreditNoteDetail::class);
+    }
 }

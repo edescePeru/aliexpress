@@ -8,6 +8,8 @@ use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
 use App\Category;
+use App\CreditNote;
+use App\CreditNoteDetail;
 use App\Customer;
 use App\DataGeneral;
 use App\Http\Controllers\Traits\NubefactTrait;
@@ -21,6 +23,7 @@ use App\PorcentageQuote;
 use App\PriceList;
 use App\QuoteMaterialReservation;
 use App\QuoteStockLot;
+use App\SalePartialPayment;
 use App\Services\InventoryCostService;
 use App\StockItem;
 use App\StockLot;
@@ -2626,16 +2629,28 @@ class PuntoVentaController extends Controller
         $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
         $invoiceStatus = $request->input('invoice_status');
 
+        $saleStatus = $request->get('sale_status', 'active');
+
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->orderBy('created_at', 'DESC');
+            $query = Sale::with(['quote.customer', 'worker.user'])
+                /*->where('state_annulled', 0)*/
+                ->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::with(['quote.customer', 'worker.user'])->where('state_annulled', 0)->whereDate('created_at', '>=', $fechaInicio)
+            $query = Sale::with(['quote.customer', 'worker.user'])
+                /*->where('state_annulled', 0)*/
+                ->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
                 ->orderBy('created_at', 'DESC');
+        }
+
+        if ($saleStatus === 'annulled') {
+            $query->where('state_annulled', 1);
+        } else {
+            $query->where('state_annulled', 0);
         }
 
         $user = Auth::user();
@@ -2860,7 +2875,7 @@ class PuntoVentaController extends Controller
             $estadoPagoParcial = null;
 
             if ($sale->pagos_parciales_venta === 's') {
-                $totalAbonado = \App\SalePartialPayment::where('sale_id', $sale->id)
+                $totalAbonado = SalePartialPayment::where('sale_id', $sale->id)
                     ->where('state', 1)
                     ->sum('amount');
 
@@ -2880,6 +2895,87 @@ class PuntoVentaController extends Controller
             } else {
                 $totalTexto = number_format($totalVenta, 2, '.', '');
             }
+
+            $pendingCreditNote = $sale->creditNotes()
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+
+            $rejectedCreditNote = $sale->creditNotes()
+                ->where('status', 'rejected')
+                ->latest()
+                ->first();
+
+            $estadoComprobante = 'SIN COMPROBANTE';
+
+            if ($sale->type_document === '01') {
+                $estadoComprobante = 'FACTURA';
+            } elseif ($sale->type_document === '03') {
+                $estadoComprobante = 'BOLETA';
+            }
+
+            if ($sale->sunat_status === 'Error') {
+                $estadoComprobante .= ' - ERROR';
+
+            } elseif ($sale->annulment_status === 'waiting_sunat_process') {
+                $estadoComprobante .= ' - ESPERANDO PROCESO SUNAT';
+
+            } elseif ($sale->annulment_status === 'pending') {
+                $estadoComprobante .= ' - PENDIENTE ANULACIÓN';
+
+            } elseif (!is_null($pendingCreditNote)) {
+                $estadoComprobante .= ' - NC PENDIENTE';
+
+            } elseif (!is_null($rejectedCreditNote)) {
+                $estadoComprobante .= ' - NC RECHAZADA';
+
+            } elseif ($sale->annulment_status === 'requires_credit_note') {
+                $estadoComprobante .= ' - REQUIERE NOTA DE CRÉDITO';
+
+            } elseif ($sale->annulment_status === 'accepted') {
+                $estadoComprobante .= ' - ANULADO';
+
+            } elseif ($sale->annulment_status === 'rejected') {
+                $estadoComprobante .= ' - ANULACIÓN RECHAZADA';
+
+            } elseif (!empty($sale->sunat_status)) {
+                $estadoComprobante .= ' - ' . mb_strtoupper($sale->sunat_status, 'UTF-8');
+            }
+
+            $estadoAnulacion = 'NO ANULADA';
+
+            switch ($sale->annulment_status) {
+                case 'waiting_sunat_process':
+                    $estadoAnulacion = 'ESPERAR PROCESO SUNAT';
+                    break;
+
+                case 'pending':
+                    $estadoAnulacion = 'ANULACIÓN PENDIENTE';
+                    break;
+
+                case 'accepted':
+                    $estadoAnulacion = 'ANULADA';
+                    break;
+
+                case 'rejected':
+                    $estadoAnulacion = 'ANULACIÓN RECHAZADA';
+                    break;
+
+                case 'requires_credit_note':
+                    $estadoAnulacion = 'REQUIERE NOTA DE CRÉDITO';
+                    break;
+            }
+
+            $acceptedCreditNote = $sale->creditNotes()
+                ->where('status', 'accepted')
+                ->latest()
+                ->first();
+
+            $acceptedPartialCreditNote = $sale->creditNotes()
+                ->where('status', 'accepted')
+                ->where('credit_note_type', 'partial')
+                ->latest()
+                ->first();
 
             array_push($arraySales, [
                 "id" => $sale->id,
@@ -2903,6 +2999,69 @@ class PuntoVentaController extends Controller
                 "total" => $totalTexto,
                 "total_abonado" => $totalAbonado,
                 "estado_pago_parcial" => $estadoPagoParcial,
+
+                "annulment_status" => $sale->annulment_status,
+                "annulment_type" => $sale->annulment_type,
+                "estado_anulacion" => $estadoAnulacion,
+                "estado_comprobante" => $estadoComprobante,
+                "can_annul" => (int) $sale->state_annulled !== 1,
+                "can_generate_credit_note" => $sale->annulment_status === 'requires_credit_note',
+                "can_retry_annulment" => in_array($sale->annulment_status, ['waiting_sunat_process', 'rejected']),
+
+                "is_annulled" => (int) $sale->state_annulled,
+                "annulment_accepted_at" => $sale->annulment_accepted_at
+                    ? Carbon::parse($sale->annulment_accepted_at)->format('d/m/Y h:i A')
+                    : '',
+
+                "annulment_pdf_url_local" => $sale->annulment_pdf_path
+                    ? asset('comprobantes/anulaciones/pdfs/' . $sale->annulment_pdf_path)
+                    : null,
+
+                "annulment_xml_url_local" => $sale->annulment_xml_path
+                    ? asset('comprobantes/anulaciones/xmls/' . $sale->annulment_xml_path)
+                    : null,
+
+                "annulment_cdr_url_local" => $sale->annulment_cdr_path
+                    ? asset('comprobantes/anulaciones/cdrs/' . $sale->annulment_cdr_path)
+                    : null,
+
+                'has_pending_credit_note' => !is_null($pendingCreditNote),
+                'pending_credit_note_id' => optional($pendingCreditNote)->id,
+
+                "has_rejected_credit_note" => !is_null($rejectedCreditNote),
+                "rejected_credit_note_message" => optional($rejectedCreditNote)->sunat_message,
+
+                "is_credit_note_annulment" => !is_null($acceptedCreditNote),
+
+                "credit_note_pdf_url_local" => $acceptedCreditNote && $acceptedCreditNote->pdf_path
+                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedCreditNote->pdf_path)
+                    : null,
+
+                "credit_note_xml_url_local" => $acceptedCreditNote && $acceptedCreditNote->xml_path
+                    ? asset('comprobantes/notas_credito/xmls/' . $acceptedCreditNote->xml_path)
+                    : null,
+
+                "credit_note_cdr_url_local" => $acceptedCreditNote && $acceptedCreditNote->cdr_path
+                    ? asset('comprobantes/notas_credito/cdrs/' . $acceptedCreditNote->cdr_path)
+                    : null,
+
+                "credit_note_status" => $sale->credit_note_status,
+
+                "has_partial_credit_note" => !is_null($acceptedPartialCreditNote),
+
+                "partial_credit_note_pdf_url_local" => $acceptedPartialCreditNote && $acceptedPartialCreditNote->pdf_path
+                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedPartialCreditNote->pdf_path)
+                    : null,
+
+                "sunat_error_discarded_at" => $sale->sunat_error_discarded_at
+                    ? Carbon::parse($sale->sunat_error_discarded_at)->format('d/m/Y h:i A')
+                    : null,
+
+                "sunat_error_discarded_by" => $sale->sunat_error_discarded_by,
+
+                "sunat_error_discard_reason" => $this->cleanUtf8($sale->sunat_error_discard_reason),
+
+                "sunat_error_is_discarded" => !empty($sale->sunat_error_discarded_at),
             ]);
         }
 
@@ -3090,7 +3249,7 @@ class PuntoVentaController extends Controller
 
     }
 
-    public function anularOrder($id)
+    public function anularOrder2($id)
     {
         DB::beginTransaction();
 
@@ -3325,6 +3484,1413 @@ class PuntoVentaController extends Controller
         }
     }
 
+    public function anularOrder1($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::with([
+                'details',
+            ])->lockForUpdate()->find($id);
+
+            if (!$sale) {
+                return response()->json(['message' => 'Orden no encontrada'], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json(['message' => 'La orden ya ha sido anulada previamente'], 422);
+            }
+
+            $this->reverseSaleInternally(
+                $sale,
+                'Anulación interna de venta'
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Orden anulada con éxito',
+                'annulment_status' => 'accepted',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function anularOrder($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::with([
+                'details',
+            ])->lockForUpdate()->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Orden no encontrada'
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'La orden ya ha sido anulada previamente'
+                ], 422);
+            }
+
+            if (in_array($sale->annulment_status, ['pending', 'waiting_sunat_process'], true)) {
+                return response()->json([
+                    'message' => 'Esta venta ya tiene una anulación pendiente. Consulte el estado de la anulación antes de intentar nuevamente.',
+                    'annulment_status' => $sale->annulment_status,
+                    'pending_annulment' => true,
+                ], 422);
+            }
+
+            /*
+             * ============================================================
+             * 1) VENTA SIN COMPROBANTE ELECTRÓNICO
+             * ============================================================
+             */
+            if ($sale->hasNoElectronicDocument()) {
+
+                $sale->annulment_requested_by = auth()->id();
+                $sale->annulment_requested_at = now();
+                $sale->save();
+
+                $this->reverseSaleInternally(
+                    $sale,
+                    'Anulación interna de venta sin comprobante electrónico',
+                    true
+                );
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Orden anulada con éxito',
+                    'annulment_status' => 'accepted',
+                    'pending_annulment' => false,
+                    'internal_reversal_status' => 'reversed',
+                ], 200);
+            }
+
+            /*
+             * ============================================================
+             * 2) COMPROBANTE CON ERROR SUNAT
+             * ============================================================
+             */
+            if ($sale->hasSunatError()) {
+
+                $sale->annulment_requested_by = auth()->id();
+                $sale->annulment_requested_at = now();
+                $sale->save();
+
+                $this->reverseSaleInternally(
+                    $sale,
+                    'Anulación interna de venta con comprobante en Error SUNAT',
+                    true
+                );
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Orden anulada internamente. El comprobante tenía estado Error SUNAT.',
+                    'annulment_status' => 'accepted',
+                    'pending_annulment' => false,
+                    'internal_reversal_status' => 'reversed',
+                ], 200);
+            }
+
+            /*
+             * ============================================================
+             * 3) BOLETA EMITIDA HOY
+             * ============================================================
+             */
+            if ($sale->isReceiptFromToday()) {
+                $sale->annulment_status = 'waiting_sunat_process';
+                $sale->annulment_type = 'nubefact_baja';
+                $sale->annulment_reason = 'Boleta emitida hoy. Esperando procesamiento de Nubefact/SUNAT.';
+                $sale->annulment_requested_at = now();
+                $sale->annulment_requested_by = auth()->id();
+                $sale->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'La boleta fue emitida hoy. Nubefact la procesa al día siguiente. Intente anularla mañana o genere una nota de crédito cuando corresponda.',
+                    'annulment_status' => 'waiting_sunat_process',
+                    'waiting_sunat_process' => true,
+                    'pending_annulment' => true,
+                ], 422);
+            }
+
+            /*
+             * ============================================================
+             * 4) COMPROBANTE FUERA DE PLAZO DE BAJA
+             * ============================================================
+             */
+            if (!$sale->isWithinAnnulmentDeadline()) {
+                $sale->annulment_status = 'requires_credit_note';
+                $sale->annulment_type = 'credit_note';
+                $sale->annulment_reason = 'Comprobante fuera de plazo para baja/anulación. Requiere Nota de Crédito.';
+                $sale->annulment_requested_at = now();
+                $sale->annulment_requested_by = auth()->id();
+                $sale->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'El comprobante ya no puede anularse por baja. Debe generar una Nota de Crédito.',
+                    'annulment_status' => 'requires_credit_note',
+                    'requires_credit_note' => true,
+                    'pending_annulment' => false,
+                ], 422);
+            }
+
+            /*
+             * ============================================================
+             * 5) COMPROBANTE VÁLIDO DENTRO DE PLAZO
+             * ============================================================
+             */
+            $motivo = 'Anulación de comprobante solicitada por el usuario';
+
+            $sale->annulment_status = 'pending';
+            $sale->annulment_type = 'nubefact_baja';
+            $sale->annulment_reason = $motivo;
+            $sale->annulment_requested_at = now();
+            $sale->annulment_requested_by = auth()->id();
+            $sale->save();
+
+            $result = $this->anularComprobanteNubefact($sale, $motivo);
+
+            $this->persistNubefactAnnulmentResult($sale, $result, $motivo);
+
+            $sale->refresh();
+
+            /*
+             * Reversión operativa inmediata:
+             * aunque SUNAT quede pendiente, liberamos stock/caja.
+             * state_annulled queda en 0 hasta confirmación SUNAT.
+             */
+            if ($sale->internal_reversal_status !== 'reversed') {
+                $this->reverseSaleInternally(
+                    $sale,
+                    'Anulación enviada a Nubefact. Reversión interna aplicada.',
+                    false
+                );
+
+                $sale->refresh();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'La anulación fue enviada a Nubefact y la reversión operativa fue aplicada. La confirmación SUNAT puede quedar pendiente.',
+                'annulment_status' => $sale->annulment_status,
+                'pending_annulment' => in_array($sale->annulment_status, ['pending', 'waiting_sunat_process'], true),
+                'internal_reversal_status' => $sale->internal_reversal_status,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    private function reverseSaleInternally(Sale $sale, ?string $reason = null, bool $markAsAnnulled = true): void
+    {
+        if ($sale->internal_reversal_status === 'reversed') {
+            return;
+        }
+
+        /*
+         * ============================================================
+         * 1) REVERTIR STOCK DESDE OUTPUT DETAILS
+         * ============================================================
+         */
+        $inventoryKeysToSync = [];
+
+        foreach ($sale->details as $detail) {
+            $outputDetails = OutputDetail::where('sale_detail_id', $detail->id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($outputDetails as $outputDetail) {
+                $qtyToReturn = (float) ($outputDetail->percentage ?? 0);
+
+                if ($qtyToReturn <= 0) {
+                    $qtyToReturn = (float) ($detail->quantity ?? 0);
+                }
+
+                if (!empty($outputDetail->stock_lot_id)) {
+                    $lot = StockLot::where('id', $outputDetail->stock_lot_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($lot) {
+                        $lot->qty_on_hand = (float) $lot->qty_on_hand + $qtyToReturn;
+                        $lot->save();
+
+                        $inventoryKeysToSync[] = [
+                            'stock_item_id' => (int) $lot->stock_item_id,
+                            'warehouse_id'  => $lot->warehouse_id,
+                            'location_id'   => $lot->location_id,
+                        ];
+                    }
+                }
+
+                if (!empty($outputDetail->item_id)) {
+                    $item = Item::where('id', $outputDetail->item_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($item) {
+                        $item->state_item = 'entered';
+                        $item->save();
+                    }
+                }
+
+                $outputDetail->delete();
+            }
+        }
+
+        /*
+         * ============================================================
+         * 2) SINCRONIZAR INVENTORY LEVELS
+         * ============================================================
+         */
+        $inventoryKeysToSync = collect($inventoryKeysToSync)
+            ->unique(function ($row) {
+                return implode('|', [
+                    $row['stock_item_id'] ?? 'null',
+                    $row['warehouse_id'] ?? 'null',
+                    $row['location_id'] ?? 'null',
+                ]);
+            })
+            ->values()
+            ->all();
+
+        foreach ($inventoryKeysToSync as $key) {
+            $this->syncInventoryLevelFromLots(
+                (int) $key['stock_item_id'],
+                $key['warehouse_id'],
+                $key['location_id']
+            );
+        }
+
+        /*
+         * ============================================================
+         * 3) REVERTIR MOVIMIENTOS DE CAJA
+         * ============================================================
+         */
+        $movements = CashMovement::where('sale_id', $sale->id)->get();
+
+        foreach ($movements as $movement) {
+            $cashBoxSubType = $movement->cash_box_subtype_id
+                ? CashBoxSubtype::find($movement->cash_box_subtype_id)
+                : null;
+
+            $is_deferred = $cashBoxSubType ? (int) $cashBoxSubType->is_deferred : 0;
+            $cash_box_subtype_id_to_use = $cashBoxSubType ? $cashBoxSubType->id : null;
+
+            if ($movement->type === 'sale') {
+                if ($is_deferred == 1) {
+                    if ((int) $movement->regularize === 0) {
+                        $movement->delete();
+                    } elseif ((int) $movement->regularize === 1) {
+                        $amountToReverse = (float) ($movement->amount_regularize ?? $movement->amount ?? 0);
+
+                        CashMovement::create([
+                            'cash_register_id'    => $movement->cash_register_id,
+                            'sale_id'             => $sale->id,
+                            'type'                => 'expense',
+                            'amount'              => $amountToReverse,
+                            'description'         => 'Reversión de venta (POS regularizado) por anulación de venta #'.$sale->id,
+                            'regularize'          => $movement->regularize,
+                            'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
+                        ]);
+
+                        $cashRegister = CashRegister::find($movement->cash_register_id);
+
+                        if ($cashRegister) {
+                            $cashRegister->current_balance -= $amountToReverse;
+                            $cashRegister->total_sales     -= $amountToReverse;
+                            $cashRegister->total_expenses  += $amountToReverse;
+                            $cashRegister->save();
+                        }
+                    }
+                } else {
+                    $amountToReverse = (float) $movement->amount;
+
+                    CashMovement::create([
+                        'cash_register_id'    => $movement->cash_register_id,
+                        'sale_id'             => $sale->id,
+                        'type'                => 'expense',
+                        'amount'              => $amountToReverse,
+                        'description'         => 'Reversión de venta por anulación de venta #'.$sale->id,
+                        'regularize'          => $movement->regularize,
+                        'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
+                    ]);
+
+                    $cashRegister = CashRegister::find($movement->cash_register_id);
+
+                    if ($cashRegister) {
+                        $cashRegister->current_balance -= $amountToReverse;
+                        $cashRegister->total_sales     -= $amountToReverse;
+                        $cashRegister->total_expenses  += $amountToReverse;
+                        $cashRegister->save();
+                    }
+                }
+            } elseif ($movement->type === 'expense') {
+                $amountToReverse = (float) $movement->amount;
+
+                CashMovement::create([
+                    'cash_register_id'    => $movement->cash_register_id,
+                    'sale_id'             => $sale->id,
+                    'type'                => 'income',
+                    'amount'              => $amountToReverse,
+                    'description'         => 'Reversión de gasto (vuelto) por anulación de orden #'.$sale->id,
+                    'subtype'             => $movement->subtype,
+                    'regularize'          => $movement->regularize,
+                    'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
+                ]);
+
+                $cashRegister = CashRegister::find($movement->cash_register_id);
+
+                if ($cashRegister) {
+                    $cashRegister->current_balance += $amountToReverse;
+                    $cashRegister->total_incomes   += $amountToReverse;
+                    $cashRegister->total_expenses  -= $amountToReverse;
+                    $cashRegister->save();
+                }
+            }
+        }
+
+        /*
+         * ============================================================
+         * 4) LIMPIAR RESERVAS LEGACY
+         * ============================================================
+         */
+        if (!empty($sale->quote_id)) {
+            QuoteMaterialReservation::where('quote_id', $sale->quote_id)
+                ->lockForUpdate()
+                ->delete();
+
+            QuoteStockLot::where('quote_id', $sale->quote_id)
+                ->lockForUpdate()
+                ->delete();
+        }
+
+        /*
+         * ============================================================
+         * 5) MARCAR COMO ESTADO ANULADO LOS PAGOS PARCIALES SI TIENE
+         * ============================================================
+         */
+        $partial_payments = SalePartialPayment::where('sale_id', $sale->id)->get();
+
+        foreach ($partial_payments as $partial_payment) {
+            $partial_payment->state = 0;
+            $partial_payment->save();
+        }
+
+        /*
+         * ============================================================
+         * 6) MARCAR REVERSIÓN OPERATIVA
+         * ============================================================
+         */
+        if ($markAsAnnulled) {
+            $sale->state_annulled = 1;
+        }
+
+        $sale->internal_reversal_status = 'reversed';
+        $sale->internal_reversed_at = now();
+        $sale->internal_reversed_by = auth()->id();
+
+        if (empty($sale->annulment_status) || $sale->annulment_status === 'none') {
+            $sale->annulment_status = $markAsAnnulled ? 'accepted' : 'pending';
+        }
+
+        $sale->annulment_reason = $reason;
+
+        if (empty($sale->annulment_requested_at)) {
+            $sale->annulment_requested_at = now();
+        }
+
+        if (empty($sale->annulment_requested_by)) {
+            $sale->annulment_requested_by = auth()->id();
+        }
+
+        if ($markAsAnnulled) {
+            $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
+            $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+        }
+
+        $sale->save();
+    }
+
+    private function reverseCreditNoteStockPartially(CreditNote $creditNote): void
+    {
+        if ($creditNote->internal_reversal_status === 'reversed') {
+            return;
+        }
+
+        $creditNote->loadMissing([
+            'details.saleDetail'
+        ]);
+
+        $inventoryKeysToSync = [];
+
+        foreach ($creditNote->details as $creditNoteDetail) {
+            $saleDetail = $creditNoteDetail->saleDetail;
+
+            if (!$saleDetail) {
+                continue;
+            }
+
+            $qtyToReturn = (float) $creditNoteDetail->quantity;
+
+            if ($qtyToReturn <= 0) {
+                continue;
+            }
+
+            /*
+             * Buscar los lotes/items que salieron por ese detalle de venta.
+             */
+            $outputDetails = OutputDetail::where('sale_detail_id', $saleDetail->id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($outputDetails as $outputDetail) {
+
+                if ($qtyToReturn <= 0) {
+                    break;
+                }
+
+                $qtyFromOutput = (float) ($outputDetail->percentage ?? 0);
+
+                if ($qtyFromOutput <= 0) {
+                    $qtyFromOutput = (float) $saleDetail->quantity;
+                }
+
+                $qtyToApply = min($qtyToReturn, $qtyFromOutput);
+
+                if (!empty($outputDetail->stock_lot_id)) {
+                    $lot = StockLot::where('id', $outputDetail->stock_lot_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($lot) {
+                        $lot->qty_on_hand = (float) $lot->qty_on_hand + $qtyToApply;
+                        $lot->save();
+
+                        $inventoryKeysToSync[] = [
+                            'stock_item_id' => (int) $lot->stock_item_id,
+                            'warehouse_id'  => $lot->warehouse_id,
+                            'location_id'   => $lot->location_id,
+                        ];
+                    }
+                }
+
+                /*
+                 * Si el producto era itemeable, solo devolveremos el item si la NC
+                 * devuelve la unidad completa.
+                 */
+                if (!empty($outputDetail->item_id) && $qtyToApply >= 1) {
+                    $item = Item::where('id', $outputDetail->item_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($item) {
+                        $item->state_item = 'entered';
+                        $item->save();
+                    }
+                }
+
+                $qtyToReturn -= $qtyToApply;
+            }
+        }
+
+        /*
+         * Sincronizar inventory_levels
+         */
+        $inventoryKeysToSync = collect($inventoryKeysToSync)
+            ->unique(function ($row) {
+                return implode('|', [
+                    $row['stock_item_id'] ?? 'null',
+                    $row['warehouse_id'] ?? 'null',
+                    $row['location_id'] ?? 'null',
+                ]);
+            })
+            ->values()
+            ->all();
+
+        foreach ($inventoryKeysToSync as $key) {
+            $this->syncInventoryLevelFromLots(
+                (int) $key['stock_item_id'],
+                $key['warehouse_id'],
+                $key['location_id']
+            );
+        }
+    }
+
+    public function consultarAnulacion($id)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $sale = Sale::with([
+                'details',
+            ])->lockForUpdate()->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'La venta ya se encuentra anulada internamente.',
+                    'annulment_status' => 'accepted',
+                ], 200);
+            }
+
+            if (!in_array($sale->annulment_status, [
+                'pending',
+                'waiting_sunat_process'
+            ], true)) {
+
+                return response()->json([
+                    'message' => 'Esta venta no tiene una anulación pendiente para consultar.',
+                    'annulment_status' => $sale->annulment_status,
+                ], 422);
+            }
+
+            /*
+             * ============================================================
+             * BOLETA EMITIDA HOY
+             * waiting_sunat_process
+             * ============================================================
+             */
+            if ($sale->annulment_status === 'waiting_sunat_process') {
+
+                if ($sale->isReceiptFromToday()) {
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'La boleta aún está dentro del día de emisión. Vuelva a consultar mañana.',
+                        'annulment_status' => 'waiting_sunat_process',
+                    ], 200);
+                }
+
+                if (!$sale->isWithinAnnulmentDeadline()) {
+
+                    $sale->annulment_status = 'requires_credit_note';
+                    $sale->annulment_type = 'credit_note';
+                    $sale->annulment_reason = 'Boleta fuera de plazo para baja. Requiere Nota de Crédito.';
+
+                    if (empty($sale->annulment_requested_by)) {
+                        $sale->annulment_requested_by = auth()->id();
+                    }
+
+                    $sale->save();
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'La boleta ya no puede anularse por baja. Debe generar una Nota de Crédito.',
+                        'annulment_status' => 'requires_credit_note',
+                        'requires_credit_note' => true,
+                    ], 422);
+                }
+
+                $motivo = $sale->annulment_reason
+                    ?: 'Anulación de comprobante solicitada por el usuario';
+
+                $sale->annulment_status = 'pending';
+                $sale->annulment_type = 'nubefact_baja';
+                $sale->annulment_requested_at = now();
+
+                if (empty($sale->annulment_requested_by)) {
+                    $sale->annulment_requested_by = auth()->id();
+                }
+
+                $sale->save();
+
+                $result = $this->anularComprobanteNubefact(
+                    $sale,
+                    $motivo
+                );
+
+                $this->persistNubefactAnnulmentResult(
+                    $sale,
+                    $result,
+                    $motivo
+                );
+
+                $sale->refresh();
+
+                /*
+                 * Reversión operativa inmediata:
+                 * si ya se pudo enviar la baja a Nubefact, liberamos stock/caja
+                 * aunque SUNAT todavía quede pendiente.
+                 */
+                if ($sale->internal_reversal_status !== 'reversed') {
+                    $this->reverseSaleInternally(
+                        $sale,
+                        'Anulación enviada a Nubefact. Reversión interna aplicada.',
+                        false
+                    );
+
+                    $sale->refresh();
+                }
+
+                if ($sale->annulment_status === 'accepted') {
+
+                    $sale->state_annulled = 1;
+                    $sale->annulment_status = 'accepted';
+                    $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
+                    $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+                    $sale->save();
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'La anulación fue aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
+                        'annulment_status' => 'accepted',
+                    ], 200);
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'La solicitud de anulación fue enviada a Nubefact. Stock y caja fueron revertidos internamente. Pendiente de aceptación SUNAT.',
+                    'annulment_status' => $sale->annulment_status,
+                    'pending_annulment' => true,
+                    'internal_reversal_status' => 'reversed',
+                ], 200);
+            }
+
+            /*
+             * ============================================================
+             * ANULACIÓN YA ENVIADA A NUBEFACT
+             * pending
+             * ============================================================
+             */
+            $motivo = $sale->annulment_reason
+                ?: 'Consulta de anulación en Nubefact';
+
+            $result = $this->consultarAnulacionNubefact($sale);
+
+            $this->persistNubefactAnnulmentResult(
+                $sale,
+                $result,
+                $motivo
+            );
+
+            $sale->refresh();
+
+            if ($sale->annulment_status === 'accepted') {
+
+                if ($sale->internal_reversal_status !== 'reversed') {
+                    $this->reverseSaleInternally(
+                        $sale,
+                        'Anulación aceptada por SUNAT/Nubefact',
+                        true
+                    );
+
+                    $sale->refresh();
+                }
+
+                $sale->state_annulled = 1;
+                $sale->annulment_status = 'accepted';
+                $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
+                $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+                $sale->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'La anulación fue aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
+                    'annulment_status' => 'accepted',
+                ], 200);
+            }
+
+            if ($sale->annulment_status === 'rejected') {
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => $sale->annulment_error
+                        ?: 'La anulación fue rechazada por SUNAT.',
+                    'annulment_status' => 'rejected',
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'La anulación todavía está pendiente de aceptación por SUNAT.',
+                'annulment_status' => 'pending',
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function generarNotaCreditoTotal($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::with(['details'])
+                ->lockForUpdate()
+                ->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.'
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'La venta ya está anulada.'
+                ], 422);
+            }
+
+            if (!$sale->hasElectronicDocument()) {
+                return response()->json([
+                    'message' => 'La venta no tiene comprobante electrónico válido.'
+                ], 422);
+            }
+
+            $existing = CreditNote::where('sale_id', $sale->id)
+                ->whereIn('status', ['pending', 'accepted', 'rejected'])
+                ->latest()
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'message' => 'Esta venta ya tiene una Nota de Crédito registrada. Revise su estado antes de generar otra.',
+                ], 422);
+            }
+
+            $creditNote = CreditNote::create([
+                'sale_id' => $sale->id,
+                'type_document' => '07',
+                'reason_code' => '01',
+                'reason_description' => 'Anulación de la operación',
+                'op_gravada' => $sale->op_gravada,
+                'op_exonerada' => $sale->op_exonerada,
+                'op_inafecta' => $sale->op_inafecta,
+                'igv' => $sale->igv,
+                'total_descuentos' => $sale->total_descuentos,
+                'importe_total' => $sale->importe_total,
+                'credit_note_type' => 'total',
+                'status' => 'pending',
+                'created_by' => auth()->id(),
+            ]);
+
+            foreach ($sale->details as $detail) {
+                $quantity = (float) $detail->quantity;
+                $price = (float) $detail->price;
+                $valorUnitario = (float) $detail->valor_unitario;
+                $total = (float) $detail->total;
+
+                $subtotal = $valorUnitario * $quantity;
+                $igv = $total - $subtotal;
+
+                CreditNoteDetail::create([
+                    'credit_note_id' => $creditNote->id,
+                    'sale_detail_id' => $detail->id,
+                    'description' => $detail->description ?? '',
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'valor_unitario' => $valorUnitario,
+                    'subtotal' => round($subtotal, 2),
+                    'igv' => round($igv, 2),
+                    'total' => round($total, 2),
+                ]);
+            }
+
+            $result = $this->generarNotaCreditoNubefact($sale, $creditNote);
+
+            $this->persistNubefactCreditNoteResult($creditNote, $result);
+
+            $creditNote->refresh();
+
+            /*
+             * Reversión operativa inmediata:
+             * aunque SUNAT quede pendiente, liberamos stock/caja.
+             * state_annulled queda en 0 hasta aceptación SUNAT.
+             */
+            $this->applyCreditNoteInternalReversal($creditNote);
+
+            $sale->refresh();
+            $creditNote->refresh();
+
+            if ($creditNote->status === 'accepted') {
+                $sale->state_annulled = 1;
+                $sale->annulment_status = 'accepted';
+                $sale->annulment_type = 'credit_note';
+                $sale->credit_note_status = 'total';
+                $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
+                $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+                $sale->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Nota de Crédito aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
+                    'credit_note_status' => 'accepted',
+                    'credit_note_type' => 'total',
+                    'internal_reversal_status' => $creditNote->internal_reversal_status,
+                ], 200);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Nota de Crédito generada y enviada a Nubefact. La reversión operativa fue aplicada. Pendiente de aceptación SUNAT.',
+                'credit_note_status' => $creditNote->status,
+                'credit_note_type' => 'total',
+                'internal_reversal_status' => $creditNote->internal_reversal_status,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function consultarNotaCredito($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::with(['details'])
+                ->lockForUpdate()
+                ->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
+            }
+
+            $creditNote = CreditNote::where('sale_id', $sale->id)
+                ->where('status', 'pending')
+                ->latest()
+                ->lockForUpdate()
+                ->first();
+
+            if (!$creditNote) {
+                return response()->json([
+                    'message' => 'Esta venta no tiene una Nota de Crédito pendiente.',
+                ], 422);
+            }
+
+            $result = $this->consultarNotaCreditoNubefact($creditNote);
+
+            $this->persistNubefactCreditNoteResult($creditNote, $result);
+
+            $creditNote->refresh();
+            $sale->refresh();
+
+            if ($creditNote->status === 'accepted') {
+
+                /*
+                 * Si por algún motivo aún no se aplicó la reversión operativa,
+                 * se aplica aquí. Si ya se aplicó, no duplica nada.
+                 */
+                $this->applyCreditNoteInternalReversal($creditNote);
+
+                $creditNote->refresh();
+                $sale->refresh();
+
+                /*
+                 * ============================================================
+                 * NOTA DE CRÉDITO TOTAL
+                 * ============================================================
+                 */
+                if ($creditNote->credit_note_type === 'total') {
+
+                    $sale->state_annulled = 1;
+                    $sale->annulment_type = 'credit_note';
+                    $sale->annulment_status = 'accepted';
+                    $sale->credit_note_status = 'total';
+                    $sale->annulment_reason = 'Venta anulada mediante Nota de Crédito';
+                    $sale->annulment_requested_at = $sale->annulment_requested_at ?: now();
+                    $sale->annulment_requested_by = $sale->annulment_requested_by ?: auth()->id();
+                    $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
+                    $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+                    $sale->save();
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'La Nota de Crédito fue aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
+                        'credit_note_status' => 'accepted',
+                        'credit_note_type' => 'total',
+                        'internal_reversal_status' => $creditNote->internal_reversal_status,
+                    ], 200);
+                }
+
+                /*
+                 * ============================================================
+                 * NOTA DE CRÉDITO PARCIAL
+                 * ============================================================
+                 */
+                if ($creditNote->credit_note_type === 'partial') {
+
+                    $sale->credit_note_status = 'partial';
+                    $sale->save();
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'La Nota de Crédito parcial fue aceptada por SUNAT. La reversión operativa ya fue aplicada.',
+                        'credit_note_status' => 'accepted',
+                        'credit_note_type' => 'partial',
+                        'internal_reversal_status' => $creditNote->internal_reversal_status,
+                        'cash_refund_status' => $creditNote->cash_refund_status,
+                    ], 200);
+                }
+            }
+
+            if ($creditNote->status === 'rejected') {
+                DB::commit();
+
+                return response()->json([
+                    'message' => $creditNote->sunat_message ?: 'La Nota de Crédito fue rechazada por SUNAT. Revise el caso manualmente.',
+                    'credit_note_status' => 'rejected',
+                    'credit_note_type' => $creditNote->credit_note_type,
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'La Nota de Crédito todavía está pendiente de aceptación por SUNAT.',
+                'credit_note_status' => 'pending',
+                'credit_note_type' => $creditNote->credit_note_type,
+                'internal_reversal_status' => $creditNote->internal_reversal_status,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function getCreditNotePartialData($id)
+    {
+        try {
+            $sale = Sale::with([
+                'details.material',
+                'details.stockItem',
+                'creditNotes.details'
+            ])->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'La venta ya está anulada. No se puede generar Nota de Crédito parcial.',
+                ], 422);
+            }
+
+            if (!$sale->hasElectronicDocument()) {
+                return response()->json([
+                    'message' => 'La venta no tiene comprobante electrónico válido.',
+                ], 422);
+            }
+
+            $items = [];
+
+            foreach ($sale->details as $detail) {
+
+                $soldQty = (float) $detail->quantity;
+
+                $creditedQty = CreditNoteDetail::where('sale_detail_id', $detail->id)
+                    ->whereHas('creditNote', function ($query) {
+                        $query->where('status', 'accepted');
+                    })
+                    ->sum('quantity');
+
+                $availableQty = $soldQty - (float) $creditedQty;
+
+                if ($availableQty <= 0) {
+                    continue;
+                }
+
+                if (empty($detail->material_id)) {
+                    $description = strtoupper($detail->description ?: 'Servicio');
+                } else {
+                    if (!empty($detail->stock_item_id) && $detail->stockItem) {
+                        $description = $detail->stockItem->display_name;
+                    } elseif ($detail->material) {
+                        $description = $detail->material->full_name;
+                    } else {
+                        $description = 'Material ' . $detail->material_id;
+                    }
+                }
+
+                $price = (float) $detail->price;
+                $valorUnitario = (float) $detail->valor_unitario;
+
+                $items[] = [
+                    'sale_detail_id' => $detail->id,
+                    'description' => $description,
+                    'sold_quantity' => $soldQty,
+                    'credited_quantity' => (float) $creditedQty,
+                    'available_quantity' => $availableQty,
+                    'price' => $price,
+                    'valor_unitario' => $valorUnitario,
+                    'percentage_tax' => (float) $detail->percentage_tax,
+                    'max_total' => round($availableQty * $price, 2),
+                ];
+            }
+
+            return response()->json([
+                'sale_id' => $sale->id,
+                'code' => 'VENTA - ' . $sale->id,
+                'type_document' => $sale->type_document,
+                'serie_sunat' => $sale->serie_sunat,
+                'numero' => $sale->numero,
+                'cliente' => $sale->nombre_cliente,
+                'total' => (float) $sale->importe_total,
+                'items' => $items,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function generarNotaCreditoParcial(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::with(['details.material', 'details.stockItem'])
+                ->lockForUpdate()
+                ->find($id);
+
+            if (!$sale) {
+                return response()->json(['message' => 'Venta no encontrada.'], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json(['message' => 'La venta ya está anulada.'], 422);
+            }
+
+            if (!$sale->hasElectronicDocument()) {
+                return response()->json(['message' => 'La venta no tiene comprobante electrónico válido.'], 422);
+            }
+
+            $itemsRequest = $request->input('items', []);
+
+            if (empty($itemsRequest)) {
+                return response()->json(['message' => 'Debe enviar al menos un producto.'], 422);
+            }
+
+            $creditNote = CreditNote::create([
+                'sale_id' => $sale->id,
+                'type_document' => '07',
+                'reason_code' => $request->input('reason_code', '07'),
+                'reason_description' => $request->input('reason_description', 'Devolución parcial'),
+                'credit_note_type' => 'partial',
+                'status' => 'pending',
+                'created_by' => auth()->id(),
+            ]);
+
+            $totalGravada = 0;
+            $totalIgv = 0;
+            $total = 0;
+
+            foreach ($itemsRequest as $itemReq) {
+                $saleDetailId = $itemReq['sale_detail_id'] ?? null;
+                $qtyToCredit = (float) ($itemReq['quantity'] ?? 0);
+
+                if ($qtyToCredit <= 0) {
+                    continue;
+                }
+
+                $detail = $sale->details->firstWhere('id', (int) $saleDetailId);
+
+                if (!$detail) {
+                    throw new \Exception('Detalle de venta inválido.');
+                }
+
+                $soldQty = (float) $detail->quantity;
+
+                $creditedQty = CreditNoteDetail::where('sale_detail_id', $detail->id)
+                    ->whereHas('creditNote', function ($query) {
+                        $query->whereIn('status', ['pending', 'accepted']);
+                    })
+                    ->sum('quantity');
+
+                $availableQty = $soldQty - (float) $creditedQty;
+
+                if ($qtyToCredit > $availableQty) {
+                    throw new \Exception('La cantidad a devolver supera la cantidad disponible.');
+                }
+
+                $valorUnitario = (float) $detail->valor_unitario;
+                $price = (float) $detail->price;
+
+                $lineSubtotal = $valorUnitario * $qtyToCredit;
+                $lineTotal = $price * $qtyToCredit;
+                $lineIgv = $lineTotal - $lineSubtotal;
+
+                $description = $detail->description ?: '';
+
+                if (empty($description)) {
+                    if (!empty($detail->stock_item_id) && $detail->stockItem) {
+                        $description = $detail->stockItem->display_name;
+                    } elseif ($detail->material) {
+                        $description = $detail->material->full_name;
+                    } else {
+                        $description = 'Detalle ' . $detail->id;
+                    }
+                }
+
+                CreditNoteDetail::create([
+                    'credit_note_id' => $creditNote->id,
+                    'sale_detail_id' => $detail->id,
+                    'description' => $description,
+                    'quantity' => $qtyToCredit,
+                    'price' => $price,
+                    'valor_unitario' => $valorUnitario,
+                    'subtotal' => round($lineSubtotal, 2),
+                    'igv' => round($lineIgv, 2),
+                    'total' => round($lineTotal, 2),
+                ]);
+
+                $totalGravada += $lineSubtotal;
+                $totalIgv += $lineIgv;
+                $total += $lineTotal;
+            }
+
+            if ($total <= 0) {
+                throw new \Exception('El total de la Nota de Crédito debe ser mayor a cero.');
+            }
+
+            $creditNote->update([
+                'op_gravada' => round($totalGravada, 2),
+                'igv' => round($totalIgv, 2),
+                'importe_total' => round($total, 2),
+            ]);
+
+            $result = $this->generarNotaCreditoParcialNubefact($sale, $creditNote);
+
+            $this->persistNubefactCreditNoteResult($creditNote, $result);
+
+            $creditNote->refresh();
+
+            /*
+             * Reversión operativa inmediata:
+             * stock parcial + egreso de caja.
+             */
+            $this->applyCreditNoteInternalReversal($creditNote);
+
+            $creditNote->refresh();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Nota de Crédito parcial generada y enviada a Nubefact. Stock y caja fueron actualizados. Pendiente de aceptación SUNAT.',
+                'credit_note_status' => $creditNote->status,
+                'credit_note_type' => 'partial',
+                'internal_reversal_status' => $creditNote->internal_reversal_status,
+                'cash_refund_status' => $creditNote->cash_refund_status,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    private function applyCreditNoteInternalReversal(CreditNote $creditNote): void
+    {
+        if ($creditNote->internal_reversal_status === 'reversed') {
+            return;
+        }
+
+        $creditNote->loadMissing([
+            'sale.details',
+            'details.saleDetail',
+        ]);
+
+        $sale = $creditNote->sale;
+
+        if (!$sale) {
+            throw new \Exception('La Nota de Crédito no tiene venta asociada.');
+        }
+
+        /*
+         * ============================================================
+         * NOTA DE CRÉDITO TOTAL
+         * ============================================================
+         */
+        if ($creditNote->credit_note_type === 'total') {
+
+            $sale->annulment_type = 'credit_note';
+            $sale->credit_note_status = 'total';
+            $sale->annulment_reason = 'Venta anulada mediante Nota de Crédito';
+            $sale->save();
+
+            $this->reverseSaleInternally(
+                $sale,
+                'Nota de Crédito total enviada. Reversión interna aplicada.',
+                false
+            );
+        }
+
+        /*
+         * ============================================================
+         * NOTA DE CRÉDITO PARCIAL
+         * ============================================================
+         */
+        if ($creditNote->credit_note_type === 'partial') {
+
+            /*
+             * Revertir stock parcial
+             */
+            $this->reverseCreditNoteStockPartially($creditNote);
+
+            /*
+             * Registrar devolución de dinero
+             */
+            $this->registerCreditNoteCashRefund($creditNote);
+
+            /*
+             * Marcar venta con NC parcial
+             */
+            $sale->credit_note_status = 'partial';
+            $sale->save();
+        }
+
+        /*
+         * ============================================================
+         * MARCAR REVERSIÓN INTERNA
+         * ============================================================
+         */
+        $creditNote->internal_reversal_status = 'reversed';
+        $creditNote->internal_reversed_at = now();
+        $creditNote->internal_reversed_by = auth()->id();
+        $creditNote->save();
+    }
+
+    private function registerCreditNoteCashRefund(CreditNote $creditNote): void
+    {
+        if ($creditNote->cash_refund_status === 'refunded') {
+            return;
+        }
+
+        $creditNote->loadMissing([
+            'sale',
+        ]);
+
+        $sale = $creditNote->sale;
+
+        if (!$sale) {
+            throw new \Exception('La Nota de Crédito no tiene venta asociada.');
+        }
+
+        $amountToRefund = (float) $creditNote->importe_total;
+
+        if ($amountToRefund <= 0) {
+            throw new \Exception('El monto de devolución de la Nota de Crédito debe ser mayor a cero.');
+        }
+
+        /*
+         * Tomamos como referencia el último movimiento de venta
+         * para usar la misma caja/canal de pago.
+         */
+        $saleMovement = CashMovement::where('sale_id', $sale->id)
+            ->where('type', 'sale')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$saleMovement) {
+            throw new \Exception('No se encontró movimiento de caja de la venta para registrar la devolución.');
+        }
+
+        $cashMovement = CashMovement::create([
+            'cash_register_id'    => $saleMovement->cash_register_id,
+            'sale_id'             => $sale->id,
+            'type'                => 'expense',
+            'amount'              => $amountToRefund,
+            'description'         => 'Devolución por Nota de Crédito parcial '
+                . ($creditNote->serie ? $creditNote->serie . '-' . $creditNote->numero : '')
+                . ' de venta #' . $sale->id,
+            'regularize'          => $saleMovement->regularize,
+            'cash_box_subtype_id' => $saleMovement->cash_box_subtype_id,
+        ]);
+
+        $cashRegister = CashRegister::find($saleMovement->cash_register_id);
+
+        if ($cashRegister) {
+            $cashRegister->current_balance -= $amountToRefund;
+            $cashRegister->total_expenses += $amountToRefund;
+            $cashRegister->save();
+        }
+
+        $creditNote->cash_refund_status = 'refunded';
+        $creditNote->cash_refund_at = now();
+        $creditNote->cash_refund_by = auth()->id();
+        $creditNote->cash_movement_id = $cashMovement->id;
+        $creditNote->save();
+    }
+
     public function updateInvoiceData(Request $request)
     {
         $request->validate([
@@ -3350,5 +4916,457 @@ class PuntoVentaController extends Controller
         $order->save();
 
         return response()->json(['message' => 'Datos actualizados correctamente.']);
+    }
+
+    public function getSalesErrorAdmin(Request $request, $pageNumber = 1)
+    {
+        $perPage = 10;
+
+        $code = $request->input('code');
+        $year = $request->input('year');
+        $startDate = $request->input('startDate');
+        $endDate = $request->input('endDate');
+
+        $customerId = $request->input('customer_id');
+        $paymentStatus = $request->input('payment_status');
+        $dispatchStatus = $request->input('dispatch_status');
+        $cashBoxId = $request->input('cash_box_id');
+        $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
+        $documentType = $request->input('document_type'); // 01 factura, 03 boleta
+
+        $query = Sale::with(['quote.customer', 'worker.user'])
+            ->where('state_annulled', 0)
+            ->whereIn('type_document', ['01', '03'])
+            ->where('sunat_status', 'Error')
+            ->whereNull('sunat_error_discarded_at')
+            ->orderBy('created_at', 'DESC');
+
+        /*
+         * ============================================================
+         * FILTRO POR FECHAS
+         * ============================================================
+         */
+        if ($startDate != "" && $endDate != "") {
+            $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
+            $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
+
+            $query->whereDate('created_at', '>=', $fechaInicio)
+                ->whereDate('created_at', '<=', $fechaFinal);
+        }
+
+        /*
+         * ============================================================
+         * PERMISOS POR USUARIO
+         * ============================================================
+         */
+        $user = Auth::user();
+        $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
+
+        if (!$canSeeAllSales) {
+            $query->whereHas('worker.user', function ($q) use ($user) {
+                $q->where('id', $user->id);
+            });
+        }
+
+        /*
+         * ============================================================
+         * FILTROS GENERALES
+         * ============================================================
+         */
+        if ($code != "") {
+            $query->where('id', 'LIKE', '%' . $code . '%');
+        }
+
+        if ($year != "") {
+            $query->whereYear('created_at', $year);
+        }
+
+        if ($documentType != "") {
+            $query->where('type_document', $documentType);
+        }
+
+        /*
+         * ============================================================
+         * FILTRO CLIENTE
+         * ============================================================
+         */
+        if ($customerId != "") {
+            if ($customerId === 'venta_directa') {
+                $query->whereNull('quote_id');
+            } elseif ($customerId === 'cotizacion_sin_cliente') {
+                $query->whereHas('quote', function ($q) {
+                    $q->whereNull('customer_id');
+                });
+            } else {
+                $query->whereHas('quote', function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId);
+                });
+            }
+        }
+
+        /*
+         * ============================================================
+         * FILTRO ESTADO DESPACHO
+         * ============================================================
+         */
+        if ($dispatchStatus != "") {
+            $query->where('dispatch_status', $dispatchStatus);
+        }
+
+        /*
+         * ============================================================
+         * FILTRO MÉTODO DE PAGO
+         * ============================================================
+         */
+        if ($cashBoxId != "") {
+            if ($cashBoxId === 'pago_parcial') {
+                $query->where('pagos_parciales_venta', 's');
+            } else {
+                $query->where('pagos_parciales_venta', 'n')
+                    ->whereHas('cashMovements', function ($q) use ($cashBoxId, $cashBoxSubtypeId) {
+                        $q->where('type', 'sale')
+                            ->whereHas('cashRegister', function ($qr) use ($cashBoxId) {
+                                $qr->where('cash_box_id', $cashBoxId);
+                            });
+
+                        if ($cashBoxSubtypeId != "") {
+                            $q->where('cash_box_subtype_id', $cashBoxSubtypeId);
+                        }
+                    });
+            }
+        }
+
+        /*
+         * ============================================================
+         * FILTRO CUMPLIMIENTO DE PAGO
+         * ============================================================
+         */
+        if ($paymentStatus != "") {
+            if ($paymentStatus === 'verde') {
+                $query->where(function ($q) {
+                    $q->where('pagos_parciales_venta', 'n')
+                        ->orWhereRaw("
+                        (
+                            SELECT COALESCE(SUM(spp.amount), 0)
+                            FROM sale_partial_payments spp
+                            WHERE spp.sale_id = sales.id
+                            AND spp.state = 1
+                        ) >= sales.importe_total
+                    ");
+                });
+            }
+
+            if ($paymentStatus === 'naranja') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) >= (sales.importe_total * 0.5)
+                ")
+                    ->whereRaw("
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) < sales.importe_total
+                ");
+            }
+
+            if ($paymentStatus === 'rojo') {
+                $query->where('pagos_parciales_venta', 's')
+                    ->whereRaw("
+                    (
+                        SELECT COALESCE(SUM(spp.amount), 0)
+                        FROM sale_partial_payments spp
+                        WHERE spp.sale_id = sales.id
+                        AND spp.state = 1
+                    ) < (sales.importe_total * 0.5)
+                ");
+            }
+        }
+
+        /*
+         * ============================================================
+         * PAGINACIÓN
+         * ============================================================
+         */
+        $totalFilteredRecords = $query->count();
+        $totalPages = ceil($totalFilteredRecords / $perPage);
+
+        $startRecord = ($pageNumber - 1) * $perPage + 1;
+        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
+
+        $sales = $query->skip(($pageNumber - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        $arraySales = [];
+
+        foreach ($sales as $sale) {
+
+            /*
+             * ============================================================
+             * TIPO COMPROBANTE
+             * ============================================================
+             */
+            $tipoComprobante = null;
+            $tipoComprobanteLabel = 'SIN COMPROBANTE';
+
+            if ($sale->type_document === '01') {
+                $tipoComprobante = 'factura';
+                $tipoComprobanteLabel = 'FACTURA';
+            } elseif ($sale->type_document === '03') {
+                $tipoComprobante = 'boleta';
+                $tipoComprobanteLabel = 'BOLETA';
+            }
+
+            /*
+             * ============================================================
+             * TIPO DOCUMENTO CLIENTE
+             * ============================================================
+             */
+            $tipoDocumentoCliente = null;
+
+            if ($sale->tipo_documento_cliente == 1) {
+                $tipoDocumentoCliente = 'dni';
+            } elseif ($sale->tipo_documento_cliente == 6) {
+                $tipoDocumentoCliente = 'ruc';
+            }
+
+            /*
+             * ============================================================
+             * URL IMPRESIÓN
+             * ============================================================
+             */
+            $printUrl = route('puntoVenta.print', $sale->id);
+
+            if (!empty($sale->pdf_path)) {
+                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+            }
+
+            /*
+             * ============================================================
+             * MÉTODO DE PAGO
+             * ============================================================
+             */
+            $paymentMovement = CashMovement::where('sale_id', $sale->id)
+                ->where('type', 'sale')
+                ->with(['cashRegister.cashBox', 'cashBoxSubtype'])
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $tipoPagoLabel = $sale->pagos_parciales_venta === 's'
+                ? 'PAGO PARCIAL'
+                : 'SIN MOVIMIENTO';
+
+            if ($sale->pagos_parciales_venta === 'n' && $paymentMovement && $paymentMovement->cashRegister && $paymentMovement->cashRegister->cashBox) {
+                $cashBox = $paymentMovement->cashRegister->cashBox;
+
+                if ($cashBox->type === 'cash') {
+                    $tipoPagoLabel = $cashBox->name;
+                } else {
+                    $tipoPagoLabel = $paymentMovement->cashBoxSubtype
+                        ? $cashBox->name . ' - ' . $paymentMovement->cashBoxSubtype->name
+                        : $cashBox->name;
+                }
+            }
+
+            /*
+             * ============================================================
+             * CLIENTE
+             * ============================================================
+             */
+            $nombreCliente = 'VENTA DIRECTA';
+
+            if ($sale->quote) {
+                if ($sale->quote->customer) {
+                    $nombreCliente = $sale->quote->customer->business_name;
+                } else {
+                    $nombreCliente = 'COTIZACION SIN CLIENTE';
+                }
+            }
+
+            /*
+             * ============================================================
+             * PAGO PARCIAL
+             * ============================================================
+             */
+            $totalVenta = (float) $sale->importe_total;
+            $totalAbonado = null;
+            $estadoPagoParcial = null;
+
+            if ($sale->pagos_parciales_venta === 's') {
+                $totalAbonado = SalePartialPayment::where('sale_id', $sale->id)
+                    ->where('state', 1)
+                    ->sum('amount');
+
+                $porcentaje = $totalVenta > 0
+                    ? (($totalAbonado / $totalVenta) * 100)
+                    : 0;
+
+                if ($porcentaje >= 100) {
+                    $estadoPagoParcial = 'verde';
+                } elseif ($porcentaje >= 50) {
+                    $estadoPagoParcial = 'naranja';
+                } else {
+                    $estadoPagoParcial = 'rojo';
+                }
+
+                $totalTexto = number_format($totalAbonado, 2, '.', '') . ' / ' . number_format($totalVenta, 2, '.', '');
+            } else {
+                $totalTexto = number_format($totalVenta, 2, '.', '');
+            }
+
+            /*
+             * ============================================================
+             * ERROR SUNAT
+             * ============================================================
+             */
+            $sunatMessage = $sale->sunat_message ?: 'Error no especificado.';
+
+            $shortSunatMessage = mb_strlen($sunatMessage, 'UTF-8') > 180
+                ? mb_substr($sunatMessage, 0, 180, 'UTF-8') . '...'
+                : $sunatMessage;
+
+            array_push($arraySales, [
+                'id' => $sale->id,
+                'code' => 'VENTA - ' . $sale->id,
+                'date' => ($sale->date_sale != null) ? $sale->formatted_sale_date : '',
+                'created_at' => $sale->created_at ? Carbon::parse($sale->created_at)->format('d/m/Y h:i A') : '',
+
+                'currency' => ($sale->currency == 'PEN') ? 'Soles' : 'Dólares',
+                'total' => $totalTexto,
+                'importe_total' => number_format((float) $sale->importe_total, 2, '.', ''),
+                'total_abonado' => $totalAbonado,
+                'estado_pago_parcial' => $estadoPagoParcial,
+
+                'tipo_pago' => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
+                'dispatch_status' => $sale->dispatch_status ?? 'despachado',
+
+                'nombre_cliente' => $this->cleanUtf8($nombreCliente),
+                'tipo_documento_cliente' => $tipoDocumentoCliente,
+                'numero_documento_cliente' => $this->cleanUtf8($sale->numero_documento_cliente),
+                'direccion_cliente' => $this->cleanUtf8($sale->direccion_cliente),
+                'email_cliente' => $this->cleanUtf8($sale->email_cliente),
+
+                'type_document' => $sale->type_document,
+                'tipo_comprobante' => $tipoComprobante,
+                'tipo_comprobante_label' => $tipoComprobanteLabel,
+                'serie_sunat' => $sale->serie_sunat,
+                'numero' => $sale->numero,
+
+                'sunat_status' => $sale->sunat_status,
+                'sunat_message' => $this->cleanUtf8($sunatMessage),
+                'sunat_message_short' => $this->cleanUtf8($shortSunatMessage),
+
+                'print_url' => $this->cleanUtf8($printUrl),
+                'print_label' => !empty($sale->pdf_path) ? 'Ver PDF' : 'Ver Ticket',
+
+                'can_retry_invoice' => true,
+                'can_discard_error' => true,
+            ]);
+        }
+
+        $pagination = [
+            'currentPage' => (int) $pageNumber,
+            'totalPages' => (int) $totalPages,
+            'startRecord' => $startRecord,
+            'endRecord' => $endRecord,
+            'totalRecords' => $totalFilteredRecords,
+            'totalFilteredRecords' => $totalFilteredRecords,
+        ];
+
+        return [
+            'data' => $arraySales,
+            'pagination' => $pagination,
+        ];
+    }
+
+    public function listarErrors() {
+        $registros = Sale::all();
+
+        $arrayYears = $registros->pluck('created_at')->map(function ($date) {
+            return Carbon::parse($date)->format('Y');
+        })->unique()->toArray();
+
+        $arrayYears = array_values($arrayYears);
+
+        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
+        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
+
+        $customers = Customer::orderBy('business_name')->get();
+
+        return view('puntoVenta.listError', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
+    }
+
+    public function discardSunatError(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $sale = Sale::lockForUpdate()->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
+            }
+
+            if ((int) $sale->state_annulled === 1) {
+                return response()->json([
+                    'message' => 'No se puede descartar el error porque la venta ya está anulada.',
+                ], 422);
+            }
+
+            if (!in_array($sale->type_document, ['01', '03'], true)) {
+                return response()->json([
+                    'message' => 'La venta no tiene factura o boleta asociada.',
+                ], 422);
+            }
+
+            if ($sale->sunat_status !== 'Error') {
+                return response()->json([
+                    'message' => 'Esta venta no se encuentra en estado Error SUNAT.',
+                ], 422);
+            }
+
+            if (!empty($sale->sunat_error_discarded_at)) {
+                return response()->json([
+                    'message' => 'Este error ya fue descartado anteriormente.',
+                ], 422);
+            }
+
+            $reason = trim((string) $request->input('reason', ''));
+
+            if ($reason === '') {
+                return response()->json([
+                    'message' => 'Debe ingresar un motivo para descartar el error.',
+                ], 422);
+            }
+
+            $sale->sunat_error_discarded_at = now();
+            $sale->sunat_error_discarded_by = auth()->id();
+            $sale->sunat_error_discard_reason = $reason;
+            $sale->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'El comprobante con error fue descartado correctamente.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 422);
+        }
     }
 }

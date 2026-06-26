@@ -437,6 +437,20 @@ function renderStockItemsTable(items) {
             `;
         }
 
+        if (can('verItems_material') && item.material.tipo_venta_id == 3) {
+            buttons += `
+                <a 
+                    data-ver_items
+                    href="${document.location.origin}/dashboard/view/stock/material/items/${item.id}"
+                    class="btn btn-outline-info btn-sm"
+                    data-toggle="tooltip"
+                    data-placement="top"
+                    title="Ver items">
+                    Ver Items</i>
+                </a>
+            `;
+        }
+
         if (buttons === '') {
             buttons = `<span class="text-muted">Sin acciones</span>`;
         }

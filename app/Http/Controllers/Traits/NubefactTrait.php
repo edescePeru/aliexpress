@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Traits;
 
+use App\CreditNote;
 use App\Sale;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -16,6 +17,9 @@ trait NubefactTrait
 
         $isFactura = $order->type_document === '01';
         $serie = $isFactura ? 'FFF1' : 'BBB1';
+        /*$serie = $isFactura
+            ? config('services.nubefact.serie_factura', 'FFF1')
+            : config('services.nubefact.serie_boleta', 'BBB1');*/
         $tipoCliente = $order->tipo_documento_cliente ?: ($isFactura ? '6' : '1');
 
         $items = $order->details->map(function ($item) {
@@ -250,5 +254,543 @@ trait NubefactTrait
             'pdf_path'      => file_exists(public_path('comprobantes/pdfs/' . $pdfFilename)) ? $pdfFilename : null,
             'fecha_emision' => now()->toDateString(),
         ]);
+    }
+
+    private function buildNubefactVoidData(Sale $sale, string $motivo): array
+    {
+        if (!$sale->type_document || !in_array($sale->type_document, ['01', '03'], true)) {
+            throw new \Exception('La venta no tiene factura o boleta electrónica para anular.');
+        }
+
+        if (empty($sale->serie_sunat) || empty($sale->numero)) {
+            throw new \Exception('La venta no tiene serie o número SUNAT para anular.');
+        }
+
+        return [
+            "operacion" => "generar_anulacion",
+            "tipo_de_comprobante" => $sale->type_document === '01' ? "1" : "2",
+            "serie" => $sale->serie_sunat,
+            "numero" => (string) $sale->numero,
+            "motivo" => $motivo ?: "Anulación de comprobante",
+            "codigo_unico" => (string) Str::uuid(),
+        ];
+    }
+
+    private function anularComprobanteNubefact(Sale $sale, string $motivo): array
+    {
+        $data = $this->buildNubefactVoidData($sale, $motivo);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact en .env.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Nubefact respondió error HTTP al anular: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception('Error desde Nubefact al anular: ' . $result['errors']);
+        }
+
+        return $result;
+    }
+
+    private function persistNubefactAnnulmentResult(Sale $sale, array $result, string $motivo): void
+    {
+        $accepted = (bool) ($result['aceptada_por_sunat'] ?? false);
+
+        $description = $result['sunat_description'] ?? null;
+        $note = $result['sunat_note'] ?? null;
+        $soapError = $result['sunat_soap_error'] ?? null;
+        $responseCode = $result['sunat_responsecode'] ?? null;
+
+        $ticket = $result['sunat_ticket_numero']
+            ?? $result['sunat_ticket']
+            ?? null;
+
+        $key = $result['key'] ?? null;
+
+        $pdfUrl = $result['enlace_del_pdf'] ?? null;
+        $xmlUrl = $result['enlace_del_xml'] ?? null;
+        $cdrUrl = $result['enlace_del_cdr'] ?? null;
+
+        $filename = 'ANULACION_ORD' . $sale->id;
+
+        $pdfFilename = $filename . '.pdf';
+        $xmlFilename = $filename . '.xml';
+        $cdrFilename = $filename . '.cdr';
+
+        foreach ([
+                     'anulaciones/pdfs',
+                     'anulaciones/xmls',
+                     'anulaciones/cdrs',
+                 ] as $folder) {
+            if (!file_exists(public_path("comprobantes/$folder"))) {
+                mkdir(public_path("comprobantes/$folder"), 0777, true);
+            }
+        }
+
+        if (!empty($pdfUrl)) {
+            $pdfContent = Http::get($pdfUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename), $pdfContent);
+        }
+
+        if (!empty($xmlUrl)) {
+            $xmlContent = Http::get($xmlUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename), $xmlContent);
+        }
+
+        if (!empty($cdrUrl)) {
+            $cdrContent = Http::get($cdrUrl)->body();
+            file_put_contents(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename), $cdrContent);
+        }
+
+        $finalMessage = $soapError
+            ?: ($note ?: ($description ?: null));
+
+        $sale->annulment_response = json_encode($result, JSON_UNESCAPED_UNICODE);
+        $sale->annulment_ticket = $ticket;
+        $sale->annulment_key = $key;
+        $sale->annulment_reason = $motivo;
+        $sale->annulment_requested_at = $sale->annulment_requested_at ?: now();
+
+        $sale->annulment_pdf_url = $pdfUrl;
+        $sale->annulment_xml_url = $xmlUrl;
+        $sale->annulment_cdr_url = $cdrUrl;
+
+        $sale->annulment_pdf_path = file_exists(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename)) ? $pdfFilename : null;
+        $sale->annulment_xml_path = file_exists(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename)) ? $xmlFilename : null;
+        $sale->annulment_cdr_path = file_exists(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename)) ? $cdrFilename : null;
+
+        $sale->annulment_sunat_responsecode = $responseCode;
+
+        if ($accepted) {
+            $sale->annulment_status = 'accepted';
+            $sale->annulment_accepted_at = now();
+            $sale->annulment_sunat_status = 'Aceptado';
+            $sale->annulment_sunat_message = $finalMessage ?: 'Anulación aceptada por SUNAT.';
+            $sale->annulment_error = null;
+        } elseif (!empty($soapError) || !empty($responseCode)) {
+            $sale->annulment_status = 'rejected';
+            $sale->annulment_sunat_status = 'Rechazado';
+            $sale->annulment_sunat_message = $finalMessage ?: 'SUNAT rechazó la anulación.';
+            $sale->annulment_error = $finalMessage ?: 'SUNAT rechazó la anulación.';
+        } else {
+            $sale->annulment_status = 'pending';
+            $sale->annulment_sunat_status = 'Pendiente';
+            $sale->annulment_sunat_message = $finalMessage ?: 'Anulación enviada a Nubefact. Pendiente de aceptación SUNAT.';
+            $sale->annulment_error = null;
+        }
+
+        $sale->save();
+    }
+
+    private function buildNubefactConsultAnnulmentData(Sale $sale): array
+    {
+        if (!$sale->type_document || !in_array($sale->type_document, ['01', '03'], true)) {
+            throw new \Exception('La venta no tiene factura o boleta electrónica para consultar anulación.');
+        }
+
+        if (empty($sale->serie_sunat) || empty($sale->numero)) {
+            throw new \Exception('La venta no tiene serie o número SUNAT.');
+        }
+
+        return [
+            "operacion" => "consultar_anulacion",
+            "tipo_de_comprobante" => $sale->type_document === '01' ? 1 : 2,
+            "serie" => $sale->serie_sunat,
+            "numero" => (int) $sale->numero,
+        ];
+    }
+
+    private function consultarAnulacionNubefact(Sale $sale): array
+    {
+        $data = $this->buildNubefactConsultAnnulmentData($sale);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Error HTTP consultando anulación en Nubefact: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception(
+                is_array($result['errors'])
+                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
+                    : $result['errors']
+            );
+        }
+
+        return $result;
+    }
+
+    private function buildNubefactCreditNoteTotalData(Sale $sale, CreditNote $creditNote): array
+    {
+        $sale->loadMissing([
+            'details.material',
+            'details.stockItem'
+        ]);
+
+        $isFactura = $sale->type_document === '01';
+
+        $serieNotaCredito = $isFactura
+            ? config('services.nubefact.serie_nc_factura', 'FFF1')
+            : config('services.nubefact.serie_nc_boleta', 'BBB1');
+
+        $items = $sale->details->map(function ($item) {
+
+            $qty = (float) $item->quantity;
+            $subtotal = (float) $item->valor_unitario * $qty;
+            $igv = (float) $item->total - $subtotal;
+
+            if ($qty <= 0) {
+                throw new \Exception("Cantidad inválida en detalle {$item->id}");
+            }
+
+            $descripcion = '';
+
+            if (empty($item->material_id)) {
+                $descripcion = strtoupper($item->description ?: 'Servicio');
+            } else {
+                if (!empty($item->stock_item_id) && $item->stockItem) {
+                    $descripcion = $item->stockItem->display_name;
+                } elseif ($item->material) {
+                    $descripcion = $item->material->full_name;
+                } else {
+                    $descripcion = 'Material ' . $item->material_id;
+                }
+            }
+
+            return [
+                "unidad_de_medida" => "NIU",
+                "codigo" => "",
+                "descripcion" => $descripcion,
+                "cantidad" => $qty,
+                "valor_unitario" => (float) $item->valor_unitario,
+                "precio_unitario" => (float) $item->price,
+                "subtotal" => round($subtotal, 2),
+                "tipo_de_igv" => "1",
+                "igv" => round($igv, 2),
+                "total" => round((float) $item->total, 2),
+            ];
+        })->toArray();
+
+        return [
+            "operacion" => "generar_comprobante",
+            "tipo_de_comprobante" => "3", // Nota de crédito
+            "serie" => $serieNotaCredito,
+            "numero" => "",
+            "codigo_unico" => 'NC-' . $sale->id . '-' . now()->timestamp . '-' . Str::random(8),
+            "sunat_transaction" => "1",
+
+            "cliente_tipo_de_documento" => $sale->tipo_documento_cliente,
+            "cliente_numero_de_documento" => $sale->numero_documento_cliente,
+            "cliente_denominacion" => $sale->nombre_cliente,
+            "cliente_direccion" => $sale->direccion_cliente ?: "",
+            "cliente_email" => $sale->email_cliente ?: "",
+
+            "fecha_de_emision" => now()->format('d-m-Y'),
+            "moneda" => "1",
+            "porcentaje_de_igv" => 18.00,
+
+            "tipo_de_nota_de_credito" => $creditNote->reason_code,
+            "motivo_o_sustento_de_nota_de_credito" => $creditNote->reason_description,
+
+            "documento_que_se_modifica_tipo" => $sale->type_document === '01' ? "1" : "2",
+            "documento_que_se_modifica_serie" => $sale->serie_sunat,
+            "documento_que_se_modifica_numero" => $sale->numero,
+
+            "total_gravada" => (float) $sale->op_gravada,
+            "total_igv" => (float) $sale->igv,
+            "total" => (float) $sale->importe_total,
+            "total_a_pagar" => (float) $sale->importe_total,
+
+            "items" => $items,
+        ];
+    }
+
+    private function generarNotaCreditoNubefact(Sale $sale, CreditNote $creditNote): array
+    {
+        $data = $this->buildNubefactCreditNoteTotalData($sale, $creditNote);
+
+        //dd($data);
+
+        $token = config('services.nubefact.token');
+        $url = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type' => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Nubefact respondió error HTTP al generar Nota de Crédito: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception('Error desde Nubefact: ' . $result['errors']);
+        }
+
+        return $result;
+    }
+
+    private function persistNubefactCreditNoteResult(CreditNote $creditNote, array $result): void
+    {
+        $accepted = (bool) ($result['aceptada_por_sunat'] ?? false);
+
+        $description = $result['sunat_description'] ?? null;
+        $note = $result['sunat_note'] ?? null;
+        $soapError = $result['sunat_soap_error'] ?? null;
+        $responseCode = $result['sunat_responsecode'] ?? null;
+
+        $pdfUrl = $result['enlace_del_pdf'] ?? null;
+        $xmlUrl = $result['enlace_del_xml'] ?? null;
+        $cdrUrl = $result['enlace_del_cdr'] ?? null;
+
+        $filename = 'NC_' . $creditNote->id;
+
+        $pdfFilename = $filename . '.pdf';
+        $xmlFilename = $filename . '.xml';
+        $cdrFilename = $filename . '.zip';
+
+        foreach ([
+                     'notas_credito/pdfs',
+                     'notas_credito/xmls',
+                     'notas_credito/cdrs',
+                 ] as $folder) {
+            if (!file_exists(public_path("comprobantes/$folder"))) {
+                mkdir(public_path("comprobantes/$folder"), 0777, true);
+            }
+        }
+
+        if (!empty($pdfUrl)) {
+            $pdfContent = Http::get($pdfUrl)->body();
+            file_put_contents(public_path('comprobantes/notas_credito/pdfs/' . $pdfFilename), $pdfContent);
+        }
+
+        if (!empty($xmlUrl)) {
+            $xmlContent = Http::get($xmlUrl)->body();
+            file_put_contents(public_path('comprobantes/notas_credito/xmls/' . $xmlFilename), $xmlContent);
+        }
+
+        if (!empty($cdrUrl)) {
+            $cdrContent = Http::get($cdrUrl)->body();
+            file_put_contents(public_path('comprobantes/notas_credito/cdrs/' . $cdrFilename), $cdrContent);
+        }
+
+        $finalMessage = $soapError ?: ($note ?: ($description ?: null));
+
+        $creditNote->serie = $result['serie'] ?? $creditNote->serie;
+        $creditNote->numero = $result['numero'] ?? $creditNote->numero;
+        $creditNote->sunat_ticket = $result['sunat_ticket'] ?? null;
+        $creditNote->nubefact_key = $result['key'] ?? null;
+        $creditNote->nubefact_response = json_encode($result, JSON_UNESCAPED_UNICODE);
+
+        $creditNote->pdf_url = $pdfUrl;
+        $creditNote->xml_url = $xmlUrl;
+        $creditNote->cdr_url = $cdrUrl;
+
+        $creditNote->pdf_path = file_exists(public_path('comprobantes/notas_credito/pdfs/' . $pdfFilename)) ? $pdfFilename : null;
+        $creditNote->xml_path = file_exists(public_path('comprobantes/notas_credito/xmls/' . $xmlFilename)) ? $xmlFilename : null;
+        $creditNote->cdr_path = file_exists(public_path('comprobantes/notas_credito/cdrs/' . $cdrFilename)) ? $cdrFilename : null;
+
+        if ($accepted) {
+            $creditNote->status = 'accepted';
+            $creditNote->accepted_at = now();
+            $creditNote->sunat_status = 'Aceptado';
+            $creditNote->sunat_message = $finalMessage ?: 'Nota de Crédito aceptada por SUNAT.';
+        } elseif (!empty($soapError) || (!empty($responseCode) && $responseCode !== '0')) {
+            $creditNote->status = 'rejected';
+            $creditNote->sunat_status = 'Rechazado';
+            $creditNote->sunat_message = $finalMessage ?: 'SUNAT rechazó la Nota de Crédito.';
+        } else {
+            $creditNote->status = 'pending';
+            $creditNote->sunat_status = 'Pendiente';
+            $creditNote->sunat_message = $finalMessage ?: 'Nota de Crédito enviada a Nubefact. Pendiente de aceptación SUNAT.';
+        }
+
+        $creditNote->save();
+    }
+
+    private function buildNubefactConsultCreditNoteData(CreditNote $creditNote): array
+    {
+        if (empty($creditNote->serie) || empty($creditNote->numero)) {
+            throw new \Exception('La Nota de Crédito no tiene serie o número para consultar.');
+        }
+
+        return [
+            "operacion" => "consultar_comprobante",
+            "tipo_de_comprobante" => 3,
+            "serie" => $creditNote->serie,
+            "numero" => (int) $creditNote->numero,
+        ];
+    }
+
+    private function consultarNotaCreditoNubefact(CreditNote $creditNote): array
+    {
+        $data = $this->buildNubefactConsultCreditNoteData($creditNote);
+
+        //dd($data);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result) ? json_encode($result) : $response->body();
+            throw new \Exception('Error HTTP consultando Nota de Crédito en Nubefact: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception(
+                is_array($result['errors'])
+                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
+                    : $result['errors']
+            );
+        }
+
+        return $result;
+    }
+
+    private function generarNotaCreditoParcialNubefact(Sale $sale, CreditNote $creditNote): array
+    {
+        $data = $this->buildNubefactCreditNotePartialData($sale, $creditNote);
+
+        $token = config('services.nubefact.token');
+        $url   = config('services.nubefact.url');
+
+        if (!$token || !$url) {
+            throw new \Exception('Faltan credenciales Nubefact.');
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Token token=' . $token,
+            'Content-Type'  => 'application/json',
+        ])->post($url, $data);
+
+        $result = $response->json();
+
+        if (!$response->ok()) {
+            $msg = is_array($result)
+                ? json_encode($result, JSON_UNESCAPED_UNICODE)
+                : $response->body();
+
+            throw new \Exception('Nubefact respondió error HTTP al generar Nota de Crédito parcial: ' . $msg);
+        }
+
+        if (isset($result['errors'])) {
+            throw new \Exception(
+                is_array($result['errors'])
+                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
+                    : $result['errors']
+            );
+        }
+
+        return $result;
+    }
+
+    private function buildNubefactCreditNotePartialData(Sale $sale, CreditNote $creditNote): array
+    {
+        $creditNote->loadMissing(['details']);
+
+        if ($creditNote->details->isEmpty()) {
+            throw new \Exception('La Nota de Crédito parcial no tiene detalles.');
+        }
+
+        $isFactura = $sale->type_document === '01';
+
+        $serieNotaCredito = $isFactura
+            ? config('services.nubefact.serie_nc_factura', 'FFF1')
+            : config('services.nubefact.serie_nc_boleta', 'BBB1');
+
+        $items = $creditNote->details->map(function ($detail) {
+            return [
+                "unidad_de_medida" => "NIU",
+                "codigo" => "",
+                "descripcion" => $detail->description,
+                "cantidad" => (float) $detail->quantity,
+                "valor_unitario" => (float) $detail->valor_unitario,
+                "precio_unitario" => (float) $detail->price,
+                "subtotal" => (float) $detail->subtotal,
+                "tipo_de_igv" => "1",
+                "igv" => (float) $detail->igv,
+                "total" => (float) $detail->total,
+            ];
+        })->toArray();
+
+        return [
+            "operacion" => "generar_comprobante",
+            "tipo_de_comprobante" => "3",
+            "serie" => $serieNotaCredito,
+            "numero" => "",
+            "codigo_unico" => 'NC-PARCIAL-' . $sale->id . '-' . now()->timestamp . '-' . \Illuminate\Support\Str::random(8),
+
+            "sunat_transaction" => "1",
+
+            "cliente_tipo_de_documento" => $sale->tipo_documento_cliente,
+            "cliente_numero_de_documento" => $sale->numero_documento_cliente,
+            "cliente_denominacion" => $sale->nombre_cliente,
+            "cliente_direccion" => $sale->direccion_cliente ?: "",
+            "cliente_email" => $sale->email_cliente ?: "",
+
+            "fecha_de_emision" => now()->format('d-m-Y'),
+            "moneda" => "1",
+            "porcentaje_de_igv" => 18.00,
+
+            "tipo_de_nota_de_credito" => $creditNote->reason_code ?: "07",
+            "motivo_o_sustento_de_nota_de_credito" => $creditNote->reason_description ?: "Devolución parcial",
+
+            "documento_que_se_modifica_tipo" => $sale->type_document === '01' ? "1" : "2",
+            "documento_que_se_modifica_serie" => $sale->serie_sunat,
+            "documento_que_se_modifica_numero" => $sale->numero,
+
+            "total_gravada" => (float) $creditNote->op_gravada,
+            "total_igv" => (float) $creditNote->igv,
+            "total" => (float) $creditNote->importe_total,
+            "total_a_pagar" => (float) $creditNote->importe_total,
+
+            "items" => $items,
+        ];
     }
 }

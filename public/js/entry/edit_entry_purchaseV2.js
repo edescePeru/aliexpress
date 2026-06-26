@@ -253,8 +253,13 @@ $(document).ready(function () {
         $('#material_id').val(material.material_id);
         $('#stock_item_id').val('');
 
+        const isItemeable = parseInt(material.tipo_venta_id) === 3;
+
+        // Por defecto, agrupado en Sí.
         $('#btn-grouped2').bootstrapSwitch('state', true, true);
-        $('#btn-grouped2').bootstrapSwitch('disabled', true);
+
+        // Solo puede modificarse si el material es itemeable.
+        $('#btn-grouped2').bootstrapSwitch('disabled', !isItemeable);
 
         aplicarLoteYFechaVence(material);
 
@@ -354,6 +359,32 @@ $(document).ready(function () {
                 return;
             }
 
+            const material = $materialSelected;
+            const isItemeable = material && parseInt(material.tipo_venta_id) === 3;
+            const isGrouped = $('#btn-grouped2').bootstrapSwitch('state');
+
+            let codes = [];
+
+            if (isItemeable && !isGrouped) {
+
+                codes = $codigosPorVariante[stockItemId] || [];
+
+                if (codes.length !== quantity) {
+                    row.find('.btn-registrar-series-variante')
+                        .removeClass('btn-success')
+                        .addClass('btn-outline-danger');
+
+                    toastr.error(
+                        'Debe registrar todas las series de la variante: ' +
+                        (stockItem.display_name || stockItem.attribute_summary || ''),
+                        'Error'
+                    );
+
+                    hasError = true;
+                    return;
+                }
+            }
+
             selectedRows.push({
                 stock_item_id: stockItem.stock_item_id,
                 material_id: stockItem.material_id,
@@ -363,7 +394,10 @@ $(document).ready(function () {
                 barcode: stockItem.barcode,
                 display_name: stockItem.display_name,
                 quantity: quantity,
-                price: price
+                price: price,
+
+                codes: codes,
+                is_grouped: isGrouped ? 1 : 0
             });
         });
 
@@ -381,6 +415,137 @@ $(document).ready(function () {
 
         $('#modalStockItems').modal('hide');
     });
+
+    $(document).on('click', '#btnGuardarCodigosMaterialSimple', function () {
+
+        if (!$registroPendienteMaterialSimple) {
+            toastr.error('No existe información pendiente para registrar.', 'Error', toastrOptions());
+            return;
+        }
+
+        const codigos = [];
+        const codigosNormalizados = [];
+        let tieneVacios = false;
+        let tieneDuplicados = false;
+
+        $('#tbodyCodigosMaterialSimple .input-codigo-material-simple').each(function () {
+            const codigo = ($(this).val() || '').trim();
+            const codigoNormalizado = codigo.toUpperCase();
+
+            if (!codigo) {
+                tieneVacios = true;
+                $(this).addClass('is-invalid');
+                return;
+            }
+
+            if (codigosNormalizados.includes(codigoNormalizado)) {
+                tieneDuplicados = true;
+                $(this).addClass('is-invalid');
+                return;
+            }
+
+            $(this).removeClass('is-invalid');
+
+            codigos.push(codigo);
+            codigosNormalizados.push(codigoNormalizado);
+        });
+
+        if (tieneVacios) {
+            toastr.error(
+                'Debe ingresar todos los códigos o series.',
+                'Error',
+                toastrOptions()
+            );
+            return;
+        }
+
+        if (tieneDuplicados) {
+            toastr.error(
+                'No puede registrar códigos o series repetidos.',
+                'Error',
+                toastrOptions()
+            );
+            return;
+        }
+
+        agregarMaterialSimpleConCodigosManuales(
+            $registroPendienteMaterialSimple,
+            codigos
+        );
+
+        $('#modalCodigosMaterialSimple').modal('hide');
+        $registroPendienteMaterialSimple = null;
+    });
+
+    $(document).on('input change', '.variant-quantity', function () {
+        const row = $(this).closest('tr');
+
+        actualizarBotonSeriesVariante(row);
+    });
+
+    $(document).on('click', '.btn-registrar-series-variante', function () {
+        const stockItemId = $(this).data('stock-item-id');
+
+        abrirModalCodigosVariante(stockItemId);
+    });
+
+    $(document).on('click', '#btnGuardarCodigosVariante', function () {
+
+        if (!$registroPendienteVariante) {
+            toastr.error('No existe una variante pendiente de registrar.', 'Error');
+            return;
+        }
+
+        const codigos = [];
+        const codigosNormalizados = [];
+        let tieneVacios = false;
+        let tieneDuplicados = false;
+
+        $('#tbodyCodigosVariante .input-codigo-variante').each(function () {
+
+            const input = $(this);
+            const codigo = (input.val() || '').trim();
+            const codigoNormalizado = codigo.toUpperCase();
+
+            input.removeClass('is-invalid');
+
+            if (!codigo) {
+                input.addClass('is-invalid');
+                tieneVacios = true;
+                return;
+            }
+
+            if (codigosNormalizados.includes(codigoNormalizado)) {
+                input.addClass('is-invalid');
+                tieneDuplicados = true;
+                return;
+            }
+
+            codigos.push(codigo);
+            codigosNormalizados.push(codigoNormalizado);
+        });
+
+        if (tieneVacios) {
+            toastr.error('Debe ingresar todos los códigos o series.', 'Error');
+            return;
+        }
+
+        if (tieneDuplicados) {
+            toastr.error('No puede registrar códigos o series repetidos para esta variante.', 'Error');
+            return;
+        }
+
+        const stockItemId = $registroPendienteVariante.stock_item_id;
+
+        $codigosPorVariante[stockItemId] = codigos;
+
+        const row = $('#tbodyStockItemsVariant tr[data-stock-item-id="' + stockItemId + '"]');
+
+        actualizarBotonSeriesVariante(row);
+
+        $('#modalCodigosVariante').modal('hide');
+        $registroPendienteVariante = null;
+    });
 });
 
 let $modalImage;
@@ -394,6 +559,65 @@ let $modalAddGroupItems;
 let $caracteres = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 let $longitud = 20;
+
+let $registroPendienteMaterialSimple = null;
+let $codigosPorVariante = {};
+let $registroPendienteVariante = null;
+
+function agregarMaterialSimpleConCodigosManuales(data, codigos) {
+
+    const material = data.material;
+    const quantity = parseFloat(data.quantity);
+    const materialPrice = parseFloat(data.material_price);
+    const location = data.location;
+    const materialVence = data.material_vence;
+    const materialLote = data.material_lote;
+
+    const unitPrice = parseFloat(materialPrice / quantity).toFixed(4);
+
+    const entryGroupId = generarEntryGroupId();
+
+    codigos.forEach(function (codigo) {
+        $items.push({
+            'id': $items.length + 1,
+            'entry_group_id': entryGroupId,
+            'price': unitPrice,
+            'quantity': 1,
+            'material': material.material,
+            'id_material': material.material_id,
+            'stock_item_id': material.stock_item_id,
+            'item': codigo,
+            'id_location': location.id,
+            'date_vence': materialVence,
+            'material_lote': materialLote,
+            'state': 'good',
+
+            // Identifica que estos códigos fueron registrados individualmente.
+            'is_grouped': 0
+        });
+    });
+
+    updateSummaryInvoice();
+
+    const subtotal = parseFloat(materialPrice / 1.18).toFixed(2);
+    const taxes = parseFloat(subtotal * 0.18).toFixed(2);
+    const total = materialPrice.toFixed(2);
+
+    renderTemplateMaterial(
+        material.stock_item_id || material.material_id,
+        material.stock_item_sku || material.code || '',
+        material.material,
+        quantity,
+        material.unit,
+        parseFloat(materialPrice / quantity).toFixed(2),
+        subtotal,
+        taxes,
+        total,
+        entryGroupId
+    );
+
+    limpiarFormularioEntradaMaterial();
+}
 
 function agregarStockItemsVariantAEntrada(selectedRows) {
 
@@ -420,11 +644,19 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
         let totalPrice = parseFloat(row.price);
         let unitPrice = parseFloat(totalPrice / quantity).toFixed(4);
 
+        const usarCodigosManuales = Array.isArray(row.codes) && row.codes.length === quantity;
+
+        const entryGroupId = generarEntryGroupId();
+
         for (let j = 0; j < quantity; j++) {
-            const code = rand_code($caracteres, $longitud);
+
+            const code = usarCodigosManuales
+                ? row.codes[j]
+                : rand_code($caracteres, $longitud);
 
             $items.push({
                 'id': $items.length + 1,
+                'entry_group_id': entryGroupId,
                 'price': unitPrice,
                 'quantity': 1,
                 'material': row.display_name || material.material,
@@ -435,10 +667,9 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
                 'id_location': location.id,
                 'date_vence': materialVence,
                 'material_lote': materialLote,
-                'state': 'good'
+                'state': 'good',
+                'is_grouped': row.is_grouped
             });
-
-
         }
 
         updateSummaryInvoice();
@@ -446,8 +677,6 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
         let subtotal = parseFloat(totalPrice / 1.18).toFixed(2);
         let taxes = parseFloat(subtotal * 0.18).toFixed(2);
         let total = parseFloat(totalPrice).toFixed(2);
-
-        totalGeneral += parseFloat(total);
 
         renderTemplateMaterial(
             row.stock_item_id,
@@ -458,11 +687,16 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
             parseFloat(totalPrice / quantity).toFixed(2),
             subtotal,
             taxes,
-            total
+            total,
+            entryGroupId
         );
     });
 
     limpiarFormularioEntradaMaterial();
+
+    // Ya se agregaron al detalle; limpiamos los registros temporales.
+    $codigosPorVariante = {};
+    $registroPendienteVariante = null;
 }
 
 function limpiarFormularioEntradaMaterial() {
@@ -529,6 +763,9 @@ function abrirModalStockItemsVariant(material) {
 
     $('#modalStockItems').modal('show');
 
+    $codigosPorVariante = {};
+    $registroPendienteVariante = null;
+
     $.ajax({
         url: url,
         method: 'GET',
@@ -556,6 +793,10 @@ function renderStockItemsVariantTable(stockItems) {
     let tbody = $('#tbodyStockItemsVariant');
     tbody.empty();
 
+    const material = $materialSelected;
+    const isItemeable = material && parseInt(material.tipo_venta_id) === 3;
+    const isGrouped = $('#btn-grouped2').bootstrapSwitch('state');
+
     if (!stockItems || stockItems.length === 0) {
         tbody.html(`
             <tr>
@@ -569,11 +810,29 @@ function renderStockItemsVariantTable(stockItems) {
 
     stockItems.forEach(function (item) {
 
+        const mostrarSeries = isItemeable && !isGrouped;
+
+        let seriesHtml = `
+            <span class="text-muted small">—</span>
+        `;
+
+        if (mostrarSeries) {
+            seriesHtml = `
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary btn-registrar-series-variante"
+                        data-stock-item-id="${item.stock_item_id}"
+                        disabled>
+                    Series (0/0)
+                </button>
+            `;
+        }
+
         let row = `
             <tr data-stock-item-id="${item.stock_item_id}">
-                <td>${item.attribute_summary || ''}</td>
-                <td>${item.sku || ''}</td>
-                <td>${item.barcode || ''}</td>
+                <td>${escapeHtml(item.attribute_summary || '')}</td>
+                <td>${escapeHtml(item.sku || '')}</td>
+                <td>${escapeHtml(item.barcode || '')}</td>
+
                 <td>
                     <input type="number"
                            class="form-control form-control-sm variant-quantity"
@@ -581,6 +840,7 @@ function renderStockItemsVariantTable(stockItems) {
                            step="1"
                            placeholder="0">
                 </td>
+
                 <td>
                     <input type="number"
                            class="form-control form-control-sm variant-price"
@@ -588,11 +848,141 @@ function renderStockItemsVariantTable(stockItems) {
                            step="0.01"
                            placeholder="0.00">
                 </td>
+
+                <td class="text-center align-middle">
+                    ${seriesHtml}
+                </td>
             </tr>
         `;
 
         tbody.append(row);
     });
+}
+
+function actualizarBotonSeriesVariante(row) {
+
+    const material = $materialSelected;
+    const isItemeable = material && parseInt(material.tipo_venta_id) === 3;
+    const isGrouped = $('#btn-grouped2').bootstrapSwitch('state');
+
+    if (!isItemeable || isGrouped) {
+        return;
+    }
+
+    const stockItemId = parseInt(row.data('stock-item-id'));
+    const btn = row.find('.btn-registrar-series-variante');
+
+    if (!btn.length) {
+        return;
+    }
+
+    const quantityRaw = row.find('.variant-quantity').val();
+    const quantity = parseInt(quantityRaw, 10);
+
+    if (!quantity || quantity <= 0) {
+        delete $codigosPorVariante[stockItemId];
+
+        btn
+            .prop('disabled', true)
+            .removeClass('btn-success')
+            .addClass('btn-outline-primary')
+            .text('Series (0/0)');
+
+        return;
+    }
+
+    const codigos = $codigosPorVariante[stockItemId] || [];
+    const cantidadCodigos = codigos.length;
+
+    // Si la cantidad fue modificada luego de registrar códigos,
+    // se eliminan para evitar que queden series sobrantes o incompletas.
+    if (cantidadCodigos > 0 && cantidadCodigos !== quantity) {
+        delete $codigosPorVariante[stockItemId];
+    }
+
+    const codigosActuales = $codigosPorVariante[stockItemId] || [];
+    const cantidadActual = codigosActuales.length;
+    const completo = cantidadActual === quantity;
+
+    btn
+        .prop('disabled', false)
+        .removeClass('btn-success btn-outline-primary')
+        .addClass(completo ? 'btn-success' : 'btn-outline-primary')
+        .text(`Series (${cantidadActual}/${quantity})`);
+}
+
+function abrirModalCodigosVariante(stockItemId) {
+
+    const row = $('#tbodyStockItemsVariant tr[data-stock-item-id="' + stockItemId + '"]');
+
+    if (!row.length) {
+        toastr.error('No se encontró la variante seleccionada.', 'Error');
+        return;
+    }
+
+    const quantity = parseInt(row.find('.variant-quantity').val(), 10);
+
+    if (!quantity || quantity <= 0) {
+        toastr.warning('Primero debe ingresar una cantidad válida para esta variante.', 'Atención');
+        return;
+    }
+
+    const stockItem = $stockItemsVariantSelected.find(function (item) {
+        return parseInt(item.stock_item_id) === parseInt(stockItemId);
+    });
+
+    if (!stockItem) {
+        toastr.error('No se encontró la información de la variante.', 'Error');
+        return;
+    }
+
+    $registroPendienteVariante = {
+        stock_item_id: parseInt(stockItemId),
+        quantity: quantity,
+        stock_item: stockItem
+    };
+
+    const codigosExistentes = $codigosPorVariante[stockItemId] || [];
+
+    $('#modalCodigosVarianteTitle').text('Registrar códigos / series');
+
+    $('#modalCodigosVarianteInfo').html(
+        '<strong>Material:</strong> ' + escapeHtml($materialSelected.material) +
+        '<br><strong>Variante:</strong> ' + escapeHtml(stockItem.attribute_summary || stockItem.display_name || '') +
+        '<br><strong>Cantidad a registrar:</strong> ' + quantity
+    );
+
+    let html = '';
+
+    for (let i = 0; i < quantity; i++) {
+        const codigoActual = codigosExistentes[i] || '';
+
+        html += `
+            <tr>
+                <td class="text-center align-middle">${i + 1}</td>
+                <td>
+                    <input type="text"
+                           class="form-control form-control-sm input-codigo-variante"
+                           value="${escapeHtml(codigoActual)}"
+                           placeholder="Ingrese código o serie ${i + 1}"
+                           autocomplete="off">
+                </td>
+            </tr>
+        `;
+    }
+
+    $('#tbodyCodigosVariante').html(html);
+
+    $('#modalCodigosVariante').modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    $('#modalCodigosVariante').modal('show');
+
+    setTimeout(function () {
+        $('#tbodyCodigosVariante .input-codigo-variante').first().focus();
+    }, 300);
 }
 
 function aplicarLoteYFechaVence(material) {
@@ -1086,6 +1476,67 @@ function addItemsO() {
     }
 }
 
+function materialEsItemeable(material) {
+    return parseInt(material.tipo_venta_id) === 3;
+}
+
+function materialEstaAgrupado() {
+    return $('#btn-grouped2').bootstrapSwitch('state');
+}
+
+function escapeHtml(value) {
+    return $('<div>').text(value || '').html();
+}
+
+function abrirModalCodigosMaterialSimple(data) {
+
+    $registroPendienteMaterialSimple = data;
+
+    const material = data.material;
+    const quantity = parseInt(data.quantity, 10);
+
+    $('#modalCodigosMaterialSimpleTitle').text(
+        'Registrar códigos / series'
+    );
+
+    $('#modalCodigosMaterialSimpleInfo').html(
+        '<strong>Material:</strong> ' + escapeHtml(material.material) +
+        '<br><strong>Cantidad a registrar:</strong> ' + quantity
+    );
+
+    let html = '';
+
+    for (let i = 1; i <= quantity; i++) {
+        html += `
+            <tr>
+                <td class="text-center align-middle">${i}</td>
+                <td>
+                    <input
+                        type="text"
+                        class="form-control form-control-sm input-codigo-material-simple"
+                        data-index="${i - 1}"
+                        placeholder="Ingrese código o serie ${i}"
+                        autocomplete="off"
+                    >
+                </td>
+            </tr>
+        `;
+    }
+
+    $('#tbodyCodigosMaterialSimple').html(html);
+
+    $('#modalCodigosMaterialSimple').modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    $('#modalCodigosMaterialSimple').modal('show');
+
+    setTimeout(function () {
+        $('#tbodyCodigosMaterialSimple .input-codigo-material-simple').first().focus();
+    }, 300);
+}
+
 function addItems() {
 
     if (!$materialSelected) {
@@ -1169,9 +1620,40 @@ function addItems() {
         }
     }
 
+    const isItemeable = materialEsItemeable(material);
+    const isGrouped = materialEstaAgrupado();
+
     quantity = parseFloat(quantity);
     let material_price = parseFloat(material_price_raw).toFixed(2);
+
+    // Material itemeable no agrupado:
+    // no debe generar códigos aleatorios; debe solicitar series manuales.
+    if (isItemeable && !isGrouped) {
+
+        if (isItemeable && !Number.isInteger(quantity)) {
+            toastr.error(
+                'Los materiales itemeables deben registrarse con una cantidad entera.',
+                'Error',
+                toastrOptions()
+            );
+            return;
+        }
+
+        abrirModalCodigosMaterialSimple({
+            material: material,
+            quantity: quantity,
+            material_price: material_price,
+            location: location,
+            material_vence: material_vence,
+            material_lote: material_lote
+        });
+
+        return;
+    }
+
     let unit_price = parseFloat(material_price / quantity).toFixed(4);
+
+    const entryGroupId = generarEntryGroupId();
 
     for (let j = 0; j < quantity; j++) {
 
@@ -1179,6 +1661,7 @@ function addItems() {
 
         $items.push({
             'id': $items.length + 1,
+            'entry_group_id': entryGroupId,
             'price': unit_price,
             'quantity': 1,
             'material': material.material,
@@ -1188,7 +1671,8 @@ function addItems() {
             'id_location': location.id,
             'date_vence': material_vence,
             'material_lote': material_lote,
-            'state': 'good'
+            'state': 'good',
+            'is_grouped': isGrouped ? 1 : 0
         });
 
 
@@ -1209,7 +1693,8 @@ function addItems() {
         parseFloat(material_price / quantity).toFixed(2),
         subtotal,
         taxes,
-        total
+        total,
+        entryGroupId
     );
 
     limpiarFormularioEntradaMaterial();
@@ -1245,6 +1730,10 @@ function rand_code($caracteres, $longitud){
     return code;
 }
 
+function generarEntryGroupId() {
+    return 'entry_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+}
+
 function deleteItem() {
     //console.log($(this).parent().parent().parent());
     var totalDelete = parseFloat($(this).parent().prev().html());
@@ -1268,12 +1757,14 @@ function deleteItem() {
     $('#total').html(totalNuevo.toFixed(2));
 
     $(this).parent().parent().remove();
-    var materialId = $(this).data('delete');
-    $items = $items.filter(material => material.id_material !== materialId);
+    const entryGroupId = $(this).data('delete');
+    $items = $items.filter(function (item) {
+        return item.entry_group_id !== entryGroupId;
+    });
     //updateSummaryInvoice();
 }
 
-function renderTemplateMaterial(id, code, description, quantity, unit, price, subtotal, taxes, total) {
+function renderTemplateMaterial(id, code, description, quantity, unit, price, subtotal, taxes, total, entryGroupId) {
     var clone = activateTemplate('#materials-selected');
     clone.querySelector("[data-code]").innerHTML = code;
     clone.querySelector("[data-description]").innerHTML = description;
@@ -1283,7 +1774,7 @@ function renderTemplateMaterial(id, code, description, quantity, unit, price, su
     clone.querySelector("[data-subtotal]").innerHTML = parseFloat(subtotal).toFixed(2);
     clone.querySelector("[data-taxes]").innerHTML = parseFloat(taxes).toFixed(2);
     clone.querySelector("[data-total]").innerHTML = parseFloat(total).toFixed(2);
-    clone.querySelector("[data-delete]").setAttribute('data-delete', id);
+    clone.querySelector("[data-delete]").setAttribute('data-delete', entryGroupId);
     $('#body-materials').append(clone);
 }
 

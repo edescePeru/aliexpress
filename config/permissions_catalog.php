@@ -320,6 +320,7 @@ return [
     'list_projection' => 'Listar Poyecciones',
     'list_promotionLimit' => 'Ver listado de promociones por límite',
     'list_puntoVenta' => 'Listar ventas en punto de venta',
+    'listErrors_puntoVenta' => 'Listar ventas con error en punto de venta',
     'list_quality' => 'Listar calidades',
     'list_quote' => 'Listar Cotizaciones',
     'list_quoteSale' => 'Ver listado de cotizaciones de ventas',
@@ -454,6 +455,8 @@ return [
     'configActive_material' => 'Configurar activo de stock items',
     'verInventario_material' => 'Ver Inventario de stock items',
     'ajustarStock_material' => 'Ajustar Stock de stock items',
+    'verItems_material' => 'Ver items de stock items',
+    'editarCodeItems_material' => 'Editar codigo de items de stock items',
 
     'update_materialType' => 'Modificar Tipos de Materiales',
     'update_orderPurchaseExpress' => 'Modificar Ordenes Compra Express',

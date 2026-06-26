@@ -508,11 +508,12 @@
                         <table class="table table-sm table-bordered mb-2" id="tableStockItemsVariant">
                             <thead class="thead-light">
                             <tr>
-                                <th style="width: 28%;">Variante</th>
-                                <th style="width: 22%;">SKU</th>
-                                <th style="width: 16%;">Código de barras</th>
-                                <th style="width: 17%;">Cantidad</th>
-                                <th style="width: 17%;">Precio costo IGV</th>
+                                <th style="width: 25%;">Variante</th>
+                                <th style="width: 18%;">SKU</th>
+                                <th style="width: 14%;">Código de barras</th>
+                                <th style="width: 14%;">Cantidad</th>
+                                <th style="width: 14%;">Precio costo IGV</th>
+                                <th style="width: 15%;">Series</th>
                             </tr>
                             </thead>
                             <tbody id="tbodyStockItemsVariant">
@@ -530,6 +531,93 @@
                         </button>
                     </div>
 
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalCodigosMaterialSimple" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCodigosMaterialSimpleTitle">
+                        Registrar códigos / series
+                    </h5>
+
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="mb-3 text-muted" id="modalCodigosMaterialSimpleInfo"></p>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                            <tr>
+                                <th style="width: 80px;">N°</th>
+                                <th>Código / Serie <span class="text-danger">*</span></th>
+                            </tr>
+                            </thead>
+                            <tbody id="tbodyCodigosMaterialSimple"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="button" class="btn btn-primary" id="btnGuardarCodigosMaterialSimple">
+                        <i class="fa fa-save"></i> Guardar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="modalCodigosVariante" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCodigosVarianteTitle">
+                        Registrar códigos / series
+                    </h5>
+
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-3" id="modalCodigosVarianteInfo"></p>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                            <tr>
+                                <th style="width: 80px;">N°</th>
+                                <th>Código / Serie <span class="text-danger">*</span></th>
+                            </tr>
+                            </thead>
+                            <tbody id="tbodyCodigosVariante"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="button" class="btn btn-primary" id="btnGuardarCodigosVariante">
+                        <i class="fa fa-save"></i> Guardar series
+                    </button>
                 </div>
 
             </div>

@@ -666,6 +666,351 @@ $(document).ready(function () {
             $('#filter_cash_box_subtype_wrap').hide();
         }
     });
+
+    $(document).on('click', '[data-consultar_anulacion]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.ajax({
+            url: '/dashboard/consultar/anulacion/' + saleId,
+            method: 'POST',
+            headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                $.alert({
+                    title: 'Consulta realizada',
+                    content: data.message,
+                    type: 'green',
+                    buttons: {
+                        ok: {
+                            text: 'Aceptar',
+                            btnClass: 'btn-success'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+            error: function (xhr) {
+                let message = "Sucedió un error al consultar la anulación.";
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                $.alert({
+                    title: 'Aviso',
+                    content: message,
+                    type: 'orange',
+                    buttons: {
+                        ok: {
+                            text: 'Entendido',
+                            btnClass: 'btn-warning'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+        });
+    });
+
+    $(document).on('click', '[data-generar_nota_credito]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.confirm({
+            title: 'Generar Nota de Crédito',
+            content: 'Se generará una Nota de Crédito total por anulación de la operación. ¿Desea continuar?',
+            type: 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, generar',
+                    btnClass: 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/generar/nota-credito/total/' + saleId,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            processData: false,
+                            contentType: false,
+                            success: function (data) {
+                                $.alert({
+                                    title: 'Correcto',
+                                    content: data.message,
+                                    type: 'green',
+                                    buttons: {
+                                        ok: {
+                                            text: 'Aceptar',
+                                            btnClass: 'btn-success'
+                                        }
+                                    }
+                                });
+
+                                reloadCurrentPageOrders();
+                            },
+                            error: function (xhr) {
+                                let message = 'No se pudo generar la Nota de Crédito.';
+
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+
+                                $.alert({
+                                    title: 'Aviso',
+                                    content: message,
+                                    type: 'orange',
+                                    buttons: {
+                                        ok: {
+                                            text: 'Entendido',
+                                            btnClass: 'btn-warning'
+                                        }
+                                    }
+                                });
+
+                                reloadCurrentPageOrders();
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-consultar_nota_credito]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.ajax({
+            url: '/dashboard/consultar/nota-credito/' + saleId,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                $.alert({
+                    title: 'Consulta realizada',
+                    content: data.message,
+                    type: 'green',
+                    buttons: {
+                        ok: {
+                            text: 'Aceptar',
+                            btnClass: 'btn-success'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            },
+            error: function (xhr) {
+                let message = 'No se pudo consultar la Nota de Crédito.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                $.alert({
+                    title: 'Aviso',
+                    content: message,
+                    type: 'orange',
+                    buttons: {
+                        ok: {
+                            text: 'Entendido',
+                            btnClass: 'btn-warning'
+                        }
+                    }
+                });
+
+                reloadCurrentPageOrders();
+            }
+        });
+    });
+
+    $(document).on('click', '[data-generar_nota_credito_parcial]', function () {
+        let saleId = $(this).data('sale_id');
+
+        $.get('/dashboard/nota-credito/parcial/data/' + saleId, function (data) {
+            $('#nc_partial_sale_id').val(data.sale_id);
+            $('#nc_partial_sale_code').text(data.code);
+            $('#nc_partial_customer').text(data.cliente);
+            $('#nc_partial_document').text((data.type_document === '01' ? 'Factura' : 'Boleta') + ' ' + data.serie_sunat + '-' + data.numero);
+
+            $('#body-nc-partial-items').empty();
+
+            data.items.forEach(function (item) {
+                $('#body-nc-partial-items').append(`
+                <tr>
+                    <td>${item.description}</td>
+                    <td>${item.sold_quantity}</td>
+                    <td>${item.credited_quantity}</td>
+                    <td>${item.available_quantity}</td>
+                    <td>
+                        <input type="number"
+                               class="form-control form-control-sm nc-partial-qty"
+                               data-sale_detail_id="${item.sale_detail_id}"
+                               data-price="${item.price}"
+                               data-max="${item.available_quantity}"
+                               min="0"
+                               max="${item.available_quantity}"
+                               step="0.01"
+                               value="0">
+                    </td>
+                    <td>S/ <span class="nc-partial-line-total">0.00</span></td>
+                </tr>
+            `);
+            });
+
+            $('#nc_partial_total').text('0.00');
+            $('#modalNotaCreditoParcial').modal('show');
+
+        }).fail(function (xhr) {
+            let message = 'No se pudo obtener la información de la venta.';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+
+            $.alert({
+                title: 'Aviso',
+                content: message,
+                type: 'orange',
+            });
+        });
+    });
+
+    $(document).on('input', '.nc-partial-qty', function () {
+        let input = $(this);
+        let qty = parseFloat(input.val()) || 0;
+        let max = parseFloat(input.data('max')) || 0;
+        let price = parseFloat(input.data('price')) || 0;
+
+        if (qty > max) {
+            qty = max;
+            input.val(max);
+        }
+
+        if (qty < 0) {
+            qty = 0;
+            input.val(0);
+        }
+
+        let totalLine = qty * price;
+
+        input.closest('tr').find('.nc-partial-line-total').text(totalLine.toFixed(2));
+
+        let total = 0;
+
+        $('.nc-partial-qty').each(function () {
+            let q = parseFloat($(this).val()) || 0;
+            let p = parseFloat($(this).data('price')) || 0;
+            total += q * p;
+        });
+
+        $('#nc_partial_total').text(total.toFixed(2));
+    });
+
+    $(document).on('click', '#btn-submit-nc-partial', function () {
+        let saleId = $('#nc_partial_sale_id').val();
+
+        let items = [];
+
+        $('.nc-partial-qty').each(function () {
+            let qty = parseFloat($(this).val()) || 0;
+
+            if (qty > 0) {
+                items.push({
+                    sale_detail_id: $(this).data('sale_detail_id'),
+                    quantity: qty
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            toastr.error('Debe ingresar al menos una cantidad a devolver.', 'Error');
+            return;
+        }
+
+        $.confirm({
+            title: 'Confirmar Nota de Crédito Parcial',
+            content: 'Se generará una Nota de Crédito parcial por los productos seleccionados. ¿Desea continuar?',
+            type: 'orange',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, generar',
+                    btnClass: 'btn-warning',
+                    action: function () {
+                        $.ajax({
+                            url: '/dashboard/generar/nota-credito/parcial/' + saleId,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            data: JSON.stringify({
+                                reason_code: '07',
+                                reason_description: 'Devolución parcial',
+                                items: items
+                            }),
+                            contentType: 'application/json',
+                            success: function (data) {
+                                $('#modalNotaCreditoParcial').modal('hide');
+
+                                $.alert({
+                                    title: 'Correcto',
+                                    content: data.message,
+                                    type: 'green'
+                                });
+
+                                reloadCurrentPageOrders();
+                            },
+                            error: function (xhr) {
+                                let message = 'No se pudo generar la Nota de Crédito parcial.';
+
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+
+                                $.alert({
+                                    title: 'Aviso',
+                                    content: message,
+                                    type: 'orange'
+                                });
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar'
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '[data-ver_solucion_sunat_error]', function () {
+        const message = $(this).data('message') || 'Sin motivo registrado.';
+        const date = $(this).data('date') || '';
+
+        $.alert({
+            title: 'Solución del comprobante',
+            content: `
+            <strong>Fecha:</strong> ${escapeHtml(date)}<br>
+            <strong>Detalle:</strong><br>
+            ${escapeHtml(message)}
+        `,
+            type: 'green',
+            columnClass: 'medium',
+            buttons: {
+                ok: {
+                    text: 'Cerrar',
+                    btnClass: 'btn-success'
+                }
+            }
+        });
+    });
 });
 
 var $formDelete;
@@ -847,12 +1192,34 @@ function anularOrder() {
                             console.log(data);
                             $.alert(data.message);
                             setTimeout( function () {
-                                getDataOrders(1);
+                                reloadCurrentPageOrders()
                             }, 2000 )
                         },
-                        error: function (data) {
-                            $.alert("Sucedió un error en el servidor. Intente nuevamente.");
-                        },
+                        error: function (xhr) {
+                            console.log(xhr);
+
+                            let message = "Sucedió un error en el servidor. Intente nuevamente.";
+
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            } else if (xhr.responseText) {
+                                message = xhr.responseText;
+                            }
+
+                            $.alert({
+                                title: 'Aviso',
+                                content: message,
+                                type: 'orange',
+                                buttons: {
+                                    ok: {
+                                        text: 'Entendido',
+                                        btnClass: 'btn-warning'
+                                    }
+                                }
+                            });
+
+                            reloadCurrentPageOrders()
+                        }
                     });
                 },
             },
@@ -1061,6 +1428,13 @@ function getDataOrders($numberPage) {
     var cashBoxId = $('#filter_cash_box_id').val();
     var cashBoxSubtypeId = $('#filter_cash_box_subtype_id').val();
     var invoiceStatus = $('#filter_invoice_status').val();
+    var saleStatus = $('#filter_sale_status').val();
+
+    if (saleStatus === 'annulled') {
+        $('#th-dispatch-or-annulled').text('Fecha Anulación');
+    } else {
+        $('#th-dispatch-or-annulled').text('Estado Despacho');
+    }
 
     $.get('/dashboard/get/data/sales/' + $numberPage, {
         code: code,
@@ -1074,6 +1448,7 @@ function getDataOrders($numberPage) {
         cash_box_id: cashBoxId,
         cash_box_subtype_id: cashBoxSubtypeId,
         invoice_status: invoiceStatus,
+        sale_status: saleStatus
     }, function(data) {
         if (data.data.length == 0) {
             renderDataOrdersEmpty(data);
@@ -1183,9 +1558,8 @@ function renderDataTable(data) {
     clone.querySelector("[data-date]").innerHTML = data.date;
     clone.querySelector("[data-customer]").innerHTML = data.nombre_cliente;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
-    //clone.querySelector("[data-total]").innerHTML = data.total;
-    const tdTotal = clone.querySelector("[data-total]");
 
+    const tdTotal = clone.querySelector("[data-total]");
     tdTotal.innerHTML = data.total;
 
     tdTotal.classList.remove(
@@ -1204,52 +1578,282 @@ function renderDataTable(data) {
 
     clone.querySelector("[data-tipo_pago]").innerHTML = data.tipo_pago;
 
-    let dispatchChecked = data.dispatch_status === 'despachado';
+    if (parseInt(data.is_annulled) === 1) {
+        clone.querySelector("[data-dispatch_status]").innerHTML =
+            data.annulment_accepted_at || 'ANULADA';
+    } else {
+        let dispatchChecked = data.dispatch_status === 'despachado';
 
-    clone.querySelector("[data-dispatch_status]").innerHTML = `
-    <input type="checkbox"
-           class="switch-dispatch-status"
-           data-sale_id="${data.id}"
-           ${dispatchChecked ? 'checked' : ''}
-           data-bootstrap-switch
-           data-on-text="Desp."
-           data-off-text="Pend."
-           data-on-color="success"
-           data-off-color="warning">`;
+        clone.querySelector("[data-dispatch_status]").innerHTML = `
+            <input type="checkbox"
+                   class="switch-dispatch-status"
+                   data-sale_id="${data.id}"
+                   ${dispatchChecked ? 'checked' : ''}
+                   data-bootstrap-switch
+                   data-on-text="Desp."
+                   data-off-text="Pend."
+                   data-on-color="success"
+                   data-off-color="warning">`;
+    }
+
+    let estadoComprobante = data.estado_comprobante || 'SIN COMPROBANTE';
+    let badgeClass = 'badge-secondary';
+
+    if (data.sunat_status === 'Error') {
+        badgeClass = 'badge-danger';
+    } else if (data.annulment_status === 'pending') {
+        badgeClass = 'badge-info';
+    } else if (data.annulment_status === 'waiting_sunat_process') {
+        badgeClass = 'badge-warning';
+    } else if (data.has_pending_credit_note) {
+        badgeClass = 'badge-info';
+    } else if (data.has_rejected_credit_note) {
+        badgeClass = 'badge-danger';
+    } else if (data.annulment_status === 'requires_credit_note') {
+        badgeClass = 'badge-warning';
+    } else if (data.annulment_status === 'accepted') {
+        badgeClass = 'badge-dark';
+    } else if (data.type_document === '01' || data.type_document === '03') {
+        badgeClass = 'badge-success';
+    }
+
+    /*clone.querySelector("[data-estado_comprobante]").innerHTML =
+        `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;*/
+    let htmlEstado = `<span class="badge ${badgeClass}">${estadoComprobante}</span>`;
+
+    if (data.sunat_error_is_discarded) {
+        const reason = data.sunat_error_discard_reason || 'Sin motivo registrado';
+
+        htmlEstado += `
+        <br>
+        <span class="badge badge-success mt-1">SOLUCIONADO</span>
+        <button type="button"
+                class="btn btn-link btn-sm p-0 ml-1"
+                data-ver_solucion_sunat_error
+                data-message="${escapeHtml(reason)}"
+                data-date="${escapeHtml(data.sunat_error_discarded_at || '')}"
+                data-toggle="tooltip"
+                title="Ver solución">
+            <i class="fas fa-info-circle text-success"></i>
+        </button>
+    `;
+    }
+
+
+
+    if (data.credit_note_status === 'partial') {
+        htmlEstado += `<br><span class="badge badge-warning mt-1">NC PARCIAL</span>`;
+    }
+
+    if (
+        data.annulment_status === 'accepted' &&
+        data.annulment_type === 'credit_note'
+    ) {
+        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR NOTA DE CRÉDITO</span>`;
+    }
+
+    if (
+        data.annulment_status === 'accepted' &&
+        data.annulment_type === 'nubefact_baja'
+    ) {
+        htmlEstado += `<br><span class="badge badge-secondary mt-1">ANULADA POR BAJA</span>`;
+    }
+
+    clone.querySelector("[data-estado_comprobante]").innerHTML = htmlEstado;
 
     var botones = clone.querySelector("[data-buttons]");
 
+    /*
+     * ============================================================
+     * VENTAS ANULADAS
+     * ============================================================
+     */
+    if (parseInt(data.is_annulled) === 1) {
+        var cloneBtnAnnulled = activateTemplate('#template-annulled');
+
+        cloneBtnAnnulled.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
+
+        const printOriginal = cloneBtnAnnulled.querySelector("[data-print_recibo]");
+        printOriginal.setAttribute("data-id", data.id);
+        printOriginal.setAttribute("href", data.print_url || "#");
+        printOriginal.setAttribute("title", data.print_label || "Ver comprobante original");
+
+        if (!data.print_url) {
+            printOriginal.classList.add('disabled');
+            printOriginal.removeAttribute('target');
+            printOriginal.addEventListener('click', function (e) {
+                e.preventDefault();
+            });
+        } else {
+            printOriginal.setAttribute('target', '_blank');
+        }
+
+        const pdfAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_pdf]");
+        const xmlAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_xml]");
+        const cdrAnulacion = cloneBtnAnnulled.querySelector("[data-print_anulacion_cdr]");
+
+        let pdfUrl = data.annulment_pdf_url_local;
+        let xmlUrl = data.annulment_xml_url_local;
+        let cdrUrl = data.annulment_cdr_url_local;
+
+        if (data.is_credit_note_annulment) {
+            pdfUrl = data.credit_note_pdf_url_local;
+            xmlUrl = data.credit_note_xml_url_local;
+            cdrUrl = data.credit_note_cdr_url_local;
+        }
+
+        /*if (data.annulment_xml_url_local) {
+            xmlAnulacion.setAttribute("href", data.annulment_xml_url_local);
+            xmlAnulacion.setAttribute("target", "_blank");
+        } else {
+            xmlAnulacion.remove();
+        }
+
+        if (data.annulment_cdr_url_local) {
+            cdrAnulacion.setAttribute("href", data.annulment_cdr_url_local);
+            cdrAnulacion.setAttribute("target", "_blank");
+        } else {
+            cdrAnulacion.remove();
+        }*/
+        if (pdfUrl) {
+            pdfAnulacion.setAttribute("href", pdfUrl);
+            pdfAnulacion.setAttribute("target", "_blank");
+        } else {
+            pdfAnulacion.remove();
+        }
+
+        if (xmlUrl) {
+            xmlAnulacion.setAttribute("href", xmlUrl);
+            xmlAnulacion.setAttribute("target", "_blank");
+        } else {
+            xmlAnulacion.remove();
+        }
+
+        if (cdrUrl) {
+            cdrAnulacion.setAttribute("href", cdrUrl);
+            cdrAnulacion.setAttribute("target", "_blank");
+        } else {
+            cdrAnulacion.remove();
+        }
+
+        if (data.is_credit_note_annulment) {
+            pdfAnulacion.setAttribute("title", "Ver PDF Nota de Crédito");
+            xmlAnulacion.setAttribute("title", "Ver XML Nota de Crédito");
+            cdrAnulacion.setAttribute("title", "Ver CDR Nota de Crédito");
+        }
+
+        botones.append(cloneBtnAnnulled);
+        $("#body-table").append(clone);
+
+        $('[data-toggle="tooltip"]').tooltip();
+        return;
+    }
+
+    /*
+     * ============================================================
+     * VENTAS ACTIVAS
+     * ============================================================
+     */
     var cloneBtnActive = activateTemplate('#template-active');
 
     cloneBtnActive.querySelector("[data-ver_detalles]").setAttribute("data-id", data.id);
 
     const printBtn = cloneBtnActive.querySelector("[data-print_recibo]");
     printBtn.setAttribute("data-id", data.id);
-
-    // ✅ URL viene del backend (pdf o ticket)
     printBtn.setAttribute("href", data.print_url || "#");
     printBtn.setAttribute("title", data.print_label || "Ver comprobante");
 
     if (!data.print_url) {
         printBtn.classList.add('disabled');
         printBtn.removeAttribute('target');
-        printBtn.addEventListener('click', function (e) { e.preventDefault(); });
+        printBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+        });
     } else {
-        // por si acaso
         printBtn.setAttribute('target', '_blank');
     }
 
-    cloneBtnActive.querySelector("[data-anular]").setAttribute("data-id", data.id);
+    const btnAnular = cloneBtnActive.querySelector("[data-anular]");
+
+    if (
+        data.annulment_status === 'pending' ||
+        data.annulment_status === 'waiting_sunat_process' ||
+        data.annulment_status === 'accepted'
+    ) {
+        btnAnular.remove();
+    } else {
+        btnAnular.setAttribute("data-id", data.id);
+    }
+
+    const btnConsultarAnulacion = cloneBtnActive.querySelector("[data-consultar_anulacion]");
+
+    if (
+        data.annulment_status === 'pending' ||
+        data.annulment_status === 'waiting_sunat_process'
+    ) {
+        btnConsultarAnulacion.setAttribute("data-sale_id", data.id);
+    } else {
+        btnConsultarAnulacion.remove();
+    }
 
     const btnGenerarComprobante = cloneBtnActive.querySelector("[data-generar_comprobante]");
     const btnPagosParciales = cloneBtnActive.querySelector("[data-pagos_parciales]");
 
-    // Tiene comprobante válido si tiene type_document 01/03 y sunat_status no es Error
+    const btnNotaCredito = cloneBtnActive.querySelector("[data-generar_nota_credito]");
+    const btnConsultarNotaCredito = cloneBtnActive.querySelector("[data-consultar_nota_credito]");
+
+    const btnVerNcParcialPdf = cloneBtnActive.querySelector("[data-ver_nc_parcial_pdf]");
+
+    if (data.has_partial_credit_note && data.partial_credit_note_pdf_url_local) {
+        btnVerNcParcialPdf.setAttribute("href", data.partial_credit_note_pdf_url_local);
+        btnVerNcParcialPdf.setAttribute("target", "_blank");
+    } else {
+        btnVerNcParcialPdf.remove();
+    }
+
+    /*
+     * ============================================================
+     * NOTA DE CRÉDITO PENDIENTE
+     * ============================================================
+     */
+    if (data.has_pending_credit_note) {
+        btnConsultarNotaCredito.setAttribute("data-sale_id", data.id);
+        btnNotaCredito.remove();
+
+    } else if (data.has_rejected_credit_note) {
+        btnNotaCredito.remove();
+        btnConsultarNotaCredito.remove();
+
+    }
+    /*
+     * ============================================================
+     * PUEDE GENERAR NOTA DE CRÉDITO
+     * ============================================================
+     */
+    else if (data.can_generate_credit_note) {
+
+        btnNotaCredito.setAttribute(
+            "data-sale_id",
+            data.id
+        );
+
+        btnConsultarNotaCredito.remove();
+    }
+    /*
+     * ============================================================
+     * NO APLICA
+     * ============================================================
+     */
+    else {
+
+        btnNotaCredito.remove();
+        btnConsultarNotaCredito.remove();
+    }
+
     const tieneComprobanteValido =
         (data.type_document === '01' || data.type_document === '03') &&
         data.sunat_status !== 'Error';
 
-    // Botón generar comprobante
     if (tieneComprobanteValido) {
         btnGenerarComprobante.remove();
     } else {
@@ -1257,11 +1861,31 @@ function renderDataTable(data) {
         btnGenerarComprobante.setAttribute("href", "#");
     }
 
-    // Botón pagos parciales
     if (data.pagos_parciales_venta === 's') {
         btnPagosParciales.setAttribute("data-sale_id", data.id);
     } else {
         btnPagosParciales.remove();
+    }
+
+    /*
+     * ============================================================
+     * Boton de generar nota de credito parcial
+     * ============================================================
+     */
+
+    const btnNotaCreditoParcial = cloneBtnActive.querySelector("[data-generar_nota_credito_parcial]");
+
+    const puedeGenerarNotaParcial =
+        (data.type_document === '01' || data.type_document === '03') &&
+        data.sunat_status !== 'Error' &&
+        parseInt(data.is_annulled) !== 1 &&
+        !data.has_pending_credit_note &&
+        !data.has_rejected_credit_note;
+
+    if (puedeGenerarNotaParcial) {
+        btnNotaCreditoParcial.setAttribute("data-sale_id", data.id);
+    } else {
+        btnNotaCreditoParcial.remove();
     }
 
     botones.append(cloneBtnActive);
@@ -1269,6 +1893,19 @@ function renderDataTable(data) {
 
     $('#body-table input.switch-dispatch-status').bootstrapSwitch();
     $('[data-toggle="tooltip"]').tooltip();
+}
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function renderPreviousPage($numberPage) {
