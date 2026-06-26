@@ -426,7 +426,7 @@
     <template id="template-active">
         <a href="" target="_blank" data-print_recibo data-id="" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir boleta"><i class="fas fa-print"></i></a>
         <button data-ver_detalles data-id="" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fas fa-list-ol"></i></button>
-        <button data-anular data-id="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
+        <button data-anular data-id="" data-type_document="" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular Orden"><i class="fas fa-trash-alt"></i></button>
 
         <button data-consultar_anulacion data-sale_id="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Consultar Anulación">
             <img src="{{ asset('images/sale/consultar_anulacion2.png') }}" alt="Generar" style="width: 18px; height: 18px;">

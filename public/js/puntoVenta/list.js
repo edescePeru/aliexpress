@@ -1169,6 +1169,23 @@ function cargarPagosParciales(saleId) {
 
 function anularOrder() {
     var order_id = $(this).data('id');
+    var typeDocument = $(this).data('type_document');
+
+    var title = "";
+    var content = "";
+
+    if (typeDocument == '01' || typeDocument == '03') {
+        title = '¿Está seguro de dar de baja esta <strong>boleta/factura</strong>?';
+
+        content = `
+        Esta acción afectará el comprobante registrado y realizará la comunicación correspondiente con SUNAT.
+        <br>
+        Verifique la información antes de continuar, ya que el proceso podría no ser reversible. <br>ORDEN `+order_id;
+
+    } else {
+        title = "¿Está seguro de anular esta orden?";
+        content = "Verifique la información antes de continuar. ORDEN "+order_id;
+    }
 
     $.confirm({
         icon: 'fas fa-trash-alt',
@@ -1176,8 +1193,8 @@ function anularOrder() {
         closeIcon: true,
         animation: 'zoom',
         type: 'red',
-        title: '¿Está seguro de anular esta order?',
-        content: 'ORDEN - '+order_id,
+        title: title,
+        content: content,
         buttons: {
             confirm: {
                 text: 'CONFIRMAR',
@@ -1783,6 +1800,7 @@ function renderDataTable(data) {
         btnAnular.remove();
     } else {
         btnAnular.setAttribute("data-id", data.id);
+        btnAnular.setAttribute("data-type_document", data.type_document);
     }
 
     const btnConsultarAnulacion = cloneBtnActive.querySelector("[data-consultar_anulacion]");
