@@ -456,6 +456,7 @@ return [
     'verInventario_material' => 'Ver Inventario de stock items',
     'ajustarStock_material' => 'Ajustar Stock de stock items',
     'verItems_material' => 'Ver items de stock items',
+    'editarCodeItems_material' => 'Editar codigo de items de stock items',
 
     'update_materialType' => 'Modificar Tipos de Materiales',
     'update_orderPurchaseExpress' => 'Modificar Ordenes Compra Express',

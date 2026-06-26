@@ -47,7 +47,7 @@
 
 @section('page-title')
     <h5 class="card-title">Listado de items de materiales</h5>
-    <a href="{{ route('material.indexV2') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Regresar </a>
+    <a href="{{ route('stockitems.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Regresar </a>
 @endsection
 
 @section('content')
@@ -58,9 +58,6 @@
                 <th></th>
                 <th>Material</th>
                 <th>Código</th>
-                <th>Largo</th>
-                <th>Ancho</th>
-                <th>Peso</th>
                 <th>Precio</th>
                 <th>Porcentaje</th>
                 <th>Estado</th>
@@ -70,6 +67,45 @@
 
             </tbody>
         </table>
+    </div>
+
+    <div class="modal fade" id="modalEditarCodigoItem" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar código del ítem</h5>
+
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" id="edit_item_id">
+
+                    <div class="form-group mb-0">
+                        <label for="edit_item_code">Código / Serie</label>
+
+                        <input type="text"
+                               class="form-control"
+                               id="edit_item_code"
+                               autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="button" class="btn btn-primary" id="btnGuardarCodigoItem">
+                        <i class="fa fa-save"></i> Guardar
+                    </button>
+                </div>
+
+            </div>
+        </div>
     </div>
 
 @endsection
@@ -85,5 +121,8 @@
 @endsection
 
 @section('scripts')
+    <script>
+        window.permissions = @json($permissions);
+    </script>
     <script src="{{ asset('js/material/stockItems_items.js') }}"></script>
 @endsection

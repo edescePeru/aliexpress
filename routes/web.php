@@ -561,7 +561,10 @@ Route::middleware('auth')->group(function (){
 
         Route::get('view/stock/material/items/{id}', 'MaterialController@getItemsStockItems')->name('material.stock.getItems');
         Route::get('view/stock/material/all/items/{id}', 'MaterialController@getItemsStockItemsMaterial')->name('material.stock.getItemsMaterial');
-
+        Route::put(
+            '/stock/material/item/{item}/code',
+            'MaterialController@updateCode'
+        )->name('items.update.code')->middleware('permission:editarCodeItems_material');
 
         //AREAS
         Route::get('areas', 'AreaController@index')->name('area.index')

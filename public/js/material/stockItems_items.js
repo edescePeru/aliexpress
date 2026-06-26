@@ -1,56 +1,116 @@
-function format ( d ) {
-    var location = 'AR:'+d.location.area.name+
-        '|AL:'+d.location.warehouse.name+
-        '|ES:'+d.location.shelf.name+
-        '|FIL:'+d.location.level.name+
-        '|COL:'+d.location.container.name+
-        '|POS:'+d.location.position.name;
-    var typescarp = (d.typescrap == null) ? 'No tiene': d.typescrap.name;
-    return 'Estado: '+d.state+'<br>'+
-        'Estado de Item: '+d.state_item+'<br>'+
-        'Tipo de Material: '+typescarp+'<br>'+
-        'Ubicación: '+location+'<br>';
+function format(d) {
+    const location = d.location || {};
+
+    const area = location.area ? location.area.name : '-';
+    const warehouse = location.warehouse ? location.warehouse.name : '-';
+    const shelf = location.shelf ? location.shelf.name : '-';
+    const level = location.level ? location.level.name : '-';
+    const container = location.container ? location.container.name : '-';
+    const position = location.position ? location.position.name : '-';
+
+    const locationText =
+        'AR:' + area +
+        '|AL:' + warehouse +
+        '|ES:' + shelf +
+        '|FIL:' + level +
+        '|COL:' + container +
+        '|POS:' + position;
+
+    const typescrap = d.typescrap
+        ? d.typescrap.name
+        : 'No tiene';
+
+    return 'Estado: ' + (d.state || '-') + '<br>' +
+        'Estado de Item: ' + (d.state_item || '-') + '<br>' +
+        'Tipo de Material: ' + typescrap + '<br>' +
+        'Ubicación: ' + locationText + '<br>';
+}
+
+function escapeHtml(value) {
+    return $('<div>').text(value || '').html();
+}
+
+function can(permission) {
+    return Array.isArray(window.permissions) &&
+        window.permissions.includes(permission);
 }
 
 $(document).ready(function () {
     var idMaterial = $("#id-material").val();
 
     var table = $('#dynamic-table').DataTable( {
+        processing: true,
+        serverSide: true,
         ajax: {
-            url: "/dashboard/view/stock/material/all/items/"+idMaterial,
-            dataSrc: 'data'
+            url: "/dashboard/view/stock/material/all/items/" + idMaterial,
+            type: "GET"
         },
         bAutoWidth: false,
-        "aoColumns": [
+        pageLength: 25,
+        lengthMenu: [10, 25, 50, 100],
+        deferRender: true,
+        rowId: 'id',
+        columns: [
             {
-                "class":          "details-control",
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ""
+                className: "details-control",
+                orderable: false,
+                searchable: false,
+                data: null,
+                defaultContent: ""
             },
-            { data: 'material.full_description' },
-            { data: 'code' },
-            { data: 'length' },
-            { data: 'width' },
-            { data: 'weight' },
-            { data: 'price' },
-            { data: 'percentage' },
-            { data: null,
-                title: 'Estado',
-                wrap: true,
-                "render": function (item)
-                {
-                    var status = (item.state_item === 'entered') ? '<span class="badge bg-success">Ingresado</span>' :
-                        (item.state_item === 'scraped') ? '<span class="badge bg-warning">Retazo</span>' :
-                            'Indefinido';
-                    return '<p> '+status+' </p>'
+            {
+                data: "material_description",
+                name: "material.full_name"
+            },
+            {
+                data: "code",
+                name: "code",
+                render: function (data, type, row) {
+                    const code = data || '';
+
+                    let buttonEdit = '';
+
+                    if (can('editarCodeItems_material')) {
+                        buttonEdit = `
+                                <button type="button"
+                                        class="btn btn-xs btn-outline-primary ml-2 btn-edit-item-code"
+                                        data-item-id="${row.id}"
+                                        title="Editar código">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                            `;
+                    }
+
+                    return `
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span>${escapeHtml(code)}</span>
+                            ${buttonEdit}
+                        </div>
+                    `;
                 }
             },
-        ],
-        "aaSorting": [],
+            { data: "price", name: "price" },
+            { data: "percentage", name: "percentage" },
+            {
+                data: null,
+                title: "Estado",
+                orderable: false,
+                searchable: false,
+                render: function (item) {
+                    var status = item.state_item === "entered"
+                        ? '<span class="badge bg-success">Ingresado</span>'
+                        : item.state_item === "scraped"
+                            ? '<span class="badge bg-warning">Retazo</span>'
+                            : '<span class="badge bg-secondary">Indefinido</span>';
 
+                    return '<p class="mb-0">' + status + '</p>';
+                }
+            }
+        ],
+
+        aaSorting: [],
         select: {
-            style: 'single'
+            style: "single"
         },
         language: {
             "processing": "Procesando...",
@@ -231,4 +291,86 @@ $(document).ready(function () {
         column.visible( ! column.visible() );
     } );
 
+    $(document).on('click', '.btn-edit-item-code', function () {
+        const itemId = $(this).data('item-id');
+        const row = table.row($(this).closest('tr')).data();
+
+        abrirModalEditarCodigoItem(itemId, row.code || '');
+    });
+
+    $(document).on('click', '#btnGuardarCodigoItem', function () {
+
+        const itemId = $('#edit_item_id').val();
+        const code = ($('#edit_item_code').val() || '').trim();
+
+        if (!itemId) {
+            toastr.error('No se encontró el ítem a actualizar.', 'Error');
+            return;
+        }
+
+        if (!code) {
+            $('#edit_item_code').addClass('is-invalid').focus();
+            toastr.error('Debe ingresar un código o serie.', 'Error');
+            return;
+        }
+
+        $('#edit_item_code').removeClass('is-invalid');
+
+        const button = $(this);
+
+        button.prop('disabled', true);
+        button.html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
+        $.ajax({
+            url: '/dashboard/stock/material/item/' + itemId + '/code',
+            type: 'PUT',
+            data: {
+                code: code,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function (response) {
+
+                toastr.success(
+                    response.message || 'Código actualizado correctamente.',
+                    'Correcto'
+                );
+
+                $('#modalEditarCodigoItem').modal('hide');
+
+                // Recarga manteniendo la página actual.
+                table.ajax.reload(null, false);
+            },
+            error: function (xhr) {
+
+                let message = 'No se pudo actualizar el código.';
+
+                if (xhr.status === 422) {
+                    message = xhr.responseJSON?.message || message;
+
+                    if (xhr.responseJSON?.errors?.code?.[0]) {
+                        message = xhr.responseJSON.errors.code[0];
+                    }
+
+                    $('#edit_item_code').addClass('is-invalid').focus();
+                }
+
+                toastr.error(message, 'Error');
+            },
+            complete: function () {
+                button.prop('disabled', false);
+                button.html('<i class="fa fa-save"></i> Guardar');
+            }
+        });
+    });
 });
+
+function abrirModalEditarCodigoItem(itemId, code) {
+    $('#edit_item_id').val(itemId);
+    $('#edit_item_code').val(code);
+
+    $('#modalEditarCodigoItem').modal('show');
+
+    setTimeout(function () {
+        $('#edit_item_code').focus().select();
+    }, 250);
+}

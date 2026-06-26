@@ -2108,8 +2108,11 @@ class MaterialController extends Controller
 
     public function getItemsStockItems($id)
     {
+        $user = Auth::user();
+        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
         $stockMaterial = StockItem::find($id);
-        return view('material.stockItems_items', compact('stockMaterial'));
+        return view('material.stockItems_items', compact('stockMaterial', 'permissions'));
     }
 
     public function getItemsMaterialActivo($id)
@@ -2171,7 +2174,7 @@ class MaterialController extends Controller
 
     }
 
-    public function getItemsStockItemsMaterial($id)
+    /*public function getItemsStockItemsMaterial($id)
     {
 
         $items = Item::where('stock_item_id', $id)
@@ -2187,6 +2190,57 @@ class MaterialController extends Controller
         //dd(datatables($items)->toJson());
         return datatables($items)->toJson();
 
+    }*/
+
+    public function getItemsStockItemsMaterial($id)
+    {
+        $items = Item::query()
+            ->where('stock_item_id', $id)
+            ->whereIn('state_item', ['entered', 'scraped'])
+            ->with([
+                'material:id,full_name',
+                'typescrap:id,name',
+                'location.area',
+                'location.warehouse',
+                'location.shelf',
+                'location.level',
+                'location.container',
+                'location.position',
+            ]);
+
+        return datatables($items)
+            ->addColumn('material_description', function ($item) {
+                return optional($item->material)->full_description ?? '';
+            })
+            ->toJson();
+    }
+
+    public function updateCode(Request $request, Item $item)
+    {
+        $request->validate([
+            'code' => 'required|string|max:255'
+        ]);
+
+        $code = trim($request->code);
+
+        $exists = Item::where('code', $code)
+            ->where('id', '!=', $item->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este código ya está registrado en otro ítem.'
+            ], 422);
+        }
+
+        $item->code = $code;
+        $item->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Código actualizado correctamente.'
+        ]);
     }
 
     public function disableMaterial(Request $request)
