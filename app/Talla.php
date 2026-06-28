@@ -22,5 +22,10 @@ class Talla extends Model
         return $this->hasMany('App\Material');
     }
 
+    public function variants()
+    {
+        return $this->hasMany(Variant::class, 'quality_id');
+    }
+
     protected $dates = ['deleted_at'];
 }

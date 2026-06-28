@@ -3620,6 +3620,12 @@ class PuntoVentaController extends Controller
                 $sale->annulment_requested_by = auth()->id();
                 $sale->save();
 
+                $this->reverseSaleInternally(
+                    $sale,
+                    'Anulación interna de venta sin comprobante electrónico',
+                    false
+                );
+
                 DB::commit();
 
                 return response()->json([

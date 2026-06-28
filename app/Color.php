@@ -11,4 +11,9 @@ class Color extends Model
         'code',
         'short_name'
     ];
+
+    public function variants()
+    {
+        return $this->hasMany(Variant::class, 'color_id');
+    }
 }

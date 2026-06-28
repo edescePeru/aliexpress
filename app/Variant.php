@@ -34,4 +34,10 @@ class Variant extends Model
     {
         return $this->belongsTo(Material::class, 'material_id');
     }
+
+    public function stockItems()
+    {
+        return $this->hasMany(StockItem::class, 'variant_id');
+    }
+
 }

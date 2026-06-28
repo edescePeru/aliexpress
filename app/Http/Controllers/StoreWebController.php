@@ -350,14 +350,31 @@ class StoreWebController extends Controller
         ];
     }
 
+    private function stockItemsDisponiblesQuery()
+    {
+        return InventoryLevel::query()
+            ->select('stock_item_id')
+            ->groupBy('stock_item_id')
+            ->havingRaw('SUM(qty_on_hand - qty_reserved) > 0');
+    }
+
     public function getCategoriesData()
     {
-        $categories = Category::with([
-            'subcategories' => function ($q) {
-                $q->select('id', 'category_id', 'name', 'description')
-                    ->orderBy('name', 'asc');
-            }
-        ])
+        $stockItemsWithStock = $this->stockItemsDisponiblesQuery();
+
+        $categories = Category::query()
+            ->whereHas('materials.stockItems', function ($query) use ($stockItemsWithStock) {
+                $query->whereIn('stock_items.id', $stockItemsWithStock);
+            })
+            ->with([
+                'subcategories' => function ($query) use ($stockItemsWithStock) {
+                    $query->select('id', 'category_id', 'name', 'description')
+                        ->whereHas('materials.stockItems', function ($stockQuery) use ($stockItemsWithStock) {
+                            $stockQuery->whereIn('stock_items.id', $stockItemsWithStock);
+                        })
+                        ->orderBy('name', 'asc');
+                }
+            ])
             ->select('id', 'name', 'description')
             ->orderBy('name', 'asc')
             ->get()
@@ -383,7 +400,13 @@ class StoreWebController extends Controller
 
     public function getSizesData()
     {
-        $sizes = Talla::select('id', 'name', 'description', 'short_name')
+        $stockItemsWithStock = $this->stockItemsDisponiblesQuery();
+
+        $sizes = Talla::query()
+            ->whereHas('variants.stockItems', function ($query) use ($stockItemsWithStock) {
+                $query->whereIn('stock_items.id', $stockItemsWithStock);
+            })
+            ->select('id', 'name', 'description', 'short_name')
             ->orderBy('name', 'asc')
             ->get()
             ->map(function ($size) {
@@ -401,7 +424,13 @@ class StoreWebController extends Controller
 
     public function getColorsData()
     {
-        $colors = Color::select('id', 'name', 'code', 'short_name')
+        $stockItemsWithStock = $this->stockItemsDisponiblesQuery();
+
+        $colors = Color::query()
+            ->whereHas('variants.stockItems', function ($query) use ($stockItemsWithStock) {
+                $query->whereIn('stock_items.id', $stockItemsWithStock);
+            })
+            ->select('id', 'name', 'code', 'short_name')
             ->orderBy('name', 'asc')
             ->get()
             ->map(function ($color) {
