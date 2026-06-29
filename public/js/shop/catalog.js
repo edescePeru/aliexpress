@@ -191,7 +191,8 @@ function loadProducts(page = 1) {
             min_price: currentMinPrice,
             max_price: currentMaxPrice,
             size_ids: currentSizeIds,
-            color_ids: currentColorIds
+            color_ids: currentColorIds,
+            search: window.APP_SHOP.search || ''
         },
         success: function (response) {
             renderProducts(response.data || []);
@@ -242,8 +243,13 @@ function renderProducts(products) {
                          data-has-variants="${product.has_variants ? 1 : 0}"
                          data-stock="${product.stock}"
                          data-price="${product.price}">
-    
+        
                         <div class="product__item__pic set-bg" data-setbg="${imageUrl}">
+                            <a href="${product.detail_url}"
+                               class="product-image-detail-link"
+                               aria-label="Ver detalle de ${productName}">
+                            </a>
+        
                             <ul class="product__hover">
                                 <li>
                                     <a href="${imageUrl}" class="image-popup">
@@ -257,7 +263,7 @@ function renderProducts(products) {
                                 </li>
                             </ul>
                         </div>
-    
+        
                         <div class="product__item__text">
                             <h6><a href="${product.detail_url}">${productName}</a></h6>
                             <div class="product__price">${priceText}</div>
@@ -274,8 +280,13 @@ function renderProducts(products) {
                          data-has-variants="${product.has_variants ? 1 : 0}"
                          data-stock="${product.stock}"
                          data-price="${product.price}">
-    
+        
                         <div class="product__item__pic set-bg" data-setbg="${imageUrl}">
+                            <a href="${product.detail_url}"
+                               class="product-image-detail-link"
+                               aria-label="Ver detalle de ${productName}">
+                            </a>
+        
                             <ul class="product__hover">
                                 <li>
                                     <a href="${imageUrl}" class="image-popup">
@@ -289,7 +300,7 @@ function renderProducts(products) {
                                 </li>
                             </ul>
                         </div>
-    
+        
                         <div class="product__item__text">
                             <h6><a href="${product.detail_url}">${productName}</a></h6>
                         </div>

@@ -46,16 +46,16 @@ class StoreWebController extends Controller
         return view('shop.catalogNoPrice', compact('logotipoEmpresa', 'maxPrice', 'whatsappEmpresa'));
     }
 
-    public function catalog()
+    public function catalog(Request $request)
     {
+        $search = trim((string) $request->input('search', ''));
+
         $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
         $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
 
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)
             ->first();
-
-        //$maxPrice = 0;
 
         $maxPrice = 0;
 
@@ -78,6 +78,7 @@ class StoreWebController extends Controller
 
         $dataShowPricesCatalogEmpresa = DataGeneral::where('name', 'show_prices_catalog')->first();
         $showPricesCatalogEmpresa = $dataShowPricesCatalogEmpresa->valueText;
+
         $dataShowPresentations = DataGeneral::where('name', 'show_presentations')->first();
         $showPresentationsEmpresa = $dataShowPresentations->valueText;
 
@@ -98,16 +99,36 @@ class StoreWebController extends Controller
             ->pluck('valueText', 'name')
             ->toArray();
 
-        return view('shop.catalog', compact('logotipoEmpresa', 'maxPrice', 'whatsappEmpresa', 'showPricesCatalogEmpresa', 'showPresentationsEmpresa', 'descriptionFooterEmpresa', 'socialNetworksEmpresa'));
+        return view('shop.catalog', compact(
+            'logotipoEmpresa',
+            'maxPrice',
+            'whatsappEmpresa',
+            'showPricesCatalogEmpresa',
+            'showPresentationsEmpresa',
+            'descriptionFooterEmpresa',
+            'socialNetworksEmpresa',
+            'search'
+        ));
     }
 
     public function getDataProductsV2(Request $request, $pageNumber = 1)
     {
         $perPage = 9;
+
         $categoryId = trim((string) $request->input('category_id', ''));
         $subcategoryId = trim((string) $request->input('subcategory_id', ''));
+
+        // Buscador interno del catálogo
         $productSearch = trim((string) $request->input('product_search', ''));
+
+        // Buscador global que redirige a /catalogo?search=...
+        $search = trim((string) $request->input('search', ''));
+
+        // Se prioriza product_search si existe; caso contrario se usa search.
+        $searchTerm = $productSearch !== '' ? $productSearch : $search;
+
         $sizeIds = $request->input('size_ids', []);
+
         if (!is_array($sizeIds)) {
             $sizeIds = explode(',', $sizeIds);
         }
@@ -121,6 +142,7 @@ class StoreWebController extends Controller
             ->toArray();
 
         $colorIds = $request->input('color_ids', []);
+
         if (!is_array($colorIds)) {
             $colorIds = explode(',', $colorIds);
         }
@@ -143,8 +165,6 @@ class StoreWebController extends Controller
         /**
          * =========================================================
          * 1) MATERIALS PADRES
-         *    La búsqueda sigue usando stock_items:
-         *    sku, barcode, display_name + material.full_name
          * =========================================================
          */
         $materialsQuery = Material::with([
@@ -177,35 +197,43 @@ class StoreWebController extends Controller
             $materialsQuery->where('subcategory_id', $subcategoryId);
         }
 
-        if ($productSearch !== '') {
-            $search = $productSearch;
-
-            $materialsQuery->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%')
-                    ->orWhere('codigo', 'like', '%' . $search . '%')
-                    ->orWhereHas('stockItems', function ($sq) use ($search) {
+        /*
+         * Busca por nombre, código del material y datos de sus stock items.
+         * Ahora funciona tanto con product_search como con search.
+         */
+        if ($searchTerm !== '') {
+            $materialsQuery->where(function ($q) use ($searchTerm) {
+                $q->where('full_name', 'like', '%' . $searchTerm . '%')
+                    ->orWhere('code', 'like', '%' . $searchTerm . '%')
+                    ->orWhere('codigo', 'like', '%' . $searchTerm . '%')
+                    ->orWhereHas('stockItems', function ($sq) use ($searchTerm) {
                         $sq->where('is_active', 1)
-                            ->where(function ($ssq) use ($search) {
-                                $ssq->where('sku', 'like', '%' . $search . '%')
-                                    ->orWhere('barcode', 'like', '%' . $search . '%')
-                                    ->orWhere('display_name', 'like', '%' . $search . '%');
+                            ->where(function ($ssq) use ($searchTerm) {
+                                $ssq->where('sku', 'like', '%' . $searchTerm . '%')
+                                    ->orWhere('barcode', 'like', '%' . $searchTerm . '%')
+                                    ->orWhere('display_name', 'like', '%' . $searchTerm . '%');
                             });
                     });
             });
 
+            // Muestra primero coincidencias exactas por nombre o código.
             $materialsQuery->orderByRaw("
-                CASE
-                    WHEN full_name = ? THEN 0
-                    WHEN code = ? THEN 0
-                    WHEN codigo = ? THEN 0
-                    ELSE 1
-                END
-            ", [$search, $search, $search]);
+            CASE
+                WHEN full_name = ? THEN 0
+                WHEN code = ? THEN 0
+                WHEN codigo = ? THEN 0
+                WHEN full_name LIKE ? THEN 1
+                ELSE 2
+            END
+        ", [
+                $searchTerm,
+                $searchTerm,
+                $searchTerm,
+                $searchTerm . '%'
+            ]);
 
             $materialsQuery->orderBy('full_name', 'asc');
-        }
-        else {
+        } else {
             $materialsQuery->orderBy('full_name', 'asc');
         }
 
@@ -261,14 +289,13 @@ class StoreWebController extends Controller
                     ->sort()
                     ->values();
 
-                $minPrice = $prices->first() ?? 0;
-                $maxPrice = $prices->last() ?? 0;
+                $minProductPrice = $prices->first() ?? 0;
 
                 $hasVariants = $stockItems->whereNotNull('variant_id')->count() > 0;
 
                 $priceText = $hasVariants && $prices->count() > 1
-                    ? 'Desde S/. ' . number_format($minPrice, 2)
-                    : 'S/. ' . number_format($minPrice, 2);
+                    ? 'Desde S/. ' . number_format($minProductPrice, 2)
+                    : 'S/. ' . number_format($minProductPrice, 2);
 
                 return [
                     'source' => 'material',
@@ -276,7 +303,7 @@ class StoreWebController extends Controller
                     'material_id' => $material->id,
                     'full_name' => $material->full_name ?? '',
                     'category' => optional($material->category)->description ?? '',
-                    'price' => (float) $minPrice,
+                    'price' => (float) $minProductPrice,
                     'price_text' => $priceText,
                     'has_variants' => $hasVariants,
                     'stock' => (float) $stockAvailable,
@@ -287,11 +314,8 @@ class StoreWebController extends Controller
                     'rating' => 4,
                     'type' => optional($material->tipoVenta)->id ?? 0,
 
-                    // Datos referenciales del primer stock item
                     'sku' => optional($firstStockItem)->sku ?? '',
                     'barcode' => optional($firstStockItem)->barcode ?? '',
-
-                    // Útil para saber si debe abrir modal de variantes
                     'stock_items_count' => $stockItems->count(),
 
                     'detail_url' => route('shop.product.show', $material->id),
@@ -314,7 +338,7 @@ class StoreWebController extends Controller
 
         /**
          * =========================================================
-         * 2) Paginar
+         * 2) PAGINACIÓN
          * =========================================================
          */
         $totalFilteredRecords = $materials->count();

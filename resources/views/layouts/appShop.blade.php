@@ -248,7 +248,8 @@
 
     <script>
         window.APP_SHOP_SEARCH = {
-            URL: "{{ route('shop.product.search') }}"
+            URL: "{{ route('shop.product.search') }}",
+            CATALOG_URL: "{{ route('store-web.catalog') }}"
         };
     </script>
     <script src="{{ asset('js/shop/search.js') }}?v={{ time() }}"></script>

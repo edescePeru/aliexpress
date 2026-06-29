@@ -60,7 +60,7 @@
         .price-values {
             display: flex;
             align-items: center;
-            /*gap: 6px;*/
+            /* gap: 6px; */
             margin-bottom: 12px;
         }
 
@@ -98,6 +98,31 @@
             height: 16px;
             object-fit: contain;
             vertical-align: middle;
+        }
+
+        /* Permite abrir el detalle al hacer clic en la imagen */
+        .product__item__pic {
+            position: relative;
+        }
+
+        .product-image-detail-link {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            display: block;
+            z-index: 1;
+            cursor: pointer;
+        }
+
+        /*
+         * Mantiene los botones de ampliar imagen y WhatsApp
+         * sobre el enlace transparente, sin alterar sus posiciones
+         * ni las animaciones originales de la plantilla.
+         */
+        .product__item__pic .product__hover {
+            z-index: 2;
         }
     </style>
 @endsection
@@ -273,6 +298,7 @@
 @section('scripts')
     <script>
         window.APP_SHOP = {
+            search: @json($search ?? ''),
             URLS: {
                 PRODUCTS: "{{ route('shop.products.data', ':page') }}",
                 DEFAULT_IMAGE: "{{ asset('shop/img/no-image.png') }}",

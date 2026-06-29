@@ -222,7 +222,7 @@
                             </ul>
                         </div>
 
-                        @if($material->presentations->count())
+                        {{--@if($material->presentations->count())
                             <div class="product-presentations mt-4">
                                 <h5>Presentaciones disponibles</h5>
 
@@ -251,7 +251,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                        @endif
+                        @endif--}}
                     </div>
                 </div>
                 {{--<div class="col-lg-12">
