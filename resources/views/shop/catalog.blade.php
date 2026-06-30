@@ -124,6 +124,34 @@
         .product__item__pic .product__hover {
             z-index: 2;
         }
+
+        .search-result-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 25px;
+            padding: 12px 15px;
+            border: 1px solid #eeeeee;
+            background: #fafafa;
+            font-size: 14px;
+        }
+
+        .btn-clear-catalog-search {
+            border: 1px solid #ca1515;
+            background: #ffffff;
+            color: #ca1515;
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-clear-catalog-search:hover {
+            background: #ca1515;
+            color: #ffffff;
+        }
     </style>
 @endsection
 
@@ -217,6 +245,14 @@
                     </div>
                 </div>
                 <div class="col-lg-9 col-md-9">
+                    <div id="search-result-bar" class="search-result-bar" style="display: none;">
+                        <span id="search-result-text"></span>
+
+                        <button type="button" id="clear-catalog-search" class="btn-clear-catalog-search">
+                            <i class="fa fa-times"></i> Limpiar búsqueda
+                        </button>
+                    </div>
+
                     <div class="row" id="products-container"></div>
 
                     <div class="row">

@@ -89,7 +89,28 @@ $(document).ready(function () {
 
         loadProducts(1);
     });
+
+    renderSearchResultBar();
+
+    $(document).on('click', '#clear-catalog-search', function () {
+        window.location.href = window.location.pathname;
+    });
 });
+
+function renderSearchResultBar() {
+    let search = (window.APP_SHOP.search || '').trim();
+
+    if (!search) {
+        $('#search-result-bar').hide();
+        return;
+    }
+
+    $('#search-result-text').html(
+        'Mostrando resultados para: <strong>"' + $('<div>').text(search).html() + '"</strong>'
+    );
+
+    $('#search-result-bar').css('display', 'flex');
+}
 
 function loadColors() {
     $.ajax({
