@@ -2965,6 +2965,9 @@ Route::middleware('auth')->group(function (){
             ->name('quoteSale.show')
             ->middleware('permission:list_quoteSale');
 
+        Route::get('/quotes/stock-items/{stockItemId}/available-items', 'QuoteSaleController@getAvailableItemsByStockItem')
+            ->name('quotes.stock-items.available-items');
+
         // TODO: PromotionLimits
         Route::get('promociones/por/limite', 'PromotionLimitController@index')
             ->name('promotionLimit.index')

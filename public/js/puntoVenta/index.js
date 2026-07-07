@@ -49,7 +49,6 @@ $(document).ready(function () {
     $(document).on('click', '[data-add_cart_special]', addProductCartSpecial);
 
     $(document).on('input', '#importe_total', function() {
-        //console.log("Input event detected!"); // Para depuración
         var $input = $(this);
         var currentValue = parseFloat($input.val());
         var importe = $("#monto_total").val();
@@ -82,7 +81,6 @@ $(document).ready(function () {
         var $input = $(this);
         var currentValue = parseFloat($input.val());
         var stringDiscount = "";
-        //var productId = $input.siblings('button.minus').attr('data-product_id_minus');
         var itemKey = $input.siblings('button.minus').attr('data-item_key_minus');
 
         if (isNaN(currentValue) || currentValue < 0) {
@@ -129,18 +127,13 @@ $(document).ready(function () {
         if (tipo === 'boleta') {
             $('#datos_boleta').removeClass('d-none');
             $('#datos_factura').addClass('d-none');
-            //bloquearDatosComprobante();
         } else if (tipo === 'factura') {
             $('#datos_factura').removeClass('d-none');
             $('#datos_boleta').addClass('d-none');
-            //bloquearDatosComprobante();
         } else {
             // Ninguno seleccionado
             $('#datos_boleta').addClass('d-none');
             $('#datos_factura').addClass('d-none');
-            //bloquearDatosComprobante();
-            // Limpiar inputs
-            //$('#datos_boleta input, #datos_factura input').val('');
         }
 
         bloquearDatosComprobante();
@@ -208,6 +201,169 @@ $(document).ready(function () {
             $('#wrap_comprobante').show();
         }
     });
+
+    $(document).on('change', '.itemeable-item-checkbox', function () {
+        const requiredCount = parseInt(
+            $('#btn-confirm-itemeable-items').data('required-count') || 0
+        );
+
+        updateItemeableItemsCounterForCart(requiredCount);
+    });
+
+    $(document).on('keydown', '#itemeable-item-search', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            selectItemByScannedCodeForCart();
+        }
+    });
+
+    /*
+     * Algunos lectores envían Enter; otros provocan change
+     * al terminar el escaneo.
+     */
+    $(document).on('change', '#itemeable-item-search', function () {
+        selectItemByScannedCodeForCart();
+    });
+
+    $('#btn-confirm-itemeable-items').on('click', function () {
+        const draft = $currentItemeableCartDraft;
+
+        if (!draft) {
+            toastr.error('No se encontró el producto que se iba a agregar.', 'Error');
+            return;
+        }
+
+        const requiredCount = parseInt(draft.unitsEquivalent || 0);
+
+        const selectedItems = [];
+
+        $('#itemeable-items-table-body')
+            .find('.itemeable-item-checkbox:checked')
+            .each(function () {
+                selectedItems.push({
+                    id: parseInt($(this).attr('data-item-id')),
+                    code: $(this).attr('data-item-code')
+                });
+            });
+
+        if (selectedItems.length !== requiredCount) {
+            toastr.error(
+                'Debe seleccionar exactamente ' + requiredCount + ' ítem(s).',
+                'Selección incompleta'
+            );
+            return;
+        }
+
+        /*
+         * Add Special:
+         * reparte los Items elegidos según las líneas construidas
+         * en addProduct().
+         */
+        if (draft.fromSpecialModal === true) {
+            let currentPosition = 0;
+            let rowsAdded = 0;
+            let duplicateError = false;
+
+            draft.lines.forEach(function (line) {
+                const unitsForLine = parseInt(line.unitsEquivalent || 0);
+
+                const selectedItemsForLine = selectedItems.slice(
+                    currentPosition,
+                    currentPosition + unitsForLine
+                );
+
+                currentPosition += unitsForLine;
+
+                const added = addProductToCart({
+                    productId: line.productId,
+                    materialId: line.materialId,
+                    productPrice: line.productPrice,
+                    productName: line.productName,
+                    productUnit: line.productUnit,
+                    productTax: line.productTax,
+                    productType: line.productType,
+
+                    presentationId: line.presentationId,
+                    presentationQty: line.presentationQty,
+                    presentationLabel: line.presentationLabel,
+
+                    unitsEquivalent: line.unitsEquivalent,
+
+                    selectedItems: selectedItemsForLine
+                });
+
+                if (added) {
+                    rowsAdded++;
+                } else {
+                    duplicateError = true;
+                }
+            });
+
+            /*
+             * Si una línea ya existía con exactamente los mismos Items,
+             * no cerramos el modal para evitar que el usuario crea
+             * que se agregó todo correctamente.
+             */
+            if (duplicateError) {
+                toastr.warning(
+                    'Uno o más ítems seleccionados ya existen en el carrito.',
+                    'Producto duplicado'
+                );
+                return;
+            }
+
+            $('#modalSelectItemeableItems').modal('hide');
+
+            $currentItemeableCartDraft = null;
+
+            toastr.success(
+                'Se agregaron ' + rowsAdded + ' detalle(s) itemeable(s) al carrito.',
+                'Producto agregado'
+            );
+
+            return;
+        }
+
+        /*
+         * Add to cart directo:
+         * una sola línea de una unidad.
+         */
+        const added = addProductToCart({
+            productId: draft.productId,
+            materialId: draft.materialId,
+            productPrice: draft.productPrice,
+            productName: draft.productName,
+            productUnit: draft.productUnit,
+            productTax: draft.productTax,
+            productType: draft.productType,
+
+            presentationId: draft.presentationId,
+            presentationQty: draft.presentationQty,
+            presentationLabel: draft.presentationLabel,
+
+            unitsEquivalent: draft.unitsEquivalent,
+
+            selectedItems: selectedItems
+        });
+
+        if (!added) {
+            return;
+        }
+
+        $('#modalSelectItemeableItems').modal('hide');
+
+        $currentItemeableCartDraft = null;
+
+        toastr.success(
+            'Ítem agregado correctamente al carrito.',
+            'Producto agregado'
+        );
+    });
+
+    $('#btn-cancel-itemeable-items').on('click', function () {
+        $currentItemeableCartDraft = null;
+        $('#modalSelectItemeableItems').modal('hide');
+    });
 });
 
 let $items = [];
@@ -230,6 +386,202 @@ let $sale_id = null;
 let $modalQuantity;
 
 let $presentationsCache = {}; // materialId -> array presentations
+
+var $modalSelectItemeableItems = $('#modalSelectItemeableItems');
+var $currentItemeableCartDraft = null;
+
+function selectItemByScannedCodeForCart() {
+    const code = ($('#itemeable-item-search').val() || '').trim();
+
+    if (!code) {
+        return;
+    }
+
+    const normalizedCode = code.toLowerCase();
+
+    const $row = $('#itemeable-items-table-body')
+        .find('[data-item-row]')
+        .filter(function () {
+            return String($(this).attr('data-item-code') || '')
+                .trim()
+                .toLowerCase() === normalizedCode;
+        })
+        .first();
+
+    if (!$row.length) {
+        toastr.warning(
+            'No se encontró un ítem disponible con ese código.',
+            'Ítem no encontrado'
+        );
+        return;
+    }
+
+    const $checkbox = $row.find('.itemeable-item-checkbox');
+
+    if ($checkbox.prop('disabled') && !$checkbox.is(':checked')) {
+        toastr.warning(
+            'Ya alcanzó la cantidad máxima permitida.',
+            'Límite alcanzado'
+        );
+        return;
+    }
+
+    if (!$checkbox.is(':checked')) {
+        $checkbox.prop('checked', true).trigger('change');
+    }
+
+    // Mueve el ítem identificado al inicio de la lista.
+    $('#itemeable-items-table-body').prepend($row);
+
+    $row.addClass('table-success');
+
+    setTimeout(function () {
+        $row.removeClass('table-success');
+    }, 1200);
+
+    $('#itemeable-item-search')
+        .val('')
+        .focus();
+}
+
+function openItemeableItemsSelectorForCart(draft) {
+    if (!draft || !draft.productId) {
+        toastr.error('No se pudo identificar el producto itemeable.', 'Error');
+        return;
+    }
+
+    const requiredCount = parseInt(draft.unitsEquivalent || 0);
+
+    if (!Number.isInteger(requiredCount) || requiredCount <= 0) {
+        toastr.error('La cantidad requerida de ítems no es válida.', 'Error');
+        return;
+    }
+
+    $('#itemeable-product-name').text(draft.productName || '');
+    $('#itemeable-required-count').text(requiredCount);
+    $('#itemeable-selected-count').text(0);
+    $('#itemeable-selected-required-count').text(requiredCount);
+
+    $('#itemeable-item-search').val('');
+    $('#itemeable-items-table-body').empty();
+
+    $('#itemeable-items-loading').show();
+    $('#itemeable-items-empty').hide();
+    $('#itemeable-items-error').hide();
+    $('#itemeable-items-table-container').hide();
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', true)
+        .data('required-count', requiredCount);
+
+    const $itemeableModal = $('#modalSelectItemeableItems');
+
+    if (!$itemeableModal.length) {
+        toastr.error(
+            'No se encontró el modal de selección de ítems en la vista de punto de venta.',
+            'Error'
+        );
+        return;
+    }
+
+    $itemeableModal.modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    $itemeableModal.modal('show');
+
+    const availableItemsUrl = window.APP_POS
+        && window.APP_POS.URLS
+        && window.APP_POS.URLS.AVAILABLE_ITEMS;
+
+    if (!availableItemsUrl) {
+        toastr.error(
+            'No se configuró la URL para consultar los ítems disponibles.',
+            'Error'
+        );
+        return;
+    }
+
+    const url = availableItemsUrl.replace(':stockItemId', draft.productId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (response) {
+            $('#itemeable-items-loading').hide();
+
+            if (!response.success) {
+                $('#itemeable-items-error').show();
+                return;
+            }
+
+            const items = response.items || [];
+
+            if (!items.length) {
+                $('#itemeable-items-empty').show();
+                return;
+            }
+
+            renderItemeableItemsForCart(items, requiredCount);
+
+            $('#itemeable-items-table-container').show();
+
+            $('#itemeable-item-search')
+                .val('')
+                .focus();
+        },
+        error: function () {
+            $('#itemeable-items-loading').hide();
+            $('#itemeable-items-error').show();
+        }
+    });
+}
+
+function renderItemeableItemsForCart(items, requiredCount) {
+    let html = '';
+
+    items.forEach(function (item) {
+        const itemCode = item.code || ('Ítem #' + item.id);
+
+        html += `
+            <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
+                <td class="text-center">
+                    <input
+                        type="checkbox"
+                        class="itemeable-item-checkbox"
+                        value="${item.id}"
+                        data-item-id="${item.id}"
+                        data-item-code="${itemCode}"
+                    >
+                </td>
+                <td>${itemCode}</td>
+                <td class="text-center">
+                    <span class="badge badge-success">Disponible</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    $('#itemeable-items-table-body').html(html);
+
+    updateItemeableItemsCounterForCart(requiredCount);
+}
+
+function updateItemeableItemsCounterForCart(requiredCount) {
+    const selectedCount = $('.itemeable-item-checkbox:checked').length;
+
+    $('#itemeable-selected-count').text(selectedCount);
+
+    if (selectedCount >= requiredCount) {
+        $('.itemeable-item-checkbox').not(':checked').prop('disabled', true);
+    } else {
+        $('.itemeable-item-checkbox').prop('disabled', false);
+    }
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', selectedCount !== requiredCount);
+}
 
 function limpiarDatosPagoNormal() {
     $('#pv_cash_box_id').val('').trigger('change');
@@ -325,8 +677,24 @@ function bloquearDatosComprobante() {
     $('input[name="direccion_fiscal"]').prop('readonly', true);
 }
 
-function buildItemKey(productId, presentationId) {
-    return productId + ':' + (presentationId ? presentationId : 'unit');
+function buildItemKey(productId, presentationId, selectedItemIds = []) {
+    const presentationKey = presentationId ? presentationId : 'unit';
+
+    const itemKey = Array.isArray(selectedItemIds) && selectedItemIds.length
+        ? ':' + selectedItemIds
+        .map(function (id) {
+            return parseInt(id);
+        })
+        .filter(function (id) {
+            return id > 0;
+        })
+        .sort(function (a, b) {
+            return a - b;
+        })
+        .join('-')
+        : '';
+
+    return productId + ':' + presentationKey + itemKey;
 }
 
 function fetchPresentations(productId) {
@@ -528,18 +896,6 @@ function continuarAddProductCartSpecial(button) {
     );
 }
 
-/*function showModalQuantity(productId, productPrice, productName, productUnit, productTax, productType, productStock) {
-
-    $("#quantity_productId").val(productId);
-    $("#quantity_productPrice").val(productPrice);
-    $("#quantity_productStock").val(productStock);
-    $("#quantity_productName").val(productName);
-    $("#quantity_productUnit").val(productUnit);
-    $("#quantity_productTax").val(productTax);
-    $("#quantity_productType").val(productType);
-
-    $modalQuantity.modal('show');
-}*/
 function showModalQuantity(productId, materialId,productPrice, productName, productUnit, productTax, productType, productStock) {
 
     $("#quantity_productId").val(productId);
@@ -572,288 +928,312 @@ function showModalQuantity(productId, materialId,productPrice, productName, prod
         });
 }
 
-/*function addProduct() {
-    event.preventDefault(); // Evitar el comportamiento por defecto del enlace
-
-
-    let productId =  $("#quantity_productId").val();
-    let productPrice = $("#quantity_productPrice").val();
-    let productStock = $("#quantity_productStock").val();
-    let productName = $("#quantity_productName").val();
-    let productUnit = $("#quantity_productUnit").val();
-    let productTax = $("#quantity_productTax").val();
-
-    let productType = $("#quantity_productType").val();
-
-    let quantity = $("#quantity_total").val();
-
-    console.log("productStock");
-    console.log(productStock);
-    console.log("quantity");
-    console.log(quantity);
-
-    if (parseFloat(productStock) < parseFloat(quantity)) {
-        toastr.error("La cantidad sobrepasa el stock del material.", 'Error', {
-            "closeButton": true,
-            "debug": false,
-            "newestOnTop": false,
-            "progressBar": true,
-            "positionClass": "toast-top-right",
-            "preventDuplicates": false,
-            "onclick": null,
-            "showDuration": "300",
-            "hideDuration": "1000",
-            "timeOut": "2000",
-            "extendedTimeOut": "1000",
-            "showEasing": "swing",
-            "hideEasing": "linear",
-            "showMethod": "fadeIn",
-            "hideMethod": "fadeOut"
-        });
-        return;
-    }
-
-    if (productType == 2) {
-        // Permitir decimales en quantity, no hacemos nada
-        let precio = parseFloat(productPrice * quantity).toFixed(2);
-        $items.push({
-            "productId": productId,
-            "productPrice": productPrice,
-            "productName": productName,
-            "productUnit": productUnit,
-            "productTax": productTax,
-            "productTotal": precio,
-            "productTotalTaxes": parseFloat(precio*(1+(productTax/100))).toFixed(2),
-            "productTaxes": parseFloat(precio*(productTax/100)).toFixed(2),
-            "productQuantity": quantity,
-            "productDiscount": 0
-        });
-        // Renderizar el producto en el carrito
-        renderDataCartQuantity(productId, productPrice, productName, productUnit, quantity);
-
-    } else {
-        // No permitir decimales en quantity
-        if (quantity % 1 !== 0) {
-            toastr.error("Este tipo de producto no acepta decimales", 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-            $("#quantity_total").val(Math.floor(quantity)); // Elimina los decimales
-            return;
-        }
-
-        let precio = parseFloat(productPrice * Math.floor(quantity)).toFixed(2);
-        $items.push({
-            "productId": productId,
-            "productPrice": productPrice,
-            "productName": productName,
-            "productUnit": productUnit,
-            "productTax": productTax,
-            "productTotal": precio,
-            "productTotalTaxes": parseFloat(precio*(1+(productTax/100))).toFixed(2),
-            "productTaxes": parseFloat(precio*(productTax/100)).toFixed(2),
-            "productQuantity": quantity,
-            "productDiscount": 0
-        });
-        // Renderizar el producto en el carrito
-        renderDataCartQuantity(productId, productPrice, productName, productUnit, quantity);
-    }
-    //renderDataCart(productId, productPrice, productName, productUnit);
-    $('#quantity_total').val('');
-    $modalQuantity.modal('hide');
-}*/
 function addProduct() {
     event.preventDefault();
 
-    let productId = $("#quantity_productId").val();
-    let materialId = $("#quantity_materialId").val();
+    let productId = parseInt($("#quantity_productId").val());
+    let materialId = parseInt($("#quantity_materialId").val());
     let unitPrice = parseFloat($("#quantity_productPrice").val());
     let productStock = parseFloat($("#quantity_productStock").val());
     let productName = $("#quantity_productName").val();
     let productUnit = $("#quantity_productUnit").val();
     let productTax = parseFloat($("#quantity_productTax").val());
-    let productType = $("#quantity_productType").val();
+    let productType = parseInt($("#quantity_productType").val());
 
-    // Cantidad unitaria
     let unitQty = parseFloat($("#quantity_total").val()) || 0;
 
-    // Presentaciones seleccionadas
-    let rows = [];
+    let presentationRows = [];
+
     $('#presentationsArea').find('tr[data-pres-row]').each(function () {
         const presId = parseInt($(this).attr('data-pres-id'), 10);
         const presQty = parseInt($(this).attr('data-pres-qty'), 10);
         const presPrice = parseFloat($(this).attr('data-pres-price'));
-
         const packs = parseInt($(this).find('[data-pres-packs]').val(), 10) || 0;
 
         if (packs > 0) {
-            rows.push({
+            presentationRows.push({
                 presentationId: presId,
-                presentationQty: presQty,     // equiv en unidades
-                price: presPrice,             // precio por paquete
+                presentationQty: presQty,
+                price: presPrice,
                 packs: packs
             });
         }
     });
 
-    // Nada ingresado
-    if (unitQty <= 0 && rows.length === 0) {
-        toastr.error("Ingrese cantidad (unidad) o paquetes de alguna presentación.", 'Error', { "closeButton": true });
+    if (unitQty <= 0 && presentationRows.length === 0) {
+        toastr.error(
+            "Ingrese cantidad (unidad) o paquetes de alguna presentación.",
+            'Error',
+            { closeButton: true }
+        );
         return;
     }
 
-    // Validar decimales por tipo SOLO para unidad (presentaciones siempre enteras)
-    if (productType != 2 && unitQty % 1 !== 0) {
-        toastr.error("Este tipo de producto no acepta decimales en venta por unidad.", 'Error', { "closeButton": true });
+    /*
+     * Productos normales tipo 2 sí aceptan decimal en unidad.
+     * Itemeables nunca aceptan decimal, aunque por configuración
+     * tengan otro tipo.
+     */
+    const isItemeable = productType === 3;
+
+    if (!isItemeable && productType !== 2 && unitQty % 1 !== 0) {
+        toastr.error(
+            "Este tipo de producto no acepta decimales en venta por unidad.",
+            'Error',
+            { closeButton: true }
+        );
+
         $("#quantity_total").val(Math.floor(unitQty));
         return;
     }
 
-    // Stock equivalente requerido (en unidades)
-    let unitsRequired = 0;
+    if (isItemeable && unitQty % 1 !== 0) {
+        toastr.error(
+            "Los productos itemeables solo pueden venderse en unidades enteras.",
+            'Error',
+            { closeButton: true }
+        );
 
-    // unidad
-    if (unitQty > 0) unitsRequired += unitQty;
-
-    // presentaciones
-    rows.forEach(r => {
-        unitsRequired += (r.packs * r.presentationQty);
-    });
-
-    if (productStock < unitsRequired) {
-        toastr.error(`La cantidad sobrepasa el stock del material. Stock: ${productStock} unidades. Requerido: ${unitsRequired} unidades.`, 'Error', { "closeButton": true });
+        $("#quantity_total").val(Math.floor(unitQty));
         return;
     }
 
-    // 1) Agregar fila unitaria si aplica
+    /*
+     * Construimos cada futura línea del carrito.
+     */
+    let linesToAdd = [];
+
     if (unitQty > 0) {
-        const itemKey = buildItemKey(productId, null);
+        const qtyToUse = (productType === 2 && !isItemeable)
+            ? parseFloat(unitQty)
+            : Math.floor(unitQty);
 
-        // bloquear duplicado exacto: misma presentación (unit)
-        let existing = $items.find(x => x.itemKey === itemKey);
-        if (existing) {
-            toastr.error(`El producto ${productName} (Unidad) ya está agregado. Use + / - para modificar.`, 'Error', { "closeButton": true });
-        } else {
-            const qtyToUse = (productType == 2) ? parseFloat(unitQty) : Math.floor(unitQty);
-            const total = (qtyToUse * unitPrice).toFixed(2);
-
-            $items.push({
-                itemKey: itemKey,
-                productId: productId,
-                materialId: materialId,
-                presentationId: null,
-                presentationQty: 1,
-                presentationLabel: 'Unidad',
-                priceEffective: unitPrice,     // precio por unidad
-                productPrice: unitPrice,
-                productName: productName,
-                productUnit: productUnit,
-                productTax: productTax,
-                productTotal: total,
-                productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
-                productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
-                productQuantity: qtyToUse,     // cantidad ingresada (unidades)
-                unitsEquivalent: qtyToUse,     // unidades para stock
-                productDiscount: 0
-            });
-
-            renderDataCartRow(itemKey);
-        }
-    }
-
-    // 2) Agregar filas por cada presentación
-    rows.forEach(r => {
-        const itemKey = buildItemKey(productId, r.presentationId);
-
-        let existing = $items.find(x => x.itemKey === itemKey);
-        if (existing) {
-            toastr.error(`El producto ${productName} (${r.presentationQty} unidades) ya está agregado. Use + / - para modificar.`, 'Error', { "closeButton": true });
-            return;
-        }
-
-        const total = (r.packs * r.price).toFixed(2);
-
-        $items.push({
-            itemKey: itemKey,
+        linesToAdd.push({
             productId: productId,
             materialId: materialId,
-            presentationId: r.presentationId,
-            presentationQty: r.presentationQty,
-            presentationLabel: `${r.presentationQty} unidades`,
-            priceEffective: r.price,        // precio por paquete
-            productPrice: r.price,
+            productPrice: unitPrice,
             productName: productName,
             productUnit: productUnit,
             productTax: productTax,
-            productTotal: total,
-            productTotalTaxes: parseFloat(total * (1 + (productTax / 100))).toFixed(2),
-            productTaxes: parseFloat(total * (productTax / 100)).toFixed(2),
-            productQuantity: r.packs,       // cantidad ingresada (paquetes)
-            unitsEquivalent: (r.packs * r.presentationQty), // unidades para stock
-            productDiscount: 0
-        });
+            productType: productType,
 
-        renderDataCartRow(itemKey);
+            presentationId: null,
+            presentationQty: qtyToUse,
+            presentationLabel: 'Unidad',
+
+            unitsEquivalent: qtyToUse
+        });
+    }
+
+    presentationRows.forEach(function (row) {
+        linesToAdd.push({
+            productId: productId,
+            materialId: materialId,
+            productPrice: row.price,
+            productName: productName,
+            productUnit: productUnit,
+            productTax: productTax,
+            productType: productType,
+
+            presentationId: row.presentationId,
+            presentationQty: row.packs,
+            presentationLabel: `${row.presentationQty} unidades`,
+
+            unitsEquivalent: row.packs * row.presentationQty
+        });
     });
 
-    // cerrar
-    $('#quantity_total').val(0);
-    $modalQuantity.modal('hide');
+    /*
+     * Stock equivalente total.
+     */
+    const unitsRequired = linesToAdd.reduce(function (sum, line) {
+        return sum + Number(line.unitsEquivalent || 0);
+    }, 0);
+
+    if (productStock < unitsRequired) {
+        toastr.error(
+            `La cantidad sobrepasa el stock del material. Stock: ${productStock} unidades. Requerido: ${unitsRequired} unidades.`,
+            'Error',
+            { closeButton: true }
+        );
+        return;
+    }
+
+    /*
+     * Itemeable:
+     * se guarda el borrador y el selector repartirá los Items
+     * entre las líneas, respetando sus unidades equivalentes.
+     */
+    if (isItemeable) {
+        if (!Number.isInteger(unitsRequired) || unitsRequired <= 0) {
+            toastr.error(
+                'La cantidad requerida para un producto itemeable no es válida.',
+                'Error',
+                { closeButton: true }
+            );
+            return;
+        }
+
+        $currentItemeableCartDraft = {
+            productId: productId,
+            materialId: materialId,
+            productName: productName,
+            productType: productType,
+
+            /*
+             * Se conservan las líneas completas para repartir
+             * los Items seleccionados por presentación.
+             */
+            lines: linesToAdd,
+
+            unitsEquivalent: unitsRequired,
+            fromSpecialModal: true
+        };
+
+        $modalQuantity.modal('hide');
+
+        openItemeableItemsSelectorForCart($currentItemeableCartDraft);
+
+        return;
+    }
+
+    /*
+     * Producto normal:
+     * mantiene el comportamiento actual.
+     */
+    let rowsAdded = 0;
+
+    linesToAdd.forEach(function (line) {
+        const added = addProductToCart({
+            productId: line.productId,
+            materialId: line.materialId,
+            productPrice: line.productPrice,
+            productName: line.productName,
+            productUnit: line.productUnit,
+            productTax: line.productTax,
+            productType: line.productType,
+
+            presentationId: line.presentationId,
+            presentationQty: line.presentationQty,
+            presentationLabel: line.presentationLabel,
+
+            unitsEquivalent: line.unitsEquivalent,
+            selectedItems: []
+        });
+
+        if (added) {
+            rowsAdded++;
+        }
+    });
+
+    if (rowsAdded > 0) {
+        $('#quantity_total').val(0);
+        $('#presentationsArea').find('[data-pres-packs]').val(0);
+        $modalQuantity.modal('hide');
+    }
 
     updateTotalOrder();
 }
 
 function renderDataCartRow(itemKey) {
-    const item = $items.find(x => x.itemKey === itemKey);
-    if (!item) return;
+    const item = $items.find(function (x) {
+        return x.itemKey === itemKey;
+    });
+
+    if (!item) {
+        return;
+    }
 
     var clone = activateTemplate('#item-cart');
 
-    // delete por itemKey
     clone.querySelector("[data-delete]").setAttribute("data-delete", itemKey);
 
-    // nombre
     clone.querySelector("[data-name]").innerHTML = item.productName;
 
-    // label de presentación
-    const presLabel = item.presentationId ? `Presentación: ${item.presentationLabel}` : `Presentación: Unidad`;
+    const presLabel = item.presentationId
+        ? `Presentación: ${item.presentationLabel}`
+        : `Presentación: Unidad`;
+
     clone.querySelector("[data-presentation_label]").innerHTML = presLabel;
 
-    // texto precio
-    clone.querySelector("[data-price]").innerHTML = changeStringPrice(itemKey, item.productQuantity);
+    /*
+     * Requiere agregar este elemento al template:
+     * <small data-selected_items class="text-muted"></small>
+     *
+     * Si todavía no existe, esta condición evita que el JS falle.
+     */
+    const selectedItemsElement = clone.querySelector("[data-selected_items]");
 
-    // botones +/- por itemKey
-    clone.querySelector("[data-item_key_minus]").setAttribute("data-item_key_minus", itemKey);
-    clone.querySelector("[data-item_key_plus]").setAttribute("data-item_key_plus", itemKey);
-
-    // input quantity
-    var quantityInput = clone.querySelector("[data-quantity]");
-    if (quantityInput) {
-        // presentaciones: step 1, unidad: si tipo=2 permite decimal
-        quantityInput.step = (item.presentationId ? 1 : (item.productType == 2 ? 0.01 : 1));
-        quantityInput.value = item.productQuantity;
+    if (selectedItemsElement) {
+        if (item.isItemeable && item.selected_items_text) {
+            selectedItemsElement.innerHTML =
+                `Ítems seleccionados: ${item.selected_items_text}`;
+            selectedItemsElement.style.display = '';
+        } else {
+            selectedItemsElement.innerHTML = '';
+            selectedItemsElement.style.display = 'none';
+        }
     }
 
-    // total
-    clone.querySelector("[data-priceTotal]").innerHTML = parseFloat(item.productTotal).toFixed(2);
+    clone.querySelector("[data-price]").innerHTML = changeStringPrice(
+        itemKey,
+        item.productQuantity
+    );
+
+    const minusButton = clone.querySelector("[data-item_key_minus]");
+    const plusButton = clone.querySelector("[data-item_key_plus]");
+
+    minusButton.setAttribute("data-item_key_minus", itemKey);
+    plusButton.setAttribute("data-item_key_plus", itemKey);
+
+    /*
+     * Itemeables:
+     * la cantidad depende de los Items seleccionados.
+     * No se debe cambiar directamente con + o -.
+     */
+    if (item.isItemeable) {
+        minusButton.disabled = true;
+        plusButton.disabled = true;
+
+        minusButton.classList.add('disabled');
+        plusButton.classList.add('disabled');
+
+        minusButton.setAttribute(
+            'title',
+            'La cantidad depende de los ítems físicos seleccionados.'
+        );
+
+        plusButton.setAttribute(
+            'title',
+            'La cantidad depende de los ítems físicos seleccionados.'
+        );
+    }
+
+    var quantityInput = clone.querySelector("[data-quantity]");
+
+    if (quantityInput) {
+        quantityInput.step = item.presentationId
+            ? 1
+            : (item.productType == 2 ? 0.01 : 1);
+
+        quantityInput.value = item.productQuantity;
+
+        /*
+         * También bloqueamos edición manual de cantidad.
+         */
+        if (item.isItemeable) {
+            quantityInput.readOnly = true;
+        }
+    }
+
+    clone.querySelector("[data-priceTotal]").innerHTML =
+        parseFloat(item.productTotal).toFixed(2);
 
     $("#body-cart").append(clone);
 
-    // disparar update visual
-    if (quantityInput) $(quantityInput).trigger('input');
+    if (quantityInput) {
+        $(quantityInput).trigger('input');
+    }
 }
 
 function newSale() {
@@ -1104,6 +1484,29 @@ function guardarVenta() {
         }
     }
 
+    const invalidItemeable = $items.find(function (item) {
+        if (!item.isItemeable) {
+            return false;
+        }
+
+        const selectedItemIds = Array.isArray(item.selected_item_ids)
+            ? item.selected_item_ids
+            : [];
+
+        const requiredUnits = parseFloat(item.unitsEquivalent || 0);
+
+        return selectedItemIds.length !== requiredUnits;
+    });
+
+    if (invalidItemeable) {
+        toastr.error(
+            'Uno de los productos itemeables no tiene la cantidad correcta de ítems físicos seleccionados.',
+            'Validación de ítems'
+        );
+
+        $("#btn-pay").attr("disabled", false);
+        return;
+    }
 
     // Confirmación con jQuery Confirm
     $.confirm({
@@ -1252,6 +1655,18 @@ function decrementQuantity(button) {
     var priceTotal = 0;
     var stringDiscount = "";
 
+    const currentItem = $items.find(function (item) {
+        return item.itemKey === itemKey;
+    });
+
+    if (currentItem && currentItem.isItemeable) {
+        toastr.warning(
+            'No puede modificar la cantidad directamente. Elimine la línea y vuelva a seleccionar los ítems requeridos.',
+            'Producto itemeable'
+        );
+        return;
+    }
+
     if (currentValue > 0) {
         $input.val((currentValue - step).toFixed(2)).trigger('change');
         string = changeStringPrice( itemKey, (currentValue - step).toFixed(2) );
@@ -1325,6 +1740,19 @@ function incrementQuantity(button) {
     var currentValue = parseFloat($input.val());
     var step = parseFloat($input.attr('step')) || 0.01;
     let itemKey = $(button).attr('data-item_key_plus');
+
+    const currentItem = $items.find(function (item) {
+        return item.itemKey === itemKey;
+    });
+
+    if (currentItem && currentItem.isItemeable) {
+        toastr.warning(
+            'No puede modificar la cantidad directamente. Elimine la línea y vuelva a seleccionar los ítems requeridos.',
+            'Producto itemeable'
+        );
+        return;
+    }
+
     $input.val((currentValue + step).toFixed(2)).trigger('change');
 
     var string = "";
@@ -1595,7 +2023,6 @@ function addProductCart() {
 }
 
 function continuarAddProductCart(button) {
-
     let productId = button.data('product_id');
     let materialId = button.data('material_id');
     let productPrice = parseFloat(button.data('product_price'));
@@ -1606,48 +2033,156 @@ function continuarAddProductCart(button) {
     let productType = button.data('product_type');
 
     if ($modeEdit == 0) {
-        toastr.error("Lo sentimos ya no puede agregar mas productos, anule o imprima el comprobante.", 'Error', { "closeButton": true });
-        return;
-    }
-
-    const itemKey = buildItemKey(productId, null);
-
-    let existing = $items.find(x => x.itemKey === itemKey);
-
-    if (existing) {
-        toastr.error(`El producto ${productName} (Unidad) ya está agregado. Use + / - para modificar.`, 'Error', { "closeButton": true });
+        toastr.error(
+            "Lo sentimos ya no puede agregar más productos, anule o imprima el comprobante.",
+            'Error',
+            { closeButton: true }
+        );
         return;
     }
 
     if (productStock < 1) {
-        toastr.error("Stock insuficiente.", 'Error', { "closeButton": true });
+        toastr.error("Stock insuficiente.", 'Error', { closeButton: true });
         return;
     }
 
-    $items.push({
-        itemKey: itemKey,
-        productId: productId,
-        materialId: materialId,
-        presentationId: null,
-        presentationQty: 1,
-        presentationLabel: 'Unidad',
-        priceEffective: productPrice,
+    const isItemeable = parseInt(productType || 0) === 3;
+
+    /*
+     * Producto itemeable:
+     * antes de agregarlo se debe identificar su Item físico.
+     */
+    if (isItemeable) {
+        $currentItemeableCartDraft = {
+            productId: parseInt(productId),
+            materialId: parseInt(materialId),
+            productPrice: productPrice,
+            productStock: productStock,
+            productName: productName,
+            productUnit: productUnit,
+            productTax: productTax,
+            productType: parseInt(productType),
+            presentationId: null,
+            presentationQty: 1,
+            presentationLabel: 'Unidad',
+            unitsEquivalent: 1
+        };
+
+        openItemeableItemsSelectorForCart($currentItemeableCartDraft);
+
+        return;
+    }
+
+    addProductToCart({
+        productId: parseInt(productId),
+        materialId: parseInt(materialId),
         productPrice: productPrice,
         productName: productName,
         productUnit: productUnit,
         productTax: productTax,
-        productTotal: parseFloat(productPrice * 1).toFixed(2),
-        productTotalTaxes: parseFloat((productPrice * 1) * (1 + (productTax / 100))).toFixed(2),
-        productTaxes: parseFloat((productPrice * 1) * (productTax / 100)).toFixed(2),
-        productQuantity: 1,
+        productType: productType,
+        presentationId: null,
+        presentationQty: 1,
+        presentationLabel: 'Unidad',
         unitsEquivalent: 1,
+        selectedItems: []
+    });
+}
+
+function addProductToCart(productData) {
+    const selectedItems = Array.isArray(productData.selectedItems)
+        ? productData.selectedItems
+        : [];
+
+    const selectedItemIds = selectedItems
+        .map(function (item) {
+            return parseInt(item.id);
+        })
+        .filter(function (itemId) {
+            return itemId > 0;
+        });
+
+    const isItemeable = parseInt(productData.productType || 0) === 3;
+
+    const itemKey = buildItemKey(
+        productData.productId,
+        productData.presentationId,
+        selectedItemIds
+    );
+
+    const existing = $items.find(function (item) {
+        return item.itemKey === itemKey;
+    });
+
+    if (existing) {
+        if (isItemeable) {
+            toastr.error(
+                `El ítem seleccionado ya está agregado en el carrito.`,
+                'Error',
+                { closeButton: true }
+            );
+        } else {
+            toastr.error(
+                `El producto ${productData.productName} (${productData.presentationLabel}) ya está agregado. Use + / - para modificar.`,
+                'Error',
+                { closeButton: true }
+            );
+        }
+
+        return false;
+    }
+
+    const quantityVisible = parseFloat(productData.presentationQty || 1);
+    const priceEffective = parseFloat(productData.productPrice || 0);
+    const productTax = parseFloat(productData.productTax || 0);
+
+    const selectedItemsText = selectedItems
+        .map(function (item) {
+            return item.code || ('Ítem #' + item.id);
+        })
+        .join(', ');
+
+    $items.push({
+        itemKey: itemKey,
+
+        productId: parseInt(productData.productId), // stock_item_id
+        materialId: parseInt(productData.materialId),
+
+        presentationId: productData.presentationId || null,
+        presentationQty: quantityVisible,
+        presentationLabel: productData.presentationLabel || 'Unidad',
+
+        priceEffective: priceEffective,
+        productPrice: priceEffective,
+
+        productName: productData.productName,
+        productUnit: productData.productUnit,
+        productTax: productTax,
+
+        productTotal: parseFloat(priceEffective * quantityVisible).toFixed(2),
+        productTotalTaxes: parseFloat(
+            (priceEffective * quantityVisible) * (1 + (productTax / 100))
+        ).toFixed(2),
+        productTaxes: parseFloat(
+            (priceEffective * quantityVisible) * (productTax / 100)
+        ).toFixed(2),
+
+        productQuantity: quantityVisible,
+        unitsEquivalent: parseFloat(productData.unitsEquivalent || quantityVisible),
+
         productDiscount: 0,
-        productType: productType
+        productType: productData.productType,
+
+        isItemeable: isItemeable,
+        selected_item_ids: selectedItemIds,
+        selected_items: selectedItems,
+        selected_items_text: selectedItemsText
     });
 
     renderDataCartRow(itemKey);
-
     updateTotalOrder();
+
+    return true;
 }
 
 function renderDataCart(productId, productPrice, productName, productUnit) {

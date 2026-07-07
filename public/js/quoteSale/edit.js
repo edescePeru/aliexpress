@@ -16,6 +16,9 @@ var $modalConsumableQty = $('#modalQuantityConsumable');
 var $currentConsumableRender = null;
 var $currentConsumable = null;
 
+var $modalSelectItemeableItems = $('#modalSelectItemeableItems');
+var $currentItemeableDraft = null;
+
 /* =========================
    Helpers dinero (FIX 0.01)
    ========================= */
@@ -260,30 +263,93 @@ function renderPresentationsInModalConsumable(presentations) {
 /* =========================
    Render consumable row
    ========================= */
-function renderTemplateConsumable(render, consumable, qtyVisible, pricePU, discount, isPrice, pres) {
+function renderTemplateConsumable(
+    render,
+    consumable,
+    qtyVisible,
+    pricePU,
+    discount,
+    isPrice,
+    pres,
+    selectedItems = []
+) {
     var clone = activateTemplate('#template-consumable');
+
+    const isItemeable = parseInt(consumable.tipo_venta_id || 0) === 3;
+
+    const selectedItemIds = Array.isArray(selectedItems)
+        ? selectedItems
+            .map(function (item) {
+                return parseInt(item.id);
+            })
+            .filter(function (itemId) {
+                return itemId > 0;
+            })
+        : [];
+
+    const selectedItemsText = Array.isArray(selectedItems)
+        ? selectedItems
+            .map(function (item) {
+                return item.code || ('Ítem #' + item.id);
+            })
+            .join(', ')
+        : '';
 
     // visibles
     clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
     clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
     clone.querySelector("[data-consumableQuantity]").value = parseFloat(qtyVisible).toFixed(2);
     clone.querySelector("[data-consumablePrice]").value = parseFloat(pricePU).toFixed(2);
-    $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePU.toFixed(10));
 
-    // V/U e importe inicial
+    $(clone)
+        .find('[data-consumablePrice]')
+        .attr('data-consumable_price_real', parseFloat(pricePU).toFixed(10));
+
     const igvPct = parseFloat($igv || 18);
     const igvFactor = 1 + (igvPct / 100);
+    const valorUnitario = parseFloat(pricePU) / igvFactor;
 
-    clone.querySelector("[data-consumableValor]").value = (parseFloat(pricePU) / igvFactor).toFixed(2);
-    $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', (parseFloat(pricePU) / igvFactor).toFixed(10));
+    clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
 
-    clone.querySelector("[data-consumableImporte]").value = (parseFloat(qtyVisible) * parseFloat(pricePU)).toFixed(2);
+    $(clone)
+        .find('[data-consumableValor]')
+        .attr('data-consumable_valor_real', valorUnitario.toFixed(10));
 
-    // data attrs
-    $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.material_id);
-    $(clone).find('[data-stock_item_id]').attr('data-stock_item_id', consumable.stock_item_id);
-    $(clone).find('[data-descuento]').attr('data-descuento', parseFloat(discount || 0).toFixed(2));
-    $(clone).find('[data-type_promotion]').attr('data-type_promotion', 'ninguno');
+    clone.querySelector("[data-consumableImporte]").value =
+        (parseFloat(qtyVisible) * parseFloat(pricePU)).toFixed(2);
+
+    /*
+     * En edit.js el consumable obtenido desde AJAX trabaja con:
+     * consumable.id = stock_item_id
+     * consumable.material_id = material padre
+     */
+    const $consumableId = $(clone).find('[data-consumableId]');
+
+    $consumableId.attr('data-consumableid', consumable.id);
+    $consumableId.attr('data-is_itemeable', isItemeable ? '1' : '0');
+    $consumableId.attr('data-selected_item_ids', JSON.stringify(selectedItemIds));
+    $consumableId.attr('data-selected_items_text', selectedItemsText);
+
+    $(clone)
+        .find('[data-stock_item_id]')
+        .attr('data-stock_item_id', consumable.id);
+
+    $(clone)
+        .find('[data-descuento]')
+        .attr('data-descuento', parseFloat(discount || 0).toFixed(2));
+
+    $(clone)
+        .find('[data-type_promotion]')
+        .attr('data-type_promotion', 'ninguno');
+
+    /*
+     * Tooltip nativo al pasar sobre la descripción.
+     */
+    if (isItemeable && selectedItemsText !== '') {
+        $(clone)
+            .find('[data-consumableDescription]')
+            .attr('title', 'Ítems seleccionados: ' + selectedItemsText);
+    }
 
     // presentación meta
     if (pres) {
@@ -294,20 +360,21 @@ function renderTemplateConsumable(render, consumable, qtyVisible, pricePU, disco
         $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', pres.unitsEquivalent);
         $(clone).find('[data-packs]').attr('data-packs', pres.packs);
 
-        // step 1 para packs
         clone.querySelector("[data-consumableQuantity]").setAttribute('step', '1');
     } else {
         clone.querySelector("[data-presentation_text]").value = "Unidad";
 
-        $(clone).find('[data-presentation_id]').attr('data-presentation_id', "");
-        $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', "");
-        $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', parseFloat(qtyVisible));
-        $(clone).find('[data-packs]').attr('data-packs', "");
+        $(clone).find('[data-presentation_id]').attr('data-presentation_id', '');
+        $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', '');
+        $(clone).find('[data-units_equivalent]').attr(
+            'data-units_equivalent',
+            parseFloat(qtyVisible)
+        );
+        $(clone).find('[data-packs]').attr('data-packs', '');
     }
 
     render.append(clone);
 
-    // ✅ dispara alerta + recalcula totales
     onQuoteChanged();
 }
 
@@ -350,57 +417,132 @@ function readConsumablesFromDom($card) {
         const $row = $(this);
 
         const description = ($row.find('[data-consumableDescription]').val() || '').trim();
-        if (!description) return;
 
-        const materialId =
-            $row.find('[data-consumableid]').attr('data-consumableid') ||
-            $row.find('[data-consumableid]').val() ||
-            $row.find('[data-consumableId]').attr('data-consumableid') ||
-            $row.find('[data-consumableId]').val() ||
-            null;
+        if (!description) {
+            return;
+        }
 
+        const $consumableId = $row.find('[data-consumableid], [data-consumableId]').first();
+
+        /*
+         * En edición, el backend acepta stock_item_id.
+         * El Blade existente ya mantiene ambos atributos.
+         */
         const stockItemId =
             $row.find('[data-stock_item_id]').attr('data-stock_item_id') ||
-            $row.find('[data-stock_item_id]').val() ||
-            $row.find('[data-stock_item_id]').attr('data-stock_item_id') ||
-            $row.find('[data-stock_item_id]').val() ||
+            $consumableId.attr('data-consumableid') ||
             null;
 
         const unit = ($row.find('[data-consumableUnit]').val() || '').trim();
 
-        const qtyVisible = parseFloat($row.find('[data-consumableQuantity]').val() || 0);
-        const valor = parseFloat($row.find('[data-consumableValor]').val() || 0);
-        const price = parseFloat($row.find('[data-consumablePrice]').val() || 0);
-        const importe = parseFloat($row.find('[data-consumableImporte]').val() || 0);
+        const quantity = parseFloat(
+            $row.find('[data-consumableQuantity]').val() || 0
+        );
 
-        const discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
-        const typePromo = $row.find('[data-type_promotion]').attr('data-type_promotion') || null;
+        const valor = parseFloat(
+            $row.find('[data-consumableValor]').val() || 0
+        );
 
-        const presentationId = $row.find('[data-presentation_id]').attr('data-presentation_id') || null;
-        const unitsPerPack = parseFloat($row.find('[data-units_per_pack]').attr('data-units_per_pack') || 0);
-        const unitsEquivalent = parseFloat($row.find('[data-units_equivalent]').attr('data-units_equivalent') || 0);
+        const price = parseFloat(
+            $row.find('[data-consumablePrice]').val() || 0
+        );
+
+        const importe = parseFloat(
+            $row.find('[data-consumableImporte]').val() || 0
+        );
+
+        const discount = parseFloat(
+            $row.find('[data-descuento]').attr('data-descuento') || 0
+        );
+
+        const typePromo = $row.find('[data-type_promotion]')
+            .attr('data-type_promotion') || null;
+
+        const presentationId = $row.find('[data-presentation_id]')
+            .attr('data-presentation_id') || null;
+
+        const unitsPerPack = parseFloat(
+            $row.find('[data-units_per_pack]')
+                .attr('data-units_per_pack') || 0
+        );
+
+        const unitsEquivalent = parseFloat(
+            $row.find('[data-units_equivalent]')
+                .attr('data-units_equivalent') || 0
+        );
+
+        const isItemeable = parseInt(
+            $consumableId.attr('data-is_itemeable') || 0
+        ) === 1;
+
+        let selectedItemIds = [];
+
+        try {
+            const rawItemIds = $consumableId.attr('data-selected_item_ids') || '[]';
+
+            selectedItemIds = JSON.parse(rawItemIds);
+
+            if (!Array.isArray(selectedItemIds)) {
+                selectedItemIds = [];
+            }
+
+            selectedItemIds = selectedItemIds
+                .map(function (itemId) {
+                    return parseInt(itemId);
+                })
+                .filter(function (itemId) {
+                    return itemId > 0;
+                });
+        } catch (error) {
+            selectedItemIds = [];
+        }
+
+        if (isItemeable) {
+            const requiredUnits = unitsEquivalent || quantity;
+
+            if (selectedItemIds.length !== requiredUnits) {
+                throw new Error(
+                    'La cantidad de ítems seleccionados no coincide con "' +
+                    description +
+                    '".'
+                );
+            }
+        }
 
         arr.push({
-            id: materialId,
-            stockItemId: stockItemId,
-            description,
-            unit,
-            quantity: qtyVisible,
-            units_equivalent: unitsEquivalent || qtyVisible,
-            valor,
-            price,
-            importe,
-            discount,
+            /*
+             * Para edición, el backend toma stock_item_id como prioritario.
+             * id queda igual para compatibilidad.
+             */
+            id: stockItemId,
+            stock_item_id: stockItemId,
+            description: description,
+            unit: unit,
+            quantity: quantity,
+            units_equivalent: unitsEquivalent || quantity,
+
+            valor: valor,
+            valorReal: $row.find('[data-consumableValor]')
+                .attr('data-consumable_valor_real') || valor,
+
+            price: price,
+            priceReal: $row.find('[data-consumablePrice]')
+                .attr('data-consumable_price_real') || price,
+
+            importe: importe,
+
+            discount: discount,
             type_promo: typePromo,
+
             presentation_id: presentationId,
-            units_per_pack: unitsPerPack || null
+            units_per_pack: unitsPerPack || null,
+
+            is_itemeable: isItemeable,
+            selected_item_ids: selectedItemIds
         });
 
-        console.log(arr);
-
-        // ✅ NO redondear item por item: suma directo y redondea al final
-        sumImporte += (parseFloat(importe) || 0);
-        sumPromoDiscount += (parseFloat(discount) || 0);
+        sumImporte += importe;
+        sumPromoDiscount += discount;
     });
 
     return {
@@ -671,70 +813,281 @@ function triggerSaveEquipment() {
 }
 
 $('#btn-add_consumable_modal').on('click', function () {
-
     if (!$currentConsumable || !$currentConsumableRender) {
         toastr.error('No hay consumible seleccionado', 'Error');
         return;
     }
 
-    let added = false;
+    let linesToAdd = [];
+    let hasPresentation = false;
 
     $('[data-pres-row]').each(function () {
         let packs = parseInt($(this).find('[data-pres-packs]').val() || 0);
-        if (packs > 0) {
-            added = true;
 
-            let presId = parseInt($(this).attr('data-pres-id'));
-            let unitsPerPack = parseInt($(this).attr('data-pres-qty'));
-            let presPrice = parseFloat($(this).attr('data-pres-price'));
-            let presLabel = $(this).attr('data-pres-label');
-
-            let unitsEquivalent = packs * unitsPerPack;
-
-            renderTemplateConsumable(
-                $currentConsumableRender,
-                $currentConsumable,
-                packs,
-                presPrice,
-                0,
-                true,
-                {
-                    id: presId,
-                    text: presLabel,
-                    packs: packs,
-                    unitsPerPack: unitsPerPack,
-                    unitsEquivalent: unitsEquivalent,
-                    pricePack: presPrice
-                }
-            );
+        if (packs <= 0) {
+            return;
         }
+
+        hasPresentation = true;
+
+        let presId = parseInt($(this).attr('data-pres-id'));
+        let unitsPerPack = parseInt($(this).attr('data-pres-qty'));
+        let presPrice = parseFloat($(this).attr('data-pres-price'));
+        let presLabel = $(this).attr('data-pres-label');
+
+        let unitsEquivalent = packs * unitsPerPack;
+
+        linesToAdd.push({
+            quantity_to_show: packs,
+            price: presPrice,
+            total_units_required: unitsEquivalent,
+            presentation: {
+                id: presId,
+                text: presLabel,
+                packs: packs,
+                unitsPerPack: unitsPerPack,
+                unitsEquivalent: unitsEquivalent,
+                pricePack: presPrice
+            }
+        });
     });
 
-    if (!added) {
+    if (!hasPresentation) {
         let qty = parseFloat($('#c_quantity_total').val() || 0);
+
         if (qty <= 0) {
             toastr.error('Ingresa cantidad o selecciona una presentación', 'Error');
             return;
         }
 
-        let unitPrice = parseFloat($currentConsumable.list_price);
+        linesToAdd.push({
+            quantity_to_show: qty,
+            price: parseFloat($currentConsumable.list_price) || 0,
+            total_units_required: qty,
+            presentation: null
+        });
+    }
 
+    const isItemeable = parseInt($currentConsumable.tipo_venta_id || 0) === 3;
+
+    if (isItemeable) {
+        const totalUnitsRequired = linesToAdd.reduce(function (total, line) {
+            return total + Number(line.total_units_required || 0);
+        }, 0);
+
+        if (!Number.isInteger(totalUnitsRequired) || totalUnitsRequired <= 0) {
+            toastr.error(
+                'Los productos itemeables solo pueden venderse en unidades enteras.',
+                'Cantidad inválida'
+            );
+            return;
+        }
+
+        $currentItemeableDraft = {
+            consumable: $currentConsumable,
+            render: $currentConsumableRender,
+            lines: linesToAdd,
+            total_units_required: totalUnitsRequired
+        };
+
+        $modalConsumableQty.modal('hide');
+
+        openItemeableItemsSelector($currentItemeableDraft);
+
+        return;
+    }
+
+    linesToAdd.forEach(function (line) {
         renderTemplateConsumable(
             $currentConsumableRender,
             $currentConsumable,
-            qty,
-            unitPrice,
+            line.quantity_to_show,
+            line.price,
             0,
             true,
-            null
+            line.presentation
         );
-    }
-
-    this.blur();
-    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+    });
 
     $modalConsumableQty.modal('hide');
 });
+
+function openItemeableItemsSelector(draft) {
+    if (!draft || !draft.consumable) {
+        toastr.error('No se pudo preparar la selección de ítems.', 'Error');
+        return;
+    }
+
+    const consumable = draft.consumable;
+    const stockItemId = consumable.id;
+    const requiredCount = parseInt(draft.total_units_required || 0);
+
+    if (!stockItemId || requiredCount <= 0) {
+        toastr.error('No se pudo identificar el producto itemeable.', 'Error');
+        return;
+    }
+
+    $('#itemeable-product-name').text(
+        consumable.full_description || consumable.display_name || ''
+    );
+
+    $('#itemeable-required-count').text(requiredCount);
+    $('#itemeable-selected-count').text(0);
+    $('#itemeable-selected-required-count').text(requiredCount);
+
+    $('#itemeable-item-search').val('');
+
+    $('#itemeable-items-loading').show();
+    $('#itemeable-items-empty').hide();
+    $('#itemeable-items-error').hide();
+    $('#itemeable-items-table-container').hide();
+    $('#itemeable-items-table-body').empty();
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', true)
+        .data('required-count', requiredCount);
+
+    $modalSelectItemeableItems.modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    $modalSelectItemeableItems.modal('show');
+
+    const url = window.APP_QUOTE.URLS.AVAILABLE_ITEMS
+        .replace(':stockItemId', stockItemId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (response) {
+            $('#itemeable-items-loading').hide();
+
+            if (!response.success) {
+                $('#itemeable-items-error').show();
+                return;
+            }
+
+            const items = response.items || [];
+
+            if (!items.length) {
+                $('#itemeable-items-empty').show();
+                return;
+            }
+
+            renderItemeableItems(items, requiredCount);
+
+            $('#itemeable-items-table-container').show();
+
+            $('#itemeable-item-search')
+                .val('')
+                .focus();
+        },
+        error: function () {
+            $('#itemeable-items-loading').hide();
+            $('#itemeable-items-error').show();
+        }
+    });
+}
+
+function renderItemeableItems(items, requiredCount) {
+    let html = '';
+
+    items.forEach(function (item) {
+        const itemCode = item.code || ('Ítem #' + item.id);
+
+        html += `
+            <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
+                <td class="text-center">
+                    <input
+                        type="checkbox"
+                        class="itemeable-item-checkbox"
+                        value="${item.id}"
+                        data-item-id="${item.id}"
+                        data-item-code="${itemCode}"
+                    >
+                </td>
+                <td>${itemCode}</td>
+                <td class="text-center">
+                    <span class="badge badge-success">Disponible</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    $('#itemeable-items-table-body').html(html);
+
+    updateItemeableItemsCounter(requiredCount);
+}
+
+function updateItemeableItemsCounter(requiredCount) {
+    const selectedCount = $('.itemeable-item-checkbox:checked').length;
+
+    $('#itemeable-selected-count').text(selectedCount);
+
+    const $checkboxes = $('.itemeable-item-checkbox');
+
+    if (selectedCount >= requiredCount) {
+        $checkboxes.not(':checked').prop('disabled', true);
+    } else {
+        $checkboxes.prop('disabled', false);
+    }
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', selectedCount !== requiredCount);
+}
+
+function selectItemByScannedCode() {
+    const code = ($('#itemeable-item-search').val() || '').trim();
+
+    if (!code) {
+        return;
+    }
+
+    const normalizedCode = code.toLowerCase();
+
+    const $row = $('[data-item-row]').filter(function () {
+        const itemCode = String($(this).attr('data-item-code') || '')
+            .trim()
+            .toLowerCase();
+
+        return itemCode === normalizedCode;
+    }).first();
+
+    if (!$row.length) {
+        toastr.warning(
+            'No se encontró un ítem disponible con ese código.',
+            'Ítem no encontrado'
+        );
+        return;
+    }
+
+    const $checkbox = $row.find('.itemeable-item-checkbox');
+
+    if ($checkbox.prop('disabled') && !$checkbox.is(':checked')) {
+        toastr.warning(
+            'Ya alcanzó la cantidad máxima de ítems permitidos.',
+            'Límite alcanzado'
+        );
+        return;
+    }
+
+    if (!$checkbox.is(':checked')) {
+        $checkbox.prop('checked', true).trigger('change');
+    }
+
+    $('#itemeable-items-table-body').prepend($row);
+
+    $row.addClass('table-success');
+
+    setTimeout(function () {
+        $row.removeClass('table-success');
+    }, 1200);
+
+    $('#itemeable-item-search')
+        .val('')
+        .focus();
+}
 
 /* =========================
    init
@@ -931,6 +1284,94 @@ $(document).ready(function () {
     $('#btn-notAddConsumable').on('click', function () {
         $modalConsumableQty.modal('hide');
     });
+
+    $(document).on('change', '.itemeable-item-checkbox', function () {
+        const requiredCount = parseInt(
+            $('#btn-confirm-itemeable-items').data('required-count') || 0
+        );
+
+        updateItemeableItemsCounter(requiredCount);
+    });
+
+    $(document).on('keydown', '#itemeable-item-search', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            selectItemByScannedCode();
+        }
+    });
+
+    $(document).on('change', '#itemeable-item-search', function () {
+        selectItemByScannedCode();
+    });
+
+    $('#btn-cancel-itemeable-items').on('click', function () {
+        $currentItemeableDraft = null;
+
+        $modalSelectItemeableItems.modal('hide');
+
+        $modalConsumableQty.modal('show');
+    });
+
+    $('#btn-confirm-itemeable-items').on('click', function () {
+        const draft = $currentItemeableDraft;
+
+        if (!draft) {
+            toastr.error('No se encontró el producto temporal.', 'Error');
+            return;
+        }
+
+        const requiredCount = parseInt(draft.total_units_required || 0);
+
+        const selectedItems = [];
+
+        $('.itemeable-item-checkbox:checked').each(function () {
+            selectedItems.push({
+                id: parseInt($(this).data('item-id')),
+                code: $(this).data('item-code')
+            });
+        });
+
+        if (selectedItems.length !== requiredCount) {
+            toastr.error(
+                'Debe seleccionar exactamente ' + requiredCount + ' ítems.',
+                'Selección incompleta'
+            );
+            return;
+        }
+
+        let currentPosition = 0;
+
+        draft.lines.forEach(function (line) {
+            const unitsForLine = parseInt(line.total_units_required || 0);
+
+            const selectedItemsForLine = selectedItems.slice(
+                currentPosition,
+                currentPosition + unitsForLine
+            );
+
+            currentPosition += unitsForLine;
+
+            renderTemplateConsumable(
+                draft.render,
+                draft.consumable,
+                line.quantity_to_show,
+                line.price,
+                0,
+                true,
+                line.presentation,
+                selectedItemsForLine
+            );
+        });
+
+        $modalSelectItemeableItems.modal('hide');
+
+        $currentItemeableDraft = null;
+
+        toastr.success(
+            'Se agregaron ' + selectedItems.length + ' ítems al equipo.',
+            'Producto agregado'
+        );
+    });
 });
 
 var $selectCustomer;
@@ -1009,87 +1450,12 @@ function saveEquipmentEdit() {
                         ? $card.find('[data-bodyConsumables], [data-bodyConsumable], [data-consumablesContainer]').first()
                         : $card; // fallback: busca en todo el card
 
-                    const consumablesDescription = [];
-                    const consumablesIds = [];
-                    const consumablesStockItemIds = [];
-                    const consumablesUnit = [];
+                    const consumablesRead = readConsumablesFromDom($card);
 
-                    const consumablesQuantity = []; // packs o unidades (según presentación)
-                    const consumablesValor = [];
-                    const consumablesValorReal = [];
-                    const consumablesPrice = [];
-                    const consumablesPriceReal = [];
-                    const consumablesImporte = [];
+                    const consumablesArray = consumablesRead.array;
+                    const descuentoPromos = consumablesRead.sum_promos;
 
-                    const consumablesDiscount = []; // compat (promos por item)
-                    const consumablesTypePromos = [];
-
-                    const consumablesPresentationId = [];
-                    const consumablesUnitsPerPack = [];
-                    const consumablesUnitsEquivalent = [];
-
-                    let descuentoPromos = 0;
-
-                    // OJO: en create tenías un wrapper "consumables.each(...)" con sub-find.
-                    // En edit, normalmente ya están en el card, por eso hacemos un find directo.
-                    $card.find('[data-consumableDescription]').each(function(){ consumablesDescription.push($(this).val()); });
-                    $card.find('[data-consumableId]').each(function(){ consumablesIds.push($(this).attr('data-consumableid')); });
-
-                    $card.find('[data-stock_item_id]').each(function(){ consumablesStockItemIds.push($(this).attr('data-stock_item_id')); });
-
-                    $card.find('[data-descuento]').each(function(){
-                        const d = parseFloat($(this).attr('data-descuento') || 0);
-                        consumablesDiscount.push(d);
-                        descuentoPromos += d;
-                    });
-
-                    $card.find('[data-type_promotion]').each(function(){ consumablesTypePromos.push($(this).attr('data-type_promotion')); });
-                    $card.find('[data-consumableUnit]').each(function(){ consumablesUnit.push($(this).val()); });
-                    $card.find('[data-consumableQuantity]').each(function(){ consumablesQuantity.push($(this).val()); });
-
-                    $card.find('[data-consumableValor]').each(function(){ consumablesValor.push($(this).val()); });
-                    $card.find('[data-consumable_valor_real]').each(function(){ consumablesValorReal.push($(this).attr('data-consumable_valor_real')); });
-
-                    $card.find('[data-consumablePrice]').each(function(){ consumablesPrice.push($(this).val()); });
-                    $card.find('[data-consumable_price_real]').each(function(){ consumablesPriceReal.push($(this).attr('data-consumable_price_real')); });
-
-                    $card.find('[data-consumableImporte]').each(function(){ consumablesImporte.push($(this).val()); });
-
-                    $card.find('[data-presentation_id]').each(function(){ consumablesPresentationId.push($(this).attr('data-presentation_id') || null); });
-                    $card.find('[data-units_per_pack]').each(function(){ consumablesUnitsPerPack.push($(this).attr('data-units_per_pack') || null); });
-                    $card.find('[data-units_equivalent]').each(function(){ consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent') || null); });
-
-                    console.log(consumablesPriceReal);
-
-                    // Armamos array final de consumables (incluye reales)
-                    const consumablesArray = [];
-                    for (let i = 0; i < consumablesDescription.length; i++) {
-                        consumablesArray.push({
-                            id: consumablesIds[i],
-                            stock_item_id: consumablesStockItemIds[i],
-                            description: consumablesDescription[i],
-                            unit: consumablesUnit[i],
-
-                            // ✅ packs o unidades según presentación (SUNAT)
-                            quantity: consumablesQuantity[i],
-
-                            // solo para inventario
-                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
-
-                            valor: consumablesValor[i],
-                            valorReal: consumablesValorReal[i],
-                            price: consumablesPrice[i],
-                            priceReal: consumablesPriceReal[i],
-                            importe: consumablesImporte[i],
-
-                            discount: consumablesDiscount[i] || 0,
-                            type_promo: consumablesTypePromos[i] || null,
-                            presentation_id: consumablesPresentationId[i] || null,
-                            units_per_pack: consumablesUnitsPerPack[i] || null
-                        });
-                    }
-
-                    console.log(consumablesArray);
+                    console.log('Consumables enviados:', consumablesArray);
 
                     // ===========================
                     // 3) SERVICIOS ADICIONALES

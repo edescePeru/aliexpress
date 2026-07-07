@@ -9,6 +9,7 @@
 namespace App\Services;
 
 use App\InventoryLevel;
+use App\Item;
 use App\QuoteStockLot;
 use App\StockLot;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,10 @@ class QuoteStockReservationService
         });
     }
 
+    /**
+     * Reserva normal por cantidad.
+     * El sistema decide desde qué lotes separar el stock.
+     */
     public function reserveForQuoteDetail(
         int $quoteId,
         ?int $quoteDetailId,
@@ -67,11 +72,9 @@ class QuoteStockReservationService
 
             $toReserve = min($remaining, $availableInLot);
 
-            // 1) Reservar en el lote
             $lot->qty_reserved = (float) $lot->qty_reserved + $toReserve;
             $lot->save();
 
-            // 2) Trazabilidad de la reserva
             QuoteStockLot::create([
                 'quote_id' => $quoteId,
                 'quote_detail_id' => $quoteDetailId,
@@ -80,10 +83,10 @@ class QuoteStockReservationService
                 'warehouse_id' => $lot->warehouse_id,
                 'location_id' => $lot->location_id,
                 'quantity' => $toReserve,
+                'item_ids' => null,
                 'unit_cost' => (float) $lot->unit_cost,
             ]);
 
-            // 3) Sincronizar resumen del inventory level
             $this->syncInventoryLevelReserved(
                 (int) $stockItemId,
                 $lot->warehouse_id,
@@ -98,6 +101,162 @@ class QuoteStockReservationService
         }
     }
 
+    /**
+     * Reserva productos itemeables.
+     * Recibe los Item IDs escogidos manualmente desde la cotización.
+     */
+    public function reserveItemeableForQuoteDetail(
+        int $quoteId,
+        int $quoteDetailId,
+        int $stockItemId,
+        array $itemIds
+    ): void {
+        $itemIds = collect($itemIds)
+            ->map(function ($itemId) {
+                return (int) $itemId;
+            })
+            ->filter(function ($itemId) {
+                return $itemId > 0;
+            })
+            ->values()
+            ->toArray();
+
+        if (empty($itemIds)) {
+            throw new \Exception('Debe seleccionar al menos un ítem para reservar.');
+        }
+
+        if (count($itemIds) !== count(array_unique($itemIds))) {
+            throw new \Exception('No se puede reservar el mismo ítem más de una vez.');
+        }
+
+        /*
+         * LockForUpdate evita que dos cotizaciones concurrentes
+         * puedan reservar el mismo Item.
+         */
+        $items = Item::query()
+            ->whereIn('id', $itemIds)
+            ->lockForUpdate()
+            ->get();
+
+        if ($items->count() !== count($itemIds)) {
+            throw new \Exception('Uno o más ítems seleccionados no existen.');
+        }
+
+        foreach ($items as $item) {
+            if ((int) $item->stock_item_id !== $stockItemId) {
+                throw new \Exception(
+                    "El ítem {$item->code} no pertenece al producto seleccionado."
+                );
+            }
+
+            if ((float) $item->percentage !== 1.0) {
+                throw new \Exception(
+                    "El ítem {$item->code} no corresponde a un ítem completo."
+                );
+            }
+
+            if ($item->state_item !== 'entered') {
+                throw new \Exception(
+                    "El ítem {$item->code} ya no está disponible para cotizar."
+                );
+            }
+
+            if (!$item->stock_lot_id) {
+                throw new \Exception(
+                    "El ítem {$item->code} no tiene lote asignado."
+                );
+            }
+        }
+
+        /*
+         * Agrupamos por lote porque un mismo detalle puede tener
+         * ítems seleccionados provenientes de diferentes lotes.
+         */
+        $itemsByLot = $items->groupBy('stock_lot_id');
+
+        foreach ($itemsByLot as $stockLotId => $itemsOfLot) {
+            $lot = StockLot::where('id', $stockLotId)
+                ->where('stock_item_id', $stockItemId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lot) {
+                throw new \Exception(
+                    "No se encontró el lote {$stockLotId} para el producto seleccionado."
+                );
+            }
+
+            $quantityToReserve = (float) $itemsOfLot->count();
+
+            $availableInLot = (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
+
+            if ($quantityToReserve > $availableInLot) {
+                throw new \Exception(
+                    "El lote {$lot->id} ya no tiene stock suficiente para reservar los ítems seleccionados."
+                );
+            }
+
+            /*
+             * Validar consistencia de almacén y ubicación.
+             */
+            foreach ($itemsOfLot as $item) {
+                if (
+                    (int) $item->warehouse_id !== (int) $lot->warehouse_id ||
+                    (int) $item->location_id !== (int) $lot->location_id
+                ) {
+                    throw new \Exception(
+                        "El ítem {$item->code} no coincide con el almacén o ubicación de su lote."
+                    );
+                }
+            }
+
+            $itemIdsOfLot = $itemsOfLot
+                ->pluck('id')
+                ->map(function ($itemId) {
+                    return (int) $itemId;
+                })
+                ->values()
+                ->toArray();
+
+            /*
+             * Reserva de cantidad en el lote.
+             */
+            $lot->qty_reserved = (float) $lot->qty_reserved + $quantityToReserve;
+            $lot->save();
+
+            /*
+             * Trazabilidad:
+             * quote_detail_id corresponde al EquipmentConsumable.
+             */
+            QuoteStockLot::create([
+                'quote_id' => $quoteId,
+                'quote_detail_id' => $quoteDetailId,
+                'stock_item_id' => $stockItemId,
+                'stock_lot_id' => $lot->id,
+                'warehouse_id' => $lot->warehouse_id,
+                'location_id' => $lot->location_id,
+                'quantity' => $quantityToReserve,
+                'item_ids' => $itemIdsOfLot,
+                'unit_cost' => (float) $lot->unit_cost,
+            ]);
+
+            /*
+             * Los ítems físicos quedan reservados.
+             */
+            Item::whereIn('id', $itemIdsOfLot)
+                ->where('state_item', 'entered')
+                ->update([
+                    'state_item' => 'reserved',
+                ]);
+
+            $this->syncInventoryLevelReserved(
+                $stockItemId,
+                $lot->warehouse_id,
+                $lot->location_id
+            );
+        }
+    }
+
     public function releaseReservationsByQuote(int $quoteId): void
     {
         $reservations = QuoteStockLot::where('quote_id', $quoteId)
@@ -105,53 +264,23 @@ class QuoteStockReservationService
             ->get();
 
         foreach ($reservations as $reservation) {
-            $lot = StockLot::where('id', $reservation->stock_lot_id)
-                ->lockForUpdate()
-                ->first();
-
-            if ($lot) {
-                $lot->qty_reserved = max(
-                    0,
-                    (float) $lot->qty_reserved - (float) $reservation->quantity
-                );
-                $lot->save();
-
-                $this->syncInventoryLevelReserved(
-                    (int) $reservation->stock_item_id,
-                    $reservation->warehouse_id,
-                    $reservation->location_id
-                );
-            }
+            $this->releaseReservation($reservation);
         }
 
         QuoteStockLot::where('quote_id', $quoteId)->delete();
     }
 
-    public function releaseReservationsByQuoteDetail(int $quoteId, int $quoteDetailId): void
-    {
+    public function releaseReservationsByQuoteDetail(
+        int $quoteId,
+        int $quoteDetailId
+    ): void {
         $reservations = QuoteStockLot::where('quote_id', $quoteId)
             ->where('quote_detail_id', $quoteDetailId)
             ->lockForUpdate()
             ->get();
 
         foreach ($reservations as $reservation) {
-            $lot = StockLot::where('id', $reservation->stock_lot_id)
-                ->lockForUpdate()
-                ->first();
-
-            if ($lot) {
-                $lot->qty_reserved = max(
-                    0,
-                    (float) $lot->qty_reserved - (float) $reservation->quantity
-                );
-                $lot->save();
-
-                $this->syncInventoryLevelReserved(
-                    (int) $reservation->stock_item_id,
-                    $reservation->warehouse_id,
-                    $reservation->location_id
-                );
-            }
+            $this->releaseReservation($reservation);
         }
 
         QuoteStockLot::where('quote_id', $quoteId)
@@ -159,8 +288,46 @@ class QuoteStockReservationService
             ->delete();
     }
 
-    public function validateStockForQuote(int $stockItemId, float $requestedUnits): void
+    /**
+     * Libera lote e ítems asociados a una reserva.
+     */
+    protected function releaseReservation(QuoteStockLot $reservation): void
     {
+        $itemIds = $reservation->item_ids ?? [];
+
+        if (!empty($itemIds) && is_array($itemIds)) {
+            Item::whereIn('id', $itemIds)
+                ->where('state_item', 'reserved')
+                ->lockForUpdate()
+                ->update([
+                    'state_item' => 'entered',
+                ]);
+        }
+
+        $lot = StockLot::where('id', $reservation->stock_lot_id)
+            ->lockForUpdate()
+            ->first();
+
+        if ($lot) {
+            $lot->qty_reserved = max(
+                0,
+                (float) $lot->qty_reserved - (float) $reservation->quantity
+            );
+
+            $lot->save();
+
+            $this->syncInventoryLevelReserved(
+                (int) $reservation->stock_item_id,
+                $reservation->warehouse_id,
+                $reservation->location_id
+            );
+        }
+    }
+
+    public function validateStockForQuote(
+        int $stockItemId,
+        float $requestedUnits
+    ): void {
         $available = $this->getAvailableStockByStockItem($stockItemId);
 
         if ($requestedUnits > $available) {
@@ -170,8 +337,11 @@ class QuoteStockReservationService
         }
     }
 
-    protected function syncInventoryLevelReserved(int $stockItemId, $warehouseId, $locationId): void
-    {
+    protected function syncInventoryLevelReserved(
+        int $stockItemId,
+        $warehouseId,
+        $locationId
+    ): void {
         $reserved = (float) StockLot::where('stock_item_id', $stockItemId)
             ->where('warehouse_id', $warehouseId)
             ->where('location_id', $locationId)

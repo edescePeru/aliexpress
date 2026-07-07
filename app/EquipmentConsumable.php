@@ -45,4 +45,13 @@ class EquipmentConsumable extends Model
     {
         return $this->belongsTo('App\StockItem', 'stock_item_id');
     }
+
+    public function quoteStockLots()
+    {
+        return $this->hasMany(
+            QuoteStockLot::class,
+            'quote_detail_id',
+            'id'
+        );
+    }
 }

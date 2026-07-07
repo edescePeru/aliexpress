@@ -8,13 +8,18 @@ class QuoteStockLot extends Model
 {
     protected $fillable = [
         'quote_id',
-        'quote_detail_id',
+        'quote_detail_id', // equipment_consumable_id
         'stock_item_id',
         'stock_lot_id',
         'warehouse_id',
         'location_id',
         'quantity',
+        'item_ids',
         'unit_cost',
+    ];
+
+    protected $casts = [
+        'item_ids' => 'array',
     ];
 
     public function quote()

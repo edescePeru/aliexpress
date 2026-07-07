@@ -347,6 +347,31 @@
             color: #007bff; /* Cambia este valor al color que prefieras */
         }
 
+        #modalSelectItemeableItems .modal-dialog {
+            max-width: 900px;
+        }
+
+        #modalSelectItemeableItems .modal-content {
+            max-height: calc(100vh - 30px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #modalSelectItemeableItems .modal-body {
+            overflow-y: auto;
+        }
+
+        #modalSelectItemeableItems .table-responsive {
+            max-height: 310px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+
+        #modalSelectItemeableItems .modal-footer {
+            flex-shrink: 0;
+            background: #fff;
+        }
+
     </style>
 @endsection
 
@@ -837,6 +862,13 @@
                 <!-- NUEVO: etiqueta de presentación -->
                 <div class="text-muted" style="font-size: 12px;" data-presentation_label></div>
 
+                <!-- Solo aparecerá para productos itemeables -->
+                <small
+                        data-selected_items
+                        class="text-muted d-block"
+                        style="display:none; font-size: 11px;">
+                </small>
+
                 <h6 style="color: #9e9e9e;" data-price data-stock></h6>
 
                 <div class="d-flex align-items-center justify-content-between w-100">
@@ -948,6 +980,98 @@
             </tbody>
         </table>
     </template>
+
+    <div id="modalSelectItemeableItems" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Seleccionar ítems físicos
+                    </h5>
+
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <strong id="itemeable-product-name"></strong>
+                    </div>
+
+                    <div class="alert alert-info py-2">
+                        Debe seleccionar
+                        <strong id="itemeable-required-count">0</strong>
+                        ítem(s).
+
+                        Seleccionados:
+                        <strong id="itemeable-selected-count">0</strong>
+                        /
+                        <strong id="itemeable-selected-required-count">0</strong>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="itemeable-item-search">
+                            Escanear o ingresar código de ítem
+                        </label>
+
+                        <input type="text"
+                               id="itemeable-item-search"
+                               class="form-control"
+                               autocomplete="off"
+                               placeholder="Ejemplo: 1545121">
+                    </div>
+
+                    <div id="itemeable-items-loading" class="text-center py-3">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Cargando ítems disponibles...
+                    </div>
+
+                    <div id="itemeable-items-empty" class="alert alert-warning" style="display:none;">
+                        No hay ítems físicos disponibles para este producto.
+                    </div>
+
+                    <div id="itemeable-items-error" class="alert alert-danger" style="display:none;">
+                        No se pudieron cargar los ítems disponibles.
+                    </div>
+
+                    <div id="itemeable-items-table-container" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="width:70px;" class="text-center">Elegir</th>
+                                    <th>Código de ítem</th>
+                                    <th style="width:130px;" class="text-center">Estado</th>
+                                </tr>
+                                </thead>
+                                <tbody id="itemeable-items-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            id="btn-cancel-itemeable-items"
+                            class="btn btn-secondary">
+                        Cancelar
+                    </button>
+
+                    <button type="button"
+                            id="btn-confirm-itemeable-items"
+                            class="btn btn-success"
+                            disabled>
+                        Confirmar selección
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')
@@ -992,13 +1116,20 @@
         $workers->map(function($w){
             return [
                 'id'   => $w->id,
-                'name' => $w->first_name.' '.$w->last_name,
+                'name' => $w->first_name . ' ' . $w->last_name,
             ];
         })
     );
 
         // aquí guardaremos el id elegido
         window.PV_SELECTED_WORKER_ID = null;
+
+        // URLs del punto de venta
+        window.APP_POS = window.APP_POS || {};
+        window.APP_POS.URLS = window.APP_POS.URLS || {};
+
+        window.APP_POS.URLS.AVAILABLE_ITEMS =
+            "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
     </script>
 
     <script src="{{ asset('js/puntoVenta/index.js') }}?v={{ time() }}"></script>

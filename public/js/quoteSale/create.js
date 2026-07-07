@@ -158,7 +158,7 @@ $(document).ready(function () {
         $modalConsumableQty.modal('hide');
     });
 
-    $('#btn-add_consumable_modal').on('click', function () {
+    /*$('#btn-add_consumable_modal').on('click', function () {
 
         if (!$currentConsumable || !$currentConsumableRender) {
             toastr.error('No hay consumible seleccionado', 'Error');
@@ -223,6 +223,164 @@ $(document).ready(function () {
                 null
             );
         }
+
+        $modalConsumableQty.modal('hide');
+    });*/
+    $('#btn-add_consumable_modal').on('click', function () {
+
+        if (!$currentConsumable || !$currentConsumableRender) {
+            toastr.error('No hay consumible seleccionado', 'Error');
+            return;
+        }
+
+        let linesToAdd = [];
+        let hasPresentation = false;
+
+        /*
+         * ==========================================================
+         * 1. Revisar presentaciones seleccionadas.
+         *    Cada presentación genera una futura fila independiente.
+         * ==========================================================
+         */
+        $('[data-pres-row]').each(function () {
+            let packs = parseInt($(this).find('[data-pres-packs]').val() || 0);
+
+            if (packs <= 0) {
+                return;
+            }
+
+            hasPresentation = true;
+
+            let presId = parseInt($(this).attr('data-pres-id'));
+            let unitsPerPack = parseInt($(this).attr('data-pres-qty'));
+            let presPrice = parseFloat($(this).attr('data-pres-price'));
+            let presLabel = $(this).attr('data-pres-label');
+
+            let unitsEquivalent = packs * unitsPerPack;
+
+            linesToAdd.push({
+                quantity_to_show: packs,
+                price: presPrice,
+                presentation: {
+                    id: presId,
+                    text: presLabel,
+                    packs: packs,
+                    unitsPerPack: unitsPerPack,
+                    unitsEquivalent: unitsEquivalent,
+                    pricePack: presPrice
+                },
+
+                /*
+                 * Para itemeables esta será la cantidad real de
+                 * ítems físicos que deberá seleccionar el usuario.
+                 */
+                total_units_required: unitsEquivalent
+            });
+        });
+
+        /*
+         * ==========================================================
+         * 2. Si no se eligieron presentaciones, trabajar por unidad.
+         * ==========================================================
+         */
+        if (!hasPresentation) {
+            let qty = parseFloat($('#c_quantity_total').val() || 0);
+
+            if (qty <= 0) {
+                toastr.error('Ingresa cantidad o selecciona una presentación', 'Error');
+                return;
+            }
+
+            let unitPrice = parseFloat($currentConsumable.list_price) || 0;
+
+            linesToAdd.push({
+                quantity_to_show: qty,
+                price: unitPrice,
+                presentation: null,
+                total_units_required: qty
+            });
+        }
+
+        /*
+         * ==========================================================
+         * 3. Validar si el producto es itemeable.
+         *    tipo_venta_id = 3
+         * ==========================================================
+         */
+        let isItemeable = parseInt($currentConsumable.tipo_venta_id || 0) === 3;
+
+        /*
+         * ==========================================================
+         * 4. Flujo especial para productos itemeables.
+         *
+         * Aún NO renderizamos las filas.
+         * Guardamos toda la selección temporalmente y luego
+         * abriremos el selector de ítems físicos.
+         * ==========================================================
+         */
+        if (isItemeable) {
+            let totalUnitsRequired = linesToAdd.reduce(function (total, line) {
+                return total + parseFloat(line.total_units_required || 0);
+            }, 0);
+
+            /*
+             * Un item físico no puede venderse parcialmente.
+             * Por eso no permitimos 1.5, 2.25, etc.
+             */
+            if (!Number.isInteger(totalUnitsRequired)) {
+                toastr.error(
+                    'Los productos itemeables solo pueden venderse en unidades enteras.',
+                    'Cantidad inválida'
+                );
+                return;
+            }
+
+            if (totalUnitsRequired <= 0) {
+                toastr.error('Debe seleccionar al menos un ítem.', 'Error');
+                return;
+            }
+
+            /*
+             * Estas variables globales las utilizaremos en el siguiente paso
+             * cuando creemos el modal selector de ítems.
+             */
+            window.$currentItemeableDraft = {
+                consumable: $currentConsumable,
+                render: $currentConsumableRender,
+                lines: linesToAdd,
+                total_units_required: totalUnitsRequired
+            };
+
+            /*
+             * Ocultamos el modal de cantidad antes de abrir
+             * el modal de selección de ítems.
+             *
+             * Esta función la construiremos en el siguiente paso.
+             */
+            $modalConsumableQty.modal('hide');
+
+            openItemeableItemsSelector(window.$currentItemeableDraft);
+
+            return;
+        }
+
+        /*
+         * ==========================================================
+         * 5. Flujo normal:
+         *    Renderizar inmediatamente cada fila.
+         * ==========================================================
+         */
+        linesToAdd.forEach(function (line) {
+            renderTemplateConsumable(
+                $currentConsumableRender,
+                $currentConsumable,
+                line.quantity_to_show,
+                line.price,
+                0,
+                true,
+                line.presentation
+            );
+        });
 
         $modalConsumableQty.modal('hide');
     });
@@ -299,6 +457,105 @@ $(document).ready(function () {
         // poner foco en algo fuera
         $('#material_search').focus();
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Limita la cantidad de ítems seleccionables
+    |--------------------------------------------------------------------------
+    */
+    $(document).on('change', '.itemeable-item-checkbox', function () {
+        let requiredCount = parseInt(
+            $('#btn-confirm-itemeable-items').data('required-count') || 0
+        );
+
+        updateItemeableItemsCounter(requiredCount);
+    });
+
+    $(document).on('click', '#btn-confirm-itemeable-items', function () {
+        let draft = window.$currentItemeableDraft;
+
+        if (!draft) {
+            toastr.error('No se encontró la información temporal del producto.', 'Error');
+            return;
+        }
+
+        let requiredCount = parseInt(draft.total_units_required || 0);
+
+        let selectedItems = [];
+
+        $('.itemeable-item-checkbox:checked').each(function () {
+            selectedItems.push({
+                id: parseInt($(this).data('item-id')),
+                code: $(this).data('item-code')
+            });
+        });
+
+        if (selectedItems.length !== requiredCount) {
+            toastr.error(
+                'Debe seleccionar exactamente ' + requiredCount + ' ítems.',
+                'Selección incompleta'
+            );
+            return;
+        }
+
+        let currentPosition = 0;
+
+        draft.lines.forEach(function (line) {
+            let lineUnitsRequired = parseInt(line.total_units_required || 0);
+
+            let itemsForThisLine = selectedItems.slice(
+                currentPosition,
+                currentPosition + lineUnitsRequired
+            );
+
+            currentPosition += lineUnitsRequired;
+
+            renderTemplateConsumable(
+                draft.render,
+                draft.consumable,
+                line.quantity_to_show,
+                line.price,
+                0,
+                true,
+                line.presentation,
+                itemsForThisLine
+            );
+        });
+
+        $modalSelectItemeableItems.modal('hide');
+
+        markEquipDirty(draft.render);
+
+        toastr.success(
+            'Se agregaron ' + selectedItems.length + ' ítems a la cotización.',
+            'Producto agregado'
+        );
+
+        window.$currentItemeableDraft = null;
+    });
+
+    $(document).on('click', '#btn-cancel-itemeable-items', function () {
+        window.$currentItemeableDraft = null;
+
+        $modalSelectItemeableItems.modal('hide');
+
+        /*
+         * Volvemos al modal anterior para que pueda corregir
+         * cantidad o presentación sin tener que seleccionar el producto otra vez.
+         */
+        $modalConsumableQty.modal('show');
+    });
+
+    $(document).on('keydown', '#itemeable-item-search', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            selectItemByScannedCode();
+        }
+    });
+
+    $(document).on('change', '#itemeable-item-search', function () {
+        selectItemByScannedCode();
+    });
 });
 
 var $formCreate;
@@ -312,6 +569,8 @@ var $descuento = 0;
 var $modalConsumableQty = $('#modalQuantityConsumable');
 var $currentConsumableRender = null; // contenedor DOM donde se append la fila
 var $currentConsumable = null;       // objeto del material seleccionado ($consumables)
+
+let $modalSelectItemeableItems = $('#modalSelectItemeableItems');
 
 var substringMatcher = function(strs) {
     return function findMatches(q, cb) {
@@ -334,6 +593,215 @@ var substringMatcher = function(strs) {
         cb(matches);
     };
 };
+
+/*
+|--------------------------------------------------------------------------
+| Abre el selector de ítems físicos para un producto itemeable
+|--------------------------------------------------------------------------
+*/
+function openItemeableItemsSelector(draft) {
+    if (!draft || !draft.consumable) {
+        toastr.error('No se pudo preparar la selección de ítems.', 'Error');
+        return;
+    }
+
+    let consumable = draft.consumable;
+
+    /*
+     * En tu flujo actual, consumable.id corresponde al StockItem seleccionado.
+     * Si en tu estructura el ID del stock item tiene otro nombre,
+     * aquí sería donde se debería cambiar.
+     */
+    let stockItemId = consumable.id;
+
+    if (!stockItemId) {
+        toastr.error('No se pudo identificar el stock item del producto.', 'Error');
+        return;
+    }
+
+    let requiredCount = parseInt(draft.total_units_required || 0);
+
+    if (requiredCount <= 0) {
+        toastr.error('La cantidad de ítems requeridos no es válida.', 'Error');
+        return;
+    }
+
+    $('#itemeable-product-name').text(consumable.full_name || consumable.description || '');
+    $('#itemeable-required-count').text(requiredCount);
+    $('#itemeable-selected-count').text(0);
+    $('#itemeable-selected-required-count').text(requiredCount);
+
+    $('#itemeable-items-loading').show();
+    $('#itemeable-items-empty').hide();
+    $('#itemeable-items-error').hide();
+    $('#itemeable-items-table-container').hide();
+    $('#itemeable-items-table-body').empty();
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', true)
+        .data('required-count', requiredCount);
+
+    $modalSelectItemeableItems.modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    $modalSelectItemeableItems.modal('show');
+
+    let url = window.APP_QUOTE.URLS.AVAILABLE_ITEMS
+        .replace(':stockItemId', stockItemId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (response) {
+            $('#itemeable-items-loading').hide();
+
+            if (!response.success) {
+                $('#itemeable-items-error').show();
+                return;
+            }
+
+            let items = response.items || [];
+
+            if (!items.length) {
+                $('#itemeable-items-empty').show();
+                return;
+            }
+
+            renderItemeableItems(items, requiredCount);
+
+            $('#itemeable-items-table-container').show();
+
+            $('#itemeable-item-search')
+                .val('')
+                .focus();
+        },
+        error: function () {
+            $('#itemeable-items-loading').hide();
+            $('#itemeable-items-error').show();
+        }
+    });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Renderiza los checkbox de los ítems disponibles
+|--------------------------------------------------------------------------
+*/
+function renderItemeableItems(items, requiredCount) {
+    let html = '';
+
+    items.forEach(function (item) {
+        let itemCode = item.code || ('Ítem #' + item.id);
+
+        html += `
+            <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
+            <td class="text-center">
+            <input
+        type="checkbox"
+    class="itemeable-item-checkbox"
+        value="${item.id}"
+        data-item-id="${item.id}"
+        data-item-code="${itemCode}"
+            >
+            </td>
+
+            <td>${itemCode}</td>
+
+            <td class="text-center">
+            <span class="badge badge-success">
+            Disponible
+            </span>
+            </td>
+            </tr>
+                `;
+    });
+
+    $('#itemeable-items-table-body').html(html);
+    updateItemeableItemsCounter(requiredCount);
+}
+
+function selectItemByScannedCode() {
+    let code = ($('#itemeable-item-search').val() || '').trim();
+
+    if (!code) {
+        return;
+    }
+
+    let normalizedCode = code.toLowerCase();
+
+    let $row = $('[data-item-row]').filter(function () {
+        let itemCode = String($(this).attr('data-item-code') || '')
+            .trim()
+            .toLowerCase();
+
+        return itemCode === normalizedCode;
+    }).first();
+
+    if (!$row.length) {
+        toastr.warning('No se encontró un ítem disponible con ese código.', 'Ítem no encontrado');
+        return;
+    }
+
+    let $checkbox = $row.find('.itemeable-item-checkbox');
+
+    if ($checkbox.prop('disabled') && !$checkbox.is(':checked')) {
+        toastr.warning(
+            'Ya alcanzó la cantidad máxima de ítems permitidos.',
+            'Límite alcanzado'
+        );
+        return;
+    }
+
+    if (!$checkbox.is(':checked')) {
+        $checkbox.prop('checked', true).trigger('change');
+    }
+
+    /*
+     * Mover al inicio para que los ítems seleccionados
+     * queden visibles aunque existan cientos de registros.
+     */
+    $('#itemeable-items-table-body').prepend($row);
+
+    /*
+     * Resalta brevemente la fila encontrada.
+     */
+    $row.addClass('table-success');
+
+    setTimeout(function () {
+        $row.removeClass('table-success');
+    }, 1200);
+
+    $('#itemeable-item-search')
+        .val('')
+        .focus();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Actualiza contador y bloquea selección adicional
+|--------------------------------------------------------------------------
+*/
+function updateItemeableItemsCounter(requiredCount) {
+    let selectedCount = $('.itemeable-item-checkbox:checked').length;
+
+    $('#itemeable-selected-count').text(selectedCount);
+
+    let $checkboxes = $('.itemeable-item-checkbox');
+
+    /*
+     * Si ya llegó al máximo, bloqueamos los demás checkbox.
+     */
+    if (selectedCount >= requiredCount) {
+        $checkboxes.not(':checked').prop('disabled', true);
+    } else {
+        $checkboxes.prop('disabled', false);
+    }
+
+    $('#btn-confirm-itemeable-items')
+        .prop('disabled', selectedCount !== requiredCount);
+}
 
 function fetchPresentations(materialId) {
     return $.ajax({
@@ -395,6 +863,10 @@ function renderPresentationsInModalConsumable(presentations) {
 function showModalQuantityConsumable(render, consumable) {
     $currentConsumableRender = render;
     $currentConsumable = consumable;
+
+    $('#c_quantity_is_itemeable').val(
+        parseInt(consumable.tipo_venta_id) === 3 ? 1 : 0
+    );
 
     $('#c_quantity_productId').val(consumable.id);
     $('#c_quantity_total').val(0);
@@ -778,7 +1250,7 @@ function saveEquipment() {
                 action: function () {
 
                     // ===========================
-                    // 0) Anclar al CARD del equipo (robusto)
+                    // 0) Anclar al CARD del equipo
                     // ===========================
                     var $card = $btn.closest('[data-equip]');
 
@@ -788,7 +1260,9 @@ function saveEquipment() {
                     var equipmentId = parseInt($btn.data('saveequipment'));
 
                     // Eliminamos el registro previo del mismo equipo
-                    $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
+                    $equipments = $equipments.filter(function (equipment) {
+                        return equipment.id !== equipmentId;
+                    });
 
                     var quantity = 1;
 
@@ -796,112 +1270,227 @@ function saveEquipment() {
                     // 2) Datos generales del equipo
                     // ===========================
                     var utility = $card.find('[data-utilityEquipment]').val() || 0;
-                    var rent    = $card.find('[data-rentEquipment]').val() || 0;
+                    var rent = $card.find('[data-rentEquipment]').val() || 0;
+                    var letter = $card.find('[data-letterEquipment]').first().val() || 0;
+                    var detail = $card.find('[data-detailequipment]').val() || "";
 
-                    // OJO: tienes 2 inputs con data-letterEquipment (uno es igv con id="igv")
-                    // Tomamos el primero como letter real.
-                    var letter  = $card.find('[data-letterEquipment]').first().val() || 0;
+                    const igvPct = parseFloat(
+                        $card.find('#igv').val() ||
+                        (typeof $igv !== 'undefined' ? $igv : 18)
+                    ) || 18;
 
-                    var detail  = $card.find('[data-detailequipment]').val() || "";
-
-                    // IGV: desde input #igv si existe, sino variable global
-                    const igvPct = parseFloat($card.find('#igv').val() || (typeof $igv !== 'undefined' ? $igv : 18)) || 18;
                     const factor = getFactor(igvPct);
 
                     // ===========================
-                    // 3) CONSUMABLES (productos) - leer por fila
+                    // 3) CONSUMABLES
                     // ===========================
                     var $consContainer = $card.find('[data-bodyConsumable]').first();
 
                     var consumablesArray = [];
                     var descuentoPromos = 0;
+                    var itemeableValidationError = false;
 
                     $consContainer.find('[data-consumableRow]').each(function () {
                         var $row = $(this);
 
-                        var discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
+                        var discount = parseFloat(
+                            $row.find('[data-descuento]').attr('data-descuento') || 0
+                        );
+
                         descuentoPromos += discount;
 
                         var qty = $row.find('[data-consumableQuantity]').val();
-                        var unitsEq = $row.find('[data-units_equivalent]').attr('data-units_equivalent') || qty;
+
+                        var unitsEq = $row.find('[data-units_equivalent]')
+                            .attr('data-units_equivalent') || qty;
+
+                        /*
+                         * Datos adicionales de productos itemeables
+                         */
+                        var $consumableIdElement = $row.find('[data-consumableid]').first();
+
+                        var isItemeable = parseInt(
+                            $consumableIdElement.attr('data-is_itemeable') || 0
+                        ) === 1;
+
+                        var selectedItemIdsRaw = $consumableIdElement.attr(
+                            'data-selected_item_ids'
+                        ) || '[]';
+
+                        var selectedItemIds = [];
+
+                        try {
+                            selectedItemIds = JSON.parse(selectedItemIdsRaw);
+
+                            if (!Array.isArray(selectedItemIds)) {
+                                selectedItemIds = [];
+                            }
+
+                            selectedItemIds = selectedItemIds
+                                .map(function (itemId) {
+                                    return parseInt(itemId);
+                                })
+                                .filter(function (itemId) {
+                                    return itemId > 0;
+                                });
+                        } catch (error) {
+                            selectedItemIds = [];
+                        }
+
+                        /*
+                         * Para itemeables, los IDs seleccionados deben
+                         * coincidir con las unidades reales de inventario.
+                         */
+                        if (isItemeable) {
+                            var unitsEquivalent = parseFloat(unitsEq || 0);
+
+                            if (
+                                selectedItemIds.length === 0 ||
+                                selectedItemIds.length !== unitsEquivalent
+                            ) {
+                                toastr.error(
+                                    'La cantidad de ítems seleccionados no coincide con el producto: ' +
+                                    ($row.find('[data-consumableDescription]').val() || ''),
+                                    'Validación de ítems'
+                                );
+
+                                itemeableValidationError = true;
+                                return false;
+                            }
+                        }
 
                         consumablesArray.push({
-                            id: $row.find('[data-consumableid]').attr('data-consumableid'),
+                            id: $consumableIdElement.attr('data-consumableid'),
+
                             description: $row.find('[data-consumableDescription]').val() || '',
                             unit: $row.find('[data-consumableUnit]').val() || '',
 
-                            // ✅ quantity = packs/unidades según presentación
+                            // Cantidad visible: packs o unidades.
                             quantity: qty,
 
-                            // solo inventario (NO SUNAT)
+                            // Cantidad real consumida desde inventario.
                             units_equivalent: unitsEq,
 
                             valor: $row.find('[data-consumableValor]').val() || 0,
-                            valorReal: $row.find('[data-consumableValor]').attr('data-consumable_valor_real')
+
+                            valorReal: $row.find('[data-consumableValor]')
+                                    .attr('data-consumable_valor_real')
                                 ?? $row.find('[data-consumableValor]').val()
                                 ?? 0,
 
                             price: $row.find('[data-consumablePrice]').val() || 0,
-                            priceReal: $row.find('[data-consumablePrice]').attr('data-consumable_price_real')
+
+                            priceReal: $row.find('[data-consumablePrice]')
+                                    .attr('data-consumable_price_real')
                                 ?? $row.find('[data-consumablePrice]').val()
                                 ?? 0,
 
                             importe: $row.find('[data-consumableImporte]').val() || 0,
 
                             discount: discount,
-                            type_promo: $row.find('[data-type_promotion]').attr('data-type_promotion') || null,
 
-                            presentation_id: $row.find('[data-presentation_id]').attr('data-presentation_id') || null,
-                            units_per_pack: $row.find('[data-units_per_pack]').attr('data-units_per_pack') || null
+                            type_promo: $row.find('[data-type_promotion]')
+                                .attr('data-type_promotion') || null,
+
+                            presentation_id: $row.find('[data-presentation_id]')
+                                .attr('data-presentation_id') || null,
+
+                            units_per_pack: $row.find('[data-units_per_pack]')
+                                .attr('data-units_per_pack') || null,
+
+                            // Nuevos datos itemeables
+                            is_itemeable: isItemeable,
+                            selected_item_ids: selectedItemIds
                         });
                     });
+
+                    if (itemeableValidationError) {
+                        return false;
+                    }
 
                     // ===========================
                     // 4) SERVICIOS ADICIONALES
                     // ===========================
                     var servicesContainer = $card.find('[data-bodyService]').first();
 
-                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                    var servicesRead = {
+                        array: [],
+                        sum_all: 0,
+                        sum_billable: 0
+                    };
+
                     if (servicesContainer.length > 0) {
                         servicesRead = readServicesFromDom(servicesContainer);
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all; // con IGV
                     var servicesSumBillable = servicesRead.sum_billable;
 
                     // ===========================
-                    // 5) Totales (misma lógica que confirmEquipment)
+                    // 5) Totales
                     // ===========================
                     let subtotalConsumablesWithIgvReal = 0;
 
                     for (let i = 0; i < consumablesArray.length; i++) {
                         const qty = Number(consumablesArray[i].quantity) || 0;
-                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+
+                        const priceReal = Number(
+                            consumablesArray[i].priceReal ??
+                            consumablesArray[i].price
+                        ) || 0;
 
                         const lineWithIgvReal = round10(qty * priceReal);
-                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
+
+                        subtotalConsumablesWithIgvReal = round10(
+                            subtotalConsumablesWithIgvReal + lineWithIgvReal
+                        );
                     }
 
-                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
-                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
+                    subtotalConsumablesWithIgvReal = round10(
+                        subtotalConsumablesWithIgvReal -
+                        (Number(descuentoPromos) || 0)
+                    );
 
-                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
-                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
+                    if (subtotalConsumablesWithIgvReal < 0) {
+                        subtotalConsumablesWithIgvReal = 0;
+                    }
 
-                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+                    const servicesWithIgvReal = round10(
+                        Number(servicesSumBillable) || 0
+                    );
 
-                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
-                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
+                    const subtotalWithIgvReal = round10(
+                        subtotalConsumablesWithIgvReal + servicesWithIgvReal
+                    );
+
+                    const discountWithIgvReal = round10(
+                        computeDiscountWithIgv(subtotalWithIgvReal, igvPct)
+                    );
+
+                    let totalFinalWithIgvReal = round10(
+                        subtotalWithIgvReal - discountWithIgvReal
+                    );
+
+                    if (totalFinalWithIgvReal < 0) {
+                        totalFinalWithIgvReal = 0;
+                    }
 
                     let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-                    if (baseFinalReal < 0) baseFinalReal = 0;
 
-                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
-                    const discountBaseReal = round10(discountWithIgvReal / factor);
+                    if (baseFinalReal < 0) {
+                        baseFinalReal = 0;
+                    }
+
+                    const igvFinalReal = round10(
+                        totalFinalWithIgvReal - baseFinalReal
+                    );
+
+                    const discountBaseReal = round10(
+                        discountWithIgvReal / factor
+                    );
 
                     // ===========================
-                    // 6) UI (2 decimales) + data reales
+                    // 6) UI
                     // ===========================
                     $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
                     $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
@@ -914,13 +1503,12 @@ function saveEquipment() {
                     $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
 
                     // ===========================
-                    // 7) Guardar en memoria ($equipments)
+                    // 7) Guardar en $equipments
                     // ===========================
-                    // Mantén el id en el botón guardar
                     $btn.attr('data-saveEquipment', equipmentId);
 
-                    // Si tienes botón eliminar, setéalo dentro del mismo card (SIN next())
-                    $card.find('[data-deleteEquipment]').attr('data-deleteEquipment', equipmentId);
+                    $card.find('[data-deleteEquipment]')
+                        .attr('data-deleteEquipment', equipmentId);
 
                     const discountGlobalMeta = {
                         subtotal_with_igv: subtotalWithIgvReal,
@@ -936,29 +1524,27 @@ function saveEquipment() {
                         utility: utility,
                         rent: rent,
                         letter: letter,
-
-                        total: totalFinalWithIgvReal, // real con IGV
-
+                        total: totalFinalWithIgvReal,
                         description: "",
                         detail: detail,
-
                         materials: [],
                         consumables: consumablesArray,
                         electrics: [],
                         workforces: servicesArray,
-
                         discount_global: {
                             base: discountBaseReal,
                             meta: discountGlobalMeta
                         },
-
                         tornos: [],
                         dias: []
                     });
 
-                    // UI
                     markEquipClean($card);
+
                     $items = [];
+
+                    console.log('Equipments actualizados:', $equipments);
+
                     $.alert("Productos guardados!");
                 }
             },
@@ -1224,7 +1810,7 @@ function renderTemplateConsumableWithFixedPrice(render, consumable, quantity, fi
     render.append(clone);
 }
 
-function renderTemplateConsumable(render, consumable, quantity, discountOrPrice, type_promo, isPrice = false, pres = null) {
+function renderTemplateConsumableOrigin(render, consumable, quantity, discountOrPrice, type_promo, isPrice = false, pres = null) {
 
     console.log(consumable);
     var clone = activateTemplate('#template-consumable');
@@ -1297,6 +1883,229 @@ function renderTemplateConsumable(render, consumable, quantity, discountOrPrice,
     $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', qtyVisible);
 
     console.log(render);
+    markEquipDirty(render);
+    render.append(clone);
+}
+
+function renderTemplateConsumable(
+    render,
+    consumable,
+    quantity,
+    discountOrPrice,
+    type_promo,
+    isPrice = false,
+    pres = null,
+    selectedItems = []
+) {
+    console.log(consumable);
+
+    var clone = activateTemplate('#template-consumable');
+
+    let qtyVisible = parseFloat(quantity);
+    let isItemeable = parseInt(consumable.tipo_venta_id || 0) === 3;
+
+    /*
+     |--------------------------------------------------------------------------
+     | Información de ítems seleccionados
+     |--------------------------------------------------------------------------
+     | Se guarda dentro de la fila temporal para luego incluirla cuando
+     | se arme el array equipments al guardar la cotización.
+     */
+    let selectedItemIds = Array.isArray(selectedItems)
+        ? selectedItems.map(function (item) {
+            return parseInt(item.id);
+        }).filter(Boolean)
+        : [];
+
+    let selectedItemsText = Array.isArray(selectedItems)
+        ? selectedItems.map(function (item) {
+            return item.code || ('Ítem #' + item.id);
+        }).join(', ')
+        : '';
+
+    /*
+     |--------------------------------------------------------------------------
+     | Función interna para guardar información itemeable en la fila
+     |--------------------------------------------------------------------------
+     */
+    function applyItemeableData() {
+        let $consumableIdElement = $(clone).find('[data-consumableId]');
+        let $descriptionElement = $(clone).find('[data-consumableDescription]');
+
+        $consumableIdElement.attr(
+            'data-is_itemeable',
+            isItemeable ? '1' : '0'
+        );
+
+        $consumableIdElement.attr(
+            'data-selected_item_ids',
+            JSON.stringify(selectedItemIds)
+        );
+
+        $consumableIdElement.attr(
+            'data-selected_items_text',
+            selectedItemsText
+        );
+
+        /*
+         * Tooltip nativo al pasar el mouse sobre la descripción.
+         * Funciona aunque el campo sea input readonly.
+         */
+        if (isItemeable && selectedItemsText !== '') {
+            $descriptionElement.attr(
+                'title',
+                'Ítems seleccionados: ' + selectedItemsText
+            );
+
+            $descriptionElement.attr(
+                'data-toggle',
+                'tooltip'
+            );
+
+            $descriptionElement.attr(
+                'data-placement',
+                'top'
+            );
+        } else {
+            $descriptionElement.removeAttr('title');
+            $descriptionElement.removeAttr('data-toggle');
+            $descriptionElement.removeAttr('data-placement');
+        }
+    }
+
+    /*
+     |--------------------------------------------------------------------------
+     | Caso presentación
+     |--------------------------------------------------------------------------
+     */
+    if (pres) {
+        const pricePack = parseFloat(pres.pricePack);
+        const packs = parseInt(pres.packs);
+        const unitsEquivalent = parseInt(pres.unitsEquivalent);
+
+        clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
+        clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
+        clone.querySelector("[data-consumableQuantity]").value = packs.toFixed(2);
+        clone.querySelector("[data-consumablePrice]").value = pricePack.toFixed(2);
+
+        $(clone)
+            .find('[data-consumablePrice]')
+            .attr('data-consumable_price_real', pricePack.toFixed(10));
+
+        let valorUnitario = pricePack / ((100 + parseFloat($igv)) / 100);
+
+        clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
+
+        $(clone)
+            .find('[data-consumableValor]')
+            .attr('data-consumable_valor_real', valorUnitario.toFixed(10));
+
+        let importeTotal = pricePack * packs;
+
+        clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
+
+        $(clone)
+            .find('[data-consumableId]')
+            .attr('data-consumableid', consumable.id);
+
+        $(clone)
+            .find('[data-descuento]')
+            .attr('data-descuento', '0.00');
+
+        $(clone)
+            .find('[data-type_promotion]')
+            .attr('data-type_promotion', type_promo);
+
+        clone.querySelector("[data-presentation_text]").value = pres.text;
+
+        $(clone)
+            .find('[data-presentation_id]')
+            .attr('data-presentation_id', pres.id);
+
+        $(clone)
+            .find('[data-packs]')
+            .attr('data-packs', packs);
+
+        $(clone)
+            .find('[data-units_per_pack]')
+            .attr('data-units_per_pack', pres.unitsPerPack);
+
+        $(clone)
+            .find('[data-units_equivalent]')
+            .attr('data-units_equivalent', unitsEquivalent);
+
+        applyItemeableData();
+
+        markEquipDirty(render);
+        render.append(clone);
+
+        return;
+    }
+
+    /*
+     |--------------------------------------------------------------------------
+     | Caso unidad normal
+     |--------------------------------------------------------------------------
+     */
+    let precioUnitario = isPrice
+        ? parseFloat(discountOrPrice)
+        : parseFloat(consumable.list_price);
+
+    let valorUnitario = precioUnitario / ((100 + parseFloat($igv)) / 100);
+    let importeTotal = precioUnitario * qtyVisible;
+
+    clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
+    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
+    clone.querySelector("[data-consumableQuantity]").value = qtyVisible.toFixed(2);
+    clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
+    clone.querySelector("[data-consumablePrice]").value = precioUnitario.toFixed(2);
+    clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
+
+    $(clone)
+        .find('[data-consumableValor]')
+        .attr('data-consumable_valor_real', valorUnitario.toFixed(10));
+
+    $(clone)
+        .find('[data-consumablePrice]')
+        .attr('data-consumable_price_real', precioUnitario.toFixed(10));
+
+    $(clone)
+        .find('[data-consumableId]')
+        .attr('data-consumableid', consumable.id);
+
+    $(clone)
+        .find('[data-descuento]')
+        .attr(
+            'data-descuento',
+            isPrice ? '0.00' : parseFloat(discountOrPrice).toFixed(2)
+        );
+
+    $(clone)
+        .find('[data-type_promotion]')
+        .attr('data-type_promotion', type_promo);
+
+    clone.querySelector("[data-presentation_text]").value = 'Unidad';
+
+    $(clone)
+        .find('[data-presentation_id]')
+        .attr('data-presentation_id', '');
+
+    $(clone)
+        .find('[data-packs]')
+        .attr('data-packs', '');
+
+    $(clone)
+        .find('[data-units_per_pack]')
+        .attr('data-units_per_pack', '');
+
+    $(clone)
+        .find('[data-units_equivalent]')
+        .attr('data-units_equivalent', qtyVisible);
+
+    applyItemeableData();
+
+    console.log(render);
+
     markEquipDirty(render);
     render.append(clone);
 }
@@ -1733,16 +2542,16 @@ function confirmEquipment() {
                 action: function () {
 
                     // ===========================
-                    // 0) Anclar al CARD del equipo (robusto)
+                    // 0) Anclar al CARD del equipo
                     // ===========================
                     var $card = $btn.closest('[data-equip]');
 
                     // ===========================
-                    // UI: bloquear/mostrar botones (SIN next())
+                    // UI: bloquear/mostrar botones
                     // ===========================
                     $card.find('[data-confirm]').hide();
                     $card.find('[data-saveEquipment]').show();
-                    $card.find('[data-deleteEquipment]').show(); // si existe
+                    $card.find('[data-deleteEquipment]').show();
 
                     var quantity = 1;
 
@@ -1750,20 +2559,19 @@ function confirmEquipment() {
                     // 1) Datos generales del equipo
                     // ===========================
                     var utility = $card.find('[data-utilityEquipment]').val() || 0;
-                    var rent    = $card.find('[data-rentEquipment]').val() || 0;
+                    var rent = $card.find('[data-rentEquipment]').val() || 0;
+                    var letter = $card.find('[data-letterEquipment]').first().val() || 0;
+                    var detail = $card.find('[data-detailequipment]').val() || "";
 
-                    // OJO: tienes 2 inputs con data-letterEquipment (uno es igv con id="igv")
-                    // Tomamos el primero como letter real.
-                    var letter  = $card.find('[data-letterEquipment]').first().val() || 0;
+                    var igvPct = parseFloat(
+                        $card.find('#igv').val() ||
+                        (typeof $igv !== 'undefined' ? $igv : 18)
+                    ) || 18;
 
-                    var detail  = $card.find('[data-detailequipment]').val() || "";
-
-                    // IGV: desde input #igv si existe, sino variable global
-                    var igvPct = parseFloat($card.find('#igv').val() || (typeof $igv !== 'undefined' ? $igv : 18)) || 18;
                     var factor = getFactor(igvPct);
 
                     // ===========================
-                    // 2) CONSUMABLES (productos) - leer por fila
+                    // 2) CONSUMABLES
                     // ===========================
                     var $consContainer = $card.find('[data-bodyConsumable]').first();
 
@@ -1773,98 +2581,229 @@ function confirmEquipment() {
                     $consContainer.find('[data-consumableRow]').each(function () {
                         var $row = $(this);
 
-                        var discount = parseFloat($row.find('[data-descuento]').attr('data-descuento') || 0);
+                        var discount = parseFloat(
+                            $row.find('[data-descuento]').attr('data-descuento') || 0
+                        );
+
                         descuentoPromos += discount;
 
                         var qty = $row.find('[data-consumableQuantity]').val();
-                        var unitsEq = $row.find('[data-units_equivalent]').attr('data-units_equivalent') || qty;
+
+                        var unitsEq = $row.find('[data-units_equivalent]')
+                            .attr('data-units_equivalent') || qty;
+
+                        /*
+                         * =====================================================
+                         * DATOS DE ÍTEMS ITEMEABLES
+                         * =====================================================
+                         */
+                        var $consumableIdElement = $row.find('[data-consumableid]').first();
+
+                        var isItemeable = parseInt(
+                            $consumableIdElement.attr('data-is_itemeable') || 0
+                        ) === 1;
+
+                        var selectedItemIdsRaw = $consumableIdElement.attr(
+                            'data-selected_item_ids'
+                        ) || '[]';
+
+                        var selectedItemIds = [];
+
+                        try {
+                            selectedItemIds = JSON.parse(selectedItemIdsRaw);
+
+                            if (!Array.isArray(selectedItemIds)) {
+                                selectedItemIds = [];
+                            }
+
+                            selectedItemIds = selectedItemIds
+                                .map(function (itemId) {
+                                    return parseInt(itemId);
+                                })
+                                .filter(function (itemId) {
+                                    return itemId > 0;
+                                });
+                        } catch (error) {
+                            selectedItemIds = [];
+                        }
+
+                        /*
+                         * Seguridad adicional:
+                         * si el producto es itemeable, debe tener IDs de ítems.
+                         */
+                        if (isItemeable && selectedItemIds.length === 0) {
+                            toastr.error(
+                                'El producto "' +
+                                ($row.find('[data-consumableDescription]').val() || '') +
+                                '" requiere ítems seleccionados.',
+                                'Ítems pendientes'
+                            );
+
+                            throw new Error('Producto itemeable sin ítems seleccionados.');
+                        }
 
                         consumablesArray.push({
-                            id: $row.find('[data-consumableid]').attr('data-consumableid'),
+                            id: $consumableIdElement.attr('data-consumableid'),
+
                             description: $row.find('[data-consumableDescription]').val() || '',
                             unit: $row.find('[data-consumableUnit]').val() || '',
 
-                            // ✅ quantity = packs o unidades según presentación
+                            // Cantidad visible: unidades o packs
                             quantity: qty,
 
-                            // solo para inventario
+                            // Cantidad real de unidades para inventario
                             units_equivalent: unitsEq,
 
                             valor: $row.find('[data-consumableValor]').val() || 0,
-                            valorReal: $row.find('[data-consumableValor]').attr('data-consumable_valor_real')
+
+                            valorReal: $row.find('[data-consumableValor]')
+                                    .attr('data-consumable_valor_real')
                                 ?? $row.find('[data-consumableValor]').val()
                                 ?? 0,
 
                             price: $row.find('[data-consumablePrice]').val() || 0,
-                            priceReal: $row.find('[data-consumablePrice]').attr('data-consumable_price_real')
+
+                            priceReal: $row.find('[data-consumablePrice]')
+                                    .attr('data-consumable_price_real')
                                 ?? $row.find('[data-consumablePrice]').val()
                                 ?? 0,
 
                             importe: $row.find('[data-consumableImporte]').val() || 0,
 
                             discount: discount,
-                            type_promo: $row.find('[data-type_promotion]').attr('data-type_promotion') || null,
 
-                            presentation_id: $row.find('[data-presentation_id]').attr('data-presentation_id') || null,
-                            units_per_pack: $row.find('[data-units_per_pack]').attr('data-units_per_pack') || null
+                            type_promo: $row.find('[data-type_promotion]')
+                                .attr('data-type_promotion') || null,
+
+                            presentation_id: $row.find('[data-presentation_id]')
+                                .attr('data-presentation_id') || null,
+
+                            units_per_pack: $row.find('[data-units_per_pack]')
+                                .attr('data-units_per_pack') || null,
+
+                            /*
+                             * Nuevos datos para productos itemeables
+                             */
+                            is_itemeable: isItemeable,
+                            selected_item_ids: selectedItemIds
                         });
                     });
+
+                    /*
+                     * Validación final:
+                     * para itemeables, unidades equivalentes debe ser igual
+                     * a la cantidad de ítems físicos seleccionados.
+                     */
+                    for (let i = 0; i < consumablesArray.length; i++) {
+                        let consumable = consumablesArray[i];
+
+                        if (!consumable.is_itemeable) {
+                            continue;
+                        }
+
+                        let unitsEquivalent = parseFloat(
+                            consumable.units_equivalent || 0
+                        );
+
+                        if (unitsEquivalent !== consumable.selected_item_ids.length) {
+                            toastr.error(
+                                'La cantidad de ítems seleccionados no coincide con la cantidad del producto: ' +
+                                consumable.description,
+                                'Validación de ítems'
+                            );
+
+                            return false;
+                        }
+                    }
 
                     // ===========================
                     // 3) SERVICIOS ADICIONALES
                     // ===========================
                     var servicesContainer = $card.find('[data-bodyService]').first();
 
-                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
+                    var servicesRead = {
+                        array: [],
+                        sum_all: 0,
+                        sum_billable: 0
+                    };
+
                     if (servicesContainer.length > 0) {
                         servicesRead = readServicesFromDom(servicesContainer);
                     }
 
                     var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all;
                     var servicesSumBillable = servicesRead.sum_billable;
 
                     // ===========================
-                    // 4) SUBTOTAL con IGV (antes de descuento global)
+                    // 4) SUBTOTAL CON IGV
                     // ===========================
                     let subtotalConsumablesWithIgvReal = 0;
 
                     for (let i = 0; i < consumablesArray.length; i++) {
                         const qty = Number(consumablesArray[i].quantity) || 0;
 
-                        // ✅ Prioriza priceReal; si falta, usa price
-                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
+                        const priceReal = Number(
+                            consumablesArray[i].priceReal ??
+                            consumablesArray[i].price
+                        ) || 0;
 
                         const lineWithIgvReal = round10(qty * priceReal);
-                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
+
+                        subtotalConsumablesWithIgvReal = round10(
+                            subtotalConsumablesWithIgvReal + lineWithIgvReal
+                        );
                     }
 
-                    // promos (si existen)
-                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
-                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
+                    subtotalConsumablesWithIgvReal = round10(
+                        subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0)
+                    );
 
-                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
-                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
+                    if (subtotalConsumablesWithIgvReal < 0) {
+                        subtotalConsumablesWithIgvReal = 0;
+                    }
+
+                    const servicesWithIgvReal = round10(
+                        Number(servicesSumBillable) || 0
+                    );
+
+                    const subtotalWithIgvReal = round10(
+                        subtotalConsumablesWithIgvReal + servicesWithIgvReal
+                    );
 
                     // ===========================
-                    // 5) DESCUENTO GLOBAL (tu función devuelve con IGV)
+                    // 5) DESCUENTO GLOBAL
                     // ===========================
-                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
+                    const discountWithIgvReal = round10(
+                        computeDiscountWithIgv(subtotalWithIgvReal, igvPct)
+                    );
 
-                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
-                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
+                    let totalFinalWithIgvReal = round10(
+                        subtotalWithIgvReal - discountWithIgvReal
+                    );
+
+                    if (totalFinalWithIgvReal < 0) {
+                        totalFinalWithIgvReal = 0;
+                    }
 
                     // ===========================
-                    // 6) BASE, IGV (SIN TRUNCAR)
+                    // 6) BASE E IGV
                     // ===========================
                     let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-                    if (baseFinalReal < 0) baseFinalReal = 0;
 
-                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
-                    const discountBaseReal = round10(discountWithIgvReal / factor);
+                    if (baseFinalReal < 0) {
+                        baseFinalReal = 0;
+                    }
+
+                    const igvFinalReal = round10(
+                        totalFinalWithIgvReal - baseFinalReal
+                    );
+
+                    const discountBaseReal = round10(
+                        discountWithIgvReal / factor
+                    );
 
                     // ===========================
-                    // 7) UI (2 decimales) + data reales
+                    // 7) Actualizar totales visuales
                     // ===========================
                     $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
                     $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
@@ -1877,10 +2816,10 @@ function confirmEquipment() {
                     $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
 
                     // ===========================
-                    // 8) Guardar en memoria ($equipments)
+                    // 8) Guardar en $equipments
                     // ===========================
-                    // Guardamos índice en el botón de guardar dentro del card
-                    $card.find('[data-saveEquipment]').attr('data-saveEquipment', $equipments.length);
+                    $card.find('[data-saveEquipment]')
+                        .attr('data-saveEquipment', $equipments.length);
 
                     const discountGlobalMeta = {
                         subtotal_with_igv: subtotalWithIgvReal,
@@ -1911,10 +2850,12 @@ function confirmEquipment() {
                         dias: []
                     });
 
-                    // UI (colores)
                     $card.removeClass('card-gray-dark').addClass('card-success');
 
                     $items = [];
+
+                    console.log('Equipments actualizados:', $equipments);
+
                     $.alert("Productos confirmados!");
                 }
             },

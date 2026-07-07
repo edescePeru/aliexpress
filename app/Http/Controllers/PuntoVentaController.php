@@ -361,10 +361,16 @@ class PuntoVentaController extends Controller
             ->first();
 
         $stockItems = StockItem::with([
+            'material.unitMeasure:id,description',
+            'material.typeTax:id,tax',
+            'material.tipoVenta:id',
+
             'variant',
             'variant.talla:id,name,short_name',
             'variant.color:id,name',
+
             'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
+
             'priceListItems' => function ($q) use ($defaultPriceList) {
                 if ($defaultPriceList) {
                     $q->where('price_list_id', $defaultPriceList->id);
@@ -377,6 +383,8 @@ class PuntoVentaController extends Controller
             ->where('is_active', 1)
             ->get()
             ->map(function ($stockItem) {
+                $material = $stockItem->material;
+
                 $stockCurrent = $stockItem->inventoryLevels->sum(function ($level) {
                     return (float) ($level->qty_on_hand ?? 0);
                 });
@@ -411,13 +419,27 @@ class PuntoVentaController extends Controller
                 return [
                     'stock_item_id' => $stockItem->id,
                     'material_id' => $stockItem->material_id,
+
                     'variant_id' => $stockItem->variant_id,
                     'variant_text' => $variantText,
+
                     'sku' => $stockItem->sku ?? '',
                     'barcode' => $stockItem->barcode ?? '',
-                    'display_name' => $stockItem->display_name ?? '',
+                    'display_name' => $stockItem->display_name
+                        ?: optional($material)->full_name
+                            ?: '',
+
                     'stock_available' => (float) $stockAvailable,
-                    'price' => (float) (optional($stockItem->priceListItems->first())->price ?? 0),
+                    'price' => (float) (
+                        optional($stockItem->priceListItems->first())->price ?? 0
+                    ),
+
+                    /*
+                     * Necesarios para la fila del modal V2.
+                     */
+                    'unit' => optional(optional($material)->unitMeasure)->description ?? 'UND',
+                    'tax' => (float) (optional(optional($material)->typeTax)->tax ?? 18),
+                    'type' => (int) (optional(optional($material)->tipoVenta)->id ?? 0),
                 ];
             })
             ->filter()
@@ -1667,6 +1689,8 @@ class PuntoVentaController extends Controller
                 throw new \Exception('El formato de items es inválido.');
             }
 
+            $selectedItemIdsUsedInRequest = [];
+
             foreach ($items as $item) {
                 $stockItemId = (int) ($item->productId ?? 0);
                 $materialId  = (int) ($item->materialId ?? 0);
@@ -1716,13 +1740,82 @@ class PuntoVentaController extends Controller
                     }
                 }
 
-                $available = $this->getAvailableStockByStockItem($stockItemId);
+                $isItemeable = (int) ($material->tipo_venta_id ?? 0) === 3;
 
-                if ($available < $units) {
-                    throw new \Exception(
-                        "Stock insuficiente para el producto '{$stockItem->display_name}'. " .
-                        "Disponible: {$available}, requerido: {$units}"
-                    );
+                if ($isItemeable) {
+                    if (floor($units) != $units) {
+                        throw new \Exception(
+                            "Los productos itemeables solo aceptan cantidades enteras. Producto: '{$stockItem->display_name}'."
+                        );
+                    }
+
+                    $rawSelectedItemIds = $item->selected_item_ids ?? [];
+
+                    if (is_string($rawSelectedItemIds)) {
+                        $decodedItemIds = json_decode($rawSelectedItemIds, true);
+
+                        $rawSelectedItemIds = is_array($decodedItemIds)
+                            ? $decodedItemIds
+                            : [];
+                    }
+
+                    if (!is_array($rawSelectedItemIds)) {
+                        $rawSelectedItemIds = [];
+                    }
+
+                    $selectedItemIds = collect($rawSelectedItemIds)
+                        ->map(function ($itemId) {
+                            return (int) $itemId;
+                        })
+                        ->filter(function ($itemId) {
+                            return $itemId > 0;
+                        })
+                        ->values()
+                        ->toArray();
+
+                    if (count($selectedItemIds) !== (int) $units) {
+                        throw new \Exception(
+                            "La cantidad de ítems físicos seleccionados no coincide con la cantidad requerida para '{$stockItem->display_name}'. " .
+                            "Requerido: {$units}. Seleccionados: " . count($selectedItemIds) . '.'
+                        );
+                    }
+
+                    if (count($selectedItemIds) !== count(array_unique($selectedItemIds))) {
+                        throw new \Exception(
+                            "Se detectaron ítems físicos repetidos en '{$stockItem->display_name}'."
+                        );
+                    }
+
+                    foreach ($selectedItemIds as $selectedItemId) {
+                        if (in_array($selectedItemId, $selectedItemIdsUsedInRequest, true)) {
+                            throw new \Exception(
+                                "El ítem físico con ID {$selectedItemId} fue agregado más de una vez en el carrito."
+                            );
+                        }
+
+                        $selectedItemIdsUsedInRequest[] = $selectedItemId;
+                    }
+
+                    $selectedItems = Item::whereIn('id', $selectedItemIds)
+                        ->where('stock_item_id', $stockItemId)
+                        ->where('percentage', 1)
+                        ->where('state_item', 'entered')
+                        ->get();
+
+                    if ($selectedItems->count() !== count($selectedItemIds)) {
+                        throw new \Exception(
+                            "Uno o más ítems seleccionados ya no están disponibles para '{$stockItem->display_name}'."
+                        );
+                    }
+                } else {
+                    $available = $this->getAvailableStockByStockItem($stockItemId);
+
+                    if ($available < $units) {
+                        throw new \Exception(
+                            "Stock insuficiente para el producto '{$stockItem->display_name}'. " .
+                            "Disponible: {$available}, requerido: {$units}"
+                        );
+                    }
                 }
             }
 
@@ -1888,6 +1981,227 @@ class PuntoVentaController extends Controller
 
                 $valorUnitario = $precioUnitario / 1.18;
 
+                $isItemeable = (int) ($material->tipo_venta_id ?? 0) === 3;
+
+                /*
+                |--------------------------------------------------------------------------
+                | ITEMEABLES
+                |--------------------------------------------------------------------------
+                | Se consumen exactamente los Items seleccionados desde POS.
+                | No usamos FIFO ni buscamos otros Items disponibles.
+                */
+                if ($isItemeable) {
+                    if (floor($qtyReal) != $qtyReal) {
+                        throw new \Exception(
+                            "Cantidad decimal no soportada para material itemeable: {$stockItem->display_name}"
+                        );
+                    }
+
+                    $rawSelectedItemIds = $row->selected_item_ids ?? [];
+
+                    if (is_string($rawSelectedItemIds)) {
+                        $decodedItemIds = json_decode($rawSelectedItemIds, true);
+
+                        $rawSelectedItemIds = is_array($decodedItemIds)
+                            ? $decodedItemIds
+                            : [];
+                    }
+
+                    if (!is_array($rawSelectedItemIds)) {
+                        $rawSelectedItemIds = [];
+                    }
+
+                    $selectedItemIds = collect($rawSelectedItemIds)
+                        ->map(function ($itemId) {
+                            return (int) $itemId;
+                        })
+                        ->filter(function ($itemId) {
+                            return $itemId > 0;
+                        })
+                        ->unique()
+                        ->values()
+                        ->toArray();
+
+                    if (count($selectedItemIds) !== (int) $qtyReal) {
+                        throw new \Exception(
+                            "La cantidad de ítems físicos seleccionados no coincide con la venta de '{$stockItem->display_name}'. " .
+                            "Requerido: {$qtyReal}. Seleccionados: " . count($selectedItemIds) . '.'
+                        );
+                    }
+
+                    /*
+                     * Bloqueamos exactamente los Items elegidos por el usuario.
+                     * Deben seguir en entered para impedir doble venta desde
+                     * dos carritos o terminales POS diferentes.
+                     */
+                    $selectedItems = Item::whereIn('id', $selectedItemIds)
+                        ->where('stock_item_id', $stockItemId)
+                        ->where('percentage', 1)
+                        ->where('state_item', 'entered')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($selectedItems->count() !== count($selectedItemIds)) {
+                        throw new \Exception(
+                            "Uno o más ítems seleccionados ya no están disponibles para '{$stockItem->display_name}'."
+                        );
+                    }
+
+                    /*
+                     * Agrupamos los Items por lote real.
+                     * Un mismo detalle de venta puede contener Items de varios lotes.
+                     */
+                    $itemsByLot = $selectedItems->groupBy('stock_lot_id');
+
+                    $lotsForConsumption = [];
+                    $totalCost = 0.0;
+
+                    foreach ($itemsByLot as $stockLotId => $itemsOfLot) {
+                        if (!$stockLotId) {
+                            throw new \Exception(
+                                "Uno de los ítems seleccionados para '{$stockItem->display_name}' no tiene lote asociado."
+                            );
+                        }
+
+                        $lot = StockLot::where('id', $stockLotId)
+                            ->where('stock_item_id', $stockItemId)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$lot) {
+                            throw new \Exception(
+                                "No se encontró el lote {$stockLotId} de '{$stockItem->display_name}'."
+                            );
+                        }
+
+                        $quantityInLot = (float) $itemsOfLot->count();
+
+                        if ((float) $lot->qty_on_hand < $quantityInLot) {
+                            throw new \Exception(
+                                "El lote {$lot->id} no tiene stock suficiente para completar la venta."
+                            );
+                        }
+
+                        foreach ($itemsOfLot as $itemObj) {
+                            if (
+                                (int) $itemObj->warehouse_id !== (int) $lot->warehouse_id ||
+                                (int) $itemObj->location_id !== (int) $lot->location_id
+                            ) {
+                                throw new \Exception(
+                                    "El Item {$itemObj->id} no coincide con la ubicación del lote {$lot->id}."
+                                );
+                            }
+
+                            $itemUnitCost = (float) (
+                                $itemObj->unit_cost ?? $lot->unit_cost
+                            );
+
+                            $totalCost += $itemUnitCost;
+                        }
+
+                        $lotsForConsumption[] = [
+                            'lot' => $lot,
+                            'items' => $itemsOfLot,
+                            'quantity' => $quantityInLot,
+                        ];
+                    }
+
+                    $unitCost = $qtyReal > 0
+                        ? ($totalCost / $qtyReal)
+                        : 0;
+
+                    /*
+                     * Un SaleDetail por cada línea del carrito.
+                     * Puede tener varios OutputDetail si hay varios Items.
+                     */
+                    $saleDetail = SaleDetail::create([
+                        'sale_id' => $sale->id,
+                        'material_id' => $materialId,
+                        'stock_item_id' => $stockItemId,
+                        'material_presentation_id' => $presentationId,
+                        'valor_unitario' => $valorUnitario,
+                        'price' => $precioUnitario,
+                        'quantity' => $qtyReal,
+                        'packs' => $packs,
+                        'units_per_pack' => $unitsPerPack,
+                        'percentage_tax' => $row->productTax ?? 18,
+                        'total' => $totalLine,
+                        'discount' => $discount,
+                        'unit_cost' => $unitCost,
+                        'total_cost' => $totalCost,
+                    ]);
+
+                    foreach ($lotsForConsumption as $lotData) {
+                        /** @var StockLot $lot */
+                        $lot = $lotData['lot'];
+
+                        /** @var \Illuminate\Support\Collection $itemsOfLot */
+                        $itemsOfLot = $lotData['items'];
+
+                        $consumeQty = (float) $lotData['quantity'];
+
+                        foreach ($itemsOfLot as $itemObj) {
+                            $itemUnitCost = (float) (
+                                $itemObj->unit_cost ?? $lot->unit_cost
+                            );
+
+                            /*
+                             * Un OutputDetail por cada Item físico.
+                             */
+                            OutputDetail::create([
+                                'output_id' => $output->id,
+                                'sale_detail_id' => $saleDetail->id,
+                                'item_id' => $itemObj->id,
+
+                                'material_id' => $materialId,
+                                'stock_item_id' => $itemObj->stock_item_id,
+                                'stock_lot_id' => $itemObj->stock_lot_id,
+                                'warehouse_id' => $itemObj->warehouse_id,
+                                'location_id' => $itemObj->location_id,
+
+                                'quote_id' => $sale->quote_id ?? null,
+                                'custom' => 0,
+                                'percentage' => 1,
+
+                                'price' => $precioUnitario,
+                                'length' => $itemObj->length,
+                                'width' => $itemObj->width,
+
+                                'unit_cost' => $itemUnitCost,
+                                'total_cost' => $itemUnitCost,
+                            ]);
+
+                            $itemObj->state_item = 'exited';
+                            $itemObj->save();
+                        }
+
+                        $lot->qty_on_hand = max(
+                            0,
+                            (float) $lot->qty_on_hand - $consumeQty
+                        );
+
+                        $lot->save();
+
+                        $this->syncInventoryLevelFromLots(
+                            $stockItemId,
+                            $lot->warehouse_id,
+                            $lot->location_id
+                        );
+                    }
+
+                    /*
+                     * Ya terminamos este detalle itemeable.
+                     * Evitamos que entre a la lógica FIFO normal de abajo.
+                     */
+                    continue;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PRODUCTOS NORMALES
+                |--------------------------------------------------------------------------
+                | Se mantiene tu flujo FIFO actual.
+                */
                 $lots = StockLot::where('stock_item_id', $stockItemId)
                     ->whereRaw('(qty_on_hand - qty_reserved) > 0')
                     ->orderByRaw('CASE WHEN expiration_date IS NULL THEN 1 ELSE 0 END ASC')
@@ -1916,6 +2230,7 @@ class PuntoVentaController extends Controller
                     }
 
                     $availableInLot = (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
+
                     if ($availableInLot <= 0) {
                         continue;
                     }
@@ -1935,130 +2250,70 @@ class PuntoVentaController extends Controller
                 }
 
                 if ($remaining > 0) {
-                    throw new \Exception("No se pudo completar el consumo para '{$stockItem->display_name}'.");
+                    throw new \Exception(
+                        "No se pudo completar el consumo para '{$stockItem->display_name}'."
+                    );
                 }
 
-                $unitCost = $qtyReal > 0 ? ($totalCost / $qtyReal) : 0;
+                $unitCost = $qtyReal > 0
+                    ? ($totalCost / $qtyReal)
+                    : 0;
 
                 $saleDetail = SaleDetail::create([
-                    'sale_id'        => $sale->id,
-                    'material_id'    => $materialId,
-                    'stock_item_id'  => $stockItemId,
+                    'sale_id' => $sale->id,
+                    'material_id' => $materialId,
+                    'stock_item_id' => $stockItemId,
                     'material_presentation_id' => $presentationId,
                     'valor_unitario' => $valorUnitario,
-                    'price'          => $precioUnitario,
-                    'quantity'       => $qtyReal,
-                    'packs'          => $packs,
+                    'price' => $precioUnitario,
+                    'quantity' => $qtyReal,
+                    'packs' => $packs,
                     'units_per_pack' => $unitsPerPack,
                     'percentage_tax' => $row->productTax ?? 18,
-                    'total'          => $totalLine,
-                    'discount'       => $discount,
-                    'unit_cost'      => $unitCost,
-                    'total_cost'     => $totalCost,
+                    'total' => $totalLine,
+                    'discount' => $discount,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $totalCost,
                 ]);
 
-                if ((int) $material->tipo_venta_id === 3) {
-                    if (floor($qtyReal) != $qtyReal) {
-                        throw new \Exception("Cantidad decimal no soportada para material itemeable: {$stockItem->display_name}");
+                foreach ($lotConsumptions as $consumption) {
+                    $consumeQty = (float) $consumption['quantity'];
+
+                    $lot = StockLot::where('id', $consumption['lot_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if ((float) $lot->qty_on_hand < $consumeQty) {
+                        throw new \Exception("El lote {$lot->id} no tiene stock suficiente.");
                     }
 
-                    foreach ($lotConsumptions as $consumption) {
-                        $consumeQty = (float) $consumption['quantity'];
+                    $lot->qty_on_hand = max(0, (float) $lot->qty_on_hand - $consumeQty);
+                    $lot->save();
 
-                        if (floor($consumeQty) != $consumeQty) {
-                            throw new \Exception("Cantidad decimal no soportada en lote para itemeables.");
-                        }
+                    $this->syncInventoryLevelFromLots(
+                        $stockItemId,
+                        $lot->warehouse_id,
+                        $lot->location_id
+                    );
 
-                        $consumeQtyInt = (int) $consumeQty;
-
-                        $itemsDisponibles = Item::where('stock_item_id', $stockItemId)
-                            ->where('stock_lot_id', $consumption['lot_id'])
-                            ->whereIn('state_item', ['entered', 'scrapped'])
-                            ->orderBy('id', 'asc')
-                            ->lockForUpdate()
-                            ->take($consumeQtyInt)
-                            ->get();
-
-                        if ($itemsDisponibles->count() < $consumeQtyInt) {
-                            throw new \Exception(
-                                "Stock insuficiente de items para '{$stockItem->display_name}' en el lote {$consumption['lot_id']}."
-                            );
-                        }
-
-                        $lot = StockLot::where('id', $consumption['lot_id'])
-                            ->lockForUpdate()
-                            ->firstOrFail();
-
-                        if ((float) $lot->qty_on_hand < $consumeQty) {
-                            throw new \Exception("El lote {$lot->id} no tiene stock suficiente.");
-                        }
-
-                        foreach ($itemsDisponibles as $itemObj) {
-                            OutputDetail::create([
-                                'output_id'      => $output->id,
-                                'sale_detail_id' => $saleDetail->id,
-                                'item_id'        => $itemObj->id,
-                                'material_id'    => $materialId,
-                                'stock_item_id'  => $itemObj->stock_item_id,
-                                'stock_lot_id'   => $itemObj->stock_lot_id,
-                                'warehouse_id'   => $itemObj->warehouse_id,
-                                'location_id'    => $itemObj->location_id,
-                                'quote_id'       => $sale->quote_id ?? null,
-                                'custom'         => 0,
-                                'percentage'     => 1,
-                                'price'          => $precioUnitario,
-                                'length'         => $itemObj->length,
-                                'width'          => $itemObj->width,
-                                'unit_cost'      => (float) ($itemObj->unit_cost ?? $consumption['unit_cost']),
-                                'total_cost'     => (float) ($itemObj->unit_cost ?? $consumption['unit_cost']),
-                            ]);
-
-                            $itemObj->state_item = 'exited';
-                            $itemObj->save();
-                        }
-
-                        $lot->qty_on_hand = max(0, (float) $lot->qty_on_hand - $consumeQty);
-                        $lot->save();
-
-                        $this->syncInventoryLevelFromLots($stockItemId, $lot->warehouse_id, $lot->location_id);
-                    }
-
-                } else {
-                    foreach ($lotConsumptions as $consumption) {
-                        $consumeQty = (float) $consumption['quantity'];
-
-                        $lot = StockLot::where('id', $consumption['lot_id'])
-                            ->lockForUpdate()
-                            ->firstOrFail();
-
-                        if ((float) $lot->qty_on_hand < $consumeQty) {
-                            throw new \Exception("El lote {$lot->id} no tiene stock suficiente.");
-                        }
-
-                        $lot->qty_on_hand = max(0, (float) $lot->qty_on_hand - $consumeQty);
-                        $lot->save();
-
-                        $this->syncInventoryLevelFromLots($stockItemId, $lot->warehouse_id, $lot->location_id);
-
-                        OutputDetail::create([
-                            'output_id'      => $output->id,
-                            'sale_detail_id' => $saleDetail->id,
-                            'item_id'        => null,
-                            'material_id'    => $materialId,
-                            'stock_item_id'  => $stockItemId,
-                            'stock_lot_id'   => $lot->id,
-                            'warehouse_id'   => $lot->warehouse_id,
-                            'location_id'    => $lot->location_id,
-                            'quote_id'       => $sale->quote_id ?? null,
-                            'custom'         => 0,
-                            'percentage'     => $consumeQty,
-                            'price'          => $precioUnitario,
-                            'length'         => null,
-                            'width'          => null,
-                            'unit_cost'      => (float) $consumption['unit_cost'],
-                            'total_cost'     => (float) $consumption['unit_cost'] * $consumeQty,
-                        ]);
-                    }
+                    OutputDetail::create([
+                        'output_id' => $output->id,
+                        'sale_detail_id' => $saleDetail->id,
+                        'item_id' => null,
+                        'material_id' => $materialId,
+                        'stock_item_id' => $stockItemId,
+                        'stock_lot_id' => $lot->id,
+                        'warehouse_id' => $lot->warehouse_id,
+                        'location_id' => $lot->location_id,
+                        'quote_id' => $sale->quote_id ?? null,
+                        'custom' => 0,
+                        'percentage' => $consumeQty,
+                        'price' => $precioUnitario,
+                        'length' => null,
+                        'width' => null,
+                        'unit_cost' => (float) $consumption['unit_cost'],
+                        'total_cost' => (float) $consumption['unit_cost'] * $consumeQty,
+                    ]);
                 }
             }
 
@@ -2197,42 +2452,6 @@ class PuntoVentaController extends Controller
             ]);
 
             DB::commit();
-
-            /*$nubefactResult = null;
-
-            if (in_array($sale->type_document, ['01', '03'])) {
-                try {
-                    $sale->loadMissing(['details.material', 'details.stockItem']);
-                    $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
-                    $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
-
-                } catch (\Throwable $e) {
-                    $sale->update([
-                        'sunat_status'  => 'Error',
-                        'sunat_message' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            $urlPrint = route('puntoVenta.print', $sale->id);
-            $printType = 'ticket';
-
-            if (in_array($sale->type_document, ['01', '03'])) {
-                if (!empty($nubefactResult['enlace_del_pdf'])) {
-                    $urlPrint = $nubefactResult['enlace_del_pdf'];
-                }
-
-                if (!empty($sale->pdf_path)) {
-                    $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
-                    if (file_exists($localPath)) {
-                        $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
-                        $printType = 'sunat_pdf';
-                    }
-                } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
-                    $urlPrint  = $nubefactResult['enlace_del_pdf'];
-                    $printType = 'sunat_pdf';
-                }
-            }*/
 
             $nubefactResult = null;
 

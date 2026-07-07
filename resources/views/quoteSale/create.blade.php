@@ -43,6 +43,37 @@
         .input-group .select2-selection {
             height: 100% !important; /* que se ajuste a la altura del input-group */
         }
+
+        #modalSelectItemeableItems .modal-dialog {
+            max-width: 900px;
+        }
+
+        #modalSelectItemeableItems .modal-content {
+            max-height: calc(100vh - 30px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #modalSelectItemeableItems .modal-body {
+            overflow-y: auto;
+        }
+
+        #modalSelectItemeableItems .itemeable-items-scroll {
+            max-height: 310px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+
+        #modalSelectItemeableItems .itemeable-items-scroll table {
+            margin-bottom: 0;
+        }
+
+        #modalSelectItemeableItems .modal-footer {
+            flex-shrink: 0;
+            background: #ffffff;
+            position: relative;
+            z-index: 2;
+        }
     </style>
 @endsection
 
@@ -866,7 +897,7 @@
                 </div>
 
                 <input type="hidden" id="c_quantity_productId">
-
+                <input type="hidden" id="c_quantity_is_itemeable" value="0">
                 <div class="modal-body">
 
                     <div class="form-group row">
@@ -899,6 +930,110 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-notAddConsumable">Cancelar</button>
                     <button type="button" id="btn-add_consumable_modal" class="btn btn-success">Agregar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="modalSelectItemeableItems" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h4 class="modal-title">Seleccione los ítems</h4>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <p class="mb-1">
+                            <strong>Producto:</strong>
+                            <span id="itemeable-product-name"></span>
+                        </p>
+
+                        <p class="mb-1">
+                            <strong>Ítems requeridos:</strong>
+                            <span id="itemeable-required-count">0</span>
+                        </p>
+
+                        <p class="mb-0">
+                            <strong>Seleccionados:</strong>
+                            <span id="itemeable-selected-count">0</span>
+                            de
+                            <span id="itemeable-selected-required-count">0</span>
+                        </p>
+                    </div>
+
+                    <div id="itemeable-items-loading" class="text-center py-3">
+                        <i class="fa fa-spinner fa-spin"></i>
+                        Cargando ítems disponibles...
+                    </div>
+
+                    <div id="itemeable-items-empty" class="alert alert-warning" style="display: none;">
+                        No existen ítems disponibles para este producto.
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="itemeable-item-search">
+                            Buscar o escanear código de ítem
+                        </label>
+
+                        <input
+                                type="text"
+                                id="itemeable-item-search"
+                                class="form-control"
+                                autocomplete="off"
+                                placeholder="Escanee o escriba el código del ítem"
+                        >
+
+                        <small class="text-muted">
+                            Al encontrar una coincidencia exacta, el ítem se seleccionará automáticamente.
+                        </small>
+                    </div>
+
+                    <div id="itemeable-items-table-container" style="display: none;">
+                        <div class="itemeable-items-scroll">
+                            <table class="table table-bordered table-hover mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="width: 70px;" class="text-center">
+                                        Elegir
+                                    </th>
+                                    <th>Código del ítem</th>
+                                    <th style="width: 120px;" class="text-center">
+                                        Estado
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody id="itemeable-items-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="itemeable-items-error" class="alert alert-danger" style="display: none;">
+                        No se pudieron cargar los ítems disponibles.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="btn-cancel-itemeable-items"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                            type="button"
+                            class="btn btn-success"
+                            id="btn-confirm-itemeable-items"
+                            disabled
+                    >
+                        Confirmar ítems
+                    </button>
                 </div>
 
             </div>
@@ -982,6 +1117,12 @@
             });
         })
     </script>
+    <script>
+        window.APP_QUOTE = window.APP_QUOTE || {};
 
+        window.APP_QUOTE.URLS = window.APP_QUOTE.URLS || {};
+
+        window.APP_QUOTE.URLS.AVAILABLE_ITEMS = "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
+    </script>
     <script src="{{ asset('js/quoteSale/create.js') }}?v={{ time() }}"></script>
 @endsection

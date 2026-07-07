@@ -256,16 +256,57 @@
                                     @foreach($equipment->consumables as $consumable)
                                         @php
                                             $presText = $consumable->presentation
-                                                ? (($consumable->presentation->label ?? ($consumable->presentation->quantity.' und')))
+                                                ? ($consumable->presentation->label ?? ($consumable->presentation->quantity . ' und'))
                                                 : 'Unidad';
 
-                                            // Cantidad visible (packs si hay presentación, sino quantity)
+                                            // Cantidad visible: packs si hay presentación, caso contrario cantidad real.
                                             $qtyView = round($consumable->packs ?? $consumable->quantity, 2);
 
-                                            // Reales (los que tu JS debe usar sí o sí)
-                                            $valorReal  = $consumable->valor_unitario; // sin IGV (real)
-                                            $priceReal  = $consumable->price;          // con IGV (real)
-                                            $importeReal = $consumable->total;         // total (real)
+                                            // Valores reales usados por JavaScript.
+                                            $valorReal = $consumable->valor_unitario;
+                                            $priceReal = $consumable->price;
+                                            $importeReal = $consumable->total;
+
+                                            /*
+                                             * El tipo de venta se determina desde el material asociado
+                                             * al StockItem; no desde ningún dato enviado por frontend.
+                                             */
+                                            $isItemeable = (int) (
+                                                $consumable->stockItem->material->tipo_venta_id ?? 0
+                                            ) === 3;
+
+                                            /*
+                                             * Un EquipmentConsumable puede tener varios QuoteStockLot
+                                             * porque los items pueden venir de distintos lotes.
+                                             */
+                                            $selectedItemIds = $consumable->quoteStockLots
+                                                ? $consumable->quoteStockLots
+                                                    ->flatMap(function ($quoteStockLot) {
+                                                        return $quoteStockLot->item_ids ?? [];
+                                                    })
+                                                    ->map(function ($itemId) {
+                                                        return (int) $itemId;
+                                                    })
+                                                    ->filter(function ($itemId) {
+                                                        return $itemId > 0;
+                                                    })
+                                                    ->unique()
+                                                    ->values()
+                                                    ->toArray()
+                                                : [];
+
+                                            /*
+                                             * Por ahora mostramos los IDs en tooltip.
+                                             * Luego, al revisar el controlador de edición, lo mejoraremos
+                                             * para mostrar los códigos reales de cada Item sin N+1 queries.
+                                             */
+                                            $selectedItemsText = !empty($selectedItemIds)
+                                                ? implode(', ', $selectedItemIds)
+                                                : '';
+
+                                            $itemTooltip = $isItemeable && $selectedItemsText !== ''
+                                                ? 'Ítems seleccionados: ' . $selectedItemsText
+                                                : '';
                                         @endphp
 
                                         <div class="row" data-consumableRow>
@@ -277,20 +318,42 @@
                                                            class="form-control form-control-sm"
                                                            value="{{ $consumable->stockItem->display_name }}"
                                                            data-consumableDescription
+                                                           title="{{ $itemTooltip }}"
                                                            {{ $consumable->stockItem->ui_color ? 'style=color:' . $consumable->stockItem->ui_color : '' }}
                                                            readonly>
 
-                                                    {{-- se leen por attr() --}}
-                                                    <input type="hidden" data-consumableid="{{ $consumable->material_id }}">
-                                                    <input type="hidden" data-stock_item_id="{{ $consumable->stockItem->id }}">
-                                                    <input type="hidden" data-descuento="{{ $consumable->discount }}">
-                                                    <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
+                                                    {{--
+                                                        IMPORTANTE:
+                                                        data-consumableid debe ser stock_item_id.
+                                                        En creación también se usa el ID del StockItem.
+                                                    --}}
+                                                    <input type="hidden"
+                                                           data-consumableid="{{ $consumable->stock_item_id }}"
+                                                           data-is_itemeable="{{ $isItemeable ? 1 : 0 }}"
+                                                           data-selected_item_ids='@json($selectedItemIds)'
+                                                           data-selected_items_text="{{ $selectedItemsText }}">
 
-                                                    {{-- presentación --}}
-                                                    <input type="hidden" data-presentation_id="{{ $consumable->material_presentation_id }}">
-                                                    <input type="hidden" data-units_per_pack="{{ $consumable->units_per_pack }}">
-                                                    <input type="hidden" data-units_equivalent="{{ $consumable->quantity }}">
-                                                    <input type="hidden" data-packs="{{ $consumable->packs }}">
+                                                    <input type="hidden"
+                                                           data-stock_item_id="{{ $consumable->stock_item_id }}">
+
+                                                    <input type="hidden"
+                                                           data-descuento="{{ $consumable->discount }}">
+
+                                                    <input type="hidden"
+                                                           data-type_promotion="{{ $consumable->type_promo }}">
+
+                                                    {{-- Presentación --}}
+                                                    <input type="hidden"
+                                                           data-presentation_id="{{ $consumable->material_presentation_id }}">
+
+                                                    <input type="hidden"
+                                                           data-units_per_pack="{{ $consumable->units_per_pack }}">
+
+                                                    <input type="hidden"
+                                                           data-units_equivalent="{{ $consumable->quantity }}">
+
+                                                    <input type="hidden"
+                                                           data-packs="{{ $consumable->packs }}">
                                                 </div>
                                             </div>
 
@@ -329,7 +392,7 @@
                                                 </div>
                                             </div>
 
-                                            {{-- Valor Unitario (siempre existe para JS) --}}
+                                            {{-- Valor unitario --}}
                                             <div class="col-md-1" @cannot('showPrices_quote') style="display:none" @endcannot>
                                                 <div class="form-group">
                                                     <input type="number"
@@ -341,7 +404,7 @@
                                                 </div>
                                             </div>
 
-                                            {{-- Precio Unitario (siempre existe para JS) --}}
+                                            {{-- Precio unitario --}}
                                             <div class="col-md-1" @cannot('showPrices_quote') style="display:none" @endcannot>
                                                 <div class="form-group">
                                                     <input type="number"
@@ -353,7 +416,7 @@
                                                 </div>
                                             </div>
 
-                                            {{-- Importe (siempre existe para JS) --}}
+                                            {{-- Importe --}}
                                             <div class="col-md-2" @cannot('showPrices_quote') style="display:none" @endcannot>
                                                 <div class="form-group">
                                                     <input type="number"
@@ -364,8 +427,11 @@
                                                 </div>
                                             </div>
 
+                                            {{-- Eliminar --}}
                                             <div class="col-md-1">
-                                                <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm">
+                                                <button type="button"
+                                                        data-deleteConsumable
+                                                        class="btn btn-block btn-outline-danger btn-sm">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -842,7 +908,7 @@
                 </div>
 
                 <input type="hidden" id="c_quantity_productId">
-
+                <input type="hidden" id="c_quantity_is_itemeable" value="0">
                 <div class="modal-body">
 
                     <div class="form-group row">
@@ -875,6 +941,110 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-notAddConsumable">Cancelar</button>
                     <button type="button" id="btn-add_consumable_modal" class="btn btn-success">Agregar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="modalSelectItemeableItems" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h4 class="modal-title">Seleccione los ítems</h4>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <p class="mb-1">
+                            <strong>Producto:</strong>
+                            <span id="itemeable-product-name"></span>
+                        </p>
+
+                        <p class="mb-1">
+                            <strong>Ítems requeridos:</strong>
+                            <span id="itemeable-required-count">0</span>
+                        </p>
+
+                        <p class="mb-0">
+                            <strong>Seleccionados:</strong>
+                            <span id="itemeable-selected-count">0</span>
+                            de
+                            <span id="itemeable-selected-required-count">0</span>
+                        </p>
+                    </div>
+
+                    <div id="itemeable-items-loading" class="text-center py-3">
+                        <i class="fa fa-spinner fa-spin"></i>
+                        Cargando ítems disponibles...
+                    </div>
+
+                    <div id="itemeable-items-empty" class="alert alert-warning" style="display: none;">
+                        No existen ítems disponibles para este producto.
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="itemeable-item-search">
+                            Buscar o escanear código de ítem
+                        </label>
+
+                        <input
+                                type="text"
+                                id="itemeable-item-search"
+                                class="form-control"
+                                autocomplete="off"
+                                placeholder="Escanee o escriba el código del ítem"
+                        >
+
+                        <small class="text-muted">
+                            Al encontrar una coincidencia exacta, el ítem se seleccionará automáticamente.
+                        </small>
+                    </div>
+
+                    <div id="itemeable-items-table-container" style="display: none;">
+                        <div class="itemeable-items-scroll">
+                            <table class="table table-bordered table-hover mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="width: 70px;" class="text-center">
+                                        Elegir
+                                    </th>
+                                    <th>Código del ítem</th>
+                                    <th style="width: 120px;" class="text-center">
+                                        Estado
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody id="itemeable-items-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="itemeable-items-error" class="alert alert-danger" style="display: none;">
+                        No se pudieron cargar los ítems disponibles.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="btn-cancel-itemeable-items"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                            type="button"
+                            class="btn btn-success"
+                            id="btn-confirm-itemeable-items"
+                            disabled
+                    >
+                        Confirmar ítems
+                    </button>
                 </div>
 
             </div>
@@ -1140,6 +1310,14 @@
                 $(this).bootstrapSwitch();
             });
         })
+    </script>
+
+    <script>
+        window.APP_QUOTE = window.APP_QUOTE || {};
+        window.APP_QUOTE.URLS = window.APP_QUOTE.URLS || {};
+
+        window.APP_QUOTE.URLS.AVAILABLE_ITEMS =
+            "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
     </script>
 
     <script src="{{ asset('js/quoteSale/edit.js') }}?v={{ time() }}"></script>
