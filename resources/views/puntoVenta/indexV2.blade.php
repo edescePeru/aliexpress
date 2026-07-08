@@ -986,6 +986,12 @@
                 <!-- NUEVO: etiqueta de presentación -->
                 <div class="text-muted" style="font-size: 12px;" data-presentation_label></div>
 
+                <small
+                        data-selected_items
+                        class="text-muted d-block"
+                        style="display:none; font-size:11px;">
+                </small>
+
                 <h6 style="color: #9e9e9e;" data-price data-stock></h6>
 
                 <div class="d-flex align-items-center justify-content-between w-100">
@@ -1150,6 +1156,101 @@
             </div>
         </div>
     </div>
+
+    <div id="modalSelectItemeableItemsV2" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header py-2">
+                    <h5 class="modal-title">
+                        Seleccionar ítems físicos
+                    </h5>
+
+                    <button type="button" class="close" id="btn-close-itemeable-items-v2">
+                        <span>&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-2">
+                        <strong id="itemeable-product-name-v2"></strong>
+                    </div>
+
+                    <div class="alert alert-info py-2 mb-2">
+                        Debe seleccionar exactamente
+                        <strong id="itemeable-required-count-v2">0</strong>
+                        ítem(s).
+
+                        <br>
+
+                        Seleccionados:
+                        <strong id="itemeable-selected-count-v2">0</strong>
+                        /
+                        <strong id="itemeable-selected-required-count-v2">0</strong>
+                    </div>
+
+                    <div class="form-group mb-2">
+                        <input
+                                type="text"
+                                id="itemeable-item-search-v2"
+                                class="form-control form-control-sm"
+                                autocomplete="off"
+                                placeholder="Escanee o escriba el código del ítem">
+                    </div>
+
+                    <div id="itemeable-items-loading-v2" class="text-center text-muted py-3">
+                        Cargando ítems disponibles...
+                    </div>
+
+                    <div id="itemeable-items-empty-v2" class="text-center text-muted py-3" style="display:none;">
+                        No se encontraron ítems disponibles.
+                    </div>
+
+                    <div id="itemeable-items-error-v2" class="alert alert-danger" style="display:none;">
+                        Ocurrió un error al consultar los ítems disponibles.
+                    </div>
+
+                    <div
+                            id="itemeable-items-table-container-v2"
+                            class="table-responsive"
+                            style="display:none; max-height:330px; overflow-y:auto;">
+
+                        <table class="table table-sm table-bordered table-hover mb-0">
+                            <thead class="thead-light">
+                            <tr>
+                                <th style="width:55px;">Sel.</th>
+                                <th>Código</th>
+                                <th>Lote</th>
+                                <th>Ubicación</th>
+                            </tr>
+                            </thead>
+
+                            <tbody id="itemeable-items-table-body-v2"></tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            id="btn-cancel-itemeable-items-v2">
+                        Cancelar
+                    </button>
+
+                    <button
+                            type="button"
+                            class="btn btn-success btn-sm"
+                            id="btn-confirm-itemeable-items-v2">
+                        Confirmar selección
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')
@@ -1186,16 +1287,20 @@
     <script>
         // flag: ¿pedir trabajador en el pago?
         window.PV_ASK_WORKER = @json($askWorker);
+        window.APP_POS_V2 = window.APP_POS_V2 || {};
+        window.APP_POS_V2.URLS = window.APP_POS_V2.URLS || {};
 
+        window.APP_POS_V2.URLS.AVAILABLE_ITEMS =
+            "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
         // lista simple de trabajadores para el popup
         window.PV_WORKERS = @json(
-        $workers->map(function($w){
-            return [
-                'id'   => $w->id,
-                'name' => $w->first_name.' '.$w->last_name,
-            ];
-        })
-    );
+            $workers->map(function($w){
+                return [
+                    'id'   => $w->id,
+                    'name' => $w->first_name.' '.$w->last_name,
+                ];
+            })
+        );
 
         // aquí guardaremos el id elegido
         window.PV_SELECTED_WORKER_ID = null;

@@ -22,6 +22,11 @@ class SaleDetail extends Model
         'discount',
         'unit_cost',
         'total_cost',
+        'item_snapshot',
+    ];
+
+    protected $casts = [
+        'item_snapshot' => 'array',
     ];
 
     public function sale()

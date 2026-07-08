@@ -2047,6 +2047,13 @@ class PuntoVentaController extends Controller
                         );
                     }
 
+                    $itemSnapshot = $selectedItems->map(function ($itemObj) {
+                        return [
+                            'id' => (int) $itemObj->id,
+                            'code' => (string) $itemObj->code,
+                        ];
+                    })->values()->toArray();
+
                     /*
                      * Agrupamos los Items por lote real.
                      * Un mismo detalle de venta puede contener Items de varios lotes.
@@ -2129,6 +2136,9 @@ class PuntoVentaController extends Controller
                         'discount' => $discount,
                         'unit_cost' => $unitCost,
                         'total_cost' => $totalCost,
+
+                        // Snapshot de los Items físicos vendidos
+                        'item_snapshot' => $itemSnapshot,
                     ]);
 
                     foreach ($lotsForConsumption as $lotData) {
@@ -2274,6 +2284,7 @@ class PuntoVentaController extends Controller
                     'discount' => $discount,
                     'unit_cost' => $unitCost,
                     'total_cost' => $totalCost,
+                    'item_snapshot' => null,
                 ]);
 
                 foreach ($lotConsumptions as $consumption) {

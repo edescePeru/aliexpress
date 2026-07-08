@@ -73,6 +73,41 @@ trait NubefactTrait
                 } else {
                     $descripcion .= 'Material ' . $item->material_id;
                 }
+
+                /*
+ * Agregar códigos de ítems físicos vendidos.
+ * Se usa item_snapshot para no depender de OutputDetail.
+ */
+                $itemSnapshot = $item->item_snapshot ?? [];
+
+                if (is_string($itemSnapshot)) {
+                    $decodedSnapshot = json_decode($itemSnapshot, true);
+                    $itemSnapshot = is_array($decodedSnapshot) ? $decodedSnapshot : [];
+                }
+
+                if (!is_array($itemSnapshot)) {
+                    $itemSnapshot = [];
+                }
+
+                $itemCodes = collect($itemSnapshot)
+                    ->map(function ($snapshotItem) {
+                        if (is_array($snapshotItem)) {
+                            return $snapshotItem['code'] ?? null;
+                        }
+
+                        if (is_object($snapshotItem)) {
+                            return $snapshotItem->code ?? null;
+                        }
+
+                        return null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                if (!empty($itemCodes)) {
+                    $descripcion .= ' | Items: ' . implode(', ', $itemCodes);
+                }
             }
 
             return [

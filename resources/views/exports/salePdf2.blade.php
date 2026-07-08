@@ -90,6 +90,39 @@
             $maxChars = 27;
             $line1 = mb_substr($line, 0, $maxChars);
             $line2 = mb_substr($line, $maxChars);
+
+            /*
+             * Snapshot de ítems físicos vendidos.
+             * Puede venir como array por cast, o como string JSON si aún no tiene cast.
+             */
+            $itemSnapshot = $detail->item_snapshot ?? [];
+
+            if (is_string($itemSnapshot)) {
+                $decodedSnapshot = json_decode($itemSnapshot, true);
+                $itemSnapshot = is_array($decodedSnapshot) ? $decodedSnapshot : [];
+            }
+
+            if (!is_array($itemSnapshot)) {
+                $itemSnapshot = [];
+            }
+
+            $itemCodes = collect($itemSnapshot)
+                ->map(function ($item) {
+                    if (is_array($item)) {
+                        return $item['code'] ?? null;
+                    }
+
+                    if (is_object($item)) {
+                        return $item->code ?? null;
+                    }
+
+                    return null;
+                })
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $itemsText = implode(', ', $itemCodes);
         @endphp
 
         {{-- Línea principal con precio --}}
@@ -102,6 +135,13 @@
         @if(mb_strlen($line2) > 0)
             <p class="bold" style="font-size:11px; margin-top:0; ">
                 {{ $line2 }}
+            </p>
+        @endif
+
+        {{-- Ítems físicos vendidos --}}
+        @if(!empty($itemsText))
+            <p style="font-size:9px; margin-top:0; margin-bottom:2px; line-height:1.15;">
+                <strong>Ítems:</strong> {{ $itemsText }}
             </p>
         @endif
 

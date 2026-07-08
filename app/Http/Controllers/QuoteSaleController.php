@@ -6239,6 +6239,7 @@ class QuoteSaleController extends Controller
                         'discount'                 => $consumable->discount,
                         'unit_cost'                => $unitCost,
                         'total_cost'               => $totalCost,
+                        'item_snapshot'            => null,
                     ];
 
                     if (Schema::hasColumn('sale_details', 'stock_item_id')) {
@@ -6248,6 +6249,8 @@ class QuoteSaleController extends Controller
                     $saleDetail = SaleDetail::create($saleDetailData);
 
                     if ($material && (int) $material->tipo_venta_id === 3) {
+
+                        $itemSnapshot = [];
 
                         if (floor($qty) != $qty) {
                             throw new \Exception(
@@ -6311,7 +6314,7 @@ class QuoteSaleController extends Controller
                              * Se bloquean únicamente los Items seleccionados en cotización.
                              * Deben seguir reservados y pertenecer al mismo StockItem/lote.
                              */
-                            $items = Item::whereIn('id', $reservedItemIds)
+                            $reservedItems = Item::whereIn('id', $reservedItemIds)
                                 ->where('stock_item_id', $stockItemId)
                                 ->where('stock_lot_id', $reservedLot->stock_lot_id)
                                 ->where('percentage', 1)
@@ -6319,7 +6322,7 @@ class QuoteSaleController extends Controller
                                 ->lockForUpdate()
                                 ->get();
 
-                            if ($items->count() !== $consumeQtyInt) {
+                            if ($reservedItems->count() !== $consumeQtyInt) {
                                 throw new \Exception(
                                     "Uno o más ítems reservados ya no están disponibles para completar la venta del lote {$reservedLot->stock_lot_id}."
                                 );
@@ -6344,7 +6347,12 @@ class QuoteSaleController extends Controller
                                 );
                             }
 
-                            foreach ($items as $item) {
+                            foreach ($reservedItems as $item) {
+                                $itemSnapshot[] = [
+                                    'id' => (int) $item->id,
+                                    'code' => (string) $item->code,
+                                ];
+
                                 OutputDetail::create([
                                     'output_id' => $output->id,
                                     'sale_detail_id' => $saleDetail->id,
@@ -6398,6 +6406,10 @@ class QuoteSaleController extends Controller
                              */
                             $reservedLot->delete();
                         }
+
+                        $saleDetail->item_snapshot = $itemSnapshot;
+                        $saleDetail->save();
+
                     } else {
 
                         foreach ($reservedLots as $reservedLot) {
