@@ -257,7 +257,7 @@
                     <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
                 </div>
                 <div class="info">
-                    <a href="{{ route('store-web.catalog') }}" class="d-block">Tienda Web</a>
+                    <a href="{{ route('store-web.catalog') }}" target="_blank" class="d-block">Tienda Web</a>
                 </div>
             </div>
             @endcan
