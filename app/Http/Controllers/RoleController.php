@@ -110,7 +110,8 @@ class RoleController extends Controller
         'promotions' => 'PROMOCIONES',
 
         'cashBox' => 'CASH BOXES',
-        'cashBoxSubtype' => 'CASH BOXES SUBTIPOS'
+        'cashBoxSubtype' => 'CASH BOXES SUBTIPOS',
+        'configUserWeb' => 'CONFIGURAR USUARIOS WEB'
     ];
 
     public function index()

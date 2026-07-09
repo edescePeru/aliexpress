@@ -61,7 +61,9 @@ class DataGeneralController extends Controller
         'youtube',
         'instagram',
         'pinterest',
-        'tiktok'
+        'tiktok',
+
+        'password_reset',
     ];
 
     public function index()

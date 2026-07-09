@@ -142,7 +142,7 @@
                                         <div class="form-group row">
                                             <label for="email" class="col-sm-4 col-form-label">Email</label>
                                             <div class="col-sm-8">
-                                                <input type="email" class="form-control" name="email" id="email" placeholder="Email" value="{{ $user->email }}">
+                                                <input type="email" class="form-control" name="email" id="email" placeholder="Email" value="{{ $user->email }}" readonly>
                                             </div>
                                         </div>
                                         <div class="form-group row">

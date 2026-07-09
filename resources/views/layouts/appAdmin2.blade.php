@@ -517,8 +517,10 @@
                         </ul>
                     </li>
                     @endcan
-                    @can('access_permission')
+                    @canany('access_permission', 'enable_dataGeneral')
                     <li class="nav-header">ADMINISTRADOR</li>
+                    @endcanany
+                    @can('access_permission')
                     <li class="nav-item has-treeview @yield('openAccess')">
 
                         <a href="#" class="nav-link @yield('activeAccess')">
@@ -598,6 +600,15 @@
                                     <a href="{{ route('cashBoxSubtype.index') }}" class="nav-link @yield('activeCashBoxSubtype')">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Subtipos bancarios</p>
+                                    </a>
+                                </li>
+                            @endcan
+
+                            @can('listUser_configUserWeb')
+                                <li class="nav-item">
+                                    <a href="{{ route('configUserWeb.index') }}" class="nav-link @yield('activeConfigUserWeb')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Usuarios Web</p>
                                     </a>
                                 </li>
                             @endcan

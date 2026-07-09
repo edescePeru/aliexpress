@@ -183,7 +183,7 @@ class UserController extends Controller
         try {
 
             $user->name = $request->get('name');
-            $user->email = $request->get('email');
+            //$user->email = $request->get('email');
             $user->save();
 
             DB::commit();
