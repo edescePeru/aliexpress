@@ -2196,7 +2196,7 @@ class MaterialController extends Controller
     {
         $items = Item::query()
             ->where('stock_item_id', $id)
-            ->whereIn('state_item', ['entered', 'scraped'])
+            ->whereIn('state_item', ['entered', 'scraped', 'reserved'])
             ->with([
                 'material:id,full_name',
                 'typescrap:id,name',

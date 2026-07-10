@@ -99,8 +99,8 @@ $(document).ready(function () {
                 render: function (item) {
                     var status = item.state_item === "entered"
                         ? '<span class="badge bg-success">Ingresado</span>'
-                        : item.state_item === "scraped"
-                            ? '<span class="badge bg-warning">Retazo</span>'
+                        : item.state_item === "reserved"
+                            ? '<span class="badge bg-warning">Reservado</span>'
                             : '<span class="badge bg-secondary">Indefinido</span>';
 
                     return '<p class="mb-0">' + status + '</p>';
