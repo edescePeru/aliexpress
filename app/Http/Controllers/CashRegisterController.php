@@ -538,6 +538,26 @@ class CashRegisterController extends Controller
             'status' => 1,
         ]);
 
+        if ( $openingBalance > 0 )
+        {
+            $regularize = 1;
+            CashMovement::create([
+                'cash_register_id'     => $cr->id,
+                'type'                 => 'income',
+                'amount'               => $openingBalance,
+                'description'          => 'Caja chica',
+                'observation'          => 'Balance inicial',
+                'cash_box_subtype_id'  => null,
+                'regularize'           => $regularize,
+            ]);
+
+            if ($regularize == 1) {
+                $cr->total_incomes   = (float)$cr->total_incomes + $openingBalance;
+                $cr->save();
+            }
+        }
+
+
         return response()->json([
             'message' => 'Sesión iniciada correctamente.',
             'cash_register_id' => $cr->id,
