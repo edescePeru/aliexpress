@@ -13,6 +13,10 @@
 
     let currentPage = 1;
 
+    function csrf() {
+        return $('meta[name="csrf-token"]').attr('content');
+    }
+
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str)
