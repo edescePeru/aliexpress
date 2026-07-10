@@ -33,7 +33,7 @@ Route::post('/emailcontact', 'EmailController@sendEmailContact')->name('email.co
 
 Auth::routes();
 
-Route::middleware('auth')->group(function (){
+Route::middleware(['auth', 'check.user.enabled'])->group(function (){
     Route::prefix('dashboard')->group(function (){
         Route::get('/principal', 'HomeController@dashboard')->name('dashboard.principal');
 
@@ -3200,6 +3200,28 @@ Route::middleware('auth')->group(function (){
 
         Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
             ->name('stock-item.output-adjustment');
+
+        Route::get('configuracion/usuarios/web', 'ConfigUserWebController@listar')
+                    ->name('configUserWeb.index')
+                    ->middleware('permission:listUser_configUserWeb');
+        Route::get('configuracion/usuarios/web/listado', 'ConfigUserWebController@getUsers')
+            ->name('configUserWeb.getUsers')
+            ->middleware('permission:listUser_configUserWeb');
+        Route::get('configuracion/usuarios/web/{id}/editar', 'ConfigUserWebController@edit')
+            ->name('configUserWeb.edit')
+            ->middleware('permission:editUser_configUserWeb');
+
+        Route::post('configuracion/usuarios/web/{id}/actualizar', 'ConfigUserWebController@update')
+            ->name('configUserWeb.update')
+            ->middleware('permission:editUser_configUserWeb');
+
+        Route::post('configuracion/usuarios/web/{id}/resetear-password', 'ConfigUserWebController@resetPassword')
+            ->name('configUserWeb.resetPassword')
+            ->middleware('permission:resetPasswordUser_configUserWeb');
+
+        Route::post('configuracion/usuarios/web/{id}/cambiar-estado', 'ConfigUserWebController@changeStatus')
+            ->name('configUserWeb.changeStatus')
+            ->middleware('permission:changeStatusUser_configUserWeb');
     });
 });
 
@@ -3346,4 +3368,4 @@ Route::get('/fix/material-201/output-adjustment', 'InventoryMigrationController@
 Route::get('/fix/material/output-adjustment/{material_id}/{quantity}', 'InventoryMigrationController@adjustMaterialStockOut');
 
 Route::get('/internal/adjust-entry-cost', 'InventoryMigrationController@adjustEntryCost')
-    ->middleware(['auth']);
+    ->middleware(['auth', 'check.user.enabled']);

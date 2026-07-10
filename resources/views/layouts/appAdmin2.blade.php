@@ -257,7 +257,7 @@
                     <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
                 </div>
                 <div class="info">
-                    <a href="{{ route('store-web.catalog') }}" class="d-block">Tienda Web</a>
+                    <a href="{{ route('store-web.catalog') }}" target="_blank" class="d-block">Tienda Web</a>
                 </div>
             </div>
             @endcan
@@ -517,8 +517,10 @@
                         </ul>
                     </li>
                     @endcan
-                    @can('access_permission')
+                    @canany(['access_permission', 'enable_dataGeneral'])
                     <li class="nav-header">ADMINISTRADOR</li>
+                    @endcanany
+                    @can('access_permission')
                     <li class="nav-item has-treeview @yield('openAccess')">
 
                         <a href="#" class="nav-link @yield('activeAccess')">
@@ -602,11 +604,20 @@
                                 </li>
                             @endcan
 
+                            @can('listUser_configUserWeb')
+                                <li class="nav-item">
+                                    <a href="{{ route('configUserWeb.index') }}" class="nav-link @yield('activeConfigUserWeb')">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Usuarios Web</p>
+                                    </a>
+                                </li>
+                            @endcan
+
                         </ul>
 
                     </li>
                     @endcan
-                    @canany('list_customer', 'list_contactName', 'list_supplier')
+                    @canany(['list_customer', 'list_contactName', 'list_supplier'])
                     <li class="nav-header">MANTENEDORES</li>
                     @endcanany
                     @can('list_customer')
@@ -761,7 +772,7 @@
                         </li>
                     @endcan
 
-                    @canany('list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')
+                    @canany(['list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler'])
                     <li class="nav-header">MATERIALES</li>
                     @endcanany
                     {{--@canany('list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')--}}
@@ -1204,7 +1215,7 @@
                         </li>
                     @endcan
 
-                    @canany('list_quote')
+                    @canany(['list_quote'])
                         <li class="nav-header">COTIZACIONES</li>
                     @endcanany
                     @can('list_quote')
@@ -1408,7 +1419,7 @@
                         </li>
                     @endcan
 
-                    @canany('list_entryPurchase', 'list_entryScrap')
+                    @canany(['list_entryPurchase', 'list_entryScrap'])
                     <li class="nav-header">ENTRADAS A ALMACEN</li>
                     @endcanany
                     @can('list_entryPurchase')
@@ -1787,10 +1798,10 @@
                     @endcan
 
 
-                    @canany('list_orderPurchaseExpress', 'list_orderPurchaseNormal', 'list_orderPurchaseFinance')
+                    @canany(['list_orderPurchaseExpress', 'list_orderPurchaseNormal', 'list_orderPurchaseFinance'])
                     <li class="nav-header">ORDENES DE COMPRA</li>
                     @endcanany
-                    @canany('list_orderPurchaseNormal','list_orderPurchaseExpress')
+                    @canany(['list_orderPurchaseNormal','list_orderPurchaseExpress'])
                         <li class="nav-item has-treeview @yield('openOrderPurchaseGeneral')">
                             <a href="#" class="nav-link @yield('activeOrderPurchaseGeneral')">
                                 <i class="nav-icon fas fa-credit-card"></i>
@@ -1876,7 +1887,7 @@
                                         </a>
                                     </li>
                                 @endcanany--}}
-                                @canany('destroy_orderPurchaseNormal','destroy_orderPurchaseNormal')
+                                @canany(['destroy_orderPurchaseNormal','destroy_orderPurchaseNormal'])
                                     <li class="nav-item">
                                         <a href="{{route('order.purchase.delete')}}" class="nav-link @yield('activeListOrderPurchaseDelete')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -2959,7 +2970,7 @@
                         </li>
                     @endcan
 
-                    @canany('enable_orderService')
+                    @canany(['enable_orderService'])
                         <li class="nav-header">ORDENES DE SERVICIO</li>
                     @endcanany
                     @can('watch_orderService')

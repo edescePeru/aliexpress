@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
 
 class LoginController extends Controller
 {
@@ -36,5 +37,34 @@ class LoginController extends Controller
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
+    }
+
+    protected function credentials(Request $request)
+    {
+        return [
+            'email' => $request->email,
+            'password' => $request->password,
+            'enable' => 1,
+        ];
+    }
+
+    public function username()
+    {
+        return 'email';
+    }
+
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        $user = \App\User::where('email', $request->email)->first();
+
+        if ($user && $user->enable == 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $this->username() => ['Tu usuario se encuentra inhabilitado. Comunícate con el administrador.'],
+            ]);
+        }
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            $this->username() => [trans('auth.failed')],
+        ]);
     }
 }
