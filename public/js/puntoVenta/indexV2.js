@@ -2,6 +2,10 @@ let $currentStockItemRow = null;
 
 $(document).ready(function () {
 
+    $(document).on('input', '#dni, #ruc', function () {
+        this.value = this.value.replace(/\D/g, '');
+    });
+
     setTimeout(function () {
         $('#product_search').focus();
     }, 300);
@@ -560,6 +564,28 @@ $(document).ready(function () {
         e.preventDefault();
 
         let input = $(this);
+        let documento = input.val().replace(/\D/g, '');
+        let tipo = input.attr('id');
+
+        if (tipo === 'dni' && documento.length !== 8) {
+            toastr.error('El DNI debe tener exactamente 8 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        if (tipo === 'ruc' && documento.length !== 11) {
+            toastr.error('El RUC debe tener exactamente 11 dígitos.', 'Documento inválido');
+            return;
+        }
+
+        consultarClientePorDocumento(documento, tipo);
+    });
+
+    $(document).on('click', '.btnConsultarCliente', function (e) {
+        let selectorInput = $(this).data('input');
+        let input = $(selectorInput);
+
+        e.preventDefault();
+
         let documento = input.val().replace(/\D/g, '');
         let tipo = input.attr('id');
 

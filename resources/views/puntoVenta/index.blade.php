@@ -558,7 +558,28 @@
                                                     <div id="datos_boleta" class="d-none">
                                                         <div class="form-group">
                                                             <label for="dni">DNI <span style="color:red;">*</span></label>
-                                                            <input type="text" name="dni" id="dni" class="form-control" >
+                                                            <div class="input-group input-group-sm">
+                                                                <input
+                                                                        type="text"
+                                                                        maxlength="8"
+                                                                        id="dni"
+                                                                        name="dni"
+                                                                        class="form-control"
+                                                                        inputmode="numeric"
+                                                                        enterkeyhint="search"
+                                                                >
+                                                                <div class="input-group-append">
+                                                                    <button
+                                                                            type="button"
+                                                                            class="btn btn-primary btnConsultarCliente"
+                                                                            data-input="#dni"
+                                                                            title="Consultar DNI"
+                                                                    >
+                                                                        <i class="fas fa-search"></i>
+                                                                    </button>
+                                                                </div>
+                                                                {{--<input type="text" name="dni" id="dni" class="form-control" >--}}
+                                                            </div>
                                                         </div>
                                                         <div class="form-group">
                                                             <label for="dni">Nombre <span style="color:red;">*</span></label>
@@ -574,7 +595,29 @@
                                                     <div id="datos_factura" class="d-none">
                                                         <div class="form-group">
                                                             <label for="ruc">RUC <span style="color:red;">*</span></label>
-                                                            <input type="text" name="ruc" id="ruc" class="form-control" >
+                                                            <div class="input-group input-group-sm">
+                                                                <input
+                                                                        type="text"
+                                                                        maxlength="11"
+                                                                        id="ruc"
+                                                                        name="ruc"
+                                                                        value=""
+                                                                        class="form-control"
+                                                                        inputmode="numeric"
+                                                                        enterkeyhint="search"
+                                                                >
+                                                                {{--<input type="text" name="ruc" id="ruc" class="form-control" >--}}
+                                                                <div class="input-group-append">
+                                                                    <button
+                                                                            type="button"
+                                                                            class="btn btn-primary btnConsultarCliente"
+                                                                            data-input="#ruc"
+                                                                            title="Consultar RUC"
+                                                                    >
+                                                                        <i class="fas fa-search"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div class="form-group">
                                                             <label for="razon_social">Razón Social <span style="color:red;">*</span></label>
