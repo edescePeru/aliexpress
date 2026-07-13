@@ -295,18 +295,38 @@
                                                     ->toArray()
                                                 : [];
 
+                                            $selectedItemCodes = [];
+
+                                            if (!empty($selectedItemIds)) {
+                                                $itemsById = \App\Item::whereIn('id', $selectedItemIds)
+                                                    ->get(['id', 'code'])
+                                                    ->keyBy('id');
+
+                                                $selectedItemCodes = collect($selectedItemIds)
+                                                    ->map(function ($itemId) use ($itemsById) {
+                                                        $item = $itemsById->get($itemId);
+
+                                                        if (!$item) {
+                                                            return 'Ítem #' . $itemId;
+                                                        }
+
+                                                        return $item->code ?: ('Ítem #' . $item->id);
+                                                    })
+                                                    ->values()
+                                                    ->toArray();
+                                            }
                                             /*
                                              * Por ahora mostramos los IDs en tooltip.
                                              * Luego, al revisar el controlador de edición, lo mejoraremos
                                              * para mostrar los códigos reales de cada Item sin N+1 queries.
                                              */
-                                            $selectedItemsText = !empty($selectedItemIds)
-                                                ? implode(', ', $selectedItemIds)
-                                                : '';
+                                            $selectedItemsText = !empty($selectedItemCodes)
+                                            ? implode(', ', $selectedItemCodes)
+                                            : '';
 
                                             $itemTooltip = $isItemeable && $selectedItemsText !== ''
-                                                ? 'Ítems seleccionados: ' . $selectedItemsText
-                                                : '';
+                                            ? 'Ítems seleccionados: ' . $selectedItemsText
+                                            : '';
                                         @endphp
 
                                         <div class="row" data-consumableRow>

@@ -1301,7 +1301,7 @@ function renderItemeableItemsForV2(items, requiredCount) {
             || item.stock_lot_id
             || '-';
 
-        const locationText = item.location_name
+        const locationText = item.warehouse_name
             || item.location
             || '-';
 

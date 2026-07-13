@@ -21,6 +21,7 @@ use App\Output;
 use App\OutputDetail;
 use App\PorcentageQuote;
 use App\PriceList;
+use App\Quote;
 use App\QuoteMaterialReservation;
 use App\QuoteStockLot;
 use App\SalePartialPayment;
@@ -3944,11 +3945,23 @@ class PuntoVentaController extends Controller
         }
     }
 
-    private function reverseSaleInternally(Sale $sale, ?string $reason = null, bool $markAsAnnulled = true): void
+    private function reverseSaleInternally(
+        Sale $sale,
+        ?string $reason = null,
+        bool $markAsAnnulled = true
+    ): void
     {
         if ($sale->internal_reversal_status === 'reversed') {
             return;
         }
+
+        /*
+         * Indica si la venta contenía por lo menos un producto itemeable.
+         *
+         * Debemos detectarlo antes de eliminar los OutputDetail,
+         * porque después ya no tendremos esa información operativa.
+         */
+        $hasItemizedProducts = false;
 
         /*
          * ============================================================
@@ -3986,7 +3999,12 @@ class PuntoVentaController extends Controller
                     }
                 }
 
+                /*
+                 * Detectamos que la venta tenía un producto itemeable.
+                 */
                 if (!empty($outputDetail->item_id)) {
+                    $hasItemizedProducts = true;
+
                     $item = Item::where('id', $outputDetail->item_id)
                         ->lockForUpdate()
                         ->first();
@@ -3997,6 +4015,10 @@ class PuntoVentaController extends Controller
                     }
                 }
 
+                /*
+                 * Después de devolver el lote/item, eliminamos el detalle
+                 * de salida igual que antes.
+                 */
                 $outputDetail->delete();
             }
         }
@@ -4030,34 +4052,52 @@ class PuntoVentaController extends Controller
          * 3) REVERTIR MOVIMIENTOS DE CAJA
          * ============================================================
          */
-        $movements = CashMovement::where('sale_id', $sale->id)->get();
+        $movements = CashMovement::where('sale_id', $sale->id)
+            ->lockForUpdate()
+            ->get();
 
         foreach ($movements as $movement) {
             $cashBoxSubType = $movement->cash_box_subtype_id
                 ? CashBoxSubtype::find($movement->cash_box_subtype_id)
                 : null;
 
-            $is_deferred = $cashBoxSubType ? (int) $cashBoxSubType->is_deferred : 0;
-            $cash_box_subtype_id_to_use = $cashBoxSubType ? $cashBoxSubType->id : null;
+            $is_deferred = $cashBoxSubType
+                ? (int) $cashBoxSubType->is_deferred
+                : 0;
+
+            $cash_box_subtype_id_to_use = $cashBoxSubType
+                ? $cashBoxSubType->id
+                : null;
 
             if ($movement->type === 'sale') {
                 if ($is_deferred == 1) {
                     if ((int) $movement->regularize === 0) {
                         $movement->delete();
+
                     } elseif ((int) $movement->regularize === 1) {
-                        $amountToReverse = (float) ($movement->amount_regularize ?? $movement->amount ?? 0);
+                        $amountToReverse = (float) (
+                            $movement->amount_regularize
+                            ?? $movement->amount
+                            ?? 0
+                        );
 
                         CashMovement::create([
                             'cash_register_id'    => $movement->cash_register_id,
                             'sale_id'             => $sale->id,
                             'type'                => 'expense',
                             'amount'              => $amountToReverse,
-                            'description'         => 'Reversión de venta (POS regularizado) por anulación de venta #'.$sale->id,
+                            'description'         => 'Reversión de venta (POS regularizado) por anulación de venta #'
+                                . $sale->id,
                             'regularize'          => $movement->regularize,
                             'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
                         ]);
 
-                        $cashRegister = CashRegister::find($movement->cash_register_id);
+                        $cashRegister = CashRegister::where(
+                            'id',
+                            $movement->cash_register_id
+                        )
+                            ->lockForUpdate()
+                            ->first();
 
                         if ($cashRegister) {
                             $cashRegister->current_balance -= $amountToReverse;
@@ -4074,12 +4114,18 @@ class PuntoVentaController extends Controller
                         'sale_id'             => $sale->id,
                         'type'                => 'expense',
                         'amount'              => $amountToReverse,
-                        'description'         => 'Reversión de venta por anulación de venta #'.$sale->id,
+                        'description'         => 'Reversión de venta por anulación de venta #'
+                            . $sale->id,
                         'regularize'          => $movement->regularize,
                         'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
                     ]);
 
-                    $cashRegister = CashRegister::find($movement->cash_register_id);
+                    $cashRegister = CashRegister::where(
+                        'id',
+                        $movement->cash_register_id
+                    )
+                        ->lockForUpdate()
+                        ->first();
 
                     if ($cashRegister) {
                         $cashRegister->current_balance -= $amountToReverse;
@@ -4088,6 +4134,7 @@ class PuntoVentaController extends Controller
                         $cashRegister->save();
                     }
                 }
+
             } elseif ($movement->type === 'expense') {
                 $amountToReverse = (float) $movement->amount;
 
@@ -4096,13 +4143,19 @@ class PuntoVentaController extends Controller
                     'sale_id'             => $sale->id,
                     'type'                => 'income',
                     'amount'              => $amountToReverse,
-                    'description'         => 'Reversión de gasto (vuelto) por anulación de orden #'.$sale->id,
+                    'description'         => 'Reversión de gasto (vuelto) por anulación de orden #'
+                        . $sale->id,
                     'subtype'             => $movement->subtype,
                     'regularize'          => $movement->regularize,
                     'cash_box_subtype_id' => $cash_box_subtype_id_to_use,
                 ]);
 
-                $cashRegister = CashRegister::find($movement->cash_register_id);
+                $cashRegister = CashRegister::where(
+                    'id',
+                    $movement->cash_register_id
+                )
+                    ->lockForUpdate()
+                    ->first();
 
                 if ($cashRegister) {
                     $cashRegister->current_balance += $amountToReverse;
@@ -4115,7 +4168,36 @@ class PuntoVentaController extends Controller
 
         /*
          * ============================================================
-         * 4) LIMPIAR RESERVAS LEGACY
+         * 4) CANCELAR COTIZACIÓN SI LA VENTA TENÍA ITEMS
+         * ============================================================
+         *
+         * Al generar la venta, QuoteStockLot fue eliminado porque era
+         * una reserva temporal.
+         *
+         * Como la cotización ya no puede reconstruir correctamente sus
+         * items seleccionados, evitamos que vuelva a aparecer como una
+         * cotización disponible para facturar.
+         *
+         * Las cotizaciones sin productos itemeables conservan el
+         * comportamiento anterior.
+         */
+        if (
+            $hasItemizedProducts &&
+            !empty($sale->quote_id)
+        ) {
+            $quote = Quote::where('id', $sale->quote_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($quote && $quote->state !== 'canceled') {
+                $quote->state = 'canceled';
+                $quote->save();
+            }
+        }
+
+        /*
+         * ============================================================
+         * 5) LIMPIAR RESERVAS LEGACY
          * ============================================================
          */
         if (!empty($sale->quote_id)) {
@@ -4130,19 +4212,21 @@ class PuntoVentaController extends Controller
 
         /*
          * ============================================================
-         * 5) MARCAR COMO ESTADO ANULADO LOS PAGOS PARCIALES SI TIENE
+         * 6) ANULAR PAGOS PARCIALES
          * ============================================================
          */
-        $partial_payments = SalePartialPayment::where('sale_id', $sale->id)->get();
+        $partialPayments = SalePartialPayment::where('sale_id', $sale->id)
+            ->lockForUpdate()
+            ->get();
 
-        foreach ($partial_payments as $partial_payment) {
-            $partial_payment->state = 0;
-            $partial_payment->save();
+        foreach ($partialPayments as $partialPayment) {
+            $partialPayment->state = 0;
+            $partialPayment->save();
         }
 
         /*
          * ============================================================
-         * 6) MARCAR REVERSIÓN OPERATIVA
+         * 7) MARCAR REVERSIÓN OPERATIVA
          * ============================================================
          */
         if ($markAsAnnulled) {
@@ -4153,8 +4237,13 @@ class PuntoVentaController extends Controller
         $sale->internal_reversed_at = now();
         $sale->internal_reversed_by = auth()->id();
 
-        if (empty($sale->annulment_status) || $sale->annulment_status === 'none') {
-            $sale->annulment_status = $markAsAnnulled ? 'accepted' : 'pending';
+        if (
+            empty($sale->annulment_status) ||
+            $sale->annulment_status === 'none'
+        ) {
+            $sale->annulment_status = $markAsAnnulled
+                ? 'accepted'
+                : 'pending';
         }
 
         $sale->annulment_reason = $reason;
@@ -4168,8 +4257,11 @@ class PuntoVentaController extends Controller
         }
 
         if ($markAsAnnulled) {
-            $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
-            $sale->annulled_by = $sale->annulled_by ?: auth()->id();
+            $sale->annulment_accepted_at =
+                $sale->annulment_accepted_at ?: now();
+
+            $sale->annulled_by =
+                $sale->annulled_by ?: auth()->id();
         }
 
         $sale->save();

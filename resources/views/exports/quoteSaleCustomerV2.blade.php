@@ -216,6 +216,8 @@
 
                 $present = (string) ( ($consumable->material_presentation_id == null) ? round($consumable->quantity,2): $consumable->units_per_pack.'UND');
 
+                $itemCodes = $quoteItemCodesByConsumable[$consumable->id] ?? [];
+                $itemsText = implode(', ', $itemCodes);
             @endphp
 
             <tr>
@@ -228,6 +230,12 @@
                 <td style="text-align:left;">
                     ({{ $present }})
                     {{ optional($consumable->stockItem)->display_name ?? optional($consumable->material)->full_name ?? '' }}
+                    @if(!empty($itemsText))
+                        <br>
+                        <span style="font-size:8px; color:#0000ff;">
+                            Items: {{ $itemsText }}
+                        </span>
+                    @endif
                 </td>
 
                 @if($quote->state_decimals)

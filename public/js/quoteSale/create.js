@@ -607,6 +607,7 @@ function openItemeableItemsSelector(draft) {
 
     let consumable = draft.consumable;
 
+    console.log(consumable);
     /*
      * En tu flujo actual, consumable.id corresponde al StockItem seleccionado.
      * Si en tu estructura el ID del stock item tiene otro nombre,
@@ -626,7 +627,7 @@ function openItemeableItemsSelector(draft) {
         return;
     }
 
-    $('#itemeable-product-name').text(consumable.full_name || consumable.description || '');
+    $('#itemeable-product-name').text(consumable.display_name || consumable.description || '');
     $('#itemeable-required-count').text(requiredCount);
     $('#itemeable-selected-count').text(0);
     $('#itemeable-selected-required-count').text(requiredCount);
@@ -695,25 +696,31 @@ function renderItemeableItems(items, requiredCount) {
     items.forEach(function (item) {
         let itemCode = item.code || ('Ítem #' + item.id);
 
+        const lotText = item.stock_lot_code
+            || item.lot_code
+            || item.stock_lot_id
+            || '-';
+
+        const locationText = item.warehouse_name
+            || item.location
+            || '-';
+
         html += `
             <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
-            <td class="text-center">
-            <input
-        type="checkbox"
-    class="itemeable-item-checkbox"
-        value="${item.id}"
-        data-item-id="${item.id}"
-        data-item-code="${itemCode}"
-            >
-            </td>
-
-            <td>${itemCode}</td>
-
-            <td class="text-center">
-            <span class="badge badge-success">
-            Disponible
-            </span>
-            </td>
+                <td class="text-center">
+                    <input
+                        type="checkbox"
+                        class="itemeable-item-checkbox"
+                        value="${item.id}"
+                        data-item-id="${item.id}"
+                        data-item-code="${itemCode}"
+                            >
+                </td>
+    
+                <td>${itemCode}</td>
+    
+                <td>${lotText}</td>
+                <td>${locationText}</td>
             </tr>
                 `;
     });

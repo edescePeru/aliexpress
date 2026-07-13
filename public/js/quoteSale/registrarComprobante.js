@@ -406,6 +406,40 @@ $(document).ready(function () {
                             let clone = template.content.cloneNode(true);
 
                             $(clone).find('[data-consumableDescription]').val(consumable.material.full_description);
+
+                            const itemCodes = Array.isArray(consumable.item_codes)
+                                ? consumable.item_codes
+                                : [];
+
+                            const $selectedItemsElement = $(clone).find('[data-selected_items]');
+
+                            if (itemCodes.length > 0) {
+                                const maxVisibleItems = 3;
+                                const itemsTextFull = itemCodes.join(', ');
+
+                                let itemsTextShort = itemsTextFull;
+
+                                if (itemCodes.length > maxVisibleItems) {
+                                    itemsTextShort = itemCodes.slice(0, maxVisibleItems).join(', ')
+                                        + ' ... +'
+                                        + (itemCodes.length - maxVisibleItems);
+                                }
+
+                                $selectedItemsElement
+                                    .html('<strong>Ítems seleccionados:</strong> ' + itemsTextShort)
+                                    .attr('title', itemsTextFull)
+                                    .attr('data-toggle', 'tooltip')
+                                    .attr('data-placement', 'top')
+                                    .css('display', 'block');
+                            } else {
+                                $selectedItemsElement
+                                    .html('')
+                                    .removeAttr('title')
+                                    .removeAttr('data-toggle')
+                                    .removeAttr('data-placement')
+                                    .css('display', 'none');
+                            }
+
                             $(clone).find('[data-consumableId]').val(consumable.id);
                             $(clone).find('[data-descuento]').val(consumable.discount);
                             $(clone).find('[data-type_promotion]').val(consumable.type_promo);
@@ -482,6 +516,9 @@ $(document).ready(function () {
                 $('input[name="discount_type"]').prop('disabled', true);
                 $('input[name="discount_input_mode"]').prop('disabled', true);
                 $('#discount_value').prop('readonly', true);
+
+                $('[data-toggle="tooltip"]').tooltip('dispose');
+                $('[data-toggle="tooltip"]').tooltip();
 
                 $('#btn-submit').prop('disabled', false);
             }

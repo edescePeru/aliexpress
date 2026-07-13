@@ -570,6 +570,15 @@ function renderItemeableItemsForCart(items, requiredCount) {
     items.forEach(function (item) {
         const itemCode = item.code || ('Ítem #' + item.id);
 
+        const lotText = item.stock_lot_code
+            || item.lot_code
+            || item.stock_lot_id
+            || '-';
+
+        const locationText = item.warehouse_name
+            || item.location
+            || '-';
+
         html += `
             <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
                 <td class="text-center">
@@ -582,9 +591,8 @@ function renderItemeableItemsForCart(items, requiredCount) {
                     >
                 </td>
                 <td>${itemCode}</td>
-                <td class="text-center">
-                    <span class="badge badge-success">Disponible</span>
-                </td>
+                <td>${lotText}</td>
+                <td>${locationText}</td>
             </tr>
         `;
     });

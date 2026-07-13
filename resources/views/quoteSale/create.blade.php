@@ -940,16 +940,28 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
-                <div class="modal-header">
+                {{--<div class="modal-header">
                     <h4 class="modal-title">Seleccione los ítems</h4>
-                </div>
+                </div>--}}
 
                 <div class="modal-body">
 
                     <div class="mb-3">
+                        <strong id="itemeable-product-name"></strong>
+                    </div>
+                    <div class="alert alert-info py-2">
+                        Debe seleccionar
+                        <strong id="itemeable-required-count">0</strong>
+                        ítem(s).
+
+                        Seleccionados:
+                        <strong id="itemeable-selected-count">0</strong>
+                        /
+                        <strong id="itemeable-selected-required-count">0</strong>
+                    </div>
+                    {{--<div class="mb-3">
                         <p class="mb-1">
-                            <strong>Producto:</strong>
-                            <span id="itemeable-product-name"></span>
+                            <strong> id="itemeable-product-name"></strong>
                         </p>
 
                         <p class="mb-1">
@@ -963,7 +975,7 @@
                             de
                             <span id="itemeable-selected-required-count">0</span>
                         </p>
-                    </div>
+                    </div>--}}
 
                     <div id="itemeable-items-loading" class="text-center py-3">
                         <i class="fa fa-spinner fa-spin"></i>
@@ -976,34 +988,28 @@
 
                     <div class="form-group mb-3">
                         <label for="itemeable-item-search">
-                            Buscar o escanear código de ítem
+                            Escanear o ingresar código de ítem
                         </label>
-
                         <input
                                 type="text"
                                 id="itemeable-item-search"
-                                class="form-control"
+                                class="form-control form-control-sm"
                                 autocomplete="off"
                                 placeholder="Escanee o escriba el código del ítem"
                         >
-
-                        <small class="text-muted">
-                            Al encontrar una coincidencia exacta, el ítem se seleccionará automáticamente.
-                        </small>
                     </div>
 
                     <div id="itemeable-items-table-container" style="display: none;">
                         <div class="itemeable-items-scroll">
-                            <table class="table table-bordered table-hover mb-0">
-                                <thead>
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="thead-light">
                                 <tr>
                                     <th style="width: 70px;" class="text-center">
                                         Elegir
                                     </th>
-                                    <th>Código del ítem</th>
-                                    <th style="width: 120px;" class="text-center">
-                                        Estado
-                                    </th>
+                                    <th>Código</th>
+                                    <th>Lote</th>
+                                    <th>Ubicación</th>
                                 </tr>
                                 </thead>
                                 <tbody id="itemeable-items-table-body"></tbody>
@@ -1020,7 +1026,7 @@
                 <div class="modal-footer">
                     <button
                             type="button"
-                            class="btn btn-secondary"
+                            class="btn btn-secondary btn-sm"
                             id="btn-cancel-itemeable-items"
                     >
                         Cancelar
@@ -1028,7 +1034,7 @@
 
                     <button
                             type="button"
-                            class="btn btn-success"
+                            class="btn btn-success btn-sm"
                             id="btn-confirm-itemeable-items"
                             disabled
                     >

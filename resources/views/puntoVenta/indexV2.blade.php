@@ -1205,7 +1205,7 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 
-                <div class="modal-header py-2">
+                {{--<div class="modal-header py-2">
                     <h5 class="modal-title">
                         Seleccionar ítems físicos
                     </h5>
@@ -1213,7 +1213,7 @@
                     <button type="button" class="close" id="btn-close-itemeable-items-v2">
                         <span>&times;</span>
                     </button>
-                </div>
+                </div>--}}
 
                 <div class="modal-body">
 
@@ -1226,8 +1226,6 @@
                         <strong id="itemeable-required-count-v2">0</strong>
                         ítem(s).
 
-                        <br>
-
                         Seleccionados:
                         <strong id="itemeable-selected-count-v2">0</strong>
                         /
@@ -1235,6 +1233,9 @@
                     </div>
 
                     <div class="form-group mb-2">
+                        <label for="itemeable-item-search">
+                            Escanear o ingresar código de ítem
+                        </label>
                         <input
                                 type="text"
                                 id="itemeable-item-search-v2"
@@ -1263,7 +1264,7 @@
                         <table class="table table-sm table-bordered table-hover mb-0">
                             <thead class="thead-light">
                             <tr>
-                                <th style="width:55px;">Sel.</th>
+                                <th style="width:55px;">Elegir</th>
                                 <th>Código</th>
                                 <th>Lote</th>
                                 <th>Ubicación</th>

@@ -583,6 +583,12 @@
                 <div class="form-group">
                     <input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
 
+                    <small
+                            data-selected_items
+                            class="text-muted d-block mt-1"
+                            style="display:none; font-size:12px; line-height:1.2;">
+                    </small>
+
                     {{-- se leen por attr() --}}
                     <input type="hidden" data-consumableid>
                     <input type="hidden" data-descuento>

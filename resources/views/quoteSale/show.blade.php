@@ -228,11 +228,47 @@
                                     </div>
                                     @can('showPrices_quote')
                                         @foreach( $equipment->consumables as $consumable )
-                                            <div class="row">
+
+                                            @php
+                                                $itemCodes = $quoteItemCodesByConsumable[$consumable->id] ?? [];
+
+                                                $itemsTextFull = !empty($itemCodes)
+                                                    ? implode(', ', $itemCodes)
+                                                    : '';
+
+                                                $maxVisibleItems = 3;
+
+                                                if (count($itemCodes) > $maxVisibleItems) {
+                                                    $itemsTextShort = implode(', ', array_slice($itemCodes, 0, $maxVisibleItems))
+                                                        . ' ... +' . (count($itemCodes) - $maxVisibleItems);
+                                                } else {
+                                                    $itemsTextShort = $itemsTextFull;
+                                                }
+                                            @endphp
+
+                                            <div class="row mb-2">
                                                 {{-- Descripcion --}}
                                                 <div class="col-md-5">
                                                     <div class="form-group">
-                                                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" data-consumableDescription {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} readonly>
+                                                        <input type="text"
+                                                               onkeyup="mayus(this);"
+                                                               class="form-control form-control-sm"
+                                                               value="{{ $consumable->stockItem->display_name }}"
+                                                               data-consumableDescription
+                                                               {{ $consumable->stockItem->ui_color ? 'style=color:' . $consumable->stockItem->ui_color : '' }}
+                                                               readonly>
+
+                                                        @if(!empty($itemsTextFull))
+                                                            <small
+                                                                    class="text-muted d-block mt-1"
+                                                                    style="font-size: 12px; line-height: 1.2;"
+                                                                    data-toggle="tooltip"
+                                                                    data-placement="top"
+                                                                    title="{{ $itemsTextFull }}">
+                                                                <strong>Ítems seleccionados:</strong> {{ $itemsTextShort }}
+                                                            </small>
+                                                        @endif
+
                                                         <input type="hidden" data-consumableId="{{ $consumable->material_id }}">
                                                         <input type="hidden" data-descuento="{{ $consumable->discount }}">
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
@@ -288,11 +324,46 @@
                                         @endforeach
                                     @else
                                         @foreach( $equipment->consumables as $consumable )
+                                            @php
+                                                $itemCodes = $quoteItemCodesByConsumable[$consumable->id] ?? [];
+
+                                                $itemsTextFull = !empty($itemCodes)
+                                                    ? implode(', ', $itemCodes)
+                                                    : '';
+
+                                                $maxVisibleItems = 3;
+
+                                                if (count($itemCodes) > $maxVisibleItems) {
+                                                    $itemsTextShort = implode(', ', array_slice($itemCodes, 0, $maxVisibleItems))
+                                                        . ' ... +' . (count($itemCodes) - $maxVisibleItems);
+                                                } else {
+                                                    $itemsTextShort = $itemsTextFull;
+                                                }
+                                            @endphp
+
                                             <div class="row">
                                                 {{-- Descripcion --}}
                                                 <div class="col-md-5">
                                                     <div class="form-group">
-                                                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" value="{{ $consumable->material->full_description }}" {{ ($consumable->material->enable_status == 0) ? 'style=color:purple':( ($consumable->material->stock_current == 0) ? 'style=color:red': ( ($consumable->material->state_update_price == 1) ? 'style=color:blue':'' ) ) }} data-consumableDescription readonly>
+                                                        <input type="text"
+                                                               onkeyup="mayus(this);"
+                                                               class="form-control form-control-sm"
+                                                               value="{{ $consumable->stockItem->display_name }}"
+                                                               {{ $consumable->stockItem->ui_color ? 'style=color:' . $consumable->stockItem->ui_color : '' }}
+                                                               data-consumableDescription
+                                                               readonly>
+
+                                                        @if(!empty($itemsTextFull))
+                                                            <small
+                                                                    class="text-muted d-block mt-1"
+                                                                    style="font-size: 12px; line-height: 1.2;"
+                                                                    data-toggle="tooltip"
+                                                                    data-placement="top"
+                                                                    title="{{ $itemsTextFull }}">
+                                                                <strong>Ítems seleccionados:</strong> {{ $itemsTextShort }}
+                                                            </small>
+                                                        @endif
+
                                                         <input type="hidden" data-consumableId="{{ $consumable->material_id }}">
                                                         <input type="hidden" data-descuento="{{ $consumable->discount }}">
                                                         <input type="hidden" data-type_promotion="{{ $consumable->type_promo }}">
@@ -818,7 +889,7 @@
 
 
     <script>
-
+        $('[data-toggle="tooltip"]').tooltip();
     </script>
 
     {{--<script src="{{ asset('js/quoteSale/edit.js') }}?v={{ time() }}"></script>--}}

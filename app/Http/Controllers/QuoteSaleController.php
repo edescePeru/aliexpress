@@ -396,6 +396,10 @@ class QuoteSaleController extends Controller
     public function getAvailableItemsByStockItem($stockItemId)
     {
         $items = Item::query()
+            ->with([
+                'stockLot:id,lot_code',
+                'warehouse:id,name',
+            ])
             ->where('stock_item_id', $stockItemId)
             ->where('percentage', 1)
             ->where('state_item', 'entered')
@@ -404,6 +408,7 @@ class QuoteSaleController extends Controller
                 'id',
                 'stock_item_id',
                 'material_id',
+                'stock_lot_id',
                 'code',
                 'warehouse_id',
                 'location_id',
@@ -413,12 +418,32 @@ class QuoteSaleController extends Controller
         return response()->json([
             'success' => true,
             'items' => $items->map(function ($item) {
+                $lotCode = optional($item->stockLot)->lot_code;
+
+                if (empty(trim((string) $lotCode))) {
+                    $lotCode = 'Sin Lote';
+                }
+
+                $warehouseName = optional($item->warehouse)->name;
+
+                if (empty(trim((string) $warehouseName))) {
+                    $warehouseName = 'Sin almacén';
+                }
+
                 return [
                     'id' => $item->id,
                     'code' => $item->code ?: ('Ítem #' . $item->id),
+
                     'stock_item_id' => $item->stock_item_id,
                     'material_id' => $item->material_id,
+
+                    'stock_lot_id' => $item->stock_lot_id,
+                    'stock_lot_code' => $lotCode,
+                    'lot_code' => $lotCode,
+
                     'warehouse_id' => $item->warehouse_id,
+                    'warehouse_name' => $warehouseName,
+
                     'location_id' => $item->location_id,
                     'state_item' => $item->state_item,
                 ];
@@ -4739,7 +4764,8 @@ class QuoteSaleController extends Controller
                                     $q->select('id', 'full_name', 'unit_measure_id')
                                         ->with('unitMeasure:id,name');
                                 },
-                                'stockItem:id,display_name,sku'
+                                'stockItem:id,display_name,sku',
+                                'quoteStockLots:id,quote_detail_id,item_ids'
                             ]);
                         },
                         'workforces' => function ($q) {
@@ -4787,6 +4813,42 @@ class QuoteSaleController extends Controller
                     'id' => $equipment->id,
                     'detail' => $equipment->detail,
                     'consumables' => $equipment->consumables->map(function ($consumable) {
+                        $itemIds = [];
+
+                        foreach ($consumable->quoteStockLots ?? [] as $quoteStockLot) {
+                            $rawItemIds = $quoteStockLot->item_ids ?? [];
+
+                            if (is_string($rawItemIds)) {
+                                $decodedItemIds = json_decode($rawItemIds, true);
+                                $rawItemIds = is_array($decodedItemIds) ? $decodedItemIds : [];
+                            }
+
+                            if (!is_array($rawItemIds)) {
+                                $rawItemIds = [];
+                            }
+
+                            foreach ($rawItemIds as $itemId) {
+                                $itemId = (int) $itemId;
+
+                                if ($itemId > 0) {
+                                    $itemIds[] = $itemId;
+                                }
+                            }
+                        }
+
+                        $itemIds = array_values(array_unique($itemIds));
+
+                        $itemCodes = [];
+
+                        if (!empty($itemIds)) {
+                            $itemCodes = Item::whereIn('id', $itemIds)
+                                ->whereNotNull('code')
+                                ->where('code', '<>', '')
+                                ->orderBy('code', 'asc')
+                                ->pluck('code')
+                                ->values()
+                                ->toArray();
+                        }
                         return [
                             'id' => $consumable->id,
                             'discount' => $consumable->discount,
@@ -4805,6 +4867,7 @@ class QuoteSaleController extends Controller
                                 'name_unit' => optional(optional($consumable->material)->unitMeasure)->name ?? '',
                                 'sku' => optional($consumable->stockItem)->sku ?? '',
                             ],
+                            'item_codes' => $itemCodes,
                         ];
                     })->values(),
 
@@ -7006,8 +7069,71 @@ class QuoteSaleController extends Controller
             ->with('deadline')
             ->with('users')
             ->with(['equipments' => function ($query) {
-                $query->with(['materials', 'consumables.material', 'consumables.stockItem', 'workforces', 'turnstiles']);
+                $query->with([
+                    'materials',
+                    'consumables.material',
+                    'consumables.stockItem',
+                    'consumables.quoteStockLots',
+                    'workforces',
+                    'turnstiles'
+                ]);
             }])->first();
+
+        $quoteItemIdsByConsumable = [];
+        $allItemIds = [];
+
+        foreach ($quote->equipments as $equipment) {
+            foreach ($equipment->consumables as $consumable) {
+                $itemIds = [];
+
+                foreach ($consumable->quoteStockLots as $quoteStockLot) {
+                    $rawItemIds = $quoteStockLot->item_ids ?? [];
+
+                    if (is_string($rawItemIds)) {
+                        $decodedItemIds = json_decode($rawItemIds, true);
+                        $rawItemIds = is_array($decodedItemIds) ? $decodedItemIds : [];
+                    }
+
+                    if (!is_array($rawItemIds)) {
+                        $rawItemIds = [];
+                    }
+
+                    foreach ($rawItemIds as $itemId) {
+                        $itemId = (int) $itemId;
+
+                        if ($itemId > 0) {
+                            $itemIds[] = $itemId;
+                            $allItemIds[] = $itemId;
+                        }
+                    }
+                }
+
+                $quoteItemIdsByConsumable[$consumable->id] = array_values(array_unique($itemIds));
+            }
+        }
+
+        $itemsById = Item::whereIn('id', array_values(array_unique($allItemIds)))
+            ->get(['id', 'code'])
+            ->keyBy('id');
+
+        $quoteItemCodesByConsumable = [];
+
+        foreach ($quoteItemIdsByConsumable as $consumableId => $itemIds) {
+            $codes = [];
+
+            foreach ($itemIds as $itemId) {
+                $item = $itemsById->get($itemId);
+
+                if ($item) {
+                    $codes[] = $item->code ?: ('Ítem #' . $item->id);
+                }
+            }
+
+            $quoteItemCodesByConsumable[$consumableId] = $codes;
+        }
+
+        /*dump($quoteItemCodesByConsumable);
+        dd();*/
 
 
         $images = ImagesQuote::where('quote_id', $quote->id)
@@ -7101,7 +7227,7 @@ class QuoteSaleController extends Controller
             'imgCuenta2Empresa',
             'ownerCuenta2Empresa',
             'tieneCuentas',
-            'rucEmpresa','webEmpresa','emailEmpresa','telefonoEmpresa','direccionEmpresa','nombreEmpresa', 'quote', 'images', 'igv', 'montoEnLetras'));
+            'rucEmpresa','webEmpresa','emailEmpresa','telefonoEmpresa','direccionEmpresa','nombreEmpresa', 'quote', 'images', 'igv', 'montoEnLetras', 'quoteItemCodesByConsumable'));
 
         $pdf = PDF::loadHTML($view);
 
@@ -7163,31 +7289,72 @@ class QuoteSaleController extends Controller
             ->with('customer')
             ->with('deadline')
             ->with(['equipments' => function ($query) {
-                $query->with(['materials', 'consumables.material', 'consumables.stockItem', 'electrics', 'workforces', 'turnstiles', 'workdays']);
+                $query->with([
+                    'materials',
+                    'consumables.material',
+                    'consumables.stockItem',
+                    'consumables.quoteStockLots',
+                    'electrics',
+                    'workforces',
+                    'turnstiles',
+                    'workdays'
+                ]);
             }])->first();
 
+        $quoteItemIdsByConsumable = [];
+        $allItemIds = [];
+
+        foreach ($quote->equipments as $equipment) {
+            foreach ($equipment->consumables as $consumable) {
+                $itemIds = [];
+
+                foreach ($consumable->quoteStockLots as $quoteStockLot) {
+                    $rawItemIds = $quoteStockLot->item_ids ?? [];
+
+                    if (is_string($rawItemIds)) {
+                        $decodedItemIds = json_decode($rawItemIds, true);
+                        $rawItemIds = is_array($decodedItemIds) ? $decodedItemIds : [];
+                    }
+
+                    if (!is_array($rawItemIds)) {
+                        $rawItemIds = [];
+                    }
+
+                    foreach ($rawItemIds as $itemId) {
+                        $itemId = (int) $itemId;
+
+                        if ($itemId > 0) {
+                            $itemIds[] = $itemId;
+                            $allItemIds[] = $itemId;
+                        }
+                    }
+                }
+
+                $quoteItemIdsByConsumable[$consumable->id] = array_values(array_unique($itemIds));
+            }
+        }
+
+        $itemsById = \App\Item::whereIn('id', array_values(array_unique($allItemIds)))
+            ->get(['id', 'code'])
+            ->keyBy('id');
+
+        $quoteItemCodesByConsumable = [];
+
+        foreach ($quoteItemIdsByConsumable as $consumableId => $itemIds) {
+            $codes = [];
+
+            foreach ($itemIds as $itemId) {
+                $item = $itemsById->get($itemId);
+
+                if ($item && !empty($item->code)) {
+                    $codes[] = $item->code;
+                }
+            }
+
+            $quoteItemCodesByConsumable[$consumableId] = $codes;
+        }
+
         $images = [];
-
-        $materials = Material::with('unitMeasure','typeScrap')
-            /*->where('enable_status', 1)*/->get();
-
-        /*$array = [];
-        foreach ( $materials as $material )
-        {
-            array_push($array, [
-                'id'=> $material->id,
-                'full_name' => $material->full_name,
-                'type_scrap' => $material->typeScrap,
-                'stock_current' => $material->stock_current,
-                'unit_price' => $material->unit_price,
-                'unit' => ($material->unitMeasure == null) ? "":$material->unitMeasure->name,
-                'code' => $material->code,
-                'unit_measure' => $material->unitMeasure,
-                'typescrap_id' => $material->typescrap_id,
-                'enable_status' => $material->enable_status,
-                'update_price' => $material->state_update_price
-            ]);
-        }*/
 
         $dataCurrency = DataGeneral::where('name', 'type_current')->first();
         $currency = $dataCurrency->valueText;
@@ -7203,8 +7370,23 @@ class QuoteSaleController extends Controller
             'time' => $end
         ]);
 
-
-        return view('quoteSale.show', compact('quote', 'unitMeasures', 'customers', 'consumables', 'electrics', 'workforces', 'permissions', 'paymentDeadlines', 'utility', 'rent', 'letter', 'images', 'currency', 'igv'));
+        return view('quoteSale.show', compact(
+            'quote',
+            'unitMeasures',
+            'customers',
+            'consumables',
+            'electrics',
+            'workforces',
+            'permissions',
+            'paymentDeadlines',
+            'utility',
+            'rent',
+            'letter',
+            'images',
+            'currency',
+            'igv',
+            'quoteItemCodesByConsumable'
+        ));
 
     }
 }

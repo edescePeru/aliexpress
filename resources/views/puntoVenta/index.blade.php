@@ -1028,7 +1028,7 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 
-                <div class="modal-header">
+                {{--<div class="modal-header">
                     <h5 class="modal-title">
                         Seleccionar ítems físicos
                     </h5>
@@ -1036,7 +1036,7 @@
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
                     </button>
-                </div>
+                </div>--}}
 
                 <div class="modal-body">
 
@@ -1062,7 +1062,7 @@
 
                         <input type="text"
                                id="itemeable-item-search"
-                               class="form-control"
+                               class="form-control form-control-sm"
                                autocomplete="off"
                                placeholder="Ejemplo: 1545121">
                     </div>
@@ -1083,11 +1083,12 @@
                     <div id="itemeable-items-table-container" style="display:none;">
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered mb-0">
-                                <thead>
+                                <thead class="thead-light">
                                 <tr>
                                     <th style="width:70px;" class="text-center">Elegir</th>
-                                    <th>Código de ítem</th>
-                                    <th style="width:130px;" class="text-center">Estado</th>
+                                    <th>Código</th>
+                                    <th>Lote</th>
+                                    <th>Ubicación</th>
                                 </tr>
                                 </thead>
                                 <tbody id="itemeable-items-table-body"></tbody>
@@ -1100,13 +1101,13 @@
                 <div class="modal-footer">
                     <button type="button"
                             id="btn-cancel-itemeable-items"
-                            class="btn btn-secondary">
+                            class="btn btn-secondary btn-sm">
                         Cancelar
                     </button>
 
                     <button type="button"
                             id="btn-confirm-itemeable-items"
-                            class="btn btn-success"
+                            class="btn btn-success btn-sm"
                             disabled>
                         Confirmar selección
                     </button>
