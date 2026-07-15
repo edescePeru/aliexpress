@@ -156,6 +156,113 @@
             font-weight: bold;
             color: #000;
         }
+
+        #globalProcessLoader {
+            position: fixed;
+            z-index: 99999;
+            inset: 0;
+        }
+
+        .global-loader-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .global-loader-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 340px;
+            max-width: calc(100% - 30px);
+            transform: translate(-50%, -50%);
+            background: #fff;
+            border-radius: 8px;
+            padding: 25px 20px;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        }
+
+        .global-loader-message {
+            font-weight: 700;
+            font-size: 16px;
+            color: #222;
+            margin-bottom: 6px;
+        }
+
+        .global-loader-submessage {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .modal-nc-items-content {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-nc-items-body {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .nc-partial-items-scroll {
+            flex: 1;
+            max-height: 430px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 6px;
+        }
+
+        .modal-nc-items-footer {
+            flex-shrink: 0;
+            background: #ffffff;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .nc-partial-items-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .nc-partial-items-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .nc-partial-items-scroll::-webkit-scrollbar-thumb {
+            background: #b8b8b8;
+            border-radius: 10px;
+        }
+
+        .nc-partial-items-scroll::-webkit-scrollbar-thumb:hover {
+            background: #999999;
+        }
+
+        /*
+         * Encabezado de cada grupo fijo mientras se recorren sus items
+         */
+        [data-itemable-group] .card-header {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        /*
+         * Separación visual entre grupos
+         */
+        [data-itemable-group] {
+            overflow: visible;
+        }
+
+        /*
+         * Item seleccionado
+         */
+        .nc-partial-item-row.border-success {
+            background: #f1fbf4 !important;
+        }
     </style>
 @endsection
 
@@ -841,6 +948,97 @@
                     </button>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalNcPartialItems" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content modal-nc-items-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Seleccionar productos a devolver
+                    </h5>
+
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body modal-nc-items-body">
+
+                    <div class="alert alert-info">
+                        Seleccione exactamente los productos que serán devueltos.
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="nc_partial_item_search">
+                            Buscar el código del item
+                        </label>
+
+                        <div class="input-group">
+                            <input type="text"
+                                   id="nc_partial_item_search"
+                                   class="form-control"
+                                   autocomplete="off"
+                                   placeholder="Pistolee o escriba el código y presione Enter">
+
+                            <div class="input-group-append">
+                                <button type="button"
+                                        id="btn-search-nc-partial-item"
+                                        class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i>
+                                    Buscar
+                                </button>
+                            </div>
+                        </div>
+
+                        <small class="form-text text-muted">
+                            Al encontrar el código, el item será seleccionado automáticamente.
+                        </small>
+                    </div>
+
+                    <div id="nc-partial-item-search-message"></div>
+
+                    <div class="nc-partial-items-scroll">
+                        <div id="body-nc-partial-item-selection"></div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer modal-nc-items-footer">
+                    <button type="button"
+                            id="btn-confirm-nc-partial-items"
+                            class="btn btn-warning">
+                        Confirmar selección
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-dismiss="modal">
+                        Volver
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="globalProcessLoader" style="display:none;">
+        <div class="global-loader-backdrop"></div>
+
+        <div class="global-loader-box">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="sr-only">Cargando...</span>
+            </div>
+
+            <div id="globalProcessLoaderMessage" class="global-loader-message">
+                Procesando...
+            </div>
+
+            <div class="global-loader-submessage">
+                Por favor, no cierre esta ventana ni presione otros botones.
             </div>
         </div>
     </div>

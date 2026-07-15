@@ -3,13 +3,41 @@
 /public/storage
 /storage/*.key
 /vendor
+
 .env
 .env.backup
 .phpunit.result.cache
+
 Homestead.json
 Homestead.yaml
+
 npm-debug.log
 yarn-error.log
+
 /.idea/
-.idea/workspace.xml
 /public/models/
+
+# Comprobantes generados por el sistema
+/public/comprobantes/
+
+# Excel generados por el sistema
+/public/excels/
+
+# Imágenes cargadas dinámicamente
+/public/images/material/
+/public/images/users/
+/public/images/entries/
+/public/images/orderServices/
+
+/public/images/material/*
+!/public/images/material/no_image.png
+
+/public/images/users/*
+!/public/images/users/no_image.png
+
+/public/images/entries/*
+!/public/images/entries/no_image.png
+
+/public/images/orderServices/*
+!/public/images/orderServices/no_image.png
+!/public/images/orderServices/observations/

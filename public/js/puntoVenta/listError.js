@@ -1099,6 +1099,21 @@ var $modalDelete;
 
 var $permissions;
 
+function showProcessLoader(message) {
+    const finalMessage = message || 'Procesando solicitud...';
+
+    $('#globalProcessLoaderMessage').text(finalMessage);
+    $('#globalProcessLoader').fadeIn(120);
+
+    $('body').css('overflow', 'hidden');
+}
+
+function hideProcessLoader() {
+    $('#globalProcessLoader').fadeOut(120, function () {
+        $('body').css('overflow', '');
+    });
+}
+
 function consultarClienteComprobante(documento, tipo) {
     $.ajax({
         url: `/dashboard/customer/decolecta/${documento}`,

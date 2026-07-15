@@ -763,6 +763,24 @@
             </div>
         </div>
     </div>
+
+    <div id="globalProcessLoader" style="display:none;">
+        <div class="global-loader-backdrop"></div>
+
+        <div class="global-loader-box">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="sr-only">Cargando...</span>
+            </div>
+
+            <div id="globalProcessLoaderMessage" class="global-loader-message">
+                Procesando...
+            </div>
+
+            <div class="global-loader-submessage">
+                Por favor, no cierre esta ventana ni presione otros botones.
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('plugins')

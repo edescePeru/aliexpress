@@ -43,7 +43,7 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nuevo cotización</h5>
+    <h5 class="card-title">Registrar comprobante de cotización</h5>
 @endsection
 
 @section('page-breadcrumb')

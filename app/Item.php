@@ -145,4 +145,11 @@ class Item extends Model
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
+    public function creditNoteDetailItems()
+    {
+        return $this->hasMany(
+            CreditNoteDetailItem::class,
+            'item_id'
+        );
+    }
 }

@@ -27,4 +27,12 @@ class CreditNoteDetail extends Model
     {
         return $this->belongsTo(SaleDetail::class);
     }
+
+    public function items()
+    {
+        return $this->hasMany(
+            CreditNoteDetailItem::class,
+            'credit_note_detail_id'
+        );
+    }
 }

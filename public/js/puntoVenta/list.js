@@ -670,6 +670,8 @@ $(document).ready(function () {
     $(document).on('click', '[data-consultar_anulacion]', function () {
         let saleId = $(this).data('sale_id');
 
+        showProcessLoader('Estamos consultando el comprobante a SUNAT...');
+
         $.ajax({
             url: '/dashboard/consultar/anulacion/' + saleId,
             method: 'POST',
@@ -712,6 +714,9 @@ $(document).ready(function () {
 
                 reloadCurrentPageOrders();
             },
+            complete: function () {
+                hideProcessLoader();
+            }
         });
     });
 
@@ -784,6 +789,8 @@ $(document).ready(function () {
     $(document).on('click', '[data-consultar_nota_credito]', function () {
         let saleId = $(this).data('sale_id');
 
+        showProcessLoader('Estamos consultando la anulación del comprobante...');
+
         $.ajax({
             url: '/dashboard/consultar/nota-credito/' + saleId,
             method: 'POST',
@@ -827,6 +834,9 @@ $(document).ready(function () {
                 });
 
                 reloadCurrentPageOrders();
+            },
+            complete: function () {
+                hideProcessLoader();
             }
         });
     });
@@ -835,32 +845,74 @@ $(document).ready(function () {
         let saleId = $(this).data('sale_id');
 
         $.get('/dashboard/nota-credito/parcial/data/' + saleId, function (data) {
+
+            /*
+             * Guardamos toda la información de la venta,
+             * incluidos los items disponibles.
+             */
+            ncPartialData = data;
+            ncPartialSelectedItems = {};
+
             $('#nc_partial_sale_id').val(data.sale_id);
             $('#nc_partial_sale_code').text(data.code);
             $('#nc_partial_customer').text(data.cliente);
-            $('#nc_partial_document').text((data.type_document === '01' ? 'Factura' : 'Boleta') + ' ' + data.serie_sunat + '-' + data.numero);
+
+            $('#nc_partial_document').text(
+                (data.type_document === '01' ? 'Factura' : 'Boleta')
+                + ' '
+                + data.serie_sunat
+                + '-'
+                + data.numero
+            );
 
             $('#body-nc-partial-items').empty();
 
             data.items.forEach(function (item) {
+
+                let itemableBadge = '';
+
+                if (item.is_itemable) {
+                    itemableBadge = `
+                    <br>
+                    <span class="badge badge-info mt-1">
+                        PRODUCTO ITEMEABLE
+                    </span>
+                `;
+                }
+
                 $('#body-nc-partial-items').append(`
-                <tr>
-                    <td>${item.description}</td>
+                <tr
+                    data-nc-partial-row
+                    data-sale_detail_id="${item.sale_detail_id}"
+                    data-is_itemable="${item.is_itemable ? 1 : 0}"
+                >
+                    <td>
+                        ${escapeHtml(item.description)}
+                        ${itemableBadge}
+                    </td>
+
                     <td>${item.sold_quantity}</td>
+
                     <td>${item.credited_quantity}</td>
+
                     <td>${item.available_quantity}</td>
+
                     <td>
                         <input type="number"
                                class="form-control form-control-sm nc-partial-qty"
                                data-sale_detail_id="${item.sale_detail_id}"
                                data-price="${item.price}"
                                data-max="${item.available_quantity}"
+                               data-is_itemable="${item.is_itemable ? 1 : 0}"
                                min="0"
                                max="${item.available_quantity}"
-                               step="0.01"
+                               step="${item.is_itemable ? 1 : 0.01}"
                                value="0">
                     </td>
-                    <td>S/ <span class="nc-partial-line-total">0.00</span></td>
+
+                    <td>
+                        S/ <span class="nc-partial-line-total">0.00</span>
+                    </td>
                 </tr>
             `);
             });
@@ -915,79 +967,225 @@ $(document).ready(function () {
     });
 
     $(document).on('click', '#btn-submit-nc-partial', function () {
-        let saleId = $('#nc_partial_sale_id').val();
 
-        let items = [];
+        if (!ncPartialData) {
+            $.alert({
+                title: 'Aviso',
+                content: 'No se ha cargado la información de la venta.',
+                type: 'orange'
+            });
 
-        $('.nc-partial-qty').each(function () {
-            let qty = parseFloat($(this).val()) || 0;
-
-            if (qty > 0) {
-                items.push({
-                    sale_detail_id: $(this).data('sale_detail_id'),
-                    quantity: qty
-                });
-            }
-        });
-
-        if (items.length === 0) {
-            toastr.error('Debe ingresar al menos una cantidad a devolver.', 'Error');
             return;
         }
 
-        $.confirm({
-            title: 'Confirmar Nota de Crédito Parcial',
-            content: 'Se generará una Nota de Crédito parcial por los productos seleccionados. ¿Desea continuar?',
-            type: 'orange',
-            buttons: {
-                confirmar: {
-                    text: 'Sí, generar',
-                    btnClass: 'btn-warning',
-                    action: function () {
-                        $.ajax({
-                            url: '/dashboard/generar/nota-credito/parcial/' + saleId,
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: JSON.stringify({
-                                reason_code: '07',
-                                reason_description: 'Devolución parcial',
-                                items: items
-                            }),
-                            contentType: 'application/json',
-                            success: function (data) {
-                                $('#modalNotaCreditoParcial').modal('hide');
+        let selectedLines = [];
+        let itemableLines = [];
+        let hasErrors = false;
 
-                                $.alert({
-                                    title: 'Correcto',
-                                    content: data.message,
-                                    type: 'green'
-                                });
+        $('.nc-partial-qty').each(function () {
 
-                                reloadCurrentPageOrders();
-                            },
-                            error: function (xhr) {
-                                let message = 'No se pudo generar la Nota de Crédito parcial.';
+            const input = $(this);
 
-                                if (xhr.responseJSON && xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
+            const saleDetailId = parseInt(
+                input.data('sale_detail_id')
+            );
 
-                                $.alert({
-                                    title: 'Aviso',
-                                    content: message,
-                                    type: 'orange'
-                                });
-                            }
-                        });
-                    }
-                },
-                cancelar: {
-                    text: 'Cancelar'
-                }
+            const qty = parseFloat(input.val()) || 0;
+            const max = parseFloat(input.data('max')) || 0;
+            const price = parseFloat(input.data('price')) || 0;
+            const isItemable = parseInt(input.data('is_itemable')) === 1;
+
+            if (qty < 0 || qty > max) {
+                hasErrors = true;
+
+                $.alert({
+                    title: 'Cantidad inválida',
+                    content: 'La cantidad a devolver no puede superar la cantidad disponible.',
+                    type: 'orange'
+                });
+
+                return false;
+            }
+
+            /*
+             * Los productos itemeables solo admiten cantidades enteras.
+             */
+            if (
+                isItemable &&
+                qty > 0 &&
+                !Number.isInteger(qty)
+            ) {
+                hasErrors = true;
+
+                $.alert({
+                    title: 'Cantidad inválida',
+                    content: 'Los productos itemeables deben devolverse en cantidades enteras.',
+                    type: 'orange'
+                });
+
+                return false;
+            }
+
+            if (qty <= 0) {
+                return;
+            }
+
+            const itemData = ncPartialData.items.find(function (row) {
+                return parseInt(row.sale_detail_id) === saleDetailId;
+            });
+
+            if (!itemData) {
+                hasErrors = true;
+                return false;
+            }
+
+            const line = {
+                sale_detail_id: saleDetailId,
+                quantity: qty,
+                price: price,
+                is_itemable: isItemable,
+                description: itemData.description,
+                available_items: itemData.available_items || []
+            };
+
+            selectedLines.push(line);
+
+            if (isItemable) {
+                itemableLines.push(line);
             }
         });
+
+        if (hasErrors) {
+            return;
+        }
+
+        if (selectedLines.length === 0) {
+            $.alert({
+                title: 'Aviso',
+                content: 'Debe seleccionar al menos un producto para devolver.',
+                type: 'orange'
+            });
+
+            return;
+        }
+
+        /*
+         * Si no existen productos itemeables,
+         * posteriormente enviaremos directamente al backend.
+         */
+        if (itemableLines.length === 0) {
+            prepararEnvioNotaCreditoParcial(selectedLines);
+            return;
+        }
+
+        /*
+         * Si existen productos itemeables,
+         * abrimos el segundo modal.
+         */
+        renderNcPartialItemSelection(itemableLines);
+
+        $('#modalNotaCreditoParcial').modal('hide');
+
+        $('#modalNcPartialItems').modal('show');
+    });
+
+    $(document).on('change', '.nc-partial-item-checkbox', function () {
+
+        const checkbox = $(this);
+
+        const saleDetailId = parseInt(
+            checkbox.data('sale_detail_id')
+        );
+
+        const requiredQty = parseInt(
+            checkbox.data('required_qty')
+        );
+
+        const group = $(
+            '[data-itemable-group][data-sale_detail_id="' +
+            saleDetailId +
+            '"]'
+        );
+
+        const checkedItems = group.find(
+            '.nc-partial-item-checkbox:checked'
+        );
+
+        if (checkedItems.length > requiredQty) {
+
+            checkbox.prop('checked', false);
+
+            $.alert({
+                title: 'Selección inválida',
+                content:
+                    'Solo debe seleccionar ' +
+                    requiredQty +
+                    ' item(s) para este producto.',
+                type: 'orange'
+            });
+        }
+
+        updateNcPartialItemCounters();
+        reorderNcPartialSelectedItems();
+    });
+
+    $(document).on('click', '#btn-confirm-nc-partial-items', function () {
+
+        let valid = true;
+        let selections = {};
+
+        $('[data-itemable-group]').each(function () {
+
+            const group = $(this);
+
+            const saleDetailId = parseInt(
+                group.data('sale_detail_id')
+            );
+
+            const requiredQty = parseInt(
+                group.data('required_qty')
+            );
+
+            const selectedItemIds = [];
+
+            group.find('.nc-partial-item-checkbox:checked')
+                .each(function () {
+                    selectedItemIds.push(
+                        parseInt($(this).data('item_id'))
+                    );
+                });
+
+            if (selectedItemIds.length !== requiredQty) {
+                valid = false;
+
+                $.alert({
+                    title: 'Selección incompleta',
+                    content:
+                        'Debe seleccionar exactamente '
+                        + requiredQty
+                        + ' item(s) para cada producto.',
+                    type: 'orange'
+                });
+
+                return false;
+            }
+
+            selections[saleDetailId] = selectedItemIds;
+        });
+
+        if (!valid) {
+            return;
+        }
+
+        ncPartialSelectedItems = selections;
+
+        $('#modalNcPartialItems').modal('hide');
+
+        /*
+         * En el siguiente paso aquí prepararemos el payload
+         * y enviaremos la Nota de Crédito al backend.
+         */
+        prepararEnvioNotaCreditoParcial();
     });
 
     $(document).on('click', '[data-ver_solucion_sunat_error]', function () {
@@ -1011,12 +1209,494 @@ $(document).ready(function () {
             }
         });
     });
+
+    $(document).on('keydown','#nc_partial_item_search',function (event) {
+        if (event.key === 'Enter' || event.keyCode === 13) {
+            event.preventDefault();
+            searchAndSelectNcPartialItem();
+        }
+    });
+
+    $(document).on('click','#btn-search-nc-partial-item',function () {
+            searchAndSelectNcPartialItem();
+        }
+    );
+
+    $('#modalNcPartialItems').on('shown.bs.modal', function () {
+        $('#nc_partial_item_search').val('').focus();
+    });
 });
 
 var $formDelete;
 var $modalDelete;
 
 var $permissions;
+
+let ncPartialData = null;
+let ncPartialSelectedItems = {};
+
+function prepararEnvioNotaCreditoParcial() {
+    let saleId = $('#nc_partial_sale_id').val();
+    let items = [];
+
+    $('.nc-partial-qty').each(function () {
+        const qty = parseFloat($(this).val()) || 0;
+
+        if (qty <= 0) {
+            return;
+        }
+
+        const saleDetailId = parseInt(
+            $(this).data('sale_detail_id')
+        );
+
+        items.push({
+            sale_detail_id: saleDetailId,
+            quantity: qty,
+            selected_item_ids:
+                ncPartialSelectedItems[saleDetailId] || []
+        });
+    });
+
+    if (items.length === 0) {
+        toastr.error(
+            'Debe ingresar al menos una cantidad a devolver.',
+            'Error'
+        );
+
+        return;
+    }
+
+    $.confirm({
+        title: 'Confirmar Nota de Crédito Parcial',
+        content: `
+            Se generará una Nota de Crédito parcial por los productos
+            seleccionados y se devolverán los items específicos indicados.
+            <br><br>
+            ¿Desea continuar?
+        `,
+        type: 'orange',
+        buttons: {
+            confirmar: {
+                text: 'Sí, generar',
+                btnClass: 'btn-warning',
+                action: function () {
+
+                    showProcessLoader('Estamos enviando el comprobante a SUNAT...');
+
+                    $.ajax({
+                        url: '/dashboard/generar/nota-credito/parcial/' + saleId,
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        data: JSON.stringify({
+                            reason_code: '07',
+                            reason_description: 'Devolución parcial',
+                            items: items
+                        }),
+                        contentType: 'application/json',
+                        processData: false,
+                        success: function (data) {
+                            hideProcessLoader();
+
+                            $('#modalNotaCreditoParcial').modal('hide');
+                            $('#modalNcPartialItems').modal('hide');
+
+                            ncPartialData = null;
+                            ncPartialSelectedItems = {};
+
+                            $.alert({
+                                title: 'Correcto',
+                                content: data.message,
+                                type: 'green',
+                                buttons: {
+                                    ok: {
+                                        text: 'Aceptar',
+                                        btnClass: 'btn-success'
+                                    }
+                                }
+                            });
+
+                            reloadCurrentPageOrders();
+                        },
+                        error: function (xhr) {
+                            let message =
+                                'No se pudo generar la Nota de Crédito parcial.';
+
+                            if (
+                                xhr.responseJSON &&
+                                xhr.responseJSON.message
+                            ) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            $.alert({
+                                title: 'Aviso',
+                                content: message,
+                                type: 'orange'
+                            });
+                        },
+                    });
+                }
+            },
+            cancelar: {
+                text: 'Cancelar'
+            }
+        }
+    });
+}
+
+function updateNcPartialItemCounters() {
+
+    $('[data-itemable-group]').each(function () {
+
+        const group = $(this);
+        const requiredQty = parseInt(group.data('required_qty')) || 0;
+
+        const selectedQty = group.find(
+            '.nc-partial-item-checkbox:checked'
+        ).length;
+
+        const counter = group.find('[data-selected-counter]');
+
+        counter.text(selectedQty + ' / ' + requiredQty);
+
+        counter.removeClass(
+            'badge-secondary badge-success badge-danger'
+        );
+
+        if (selectedQty === requiredQty) {
+            counter.addClass('badge-success');
+        } else {
+            counter.addClass('badge-danger');
+        }
+    });
+}
+
+function renderNcPartialItemSelection(itemableLines) {
+    const container = $('#body-nc-partial-item-selection');
+
+    container.empty();
+
+    itemableLines.forEach(function (line) {
+
+        let itemsHtml = '';
+
+        line.available_items.forEach(function (item) {
+
+            const itemId = parseInt(item.item_id);
+
+            const isChecked =
+                Array.isArray(ncPartialSelectedItems[line.sale_detail_id]) &&
+                ncPartialSelectedItems[line.sale_detail_id].includes(itemId);
+
+            const itemCode = item.code || '';
+
+            itemsHtml += `
+                <div class="nc-partial-item-row border rounded p-2 mb-2 ${isChecked ? 'border-success bg-light' : ''}"
+                     data-item-row
+                     data-item_id="${itemId}"
+                     data-item-code="${escapeHtml(itemCode)}"
+                     data-sale_detail_id="${line.sale_detail_id}">
+
+                    <div class="custom-control custom-checkbox">
+
+                        <input type="checkbox"
+                               class="custom-control-input nc-partial-item-checkbox"
+                               id="nc_item_${line.sale_detail_id}_${itemId}"
+                               data-sale_detail_id="${line.sale_detail_id}"
+                               data-item_id="${itemId}"
+                               data-item_code="${escapeHtml(itemCode)}"
+                               data-required_qty="${line.quantity}"
+                               ${isChecked ? 'checked' : ''}>
+
+                        <label class="custom-control-label"
+                               for="nc_item_${line.sale_detail_id}_${itemId}">
+
+                            <strong>
+                                ${escapeHtml(itemCode || 'SIN CÓDIGO')}
+                            </strong>
+
+                            <br>
+
+                            <small class="text-muted">
+                                ${escapeHtml(item.description)}
+                            </small>
+
+                        </label>
+
+                    </div>
+
+                </div>
+            `;
+        });
+
+        container.append(`
+            <div class="card mb-3"
+                 data-itemable-group
+                 data-sale_detail_id="${line.sale_detail_id}"
+                 data-required_qty="${line.quantity}">
+
+                <div class="card-header">
+
+                    <strong>
+                        ${escapeHtml(line.description)}
+                    </strong>
+
+                    <br>
+
+                    <small>
+                        Debe seleccionar:
+                        <strong>${line.quantity}</strong>
+                    </small>
+
+                    <span class="badge badge-secondary float-right"
+                          data-selected-counter>
+                        0 / ${line.quantity}
+                    </span>
+
+                </div>
+
+                <div class="card-body"
+                     data-item-list>
+
+                    ${itemsHtml || `
+                        <div class="alert alert-warning mb-0">
+                            No existen items disponibles para seleccionar.
+                        </div>
+                    `}
+
+                </div>
+
+            </div>
+        `);
+    });
+
+    updateNcPartialItemCounters();
+    reorderNcPartialSelectedItems();
+
+    $('#nc_partial_item_search').val('');
+    $('#nc-partial-item-search-message').empty();
+}
+
+function normalizeNcPartialItemCode(value) {
+    return String(value || '')
+        .trim()
+        .toUpperCase();
+}
+
+function searchAndSelectNcPartialItem() {
+
+    const searchInput = $('#nc_partial_item_search');
+    const searchCode = normalizeNcPartialItemCode(
+        searchInput.val()
+    );
+
+    const messageContainer = $('#nc-partial-item-search-message');
+
+    messageContainer.empty();
+
+    if (searchCode === '') {
+        messageContainer.html(`
+            <div class="alert alert-warning py-2">
+                Ingrese o pistolee un código.
+            </div>
+        `);
+
+        searchInput.focus();
+        return;
+    }
+
+    let foundRow = null;
+
+    $('[data-item-row]').each(function () {
+
+        const row = $(this);
+
+        const itemCode = normalizeNcPartialItemCode(
+            row.attr('data-item-code')
+        );
+
+        if (itemCode === searchCode) {
+            foundRow = row;
+            return false;
+        }
+    });
+
+    if (!foundRow) {
+        messageContainer.html(`
+            <div class="alert alert-danger py-2">
+                No se encontró un item disponible con el código
+                <strong>${escapeHtml(searchCode)}</strong>.
+            </div>
+        `);
+
+        searchInput.select();
+        return;
+    }
+
+    const checkbox = foundRow.find(
+        '.nc-partial-item-checkbox'
+    );
+
+    if (checkbox.is(':checked')) {
+        messageContainer.html(`
+            <div class="alert alert-info py-2">
+                El item
+                <strong>${escapeHtml(searchCode)}</strong>
+                ya se encuentra seleccionado.
+            </div>
+        `);
+
+        foundRow[0].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+        searchInput.val('').focus();
+        return;
+    }
+
+    const saleDetailId = parseInt(
+        checkbox.data('sale_detail_id')
+    );
+
+    const requiredQty = parseInt(
+        checkbox.data('required_qty')
+    );
+
+    const group = $(
+        '[data-itemable-group][data-sale_detail_id="' +
+        saleDetailId +
+        '"]'
+    );
+
+    const selectedQty = group.find(
+        '.nc-partial-item-checkbox:checked'
+    ).length;
+
+    if (selectedQty >= requiredQty) {
+        messageContainer.html(`
+            <div class="alert alert-warning py-2">
+                Ya se seleccionó la cantidad requerida para este producto.
+                Desmarque un item antes de seleccionar otro.
+            </div>
+        `);
+
+        searchInput.select();
+        return;
+    }
+
+    checkbox.prop('checked', true).trigger('change');
+
+    messageContainer.html(`
+        <div class="alert alert-success py-2">
+            Item
+            <strong>${escapeHtml(searchCode)}</strong>
+            seleccionado correctamente.
+        </div>
+    `);
+
+    /*
+     * Luego de reordenar, volvemos a encontrar la fila,
+     * ya que cambió de posición en el DOM.
+     */
+    setTimeout(function () {
+
+        let selectedRow = null;
+
+        $('[data-item-row]').each(function () {
+
+            const row = $(this);
+
+            if (
+                normalizeNcPartialItemCode(
+                    row.attr('data-item-code')
+                ) === searchCode
+            ) {
+                selectedRow = row;
+                return false;
+            }
+        });
+
+        if (selectedRow && selectedRow.length) {
+            selectedRow[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+
+    }, 100);
+
+    searchInput.val('').focus();
+}
+
+function escapeSelectorValue(value) {
+    if (window.CSS && CSS.escape) {
+        return CSS.escape(String(value));
+    }
+
+    return String(value).replace(
+        /([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g,
+        '\\$1'
+    );
+}
+
+function reorderNcPartialSelectedItems() {
+
+    $('[data-itemable-group]').each(function () {
+
+        const group = $(this);
+        const itemList = group.find('[data-item-list]');
+
+        const selectedRows = itemList
+            .find('[data-item-row]')
+            .filter(function () {
+                return $(this)
+                    .find('.nc-partial-item-checkbox')
+                    .is(':checked');
+            });
+
+        const unselectedRows = itemList
+            .find('[data-item-row]')
+            .filter(function () {
+                return !$(this)
+                    .find('.nc-partial-item-checkbox')
+                    .is(':checked');
+            });
+
+        selectedRows.each(function () {
+            $(this)
+                .addClass('border-success bg-light')
+                .removeClass('border-secondary');
+
+            itemList.append(this);
+        });
+
+        unselectedRows.each(function () {
+            $(this)
+                .removeClass('border-success bg-light');
+
+            itemList.append(this);
+        });
+    });
+}
+
+function showProcessLoader(message) {
+    const finalMessage = message || 'Procesando solicitud...';
+
+    $('#globalProcessLoaderMessage').text(finalMessage);
+    $('#globalProcessLoader').fadeIn(120);
+
+    $('body').css('overflow', 'hidden');
+}
+
+function hideProcessLoader() {
+    $('#globalProcessLoader').fadeOut(120, function () {
+        $('body').css('overflow', '');
+    });
+}
 
 function consultarClienteComprobante(documento, tipo) {
     $.ajax({

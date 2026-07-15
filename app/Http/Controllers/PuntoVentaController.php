@@ -10,6 +10,7 @@ use App\CashRegister;
 use App\Category;
 use App\CreditNote;
 use App\CreditNoteDetail;
+use App\CreditNoteDetailItem;
 use App\Customer;
 use App\DataGeneral;
 use App\Http\Controllers\Traits\NubefactTrait;
@@ -4269,12 +4270,15 @@ class PuntoVentaController extends Controller
 
     private function reverseCreditNoteStockPartially(CreditNote $creditNote): void
     {
-        if ($creditNote->internal_reversal_status === 'reversed') {
+        if (
+            $creditNote->internal_reversal_status === 'reversed'
+        ) {
             return;
         }
 
         $creditNote->loadMissing([
-            'details.saleDetail'
+            'details.saleDetail',
+            'details.items',
         ]);
 
         $inventoryKeysToSync = [];
@@ -4286,73 +4290,211 @@ class PuntoVentaController extends Controller
                 continue;
             }
 
-            $qtyToReturn = (float) $creditNoteDetail->quantity;
+            /*
+             * ============================================================
+             * PRODUCTO ITEMEABLE
+             * ============================================================
+             *
+             * Si existen registros asociados, devolvemos solamente
+             * los items seleccionados por el usuario.
+             */
+            if ($creditNoteDetail->items->isNotEmpty()) {
+                foreach ($creditNoteDetail->items as $selectedItem) {
+                    $outputDetail = OutputDetail::where(
+                        'id',
+                        $selectedItem->output_detail_id
+                    )
+                        ->where(
+                            'sale_detail_id',
+                            $saleDetail->id
+                        )
+                        ->where(
+                            'item_id',
+                            $selectedItem->item_id
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$outputDetail) {
+                        throw new \Exception(
+                            'No se encontró la salida original del item '
+                            . ($selectedItem->item_code ?: '#' . $selectedItem->item_id)
+                            . '.'
+                        );
+                    }
+
+                    $qtyToApply = (float) (
+                    $selectedItem->quantity ?: 1
+                    );
+
+                    if ($qtyToApply <= 0) {
+                        $qtyToApply = 1;
+                    }
+
+                    $stockLotId =
+                        $selectedItem->stock_lot_id
+                            ?: $outputDetail->stock_lot_id;
+
+                    if (!empty($stockLotId)) {
+                        $lot = StockLot::where(
+                            'id',
+                            $stockLotId
+                        )
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$lot) {
+                            throw new \Exception(
+                                'No se encontró el lote del item '
+                                . ($selectedItem->item_code ?: '#' . $selectedItem->item_id)
+                                . '.'
+                            );
+                        }
+
+                        $lot->qty_on_hand =
+                            (float) $lot->qty_on_hand
+                            + $qtyToApply;
+
+                        $lot->save();
+
+                        $inventoryKeysToSync[] = [
+                            'stock_item_id' =>
+                                (int) $lot->stock_item_id,
+                            'warehouse_id' =>
+                                $lot->warehouse_id,
+                            'location_id' =>
+                                $lot->location_id,
+                        ];
+                    }
+
+                    $item = Item::where(
+                        'id',
+                        $selectedItem->item_id
+                    )
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$item) {
+                        throw new \Exception(
+                            'No se encontró el item '
+                            . ($selectedItem->item_code ?: '#' . $selectedItem->item_id)
+                            . '.'
+                        );
+                    }
+
+                    $item->state_item = 'entered';
+                    $item->save();
+
+                    /*
+                     * No eliminamos el OutputDetail por ahora.
+                     * La tabla credit_note_detail_items permite saber
+                     * que esta salida ya fue devuelta.
+                     */
+                }
+
+                continue;
+            }
+
+            /*
+             * ============================================================
+             * PRODUCTO NORMAL / NO ITEMEABLE
+             * ============================================================
+             */
+            $qtyToReturn =
+                (float) $creditNoteDetail->quantity;
 
             if ($qtyToReturn <= 0) {
                 continue;
             }
 
-            /*
-             * Buscar los lotes/items que salieron por ese detalle de venta.
-             */
-            $outputDetails = OutputDetail::where('sale_detail_id', $saleDetail->id)
+            $outputDetails = OutputDetail::where(
+                'sale_detail_id',
+                $saleDetail->id
+            )
+                ->whereNull('item_id')
                 ->lockForUpdate()
                 ->get();
 
-            foreach ($outputDetails as $outputDetail) {
+            /*
+             * Compatibilidad por si existen salidas antiguas con item_id = 0.
+             */
+            if ($outputDetails->isEmpty()) {
+                $outputDetails = OutputDetail::where(
+                    'sale_detail_id',
+                    $saleDetail->id
+                )
+                    ->where(function ($query) {
+                        $query->whereNull('item_id')
+                            ->orWhere('item_id', 0);
+                    })
+                    ->lockForUpdate()
+                    ->get();
+            }
 
+            foreach ($outputDetails as $outputDetail) {
                 if ($qtyToReturn <= 0) {
                     break;
                 }
 
-                $qtyFromOutput = (float) ($outputDetail->percentage ?? 0);
+                $qtyFromOutput = (float) (
+                    $outputDetail->percentage ?? 0
+                );
 
                 if ($qtyFromOutput <= 0) {
-                    $qtyFromOutput = (float) $saleDetail->quantity;
+                    $qtyFromOutput =
+                        (float) $saleDetail->quantity;
                 }
 
-                $qtyToApply = min($qtyToReturn, $qtyFromOutput);
+                $qtyToApply = min(
+                    $qtyToReturn,
+                    $qtyFromOutput
+                );
 
                 if (!empty($outputDetail->stock_lot_id)) {
-                    $lot = StockLot::where('id', $outputDetail->stock_lot_id)
+                    $lot = StockLot::where(
+                        'id',
+                        $outputDetail->stock_lot_id
+                    )
                         ->lockForUpdate()
                         ->first();
 
                     if ($lot) {
-                        $lot->qty_on_hand = (float) $lot->qty_on_hand + $qtyToApply;
+                        $lot->qty_on_hand =
+                            (float) $lot->qty_on_hand
+                            + $qtyToApply;
+
                         $lot->save();
 
                         $inventoryKeysToSync[] = [
-                            'stock_item_id' => (int) $lot->stock_item_id,
-                            'warehouse_id'  => $lot->warehouse_id,
-                            'location_id'   => $lot->location_id,
+                            'stock_item_id' =>
+                                (int) $lot->stock_item_id,
+                            'warehouse_id' =>
+                                $lot->warehouse_id,
+                            'location_id' =>
+                                $lot->location_id,
                         ];
-                    }
-                }
-
-                /*
-                 * Si el producto era itemeable, solo devolveremos el item si la NC
-                 * devuelve la unidad completa.
-                 */
-                if (!empty($outputDetail->item_id) && $qtyToApply >= 1) {
-                    $item = Item::where('id', $outputDetail->item_id)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if ($item) {
-                        $item->state_item = 'entered';
-                        $item->save();
                     }
                 }
 
                 $qtyToReturn -= $qtyToApply;
             }
+
+            if ($qtyToReturn > 0.000001) {
+                throw new \Exception(
+                    'No se pudo identificar todo el stock que debe '
+                    . 'retornar para el detalle #' . $saleDetail->id . '.'
+                );
+            }
         }
 
         /*
-         * Sincronizar inventory_levels
+         * ============================================================
+         * SINCRONIZAR INVENTORY LEVELS
+         * ============================================================
          */
-        $inventoryKeysToSync = collect($inventoryKeysToSync)
+        $inventoryKeysToSync = collect(
+            $inventoryKeysToSync
+        )
             ->unique(function ($row) {
                 return implode('|', [
                     $row['stock_item_id'] ?? 'null',
@@ -4849,7 +4991,7 @@ class PuntoVentaController extends Controller
             $sale = Sale::with([
                 'details.material',
                 'details.stockItem',
-                'creditNotes.details'
+                'creditNotes.details',
             ])->find($id);
 
             if (!$sale) {
@@ -4870,15 +5012,59 @@ class PuntoVentaController extends Controller
                 ], 422);
             }
 
+            /*
+             * Todos los OutputDetail de la venta que tengan item_id.
+             * Se agrupan por sale_detail_id para evitar consultas repetidas.
+             */
+            $saleDetailIds = $sale->details->pluck('id')->all();
+
+            $itemableOutputDetails = OutputDetail::whereIn(
+                'sale_detail_id',
+                $saleDetailIds
+            )
+                ->whereNotNull('item_id')
+                ->where('item_id', '!=', 0)
+                ->with([
+                    'items.stockItem',
+                    'items.stockLot',
+                ])
+                ->get()
+                ->groupBy('sale_detail_id');
+
+            /*
+             * Items que ya están comprometidos por una NC pendiente
+             * o que ya fueron devueltos mediante una NC aceptada.
+             */
+            $unavailableItemIds = CreditNoteDetailItem::whereHas(
+                'creditNoteDetail.creditNote',
+                function ($query) use ($sale) {
+                    $query->where('sale_id', $sale->id)
+                        ->whereIn('status', ['pending', 'accepted']);
+                }
+            )
+                ->pluck('item_id')
+                ->map(function ($itemId) {
+                    return (int) $itemId;
+                })
+                ->unique()
+                ->values()
+                ->all();
+
             $items = [];
 
             foreach ($sale->details as $detail) {
-
                 $soldQty = (float) $detail->quantity;
 
-                $creditedQty = CreditNoteDetail::where('sale_detail_id', $detail->id)
+                /*
+                 * Incluimos pending y accepted porque una NC pendiente
+                 * ya tiene cantidades reservadas para devolución.
+                 */
+                $creditedQty = CreditNoteDetail::where(
+                    'sale_detail_id',
+                    $detail->id
+                )
                     ->whereHas('creditNote', function ($query) {
-                        $query->where('status', 'accepted');
+                        $query->whereIn('status', ['pending', 'accepted']);
                     })
                     ->sum('quantity');
 
@@ -4889,15 +5075,90 @@ class PuntoVentaController extends Controller
                 }
 
                 if (empty($detail->material_id)) {
-                    $description = strtoupper($detail->description ?: 'Servicio');
+                    $description = strtoupper(
+                        $detail->description ?: 'Servicio'
+                    );
                 } else {
-                    if (!empty($detail->stock_item_id) && $detail->stockItem) {
+                    if (
+                        !empty($detail->stock_item_id) &&
+                        $detail->stockItem
+                    ) {
                         $description = $detail->stockItem->display_name;
+
                     } elseif ($detail->material) {
                         $description = $detail->material->full_name;
+
                     } else {
                         $description = 'Material ' . $detail->material_id;
                     }
+                }
+
+                /*
+                 * OutputDetails itemeables correspondientes exclusivamente
+                 * a este detalle de venta.
+                 */
+                $detailOutputItems = $itemableOutputDetails->get(
+                    $detail->id,
+                    collect()
+                );
+
+                $isItemable = $detailOutputItems->isNotEmpty();
+
+                $availableItems = [];
+
+                if ($isItemable) {
+                    foreach ($detailOutputItems as $outputDetail) {
+                        $itemId = (int) $outputDetail->item_id;
+
+                        /*
+                         * No mostrar items ya seleccionados en otra
+                         * Nota de Crédito pendiente o aceptada.
+                         */
+                        if (in_array($itemId, $unavailableItemIds, true)) {
+                            continue;
+                        }
+
+                        $item = $outputDetail->items;
+
+                        if (!$item) {
+                            continue;
+                        }
+
+                        $itemDescription = $item->code
+                            ?: 'ITEM #' . $item->id;
+
+                        /*
+                         * Puedes ampliar este texto posteriormente con IMEI,
+                         * serie, medidas u otros datos propios del Item.
+                         */
+                        if ($item->stockItem) {
+                            $itemDescription .= ' - '
+                                . $item->stockItem->display_name;
+                        }
+
+                        $availableItems[] = [
+                            'item_id' => $item->id,
+                            'output_detail_id' => $outputDetail->id,
+                            'stock_lot_id' => $outputDetail->stock_lot_id,
+                            'code' => $item->code,
+                            'description' => $itemDescription,
+                        ];
+                    }
+                }
+
+                /*
+                 * En un producto itemeable, la disponibilidad real también
+                 * debe estar limitada por la cantidad de items seleccionables.
+                 */
+                if ($isItemable) {
+                    $availableQty = min(
+                        $availableQty,
+                        count($availableItems)
+                    );
+                }
+
+                if ($availableQty <= 0) {
+                    continue;
                 }
 
                 $price = (float) $detail->price;
@@ -4913,6 +5174,12 @@ class PuntoVentaController extends Controller
                     'valor_unitario' => $valorUnitario,
                     'percentage_tax' => (float) $detail->percentage_tax,
                     'max_total' => round($availableQty * $price, 2),
+
+                    /*
+                     * Nuevos campos para manejar itemeables.
+                     */
+                    'is_itemable' => $isItemable,
+                    'available_items' => $availableItems,
                 ];
             }
 
@@ -4941,33 +5208,67 @@ class PuntoVentaController extends Controller
         DB::beginTransaction();
 
         try {
-            $sale = Sale::with(['details.material', 'details.stockItem'])
+            $sale = Sale::with([
+                'details.material',
+                'details.stockItem',
+            ])
                 ->lockForUpdate()
                 ->find($id);
 
             if (!$sale) {
-                return response()->json(['message' => 'Venta no encontrada.'], 422);
+                return response()->json([
+                    'message' => 'Venta no encontrada.',
+                ], 422);
             }
 
             if ((int) $sale->state_annulled === 1) {
-                return response()->json(['message' => 'La venta ya está anulada.'], 422);
+                return response()->json([
+                    'message' => 'La venta ya está anulada.',
+                ], 422);
             }
 
             if (!$sale->hasElectronicDocument()) {
-                return response()->json(['message' => 'La venta no tiene comprobante electrónico válido.'], 422);
+                return response()->json([
+                    'message' => 'La venta no tiene comprobante electrónico válido.',
+                ], 422);
             }
 
             $itemsRequest = $request->input('items', []);
 
             if (empty($itemsRequest)) {
-                return response()->json(['message' => 'Debe enviar al menos un producto.'], 422);
+                return response()->json([
+                    'message' => 'Debe enviar al menos un producto.',
+                ], 422);
+            }
+
+            /*
+             * No permitir que el mismo detalle llegue repetido
+             * dentro del mismo request.
+             */
+            $requestedSaleDetailIds = collect($itemsRequest)
+                ->pluck('sale_detail_id')
+                ->filter()
+                ->map(function ($value) {
+                    return (int) $value;
+                });
+
+            if (
+                $requestedSaleDetailIds->count() !==
+                $requestedSaleDetailIds->unique()->count()
+            ) {
+                throw new \Exception(
+                    'Existen productos repetidos en la solicitud de devolución.'
+                );
             }
 
             $creditNote = CreditNote::create([
                 'sale_id' => $sale->id,
                 'type_document' => '07',
                 'reason_code' => $request->input('reason_code', '07'),
-                'reason_description' => $request->input('reason_description', 'Devolución parcial'),
+                'reason_description' => $request->input(
+                    'reason_description',
+                    'Devolución parcial'
+                ),
                 'credit_note_type' => 'partial',
                 'status' => 'pending',
                 'created_by' => auth()->id(),
@@ -4976,55 +5277,217 @@ class PuntoVentaController extends Controller
             $totalGravada = 0;
             $totalIgv = 0;
             $total = 0;
+            $validDetailsCreated = 0;
 
             foreach ($itemsRequest as $itemReq) {
-                $saleDetailId = $itemReq['sale_detail_id'] ?? null;
+                $saleDetailId = isset($itemReq['sale_detail_id'])
+                    ? (int) $itemReq['sale_detail_id']
+                    : null;
+
                 $qtyToCredit = (float) ($itemReq['quantity'] ?? 0);
+
+                $selectedItemIds = collect(
+                    $itemReq['selected_item_ids'] ?? []
+                )
+                    ->map(function ($itemId) {
+                        return (int) $itemId;
+                    })
+                    ->filter(function ($itemId) {
+                        return $itemId > 0;
+                    })
+                    ->values();
 
                 if ($qtyToCredit <= 0) {
                     continue;
                 }
 
-                $detail = $sale->details->firstWhere('id', (int) $saleDetailId);
+                $detail = $sale->details->firstWhere(
+                    'id',
+                    $saleDetailId
+                );
 
                 if (!$detail) {
-                    throw new \Exception('Detalle de venta inválido.');
+                    throw new \Exception(
+                        'Detalle de venta inválido.'
+                    );
                 }
 
                 $soldQty = (float) $detail->quantity;
 
-                $creditedQty = CreditNoteDetail::where('sale_detail_id', $detail->id)
+                /*
+                 * Una NC pendiente ya compromete la cantidad,
+                 * por eso se toma junto con las aceptadas.
+                 */
+                $creditedQty = CreditNoteDetail::where(
+                    'sale_detail_id',
+                    $detail->id
+                )
                     ->whereHas('creditNote', function ($query) {
-                        $query->whereIn('status', ['pending', 'accepted']);
+                        $query->whereIn(
+                            'status',
+                            ['pending', 'accepted']
+                        );
                     })
                     ->sum('quantity');
 
-                $availableQty = $soldQty - (float) $creditedQty;
+                $availableQty =
+                    $soldQty - (float) $creditedQty;
 
                 if ($qtyToCredit > $availableQty) {
-                    throw new \Exception('La cantidad a devolver supera la cantidad disponible.');
+                    throw new \Exception(
+                        'La cantidad a devolver supera la cantidad disponible para '
+                        . ($detail->description ?: 'el detalle #' . $detail->id)
+                        . '.'
+                    );
+                }
+
+                /*
+                 * Verificar si este detalle de venta fue itemeable.
+                 */
+                $itemableOutputDetailsQuery = OutputDetail::where(
+                    'sale_detail_id',
+                    $detail->id
+                )
+                    ->whereNotNull('item_id')
+                    ->where('item_id', '!=', 0);
+
+                $isItemable = $itemableOutputDetailsQuery->exists();
+
+                if ($isItemable) {
+                    /*
+                     * Los productos itemeables solo admiten unidades enteras.
+                     */
+                    if (
+                        $qtyToCredit != floor($qtyToCredit)
+                    ) {
+                        throw new \Exception(
+                            'La cantidad de un producto itemeable debe ser entera.'
+                        );
+                    }
+
+                    if (
+                        $selectedItemIds->count() !==
+                        $selectedItemIds->unique()->count()
+                    ) {
+                        throw new \Exception(
+                            'La selección contiene items repetidos.'
+                        );
+                    }
+
+                    if (
+                        $selectedItemIds->count() !==
+                        (int) $qtyToCredit
+                    ) {
+                        throw new \Exception(
+                            'Debe seleccionar exactamente '
+                            . (int) $qtyToCredit
+                            . ' item(s) para '
+                            . ($detail->description ?: 'el producto seleccionado')
+                            . '.'
+                        );
+                    }
+
+                    /*
+                     * Buscar exclusivamente los OutputDetail de esta venta,
+                     * este detalle y los items seleccionados.
+                     */
+                    $selectedOutputDetails = OutputDetail::where(
+                        'sale_detail_id',
+                        $detail->id
+                    )
+                        ->whereIn(
+                            'item_id',
+                            $selectedItemIds->all()
+                        )
+                        ->lockForUpdate()
+                        ->get();
+
+                    if (
+                        $selectedOutputDetails->count() !==
+                        $selectedItemIds->count()
+                    ) {
+                        throw new \Exception(
+                            'Uno o más items seleccionados no pertenecen '
+                            . 'al producto o a la venta.'
+                        );
+                    }
+
+                    /*
+                     * Verificar que esos items no estén comprometidos
+                     * en otra NC pendiente o aceptada de esta venta.
+                     */
+                    $alreadyUsedItemIds = CreditNoteDetailItem::whereIn(
+                        'item_id',
+                        $selectedItemIds->all()
+                    )
+                        ->whereHas(
+                            'creditNoteDetail.creditNote',
+                            function ($query) use ($sale) {
+                                $query->where(
+                                    'sale_id',
+                                    $sale->id
+                                )
+                                    ->whereIn(
+                                        'status',
+                                        ['pending', 'accepted']
+                                    );
+                            }
+                        )
+                        ->pluck('item_id')
+                        ->all();
+
+                    if (!empty($alreadyUsedItemIds)) {
+                        throw new \Exception(
+                            'Uno o más items seleccionados ya están '
+                            . 'incluidos en otra Nota de Crédito.'
+                        );
+                    }
+                } else {
+                    /*
+                     * Un producto normal no debe recibir IDs de items.
+                     */
+                    if ($selectedItemIds->isNotEmpty()) {
+                        throw new \Exception(
+                            'Se enviaron items para un producto no itemeable.'
+                        );
+                    }
+
+                    $selectedOutputDetails = collect();
                 }
 
                 $valorUnitario = (float) $detail->valor_unitario;
                 $price = (float) $detail->price;
 
-                $lineSubtotal = $valorUnitario * $qtyToCredit;
-                $lineTotal = $price * $qtyToCredit;
-                $lineIgv = $lineTotal - $lineSubtotal;
+                $lineSubtotal =
+                    $valorUnitario * $qtyToCredit;
+
+                $lineTotal =
+                    $price * $qtyToCredit;
+
+                $lineIgv =
+                    $lineTotal - $lineSubtotal;
 
                 $description = $detail->description ?: '';
 
                 if (empty($description)) {
-                    if (!empty($detail->stock_item_id) && $detail->stockItem) {
-                        $description = $detail->stockItem->display_name;
+                    if (
+                        !empty($detail->stock_item_id) &&
+                        $detail->stockItem
+                    ) {
+                        $description =
+                            $detail->stockItem->display_name;
+
                     } elseif ($detail->material) {
-                        $description = $detail->material->full_name;
+                        $description =
+                            $detail->material->full_name;
+
                     } else {
-                        $description = 'Detalle ' . $detail->id;
+                        $description =
+                            'Detalle ' . $detail->id;
                     }
                 }
 
-                CreditNoteDetail::create([
+                $creditNoteDetail = CreditNoteDetail::create([
                     'credit_note_id' => $creditNote->id,
                     'sale_detail_id' => $detail->id,
                     'description' => $description,
@@ -5036,13 +5499,48 @@ class PuntoVentaController extends Controller
                     'total' => round($lineTotal, 2),
                 ]);
 
+                /*
+                 * Guardar cada unidad itemeable seleccionada.
+                 */
+                if ($isItemable) {
+                    foreach ($selectedOutputDetails as $outputDetail) {
+                        $item = Item::where(
+                            'id',
+                            $outputDetail->item_id
+                        )
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$item) {
+                            throw new \Exception(
+                                'No se encontró uno de los items seleccionados.'
+                            );
+                        }
+
+                        CreditNoteDetailItem::create([
+                            'credit_note_detail_id' => $creditNoteDetail->id,
+                            'item_id' => $item->id,
+                            'output_detail_id' => $outputDetail->id,
+                            'stock_lot_id' => $outputDetail->stock_lot_id,
+                            'quantity' => 1,
+                            'item_code' => $item->code,
+                            'item_description' =>
+                                $item->code
+                                    ?: 'ITEM #' . $item->id,
+                        ]);
+                    }
+                }
+
                 $totalGravada += $lineSubtotal;
                 $totalIgv += $lineIgv;
                 $total += $lineTotal;
+                $validDetailsCreated++;
             }
 
-            if ($total <= 0) {
-                throw new \Exception('El total de la Nota de Crédito debe ser mayor a cero.');
+            if ($validDetailsCreated <= 0 || $total <= 0) {
+                throw new \Exception(
+                    'El total de la Nota de Crédito debe ser mayor a cero.'
+                );
             }
 
             $creditNote->update([
@@ -5051,28 +5549,48 @@ class PuntoVentaController extends Controller
                 'importe_total' => round($total, 2),
             ]);
 
-            $result = $this->generarNotaCreditoParcialNubefact($sale, $creditNote);
+            /*
+             * Recargar detalles e items antes de generar/persistir.
+             */
+            $creditNote->load([
+                'details.items',
+                'details.saleDetail',
+            ]);
 
-            $this->persistNubefactCreditNoteResult($creditNote, $result);
+            $result = $this->generarNotaCreditoParcialNubefact(
+                $sale,
+                $creditNote
+            );
+
+            $this->persistNubefactCreditNoteResult(
+                $creditNote,
+                $result
+            );
 
             $creditNote->refresh();
 
             /*
-             * Reversión operativa inmediata:
-             * stock parcial + egreso de caja.
+             * Stock parcial + devolución de caja.
              */
-            $this->applyCreditNoteInternalReversal($creditNote);
+            $this->applyCreditNoteInternalReversal(
+                $creditNote
+            );
 
             $creditNote->refresh();
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Nota de Crédito parcial generada y enviada a Nubefact. Stock y caja fueron actualizados. Pendiente de aceptación SUNAT.',
+                'message' =>
+                    'Nota de Crédito parcial generada y enviada a Nubefact. '
+                    . 'Los productos e items fueron devueltos y la caja fue actualizada. '
+                    . 'Pendiente de aceptación SUNAT.',
                 'credit_note_status' => $creditNote->status,
                 'credit_note_type' => 'partial',
-                'internal_reversal_status' => $creditNote->internal_reversal_status,
-                'cash_refund_status' => $creditNote->cash_refund_status,
+                'internal_reversal_status' =>
+                    $creditNote->internal_reversal_status,
+                'cash_refund_status' =>
+                    $creditNote->cash_refund_status,
             ], 200);
 
         } catch (\Throwable $e) {
