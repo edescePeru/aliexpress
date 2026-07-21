@@ -4169,20 +4169,18 @@ class PuntoVentaController extends Controller
 
         /*
          * ============================================================
-         * 4) CANCELAR COTIZACIÓN SI LA VENTA TENÍA ITEMS
+         * 4) ACTUALIZAR ESTADO DE LA COTIZACIÓN
          * ============================================================
          *
-         * Al generar la venta, QuoteStockLot fue eliminado porque era
-         * una reserva temporal.
+         * Si la venta retiró al menos un Item físico:
+         * - La cotización no puede reconstruir la selección.
+         * - Se marca como canceled.
          *
-         * Como la cotización ya no puede reconstruir correctamente sus
-         * items seleccionados, evitamos que vuelva a aparecer como una
-         * cotización disponible para facturar.
-         *
-         * Las cotizaciones sin productos itemeables conservan el
-         * comportamiento anterior.
-         */
-        if (
+         * Si no retiró Items físicos:
+         * - Puede utilizarse como origen para recotizar.
+         * - Se marca como requote.
+        */
+        /*if (
             $hasItemizedProducts &&
             !empty($sale->quote_id)
         ) {
@@ -4192,6 +4190,19 @@ class PuntoVentaController extends Controller
 
             if ($quote && $quote->state !== 'canceled') {
                 $quote->state = 'canceled';
+                $quote->save();
+            }
+        }*/
+        if (!empty($sale->quote_id)) {
+            $quote = Quote::where('id', $sale->quote_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($quote) {
+                $quote->state = $hasItemizedProducts
+                    ? 'canceled'
+                    : 'requote';
+
                 $quote->save();
             }
         }

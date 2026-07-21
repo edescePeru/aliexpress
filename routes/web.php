@@ -2968,6 +2968,15 @@ Route::middleware(['auth', 'check.user.enabled'])->group(function (){
         Route::get('/quotes/stock-items/{stockItemId}/available-items', 'QuoteSaleController@getAvailableItemsByStockItem')
             ->name('quotes.stock-items.available-items');
 
+        /*Route::post('/renew/quote/sale/{quote}', 'QuoteSaleController@renewQuote')
+            ->middleware('permission:renew_quote');*/
+        Route::post(
+            'cotizaciones/venta/{quote}/recotizar',
+            'QuoteSaleController@renewQuote'
+        )
+            ->name('quoteSale.renew')
+            ->middleware('permission:renew_quoteSale');
+
         // TODO: PromotionLimits
         Route::get('promociones/por/limite', 'PromotionLimitController@index')
             ->name('promotionLimit.index')
