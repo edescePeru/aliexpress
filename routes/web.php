@@ -34,8 +34,56 @@ Route::post('/emailcontact', 'EmailController@sendEmailContact')->name('email.co
 
 Auth::routes();
 
-Route::middleware(['auth', 'check.user.enabled'])->group(function (){
+Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(function (){
     Route::prefix('dashboard')->group(function (){
+
+        /*Route::get(
+            '/multitenancy/context-test',
+            function () {
+                return response()->json([
+                    'authenticated_user' => [
+                        'id' => auth()->id(),
+                        'tenant_id' => auth()->user()->tenant_id,
+                    ],
+
+                    'active_context' => [
+                        'tenant_id' =>
+                            session('multitenancy.tenant_id'),
+
+                        'company_id' =>
+                            session('multitenancy.company_id'),
+
+                        'branch_id' =>
+                            session('multitenancy.branch_id'),
+                    ],
+
+                    'tenant' =>
+                        \App\Support\TenantContext::tenant(),
+
+                    'company' =>
+                        \App\Support\TenantContext::company(),
+
+                    'branch' =>
+                        \App\Support\TenantContext::branch(),
+                ]);
+            }
+        )->name('multitenancy.context.test');
+
+        Route::get(
+            '/multitenancy/force-invalid-context',
+            function () {
+                session([
+                    'multitenancy.tenant_id' => 999999,
+                    'multitenancy.company_id' => 999999,
+                    'multitenancy.branch_id' => 999999,
+                ]);
+
+                return redirect(
+                    '/dashboard/principal'
+                );
+            }
+        );*/
+
         Route::get('/principal', 'HomeController@dashboard')->name('dashboard.principal');
 
         // TODO: Rutas módulo Accesos
