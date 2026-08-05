@@ -62,6 +62,17 @@
             padding-top: 0.45rem;
             padding-bottom: 0.45rem;
         }
+
+        .tenant-context-navbar .dropdown-toggle {
+            max-width: 430px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tenant-context-navbar .dropdown-menu {
+            min-width: 320px;
+        }
     </style>
     @yield('styles')
 
@@ -106,6 +117,10 @@
 
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto">
+            {{-- Selector de empresa y local --}}
+            @include('layouts.partials.tenant-context-selector')
+
+            <!-- Notifications Dropdown Menu -->
             <!-- Messages Dropdown Menu -->
             {{--<li class="nav-item dropdown">
                 <a class="nav-link" data-toggle="dropdown" href="#">
@@ -3392,6 +3407,203 @@
 <!-- AdminLTE App -->
 <script src="{{ asset('admin/dist/js/adminlte.min.js') }}"></script>
 <script src="{{ asset('/js/layout/admin2.js') }}"></script>
+
+<script>
+    $('#tenant-context-company').on(
+        'change',
+        function () {
+            let companyId = $(this).val();
+
+            let branchSelect =
+                $('#tenant-context-branch');
+
+            branchSelect
+                .prop('disabled', true)
+                .empty()
+                .append(
+                    $('<option>', {
+                        value: '',
+                        text: 'Cargando locales...'
+                    })
+                );
+
+            $.ajax({
+                url: '{{ route('tenant.context.branches') }}',
+                method: 'GET',
+
+                data: {
+                    company_id: companyId
+                },
+
+                success: function (response) {
+                    branchSelect.empty();
+
+                    if (
+                        !response.branches ||
+                        response.branches.length === 0
+                    ) {
+                        branchSelect.append(
+                            $('<option>', {
+                                value: '',
+                                text: 'Sin locales disponibles'
+                            })
+                        );
+
+                        return;
+                    }
+
+                    $.each(
+                        response.branches,
+                        function (index, branch) {
+                            branchSelect.append(
+                                $('<option>', {
+                                    value: branch.id,
+                                    text: branch.name
+                                })
+                            );
+                        }
+                    );
+                },
+
+                error: function (xhr) {
+                    let message =
+                        'No se pudieron cargar los locales.';
+
+                    if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                    ) {
+                        message =
+                            xhr.responseJSON.message;
+                    }
+
+                    toastr.error(message);
+
+                    console.error(
+                        'Error al cargar locales:',
+                        xhr
+                    );
+                },
+
+                complete: function () {
+                    branchSelect.prop(
+                        'disabled',
+                        false
+                    );
+                }
+            });
+        }
+    );
+
+    $('#tenant-context-change').on(
+        'click',
+        function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            let button = $(this);
+
+            let companyId =
+                $('#tenant-context-company').val();
+
+            let branchId =
+                $('#tenant-context-branch').val();
+
+            if (!companyId) {
+                toastr.warning(
+                    'Seleccione una empresa.'
+                );
+
+                return;
+            }
+
+            if (!branchId) {
+                toastr.warning(
+                    'Seleccione un local.'
+                );
+
+                return;
+            }
+
+            button
+                .prop('disabled', true)
+                .html(
+                    '<i class="fas fa-spinner fa-spin mr-1"></i>' +
+                    'Cambiando...'
+                );
+
+            $.ajax({
+                url: '{{ route('tenant.context.update') }}',
+                method: 'POST',
+
+                data: {
+                    _token:
+                        $('meta[name="csrf-token"]')
+                            .attr('content'),
+
+                    company_id: companyId,
+                    branch_id: branchId
+                },
+
+                success: function (response) {
+                    toastr.success(
+                        response.message
+                    );
+
+                    window.location.href =
+                        '{{ route('dashboard.principal') }}';
+                },
+
+                error: function (xhr) {
+                    let message =
+                        'No se pudo cambiar el contexto.';
+
+                    if (
+                        xhr.status === 422 &&
+                        xhr.responseJSON &&
+                        xhr.responseJSON.errors
+                    ) {
+                        let errors =
+                            xhr.responseJSON.errors;
+
+                        let firstError =
+                            Object.values(errors)[0];
+
+                        if (
+                            firstError &&
+                            firstError[0]
+                        ) {
+                            message =
+                                firstError[0];
+                        }
+                    } else if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                    ) {
+                        message =
+                            xhr.responseJSON.message;
+                    }
+
+                    toastr.error(message);
+
+                    console.error(
+                        'Error al cambiar contexto:',
+                        xhr
+                    );
+                },
+
+                complete: function () {
+                    button
+                        .prop('disabled', false)
+                        .html(
+                            '<i class="fas fa-sync-alt mr-1"></i>' +
+                            'Cambiar contexto'
+                        );
+                }
+            });
+        }
+    );
+</script>
 
 @yield('scripts')
 

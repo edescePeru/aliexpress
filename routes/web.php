@@ -83,6 +83,15 @@ Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(funct
                 );
             }
         );*/
+        Route::get(
+            '/context/branches',
+            'TenantContextController@branches'
+        )->name('tenant.context.branches');
+
+        Route::post(
+            '/context/update',
+            'TenantContextController@update'
+        )->name('tenant.context.update');
 
         Route::get('/principal', 'HomeController@dashboard')->name('dashboard.principal');
 
