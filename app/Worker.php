@@ -10,6 +10,10 @@ class Worker extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+        'branch_id',
+
         'first_name',
         'last_name',
         'personal_address',
@@ -82,6 +86,21 @@ class Worker extends Model
     public function emergency_contacts()
     {
         return $this->hasMany('App\EmergencyContact');
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     protected $dates = ['deleted_at', 'birthplace', 'admission_date', 'termination_date'];

@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Support\TenantContext;
 
 class WorkerController extends Controller
 {
@@ -295,6 +296,9 @@ class WorkerController extends Controller
     public function store(Request $request)
     {
         //dd($request);
+        $tenantId = TenantContext::tenantId();
+        $companyId = TenantContext::companyId();
+        $branchId = TenantContext::branchId();
 
         DB::beginTransaction();
         try {
@@ -305,40 +309,18 @@ class WorkerController extends Controller
             $value_assign_family = round((float)$sueldo->value/(float)$assign_family->value, 2);
             $value_essalud = $essalud->value;
 
-            // Creamos el email con el formato mapellido@sermeind.com
-            $nombres = $request->get('first_name');
-            $apellidos = $request->get('last_name');
-
-            $primeraLetraNombres = strtolower($this->eliminar_tildes(substr($nombres,0,1)));
-            $pos = strpos($apellidos, ' ');
-
-            $primerApellido = '';
-
-            if ( $pos !== false )
-            {
-                $primerApellido = strtolower($this->eliminar_tildes(substr($apellidos,0,$pos)));
-            } else {
-                $primerApellido = strtolower($apellidos);
-            }
-
-            // Creamos al usuario
-            $user = User::create([
-                'name' => $request->get('first_name').' '.$request->get('last_name'),
-                'email' => $primeraLetraNombres.$primerApellido.'@venti360.com',
-                'password' => bcrypt('venti3602025'),
-                'image' => 'no_image.png'
-            ]);
-
-            $user->assignRole('worker');
-
             // Creamos el trabajador
             $worker = Worker::create([
+                'tenant_id' => $tenantId,
+                'company_id' => $companyId,
+                'branch_id' => $branchId,
+
                 'first_name' => $request->get('first_name'),
                 'last_name' => $request->get('last_name'),
                 'personal_address' => $request->get('personal_address'),
                 'birthplace' => ($request->get('birthplace') != null) ? Carbon::createFromFormat('d/m/Y', $request->get('birthplace')) : null,
                 'phone' => $request->get('phone'),
-                'email' => ($request->get('email') == '' || $request->get('email') == null ) ? $primeraLetraNombres.$primerApellido.'@erp.com' : $request->get('email') ,
+                'email' => $request->filled('email')? $request->get('email'): null,
                 'level_school' => $request->get('level_school'),
                 'reason_for_termination' => $request->get('reason_for_termination'),
                 'profession' => $request->get('profession'),
@@ -355,7 +337,7 @@ class WorkerController extends Controller
                 //'five_category' => $request->get('five_category'),
                 'termination_date' => ($request->get('termination_date') != null) ? Carbon::createFromFormat('d/m/Y', $request->get('termination_date')) : null,
                 'observation' => $request->get('observation'),
-                'user_id' => $user->id,
+
                 'civil_status_id' => ($request->get('civil_status') == 0) ? null: $request->get('civil_status'),
                 'work_function_id' => ($request->get('work_function') == 0) ? null: $request->get('work_function'),
                 'pension_system_id' => ($request->get('pension_system') == 0) ? null: $request->get('pension_system'),
@@ -447,26 +429,8 @@ class WorkerController extends Controller
             $value_assign_family = round((float)$sueldo->value/(float)$assign_family->value, 2);
             $value_essalud = $essalud->value;
 
-            // Creamos el email con el formato mapellido@sermeind.com
-            $nombres = $request->get('first_name');
-            $apellidos = $request->get('last_name');
-
-            $primeraLetraNombres = strtolower($this->eliminar_tildes(substr($nombres,0,1)));
-            $pos = strpos($apellidos, ' ');
-
-            $primerApellido = '';
-
-            if ( $pos !== false )
-            {
-                $primerApellido = strtolower($this->eliminar_tildes(substr($apellidos,0,$pos)));
-            } else {
-                $primerApellido = strtolower($apellidos);
-            }
             $worker = Worker::find($id);
 
-            $user = User::find($worker->user_id);
-            $user->email = $primeraLetraNombres.$primerApellido.'@erp.com';
-            $user->save();
             // Modificamos el trabajador
 
             $worker->first_name = $request->get('first_name');
@@ -474,7 +438,7 @@ class WorkerController extends Controller
             $worker->personal_address = $request->get('personal_address');
             $worker->birthplace = ($request->get('birthplace') != null) ? Carbon::createFromFormat('d/m/Y', $request->get('birthplace')) : null;
             $worker->phone = $request->get('phone');
-            $worker->email = ($request->get('email') == '' || $request->get('email') == null ) ? $primeraLetraNombres.$primerApellido.'@erp.com' : $request->get('email') ;
+            $worker->email = $request->filled('email')? $request->get('email'): null;
             $worker->level_school = $request->get('level_school');
             $worker->profession = $request->get('profession');
             $worker->reason_for_termination = $request->get('reason_for_termination');
@@ -543,14 +507,6 @@ class WorkerController extends Controller
 
             $worker = Worker::find($worker_id);
 
-            $user = User::where('id',$worker->user_id )->first();
-
-            if ( !is_null($user) )
-            {
-                $user->enable = false;
-                $user->save();
-            }
-
             $worker->enable = false;
             $worker->save();
 
@@ -584,14 +540,6 @@ class WorkerController extends Controller
         try {
 
             $worker = Worker::find($worker_id);
-
-            $user = User::where('id',$worker->user_id )->first();
-
-            if ( !is_null($user) )
-            {
-                $user->enable = true;
-                $user->save();
-            }
 
             $worker->enable = true;
             $worker->save();

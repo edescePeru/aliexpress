@@ -9,7 +9,6 @@ use App\Http\Requests\UpdateUserPasswordRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateUserSettingsRequest;
 use App\User;
-use App\Worker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,12 +36,6 @@ class UserController extends Controller
             'name' => $request->get('name'),
             'email' => $request->get('email'),
             'password' => bcrypt('venti3602025'),
-        ]);
-
-        $worker = Worker::create([
-            'first_name' => $user->name,
-            'email' => $user->email,
-            'image' => $user->image
         ]);
 
         // Sincronizar con roles
@@ -235,14 +228,6 @@ class UserController extends Controller
 
             $user = User::find($request->get('user_id'));
 
-            $worker = Worker::where('user_id', $user->id)->first();
-
-            if ( !is_null($worker) )
-            {
-                $worker->enable = false;
-                $worker->save();
-            }
-
             $user->enable = false;
             $user->save();
             DB::commit();
@@ -264,14 +249,6 @@ class UserController extends Controller
         try {
 
             $user = User::find($request->get('user_id'));
-
-            $worker = Worker::where('user_id', $user->id)->first();
-
-            if ( !is_null($worker) )
-            {
-                $worker->enable = true;
-                $worker->save();
-            }
 
             $user->enable = true;
             $user->save();
@@ -306,7 +283,8 @@ class UserController extends Controller
 
     public function convertUsersToWorkers()
     {
-        DB::beginTransaction();
+        return response()->json(['message' => 'Metodo fuera de uso.'], 200);
+        /*DB::beginTransaction();
         try {
 
             $user_actives = User::where('enable', true)
@@ -336,7 +314,7 @@ class UserController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['message' => 'Trabajadores creados.'], 200);
+        return response()->json(['message' => 'Trabajadores creados.'], 200);*/
 
     }
 }

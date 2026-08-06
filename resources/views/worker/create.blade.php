@@ -54,6 +54,36 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
+    @if(\App\Support\TenantContext::hasContext())
+        <div class="alert alert-light border mb-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>
+                        <i class="fas fa-building mr-1"></i>
+                        Empresa laboral:
+                    </strong>
+
+                    {{ \App\Support\TenantContext::company()->trade_name
+                        ?: \App\Support\TenantContext::company()->business_name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>
+                        <i class="fas fa-store mr-1"></i>
+                        Local principal:
+                    </strong>
+
+                    {{ \App\Support\TenantContext::branch()->name }}
+                </div>
+            </div>
+
+            <small class="text-muted">
+                El colaborador será registrado en la empresa y local
+                actualmente seleccionados.
+            </small>
+        </div>
+    @endif
+
     <form id="formCreate" class="form-horizontal" data-url="{{ route('worker.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
