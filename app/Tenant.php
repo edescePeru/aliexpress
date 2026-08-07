@@ -10,6 +10,7 @@ class Tenant extends Model
         'name',
         'slug',
         'is_active',
+        'plan_id',
     ];
 
     protected $casts = [
@@ -24,5 +25,10 @@ class Tenant extends Model
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
     }
 }

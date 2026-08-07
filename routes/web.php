@@ -3329,6 +3329,33 @@ Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(funct
     });
 });
 
+Route::middleware(['auth','check.user.enabled','platform.admin',])
+    ->prefix('platform')->group(function () {
+        Route::get('plans','PlanController@index')->name('plan.index');
+        Route::get('plans/data','PlanController@data')->name('plan.data');
+        Route::post('plans','PlanController@store')->name('plan.store');
+        Route::post('plans/{id}/update','PlanController@update')->name('plan.update');
+        Route::post('plans/{id}/toggle-status','PlanController@toggleStatus')->name('plan.toggleStatus');
+
+        Route::get( 'role-templates', 'RoleTemplateController@index' )->name('roleTemplate.index');
+
+        Route::get( 'role-templates/data', 'RoleTemplateController@data' )->name('roleTemplate.data');
+
+        Route::get( 'role-templates/permissions', 'RoleTemplateController@permissions' )->name('roleTemplate.permissions');
+
+        Route::get( 'role-templates/create', 'RoleTemplateController@create' )->name('roleTemplate.create');
+
+        Route::get( 'role-templates/{id}/edit', 'RoleTemplateController@edit' )->name('roleTemplate.edit');
+
+        Route::get( 'role-templates/{id}', 'RoleTemplateController@show' )->name('roleTemplate.show');
+
+        Route::post( 'role-templates', 'RoleTemplateController@store' )->name('roleTemplate.store');
+
+        Route::post( 'role-templates/{id}/update', 'RoleTemplateController@update' )->name('roleTemplate.update');
+
+        Route::post( 'role-templates/{id}/toggle-status', 'RoleTemplateController@toggleStatus' )->name('roleTemplate.toggleStatus');
+});
+
 Route::prefix('store-web/')->group(function () {
     Route::get('inicio/', [StoreWebController::class, 'home'])
         ->name('store-web.home');

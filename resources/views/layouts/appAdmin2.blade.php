@@ -279,6 +279,34 @@
             <!-- Sidebar Menu -->
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+
+                    @if( Auth::check() && Auth::user()->isPlatformAdmin() )
+                        <li class="nav-header">
+                            VENTI360
+                        </li>
+
+                        <li class="nav-item">
+                            <a
+                                    href="{{ route('plan.index') }}"
+                                    class="nav-link"
+                            >
+                                <i class="nav-icon fas fa-layer-group"></i>
+                                <p>Planes</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a
+                                    href="{{ route('roleTemplate.index') }}"
+                                    class="nav-link"
+                            >
+                                <i class="nav-icon fas fa-user-tag"></i>
+                                <p>Plantillas de perfiles</p>
+                            </a>
+                        </li>
+
+                    @endif
+
                     @can('enable_puntoVenta')
                     <li class="nav-header">PUNTO DE VENTA</li>
                     <li class="nav-item has-treeview @yield('openPuntoVenta')">
