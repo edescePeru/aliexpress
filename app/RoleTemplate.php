@@ -29,4 +29,12 @@ class RoleTemplate extends Model
             'permission_id'
         );
     }
+
+    public function roles()
+    {
+        return $this->hasMany(
+            Role::class,
+            'role_template_id'
+        );
+    }
 }
