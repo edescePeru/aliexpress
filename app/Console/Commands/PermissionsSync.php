@@ -4,60 +4,107 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class PermissionsSync extends Command
 {
-    protected $signature = 'permissions:sync {--force}';
-    protected $description = 'Sincroniza permisos desde el catálogo y los asigna al rol admin';
+    protected $signature =
+        'permissions:sync {--force}';
+
+    protected $description =
+        'Sincroniza los permisos globales de Venti360 desde el catálogo.';
 
     public function handle()
     {
-        $catalog = config('permissions_catalog');
+        $catalog =
+            config(
+                'permissions_catalog'
+            );
 
-        if (!is_array($catalog) || empty($catalog)) {
-            $this->error('El catálogo de permisos está vacío.');
+        if (
+            !is_array($catalog) ||
+            empty($catalog)
+        ) {
+            $this->error(
+                'El catálogo de permisos está vacío.'
+            );
+
             return 1;
         }
 
-        // Limpia cache de spatie
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(
+            PermissionRegistrar::class
+        )->forgetCachedPermissions();
 
         $created = 0;
         $updated = 0;
 
-        foreach ($catalog as $name => $description) {
+        foreach (
+            $catalog as
+            $name => $description
+        ) {
+            $permission =
+                Permission::query()
+                    ->where(
+                        'name',
+                        $name
+                    )
+                    ->where(
+                        'guard_name',
+                        'web'
+                    )
+                    ->first();
 
-            $exists = Permission::where('name', $name)->exists();
+            if ($permission) {
+                $permission->description =
+                    $description;
 
-            Permission::updateOrCreate(
-                ['name' => $name, 'guard_name' => 'web'],
-                ['description' => $description]
-            );
+                $permission->save();
 
-            if ($exists) {
                 $updated++;
             } else {
+                Permission::create([
+                    'name' =>
+                        $name,
+
+                    'guard_name' =>
+                        'web',
+
+                    'description' =>
+                        $description,
+                ]);
+
                 $created++;
             }
         }
 
-        // Crear / actualizar rol admin
-        $adminRole = Role::updateOrCreate(
-            ['name' => 'admin', 'guard_name' => 'web'],
-            ['description' => 'Administrador']
+        app(
+            PermissionRegistrar::class
+        )->forgetCachedPermissions();
+
+        $this->info(
+            'Permisos globales sincronizados correctamente.'
         );
 
-        // Asignar TODOS los permisos al admin
-        $adminRole->syncPermissions(
-            Permission::where('guard_name', 'web')->get()
+        $this->line(
+            'Creados: ' .
+            $created
         );
 
-        $this->info('Permisos sincronizados correctamente.');
-        $this->line('Creados: ' . $created);
-        $this->line('Actualizados: ' . $updated);
-        $this->line('Rol admin sincronizado con todos los permisos.');
+        $this->line(
+            'Actualizados: ' .
+            $updated
+        );
+
+        $this->line('');
+
+        $this->comment(
+            'Los roles de tenant no se modificaron.'
+        );
+
+        $this->comment(
+            'Para actualizar perfiles estándar ejecute: php artisan tenant-roles:sync --all'
+        );
 
         return 0;
     }
