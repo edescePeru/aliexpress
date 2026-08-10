@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\DataGeneral;
+use App\Services\TenantPlanService;
 use App\User;
-use App\Worker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,74 +11,178 @@ use Illuminate\Validation\Rule;
 
 class ConfigUserWebController extends Controller
 {
+    private function tenantUsersQuery()
+    {
+        $authUser = Auth::user();
+
+        if (
+            !$authUser ||
+            !$authUser->tenant_id ||
+            $authUser->is_platform_admin
+        ) {
+            abort(403, 'No existe un contexto de tenant válido.');
+        }
+
+        return User::query()
+            ->where(
+                'tenant_id',
+                $authUser->tenant_id
+            )
+            ->where(
+                'is_platform_admin',
+                false
+            );
+    }
+
+    private function findTenantUserOrFail($id)
+    {
+        return $this->tenantUsersQuery()
+            ->where('id', $id)
+            ->firstOrFail();
+    }
+
+    private function ensureTenantOwner()
+    {
+        $user = Auth::user();
+
+        if (
+            !$user ||
+            !$user->is_tenant_owner ||
+            $user->is_platform_admin
+        ) {
+            abort(
+                403,
+                'Solo el propietario del tenant puede administrar usuarios.'
+            );
+        }
+    }
+
     public function listar()
     {
+        $this->ensureTenantOwner();
+
         return view('configUserWeb.index');
     }
 
     public function getUsers(Request $request)
     {
-        $search = $request->get('search');
-        $status = $request->get('status', 'active');
-        $perPage = $request->get('per_page', 10);
+        $this->ensureTenantOwner();
 
-        $query = User::query()
+        $search = trim(
+            (string) $request->get('search')
+        );
+
+        $status = $request->get(
+            'status',
+            'active'
+        );
+
+        $perPage = (int) $request->get(
+            'per_page',
+            10
+        );
+
+        if (!in_array(
+            $perPage,
+            [10, 25, 50]
+        )) {
+            $perPage = 10;
+        }
+
+        $query = $this->tenantUsersQuery()
             ->with('roles')
-            ->select('id', 'name', 'email', 'image', 'enable', 'updated_at');
+            ->select(
+                'id',
+                'tenant_id',
+                'name',
+                'email',
+                'image',
+                'enable',
+                'is_tenant_owner',
+                'updated_at'
+            );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Si el usuario logueado NO es admin, no puede ver usuarios admin
-        |--------------------------------------------------------------------------
-        */
-        if (!Auth::user()->hasRole('admin')) {
-            $query->whereDoesntHave('roles', function ($q) {
-                $q->where('name', 'admin');
-            });
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Filtro por búsqueda
-        |--------------------------------------------------------------------------
-        */
-        if ($search) {
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', '%' . $search . '%')
-                    ->orWhere('email', 'LIKE', '%' . $search . '%');
+                $q->where(
+                    'name',
+                    'LIKE',
+                    '%' . $search . '%'
+                )
+                    ->orWhere(
+                        'email',
+                        'LIKE',
+                        '%' . $search . '%'
+                    );
             });
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Filtro por estado
-        |--------------------------------------------------------------------------
-        */
         if ($status === 'active') {
-            $query->where('enable', 1);
-        }
-
-        if ($status === 'inactive') {
-            $query->where('enable', 0);
+            $query->where('enable', true);
+        } elseif ($status === 'inactive') {
+            $query->where('enable', false);
         }
 
         $users = $query
-            ->orderBy('updated_at', 'desc')
+            ->orderByDesc('is_tenant_owner')
+            ->orderBy('name')
             ->paginate($perPage);
 
-        $users->getCollection()->transform(function ($user) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'image' => $this->getUserImage($user),
-                'enable' => $user->enable,
-                'updated_at' => optional($user->updated_at)->format('d/m/Y H:i'),
-                'roles' => $user->roles->pluck('name')->implode(', '),
-            ];
-        });
+        $users->getCollection()->transform(
+            function ($user) {
 
-        return response()->json($users);
+                $role = $user->roles->first();
+
+                return [
+                    'id' =>
+                        $user->id,
+
+                    'name' =>
+                        $user->name,
+
+                    'email' =>
+                        $user->email,
+
+                    'image' =>
+                        $this->getUserImage(
+                            $user
+                        ),
+
+                    'enable' =>
+                        (bool) $user->enable,
+
+                    'is_tenant_owner' =>
+                        (bool) $user->is_tenant_owner,
+
+                    'updated_at' =>
+                        optional(
+                            $user->updated_at
+                        )->format(
+                            'd/m/Y H:i'
+                        ),
+
+                    'role' =>
+                        $role
+                            ? (
+                        $role->description
+                            ?: $role->name
+                        )
+                            : null,
+
+                    'role_id' =>
+                        $role
+                            ? $role->id
+                            : null,
+
+                    'is_current_user' =>
+                        $user->id === Auth::id(),
+                ];
+            }
+        );
+
+        return response()->json(
+            $users
+        );
     }
 
     private function getUserImage($user)
@@ -99,32 +202,50 @@ class ConfigUserWebController extends Controller
 
     public function edit($id)
     {
-        $user = User::with('roles')->findOrFail($id);
+        $this->ensureTenantOwner();
 
-        if (!Auth::user()->hasRole('admin') && $user->hasRole('admin')) {
-            return response()->json([
-                'message' => 'No tienes permisos para editar este usuario.'
-            ], 403);
-        }
+        $user = $this
+            ->findTenantUserOrFail($id);
+
+        $user->load('roles');
+
+        $role = $user->roles->first();
 
         return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'image' => $this->getUserImage($user),
-            'roles' => $user->roles->pluck('name')->implode(', '),
+            'id' =>
+                $user->id,
+
+            'name' =>
+                $user->name,
+
+            'email' =>
+                $user->email,
+
+            'image' =>
+                $this->getUserImage(
+                    $user
+                ),
+
+            'role' =>
+                $role
+                    ? (
+                $role->description
+                    ?: $role->name
+                )
+                    : null,
+
+            'is_tenant_owner' =>
+                (bool) $user->is_tenant_owner,
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        $user = User::with('roles')->findOrFail($id);
+        $this->ensureTenantOwner();
 
-        if (!Auth::user()->hasRole('admin') && $user->hasRole('admin')) {
-            return response()->json([
-                'message' => 'No tienes permisos para modificar este usuario.'
-            ], 403);
-        }
+        $user = $this->findTenantUserOrFail($id);
+
+        $user = User::with('roles')->findOrFail($id);
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -191,73 +312,249 @@ class ConfigUserWebController extends Controller
 
     public function resetPassword($id)
     {
-        $user = User::with('roles')->findOrFail($id);
+        $this->ensureTenantOwner();
 
-        if (!Auth::user()->hasRole('admin') && $user->hasRole('admin')) {
-            return response()->json([
-                'message' => 'No tienes permisos para resetear la contraseña de este usuario.'
-            ], 403);
-        }
+        $user = $this->findTenantUserOrFail($id);
 
-        $dataGeneralContraseaReset = DataGeneral::where('name', 'password_reset')->first();
+        /*
+         * Generamos una contraseña temporal.
+         *
+         * Evitamos caracteres ambiguos como:
+         * 0 O l I
+         */
+        $temporaryPassword =$this->generateTemporaryPassword();
 
-        if (!$dataGeneralContraseaReset || !$dataGeneralContraseaReset->valueText) {
-            return response()->json([
-                'message' => 'No se encontró una contraseña de reseteo configurada.'
-            ], 422);
-        }
+        $user->password =
+            Hash::make(
+                $temporaryPassword
+            );
 
-        $passwordReset = $dataGeneralContraseaReset->valueText;
+        $user->must_change_password =
+            true;
 
-        $user->password = Hash::make($passwordReset);
+        $user->remember_token =
+            null;
+
         $user->save();
 
         return response()->json([
-            'message' => 'La contraseña fue reseteada correctamente.'
+            'message' =>
+                'La contraseña fue reseteada correctamente.',
+
+            /*
+             * Se devuelve únicamente en esta respuesta
+             * para que el Owner pueda entregársela
+             * al usuario.
+             */
+            'temporary_password' =>
+                $temporaryPassword,
         ]);
     }
 
-    public function changeStatus(Request $request, $id)
+    private function generateTemporaryPassword()
     {
-        $user = User::with('roles')->findOrFail($id);
+        /*
+         * 10 caracteres:
+         *
+         * mayúscula
+         * minúscula
+         * número
+         * símbolo
+         * + 6 aleatorios
+         */
 
-        if ($user->id === Auth::id()) {
+        $upper =
+            'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+        $lower =
+            'abcdefghijkmnopqrstuvwxyz';
+
+        $numbers =
+            '23456789';
+
+        $symbols =
+            '!@#$%';
+
+        $all =
+            $upper .
+            $lower .
+            $numbers .
+            $symbols;
+
+        $password =
+            $upper[
+            random_int(
+                0,
+                strlen($upper) - 1
+            )
+            ];
+
+        $password .=
+            $lower[
+            random_int(
+                0,
+                strlen($lower) - 1
+            )
+            ];
+
+        $password .=
+            $numbers[
+            random_int(
+                0,
+                strlen($numbers) - 1
+            )
+            ];
+
+        $password .=
+            $symbols[
+            random_int(
+                0,
+                strlen($symbols) - 1
+            )
+            ];
+
+        for ($i = 0; $i < 6; $i++) {
+
+            $password .=
+                $all[
+                random_int(
+                    0,
+                    strlen($all) - 1
+                )
+                ];
+        }
+
+        /*
+         * Mezclamos usando random_int en lugar
+         * de depender de str_shuffle.
+         */
+        $characters =
+            str_split(
+                $password
+            );
+
+        for (
+            $i = count($characters) - 1;
+            $i > 0;
+            $i--
+        ) {
+            $j =
+                random_int(
+                    0,
+                    $i
+                );
+
+            $tmp =
+                $characters[$i];
+
+            $characters[$i] =
+                $characters[$j];
+
+            $characters[$j] =
+                $tmp;
+        }
+
+        return implode(
+            '',
+            $characters
+        );
+    }
+
+    public function changeStatus( Request $request, $id, TenantPlanService $planService ) {
+        $this->ensureTenantOwner();
+
+        $user = $this
+            ->findTenantUserOrFail($id);
+
+        $authUser = Auth::user();
+
+        if ($user->id === $authUser->id) {
             return response()->json([
-                'message' => 'No puedes cambiar el estado de tu propio usuario.'
+                'message' =>
+                    'No puedes cambiar el estado de tu propia cuenta.'
             ], 422);
         }
 
-        if (!Auth::user()->hasRole('admin') && $user->hasRole('admin')) {
+        if ($user->is_tenant_owner) {
             return response()->json([
-                'message' => 'No tienes permisos para cambiar el estado de este usuario.'
-            ], 403);
+                'message' =>
+                    'El propietario del tenant no puede ser inhabilitado desde este módulo.'
+            ], 422);
         }
 
         $request->validate([
-            'status' => ['required', 'in:0,1'],
+            'status' => [
+                'required',
+                'in:0,1'
+            ],
         ]);
 
-        $user->enable = (int) $request->status;
+        $newStatus =
+            (int) $request->status;
 
-        if ($user->enable === 0) {
-            $user->remember_token = null;
+        /*
+         * Si ya está en el mismo estado,
+         * devolvemos sin hacer nada.
+         */
+        if (
+            (int) $user->enable
+            ===
+            $newStatus
+        ) {
+            return response()->json([
+                'message' =>
+                    'El usuario ya se encuentra en ese estado.',
+                'enable' =>
+                    (bool) $user->enable,
+            ]);
+        }
 
-            $worker = Worker::where('user_id', $user->id)->first();
+        /*
+         * Para HABILITAR hay que validar
+         * capacidad del plan.
+         */
+        if ($newStatus === 1) {
 
-            if ( !is_null($worker) )
-            {
-                $worker->enable = false;
-                $worker->save();
+            $tenant =
+                $authUser->tenant;
+
+            try {
+
+                $planService
+                    ->ensureCanActivateUser(
+                        $tenant
+                    );
+
+            } catch (\RuntimeException $e) {
+
+                return response()->json([
+                    'message' =>
+                        $e->getMessage(),
+                ], 422);
             }
+        }
+
+        $user->enable =
+            $newStatus === 1;
+
+        /*
+         * Al inhabilitar invalidamos
+         * remember_token.
+         */
+        if (!$user->enable) {
+            $user->remember_token = null;
         }
 
         $user->save();
 
         return response()->json([
-            'message' => $user->enable == 1
-                ? 'Usuario activado correctamente.'
-                : 'Usuario inhabilitado correctamente.',
-            'enable' => $user->enable
+            'message' =>
+                $user->enable
+                    ? 'Usuario activado correctamente.'
+                    : 'Usuario inhabilitado correctamente.',
+
+            'enable' =>
+                (bool) $user->enable,
         ]);
     }
 }

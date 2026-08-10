@@ -83,7 +83,7 @@ $(document).ready(function () {
             content: `
             <p>¿Está seguro de resetear la contraseña de este usuario?</p>
             <p class="mb-0 text-muted">
-                La contraseña será reemplazada por la contraseña general configurada.
+                Se generará una contraseña temporal segura que deberá ser entregada al usuario.
             </p>
         `,
             confirmText: 'Sí, resetear',
@@ -124,7 +124,66 @@ function resetUserPassword(id) {
             _token: $('#formEditUser input[name="_token"]').val()
         },
         success: function (response) {
-            showSuccess(response.message || 'La contraseña fue reseteada correctamente.');
+            if (response.temporary_password) {
+
+                $.alert({
+                    title:
+                        'Contraseña temporal generada',
+                    content: `
+                        <p>
+                            La contraseña fue reseteada correctamente.
+                        </p>
+            
+                        <div
+                            class="
+                                alert
+                                alert-warning
+                                text-center
+                            "
+                        >
+                            <small>
+                                Contraseña temporal
+                            </small>
+            
+                            <div
+                                class="
+                                    font-weight-bold
+                                    h4
+                                    mb-0
+                                    mt-1
+                                "
+                            >
+                                ${escapeHtml(
+                                    response.temporary_password
+                                )}
+                            </div>
+                        </div>
+            
+                        <p class="mb-0 text-muted">
+                            Copie esta contraseña antes de cerrar
+                            esta ventana. El usuario deberá cambiarla
+                            al iniciar sesión.
+                        </p>
+                    `,
+
+                    type:'green',
+
+                    buttons: {
+
+                        ok: {
+                            text:'Entendido',
+                            btnClass:'btn-success'
+                        }
+
+                    }
+
+                });
+
+            } else {
+                showSuccess(response.message ||'La contraseña fue reseteada correctamente.'
+                );
+
+            }
         },
         error: function (xhr) {
             showError(getAjaxMessage(xhr, 'No se pudo resetear la contraseña.'));
@@ -322,21 +381,34 @@ function renderUsers(users, from) {
     users.forEach((user, index) => {
         const number = (from ?? 1) + index;
 
-        const statusButton = user.enable == 1
-            ? `
-                <button type="button"
-                        class="btn btn-outline-danger btn-sm"
-                        onclick="changeStatus(${user.id}, 0)">
-                    <i class="fas fa-trash"></i> Inhabilitar
+        let statusButton = '';
+
+        if (!user.is_tenant_owner &&!user.is_current_user) {
+
+            statusButton =
+                user.enable == 1
+                    ? `
+                <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    onclick="changeStatus(${user.id}, 0)"
+                >
+                    <i class="fas fa-ban"></i>
+                    Inhabilitar
                 </button>
             `
-            : `
-                <button type="button"
-                        class="btn btn-outline-success btn-sm"
-                        onclick="changeStatus(${user.id}, 1)">
-                    <i class="fas fa-check"></i> Activar
+                    : `
+                <button
+                    type="button"
+                    class="btn btn-outline-success btn-sm"
+                    onclick="changeStatus(${user.id}, 1)"
+                >
+                    <i class="fas fa-check"></i>
+                    Activar
                 </button>
             `;
+
+        }
 
         html += `
             <tr>
@@ -344,7 +416,23 @@ function renderUsers(users, from) {
                 <td>${escapeHtml(user.name)}</td>
                 <td>${escapeHtml(user.email)}</td>
                 <td>${user.updated_at ?? '-'}</td>
-                <td>${user.roles ? escapeHtml(user.roles) : '-'}</td>
+                <td>
+                    ${
+                            user.is_tenant_owner
+                                ? `
+                                <span class="badge badge-primary">
+                                    Propietario
+                                </span>
+                              `
+                                : (
+                                    user.role
+                                        ? escapeHtml(
+                                        user.role
+                                        )
+                                        : '-'
+                                )
+                            }
+                </td>
                 <td class="text-center">
                     <img src="${user.image}"
                          alt="Usuario"
@@ -473,7 +561,15 @@ function editUser(id) {
             $('#editUserId').val(response.id);
             $('#editName').val(response.name);
             $('#editEmail').val(response.email);
-            $('#editRoles').val(response.roles ? response.roles : '-');
+            $('#editRoles').val(
+                response.role
+                    ? response.role
+                    : (
+                        response.is_tenant_owner
+                            ? 'Propietario'
+                            : '-'
+                    )
+            );
             $('#editImagePreview').attr('src', response.image);
 
             $('#modalEditUser').modal('show');

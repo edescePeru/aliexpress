@@ -174,8 +174,15 @@
                         <hr>
 
                         <div class="alert alert-warning mb-0">
-                            <strong>Resetear contraseña:</strong><br>
-                            Esta acción cambiará la contraseña del usuario por la contraseña general configurada.
+                            <strong>
+                                Resetear contraseña:
+                            </strong>
+                            <br>
+
+                            Se generará una contraseña temporal segura.
+
+                            El usuario deberá cambiarla la próxima vez
+                            que inicie sesión.
                         </div>
 
                     </div>

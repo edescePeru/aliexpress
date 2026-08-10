@@ -20,7 +20,16 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'image', 'enable', 'owner', 'tenant_id', 'is_platform_admin',
+        'name',
+        'email',
+        'password',
+        'image',
+        'enable',
+        'owner',
+        'tenant_id',
+        'is_platform_admin',
+        'is_tenant_owner',
+        'must_change_password',
     ];
 
     /**
@@ -40,6 +49,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_platform_admin' => 'boolean',
+        'is_tenant_owner' => 'boolean',
+        'must_change_password' => 'boolean',
     ];
 
     public function worker()
@@ -84,4 +95,8 @@ class User extends Authenticatable
         return (bool) $this->is_platform_admin;
     }
 
+    public function isTenantOwner()
+    {
+        return (bool) $this->is_tenant_owner;
+    }
 }
