@@ -3338,22 +3338,23 @@ Route::middleware(['auth','check.user.enabled','platform.admin',])
         Route::post('plans/{id}/toggle-status','PlanController@toggleStatus')->name('plan.toggleStatus');
 
         Route::get( 'role-templates', 'RoleTemplateController@index' )->name('roleTemplate.index');
-
         Route::get( 'role-templates/data', 'RoleTemplateController@data' )->name('roleTemplate.data');
-
         Route::get( 'role-templates/permissions', 'RoleTemplateController@permissions' )->name('roleTemplate.permissions');
-
         Route::get( 'role-templates/create', 'RoleTemplateController@create' )->name('roleTemplate.create');
-
         Route::get( 'role-templates/{id}/edit', 'RoleTemplateController@edit' )->name('roleTemplate.edit');
-
         Route::get( 'role-templates/{id}', 'RoleTemplateController@show' )->name('roleTemplate.show');
-
         Route::post( 'role-templates', 'RoleTemplateController@store' )->name('roleTemplate.store');
-
         Route::post( 'role-templates/{id}/update', 'RoleTemplateController@update' )->name('roleTemplate.update');
-
         Route::post( 'role-templates/{id}/toggle-status', 'RoleTemplateController@toggleStatus' )->name('roleTemplate.toggleStatus');
+
+        Route::get('tenant-roles','TenantRoleController@index')->name('tenantRole.index');
+        Route::get('tenant-roles/data','TenantRoleController@data')->name('tenantRole.data');
+        Route::get('tenants/{tenantId}/roles/create','TenantRoleController@create')->name('tenantRole.create');
+        Route::get('tenants/{tenantId}/roles/{roleId}/edit','TenantRoleController@edit')->name('tenantRole.edit');
+        Route::get('tenants/{tenantId}/roles/{roleId}','TenantRoleController@show')->name('tenantRole.show');
+        Route::post('tenants/{tenantId}/roles','TenantRoleController@store')->name('tenantRole.store');
+        Route::post('tenants/{tenantId}/roles/{roleId}/update','TenantRoleController@update')->name('tenantRole.update');
+        Route::post('tenants/{tenantId}/roles/{roleId}/toggle-status','TenantRoleController@toggleStatus')->name('tenantRole.toggleStatus');
 });
 
 Route::prefix('store-web/')->group(function () {

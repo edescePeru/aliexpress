@@ -305,6 +305,22 @@
                             </a>
                         </li>
 
+                        <li class="nav-item">
+
+                            <a
+                                    href="{{ route('tenantRole.index') }}"
+                                    class="nav-link"
+                            >
+
+                                <i class="nav-icon fas fa-users-cog"></i>
+
+                                <p>
+                                    Roles por Tenant
+                                </p>
+
+                            </a>
+
+                        </li>
                     @endif
 
                     @can('enable_puntoVenta')
