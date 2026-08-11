@@ -69,53 +69,6 @@ $(document).ready(function () {
         loadUsers();
     });
 
-    $('#formEditUser').on('submit', function (e) {
-        e.preventDefault();
-
-        const id = $('#editUserId').val();
-
-        if (!id) {
-            showWarning('No se encontró el usuario seleccionado.');
-            return;
-        }
-
-        let formData = new FormData(this);
-
-        $('#btnSaveUser')
-            .prop('disabled', true)
-            .html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
-
-        $('#editUserErrors').addClass('d-none').html('');
-
-        $.ajax({
-            url: buildRoute(configUserWebRoutes.update, id),
-            type: 'POST',
-            dataType: 'json',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function (response) {
-                $('#modalEditUser').modal('hide');
-
-                loadUsers(currentPage);
-
-                showSuccess(response.message || 'Usuario actualizado correctamente.');
-            },
-            error: function (xhr) {
-                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                    showEditUserErrors(xhr.responseJSON.errors);
-                } else {
-                    showError(getAjaxMessage(xhr, 'No se pudo actualizar el usuario.'));
-                }
-            },
-            complete: function () {
-                $('#btnSaveUser')
-                    .prop('disabled', false)
-                    .html('<i class="fas fa-save"></i> Guardar cambios');
-            }
-        });
-    });
-
     $('#btnResetPassword').on('click', function () {
         const id = $('#editUserId').val();
 
@@ -138,22 +91,6 @@ $(document).ready(function () {
                 resetUserPassword(id);
             }
         });
-    });
-
-    $('#editImage').on('change', function () {
-        const file = this.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = function (e) {
-            $('#editImagePreview').attr('src', e.target.result);
-        };
-
-        reader.readAsDataURL(file);
     });
 
     $('#btnNewUser').on(
@@ -281,7 +218,7 @@ function resetUserPassword(id) {
         type: 'POST',
         dataType: 'json',
         data: {
-            _token: $('#formEditUser input[name="_token"]').val()
+            _token: $('meta[name="csrf-token"]').attr('content')
         },
         success: function (response) {
             if (response.temporary_password) {
@@ -454,28 +391,6 @@ function buildRoute(route, id) {
     return route.replace(':id', encodeURIComponent(id));
 }
 
-function clearEditUserForm() {
-    $('#formEditUser')[0].reset();
-    $('#editUserId').val('');
-    $('#editImagePreview').attr('src', '');
-    $('#editRoles').val('');
-    $('#editUserErrors').addClass('d-none').html('');
-}
-
-function showEditUserErrors(errors) {
-    let html = '<ul class="mb-0">';
-
-    $.each(errors, function (key, messages) {
-        messages.forEach(function (message) {
-            html += `<li>${escapeHtml(message)}</li>`;
-        });
-    });
-
-    html += '</ul>';
-
-    $('#editUserErrors').removeClass('d-none').html(html);
-}
-
 function loadUsers(page = 1) {
     currentPage = page;
 
@@ -599,12 +514,26 @@ function renderUsers(users, from) {
                          style="width: 42px; height: 42px; object-fit: cover; border-radius: 50%;">
                 </td>
                 <td>
-                    <button type="button"
-                            class="btn btn-outline-warning btn-sm"
-                            onclick="editUser(${user.id})">
-                        <i class="fas fa-pencil-alt"></i> Editar
+                    <a
+                        href="${
+                                buildRoute(
+                                    configUserWebRoutes.edit,
+                                    user.id
+                                )
+                                }"
+                        class="btn btn-outline-warning btn-sm"
+                    >
+                        <i class="fas fa-pencil-alt"></i>
+                        Editar
+                    </a>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        onclick="resetPasswordFromList(${user.id})"
+                    >
+                        <i class="fas fa-key"></i>
+                        Reset
                     </button>
-
                     ${statusButton}
                 </td>
             </tr>
@@ -612,6 +541,45 @@ function renderUsers(users, from) {
     });
 
     tbody.html(html);
+}
+
+function resetPasswordFromList(id) {
+
+    confirmAction({
+
+        title:
+            'Resetear contraseña',
+
+        content: `
+            <p>
+                ¿Está seguro de resetear
+                la contraseña de este usuario?
+            </p>
+
+            <p class="mb-0 text-muted">
+                Se generará una contraseña temporal
+                segura que deberá ser entregada
+                al usuario.
+            </p>
+        `,
+
+        confirmText:
+            'Sí, resetear',
+
+        cancelText:
+            'Cancelar',
+
+        onConfirm:
+            function () {
+
+                resetUserPassword(
+                    id
+                );
+
+            }
+
+    });
+
 }
 
 function renderPagination(response) {
@@ -708,36 +676,6 @@ function renderPaginationInfo(response) {
     }
 
     info.html(`Mostrando registros del ${response.from} al ${response.to} de un total de ${response.total} registros`);
-}
-
-function editUser(id) {
-    clearEditUserForm();
-
-    $.ajax({
-        url: buildRoute(configUserWebRoutes.edit, id),
-        type: 'GET',
-        dataType: 'json',
-        success: function (response) {
-            $('#editUserId').val(response.id);
-            $('#editName').val(response.name);
-            $('#editEmail').val(response.email);
-            $('#editRoles').val(
-                response.role
-                    ? response.role
-                    : (
-                        response.is_tenant_owner
-                            ? 'Propietario'
-                            : '-'
-                    )
-            );
-            $('#editImagePreview').attr('src', response.image);
-
-            $('#modalEditUser').modal('show');
-        },
-        error: function (xhr) {
-            showError(getAjaxMessage(xhr, 'No se pudo obtener la información del usuario.'));
-        }
-    });
 }
 
 function changeStatus(id, status) {

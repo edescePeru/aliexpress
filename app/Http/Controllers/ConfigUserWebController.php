@@ -208,109 +208,632 @@ class ConfigUserWebController extends Controller
     {
         $this->ensureTenantOwner();
 
+        $authUser = Auth::user();
+
         $user = $this
             ->findTenantUserOrFail($id);
 
-        $user->load('roles');
-
-        $role = $user->roles->first();
-
-        return response()->json([
-            'id' =>
-                $user->id,
-
-            'name' =>
-                $user->name,
-
-            'email' =>
-                $user->email,
-
-            'image' =>
-                $this->getUserImage(
-                    $user
-                ),
-
-            'role' =>
-                $role
-                    ? (
-                $role->description
-                    ?: $role->name
-                )
-                    : null,
-
-            'is_tenant_owner' =>
-                (bool) $user->is_tenant_owner,
+        $user->load([
+            'roles',
+            'companies',
+            'branches',
         ]);
+
+        $tenant = $authUser->tenant;
+
+        /*
+         * Roles que el Owner puede asignar.
+         *
+         * Para el Tenant Owner no utilizaremos
+         * esta lista para modificar su perfil.
+         */
+        $roles = Role::query()
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                'is_owner_assignable',
+                true
+            )
+            ->select(
+                'id',
+                'name',
+                'description'
+            )
+            ->orderBy('description')
+            ->get();
+
+        $companies = Company::query()
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->with([
+                'branches' => function ($query) {
+                    $query
+                        ->where(
+                            'is_active',
+                            true
+                        )
+                        ->select(
+                            'id',
+                            'company_id',
+                            'name',
+                            'code',
+                            'is_main'
+                        )
+                        ->orderByDesc(
+                            'is_main'
+                        )
+                        ->orderBy(
+                            'name'
+                        );
+                },
+            ])
+            ->select(
+                'id',
+                'business_name',
+                'trade_name'
+            )
+            ->orderBy(
+                'business_name'
+            )
+            ->get();
+
+        $selectedCompanyIds = $user
+            ->companies
+            ->where(
+                'pivot.is_active',
+                true
+            )
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->all();
+
+        $selectedBranchIds = $user
+            ->branches
+            ->where(
+                'pivot.is_active',
+                true
+            )
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->all();
+
+        $defaultCompany = $user
+            ->companies
+            ->first(function ($company) {
+                return
+                    (bool) $company->pivot->is_active &&
+                    (bool) $company->pivot->is_default;
+            });
+
+        $defaultBranch = $user
+            ->branches
+            ->first(function ($branch) {
+                return
+                    (bool) $branch->pivot->is_active &&
+                    (bool) $branch->pivot->is_default;
+            });
+
+        $currentRole = $user
+            ->roles
+            ->first();
+
+        return view(
+            'configUserWeb.edit',
+            [
+                'tenant' =>
+                    $tenant,
+
+                'userEdit' =>
+                    $user,
+
+                'roles' =>
+                    $roles,
+
+                'companies' =>
+                    $companies,
+
+                'currentRole' =>
+                    $currentRole,
+
+                'selectedCompanyIds' =>
+                    $selectedCompanyIds,
+
+                'selectedBranchIds' =>
+                    $selectedBranchIds,
+
+                'defaultCompanyId' =>
+                    $defaultCompany
+                        ? $defaultCompany->id
+                        : null,
+
+                'defaultBranchId' =>
+                    $defaultBranch
+                        ? $defaultBranch->id
+                        : null,
+            ]
+        );
     }
 
-    public function update(Request $request, $id)
-    {
+    public function update(Request $request,$id) {
         $this->ensureTenantOwner();
 
-        $user = $this->findTenantUserOrFail($id);
+        $authUser = Auth::user();
 
-        $user = User::with('roles')->findOrFail($id);
+        $tenant = $authUser->tenant;
 
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+        $user = $this
+            ->findTenantUserOrFail($id);
+
+        $rules = [
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
             'email' => [
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->ignore($user->id),
+
+                Rule::unique(
+                    'users',
+                    'email'
+                )->ignore(
+                    $user->id
+                ),
             ],
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ], [
-            'name.required' => 'El nombre es obligatorio.',
-            'email.required' => 'El correo electrónico es obligatorio.',
-            'email.email' => 'El correo electrónico no es válido.',
-            'email.unique' => 'Este correo electrónico ya está registrado.',
-            'image.image' => 'El archivo debe ser una imagen.',
-            'image.mimes' => 'La imagen debe ser JPG, JPEG, PNG o WEBP.',
-            'image.max' => 'La imagen no debe superar los 2MB.',
-        ]);
 
-        $user->name = $request->name;
-        $user->email = $request->email;
+            'image' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ],
+        ];
 
-        if (!$request->file('image')) {
+        /*
+         * Solo usuarios operativos pueden
+         * modificar su alcance desde este módulo.
+         */
+        if (!$user->is_tenant_owner) {
 
-            if ($user->image == null || $user->image == '') {
-                $user->image = 'no_image.png';
-            }
+            $rules = array_merge(
+                $rules,
+                [
+                    'role_id' => [
+                        'required',
+                        'integer',
+                    ],
 
-        } else {
+                    'companies' => [
+                        'required',
+                        'array',
+                        'min:1',
+                    ],
 
-            $path = public_path('images/users/');
+                    'companies.*' => [
+                        'integer',
+                    ],
 
-            if (!file_exists($path)) {
-                mkdir($path, 0755, true);
-            }
+                    'branches' => [
+                        'required',
+                        'array',
+                        'min:1',
+                    ],
 
-            $extension = $request->file('image')->getClientOriginalExtension();
-            $filename = $user->id . '.' . $extension;
+                    'branches.*' => [
+                        'integer',
+                    ],
 
-            /*
-             * Opcional: eliminar imagen anterior si no es la imagen por defecto.
-             * Esto ayuda si antes tenía user 5.jpg y ahora sube 5.png.
-             */
-            if ($user->image && $user->image != 'no_image.png') {
-                $oldImagePath = $path . $user->image;
+                    'default_company_id' => [
+                        'required',
+                        'integer',
+                    ],
 
-                if (file_exists($oldImagePath)) {
-                    unlink($oldImagePath);
-                }
-            }
-
-            $request->file('image')->move($path, $filename);
-
-            $user->image = $filename;
+                    'default_branch_id' => [
+                        'required',
+                        'integer',
+                    ],
+                ]
+            );
         }
 
-        $user->save();
+        $validated = $request->validate(
+            $rules,
+            [
+                'name.required' =>
+                    'El nombre es obligatorio.',
+
+                'email.required' =>
+                    'El correo electrónico es obligatorio.',
+
+                'email.email' =>
+                    'Ingrese un correo electrónico válido.',
+
+                'email.unique' =>
+                    'Este correo electrónico ya está registrado.',
+
+                'role_id.required' =>
+                    'Seleccione un perfil.',
+
+                'companies.required' =>
+                    'Seleccione al menos una empresa.',
+
+                'branches.required' =>
+                    'Seleccione al menos un local.',
+
+                'default_company_id.required' =>
+                    'Seleccione una empresa predeterminada.',
+
+                'default_branch_id.required' =>
+                    'Seleccione un local predeterminado.',
+            ]
+        );
+
+        $role = null;
+        $companyIds = [];
+        $branchIds = [];
+        $defaultCompanyId = null;
+        $defaultBranchId = null;
+
+        if (!$user->is_tenant_owner) {
+
+            /*
+             * ROLE
+             */
+            $role = Role::query()
+                ->where(
+                    'id',
+                    $validated['role_id']
+                )
+                ->where(
+                    'tenant_id',
+                    $tenant->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->where(
+                    'is_owner_assignable',
+                    true
+                )
+                ->first();
+
+            if (!$role) {
+                return response()->json([
+                    'message' =>
+                        'El perfil seleccionado no está disponible para este tenant.'
+                ], 422);
+            }
+
+            /*
+             * COMPANIES
+             */
+            $companyIds = array_values(
+                array_unique(
+                    array_map(
+                        'intval',
+                        $validated['companies']
+                    )
+                )
+            );
+
+            $validCompanies = Company::query()
+                ->where(
+                    'tenant_id',
+                    $tenant->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->whereIn(
+                    'id',
+                    $companyIds
+                )
+                ->get();
+
+            if (
+                $validCompanies->count()
+                !==
+                count($companyIds)
+            ) {
+                return response()->json([
+                    'message' =>
+                        'Una o más empresas seleccionadas no pertenecen al tenant.'
+                ], 422);
+            }
+
+            $defaultCompanyId =
+                (int) $validated[
+                'default_company_id'
+                ];
+
+            if (
+            !in_array(
+                $defaultCompanyId,
+                $companyIds,
+                true
+            )
+            ) {
+                return response()->json([
+                    'message' =>
+                        'La empresa predeterminada debe estar entre las empresas autorizadas.'
+                ], 422);
+            }
+
+            /*
+             * BRANCHES
+             */
+            $branchIds = array_values(
+                array_unique(
+                    array_map(
+                        'intval',
+                        $validated['branches']
+                    )
+                )
+            );
+
+            $validBranches = Branch::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->whereIn(
+                    'company_id',
+                    $companyIds
+                )
+                ->whereIn(
+                    'id',
+                    $branchIds
+                )
+                ->with('company')
+                ->get()
+                ->filter(
+                    function ($branch) use (
+                        $tenant
+                    ) {
+                        return
+                            $branch->company &&
+                            (int)
+                            $branch
+                                ->company
+                                ->tenant_id
+                            ===
+                            (int)
+                            $tenant->id;
+                    }
+                )
+                ->values();
+
+            if (
+                $validBranches->count()
+                !==
+                count($branchIds)
+            ) {
+                return response()->json([
+                    'message' =>
+                        'Uno o más locales seleccionados no son válidos para el tenant.'
+                ], 422);
+            }
+
+            $defaultBranchId =
+                (int) $validated[
+                'default_branch_id'
+                ];
+
+            if (
+            !in_array(
+                $defaultBranchId,
+                $branchIds,
+                true
+            )
+            ) {
+                return response()->json([
+                    'message' =>
+                        'El local predeterminado debe estar entre los locales autorizados.'
+                ], 422);
+            }
+
+            $defaultBranch =
+                $validBranches
+                    ->firstWhere(
+                        'id',
+                        $defaultBranchId
+                    );
+
+            if (
+                !$defaultBranch ||
+                (int)
+                $defaultBranch
+                    ->company_id
+                !==
+                $defaultCompanyId
+            ) {
+                return response()->json([
+                    'message' =>
+                        'El local predeterminado debe pertenecer a la empresa predeterminada.'
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            $user->name =
+                $validated['name'];
+
+            $user->email =
+                $validated['email'];
+
+            /*
+             * Imagen.
+             */
+            if ($request->file('image')) {
+
+                $path =
+                    public_path(
+                        'images/users/'
+                    );
+
+                if (!file_exists($path)) {
+                    mkdir(
+                        $path,
+                        0755,
+                        true
+                    );
+                }
+
+                $extension =
+                    $request
+                        ->file('image')
+                        ->getClientOriginalExtension();
+
+                $filename =
+                    $user->id .
+                    '.' .
+                    $extension;
+
+                if (
+                    $user->image &&
+                    $user->image !==
+                    'no_image.png'
+                ) {
+                    $oldImagePath =
+                        $path .
+                        $user->image;
+
+                    if (
+                    file_exists(
+                        $oldImagePath
+                    )
+                    ) {
+                        unlink(
+                            $oldImagePath
+                        );
+                    }
+                }
+
+                $request
+                    ->file('image')
+                    ->move(
+                        $path,
+                        $filename
+                    );
+
+                $user->image =
+                    $filename;
+
+            } elseif (
+            !$user->image
+            ) {
+
+                $user->image =
+                    'no_image.png';
+            }
+
+            $user->save();
+
+            if (!$user->is_tenant_owner) {
+
+                /*
+                 * Un solo perfil.
+                 */
+                $user->syncRoles([
+                    $role
+                ]);
+
+                /*
+                 * Companies.
+                 */
+                $companySync = [];
+
+                foreach (
+                    $companyIds as
+                    $companyId
+                ) {
+                    $companySync[
+                    $companyId
+                    ] = [
+                        'is_default' =>
+                            $companyId ===
+                            $defaultCompanyId,
+
+                        'is_active' =>
+                            true,
+                    ];
+                }
+
+                $user->companies()
+                    ->sync(
+                        $companySync
+                    );
+
+                /*
+                 * Branches.
+                 */
+                $branchSync = [];
+
+                foreach (
+                    $branchIds as
+                    $branchId
+                ) {
+                    $branchSync[
+                    $branchId
+                    ] = [
+                        'is_default' =>
+                            $branchId ===
+                            $defaultBranchId,
+
+                        'is_active' =>
+                            true,
+                    ];
+                }
+
+                $user->branches()
+                    ->sync(
+                        $branchSync
+                    );
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo actualizar el usuario.'
+            ], 422);
+        }
 
         return response()->json([
-            'message' => 'Usuario actualizado correctamente.'
+            'message' =>
+                'Usuario actualizado correctamente.'
         ]);
     }
 
