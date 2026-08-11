@@ -34,7 +34,13 @@ Route::post('/emailcontact', 'EmailController@sendEmailContact')->name('email.co
 
 Auth::routes();
 
-Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(function (){
+Route::middleware(['auth','check.user.enabled',])->group(function () {
+    Route::get('/password/cambio-obligatorio','RequiredPasswordChangeController@edit')->name('password.required.edit');
+    Route::post('/password/cambio-obligatorio','RequiredPasswordChangeController@update')->name('password.required.update');
+
+});
+
+Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.context'])->group(function (){
     Route::prefix('dashboard')->group(function (){
 
         /*Route::get(
