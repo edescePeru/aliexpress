@@ -485,6 +485,24 @@ function renderUsers(users, from) {
 
         }
 
+        let resetButton = '';
+
+        if (
+            !user.is_tenant_owner &&
+            !user.is_current_user
+        ) {
+            resetButton = `
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    onclick="resetPasswordFromList(${user.id})"
+                >
+                    <i class="fas fa-key"></i>
+                    Reset
+                </button>
+            `;
+        }
+
         html += `
             <tr>
                 <td>${number}</td>
@@ -526,14 +544,7 @@ function renderUsers(users, from) {
                         <i class="fas fa-pencil-alt"></i>
                         Editar
                     </a>
-                    <button
-                        type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        onclick="resetPasswordFromList(${user.id})"
-                    >
-                        <i class="fas fa-key"></i>
-                        Reset
-                    </button>
+                    ${resetButton}
                     ${statusButton}
                 </td>
             </tr>

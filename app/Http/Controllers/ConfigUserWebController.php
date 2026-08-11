@@ -841,24 +841,51 @@ class ConfigUserWebController extends Controller
     {
         $this->ensureTenantOwner();
 
-        $user = $this->findTenantUserOrFail($id);
+        $authUser = Auth::user();
+
+        $user = $this
+            ->findTenantUserOrFail($id);
 
         /*
-         * Generamos una contraseña temporal.
-         *
-         * Evitamos caracteres ambiguos como:
-         * 0 O l I
+         * El Owner no administra su propia contraseña
+         * desde este mantenedor.
          */
-        $temporaryPassword =$this->generateTemporaryPassword();
+        if ($user->id === $authUser->id) {
+            return response()->json([
+                'message' =>
+                    'Para cambiar tu propia contraseña utiliza tu perfil.'
+            ], 422);
+        }
+
+        /*
+         * Protección adicional ante futuros casos
+         * con más de un Tenant Owner.
+         */
+        if ($user->is_tenant_owner) {
+            return response()->json([
+                'message' =>
+                    'La contraseña del propietario del tenant no puede resetearse desde este módulo.'
+            ], 422);
+        }
+
+        $temporaryPassword =
+            $this->generateTemporaryPassword();
 
         $user->password =
             Hash::make(
                 $temporaryPassword
             );
 
+        /*
+         * En 4F-7 este campo obligará al usuario
+         * a establecer su propia contraseña.
+         */
         $user->must_change_password =
             true;
 
+        /*
+         * Invalidamos login persistente.
+         */
         $user->remember_token =
             null;
 
@@ -869,9 +896,9 @@ class ConfigUserWebController extends Controller
                 'La contraseña fue reseteada correctamente.',
 
             /*
-             * Se devuelve únicamente en esta respuesta
-             * para que el Owner pueda entregársela
-             * al usuario.
+             * ÚNICAMENTE se devuelve en esta respuesta.
+             *
+             * Nunca se guarda en texto plano.
              */
             'temporary_password' =>
                 $temporaryPassword,
@@ -987,14 +1014,18 @@ class ConfigUserWebController extends Controller
         );
     }
 
-    public function changeStatus( Request $request, $id, TenantPlanService $planService ) {
+    public function changeStatus(Request $request,$id,TenantPlanService $planService) {
         $this->ensureTenantOwner();
+
+        $authUser = Auth::user();
 
         $user = $this
             ->findTenantUserOrFail($id);
 
-        $authUser = Auth::user();
-
+        /*
+         * No permitimos que el Owner cambie
+         * el estado de su propia cuenta.
+         */
         if ($user->id === $authUser->id) {
             return response()->json([
                 'message' =>
@@ -1002,6 +1033,14 @@ class ConfigUserWebController extends Controller
             ], 422);
         }
 
+        /*
+         * Tampoco permitimos inhabilitar
+         * al propietario del tenant.
+         *
+         * Aunque actualmente tendremos un Owner
+         * principal, dejamos esta protección
+         * explícita.
+         */
         if ($user->is_tenant_owner) {
             return response()->json([
                 'message' =>
@@ -1012,7 +1051,7 @@ class ConfigUserWebController extends Controller
         $request->validate([
             'status' => [
                 'required',
-                'in:0,1'
+                'in:0,1',
             ],
         ]);
 
@@ -1020,8 +1059,8 @@ class ConfigUserWebController extends Controller
             (int) $request->status;
 
         /*
-         * Si ya está en el mismo estado,
-         * devolvemos sin hacer nada.
+         * Si ya se encuentra en ese estado,
+         * no ejecutamos cambios innecesarios.
          */
         if (
             (int) $user->enable
@@ -1030,20 +1069,30 @@ class ConfigUserWebController extends Controller
         ) {
             return response()->json([
                 'message' =>
-                    'El usuario ya se encuentra en ese estado.',
+                    $newStatus === 1
+                        ? 'El usuario ya se encuentra activo.'
+                        : 'El usuario ya se encuentra inhabilitado.',
+
                 'enable' =>
                     (bool) $user->enable,
             ]);
         }
 
         /*
-         * Para HABILITAR hay que validar
-         * capacidad del plan.
+         * Para ACTIVAR debemos verificar
+         * nuevamente el cupo contratado.
          */
         if ($newStatus === 1) {
 
             $tenant =
                 $authUser->tenant;
+
+            if (!$tenant) {
+                return response()->json([
+                    'message' =>
+                        'No se encontró el tenant del usuario.'
+                ], 422);
+            }
 
             try {
 
@@ -1065,8 +1114,17 @@ class ConfigUserWebController extends Controller
             $newStatus === 1;
 
         /*
-         * Al inhabilitar invalidamos
-         * remember_token.
+         * Al inhabilitar:
+         *
+         * - eliminamos remember_token;
+         * - no tocamos Worker;
+         * - mantenemos roles;
+         * - mantenemos companies;
+         * - mantenemos branches;
+         * - mantenemos historial.
+         *
+         * Si luego vuelve a habilitarse,
+         * recupera el mismo alcance.
          */
         if (!$user->enable) {
             $user->remember_token = null;
