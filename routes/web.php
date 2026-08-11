@@ -3274,6 +3274,11 @@ Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(funct
         Route::get('configuracion/usuarios/web/listado', 'ConfigUserWebController@getUsers')
             ->name('configUserWeb.getUsers')
             ->middleware('permission:listUser_configUserWeb');
+
+        Route::get('configuracion/usuarios/web/resumen-plan','ConfigUserWebController@planSummary')
+            ->name('configUserWeb.planSummary')
+            ->middleware('permission:listUser_configUserWeb');
+
         Route::get('configuracion/usuarios/web/{id}/editar', 'ConfigUserWebController@edit')
             ->name('configUserWeb.edit')
             ->middleware('permission:editUser_configUserWeb');
@@ -3289,6 +3294,7 @@ Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(funct
         Route::post('configuracion/usuarios/web/{id}/cambiar-estado', 'ConfigUserWebController@changeStatus')
             ->name('configUserWeb.changeStatus')
             ->middleware('permission:changeStatusUser_configUserWeb');
+
 
         Route::prefix('/ventas-libres')->group(function () {
             Route::get('/', [FreeSaleController::class, 'index'])

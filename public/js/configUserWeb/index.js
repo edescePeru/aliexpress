@@ -1,7 +1,48 @@
 let currentPage = 1;
 let searchTimeout = null;
 
+let configUserWebRoutes = {};
+
 $(document).ready(function () {
+    const $app =
+        $('#config-user-web-app');
+
+    configUserWebRoutes = {
+
+        getUsers:
+            $app.data(
+                'url-users'
+            ),
+
+        planSummary:
+            $app.data(
+                'url-plan-summary'
+            ),
+
+        edit:
+            $app.data(
+                'url-edit'
+            ),
+
+        update:
+            $app.data(
+                'url-update'
+            ),
+
+        resetPassword:
+            $app.data(
+                'url-reset-password'
+            ),
+
+        changeStatus:
+            $app.data(
+                'url-change-status'
+            )
+
+    };
+
+    loadPlanSummary();
+
     loadUsers();
 
     $('#searchUser').on('keyup', function () {
@@ -42,7 +83,7 @@ $(document).ready(function () {
         $('#editUserErrors').addClass('d-none').html('');
 
         $.ajax({
-            url: buildRoute(window.configUserWebRoutes.update, id),
+            url: buildRoute(configUserWebRoutes.update, id),
             type: 'POST',
             dataType: 'json',
             data: formData,
@@ -109,7 +150,122 @@ $(document).ready(function () {
 
         reader.readAsDataURL(file);
     });
+
+    $('#btnNewUser').on(
+        'click',
+        function () {
+
+            showWarning(
+                'La creación de usuarios se habilitará en la siguiente fase.'
+            );
+
+        }
+    );
 });
+
+function loadPlanSummary() {
+
+    $('#planSummaryLoading')
+        .removeClass('d-none');
+
+
+    $('#planSummaryContent')
+        .addClass('d-none');
+
+
+    $.ajax({
+        url:configUserWebRoutes.planSummary,
+        type:'GET',
+        dataType:'json',
+        success:
+            function (response) {
+                renderPlanSummary(response);
+            },
+
+        error:
+            function (xhr) {
+                $('#planSummaryLoading')
+                    .html(`
+                        <span class="text-danger">
+                            <i
+                                class="
+                                    fas
+                                    fa-exclamation-circle
+                                "
+                            ></i>
+
+                            No se pudo cargar
+                            la información del plan.
+                        </span>
+                    `);
+
+
+                showError(
+                    getAjaxMessage(
+                        xhr,
+                        'No se pudo cargar la información del plan.'
+                    )
+                );
+
+            }
+    });
+}
+
+function renderPlanSummary(response) {
+    const plan = response.plan || {};
+
+    const users = response.users || {};
+
+    $('#planName').text(plan.name || '-');
+
+    $('#activeUsersCount').text(users.active || 0);
+
+    $('#maxUsersCount').text(users.max || 0);
+
+    $('#availableUsersCount').text(users.available || 0);
+
+    $('#inactiveUsersCount').text(users.inactive || 0);
+
+    let usage = parseFloat(users.usage_percentage|| 0);
+
+    /*
+     * Visualmente no dejamos
+     * que la barra supere 100%.
+     *
+     * Podría existir temporalmente un
+     * tenant que haya bajado de plan
+     * teniendo más usuarios activos.
+     */
+    let visualUsage = Math.min(usage,100);
+
+    $('#planUsageText').text(usage.toFixed(0)+ '%');
+
+    let $progress =$('#planUsageProgress');
+
+    $progress.css('width',visualUsage + '%').removeClass('bg-success bg-warning bg-danger');
+
+    if (usage >= 100) {
+        $progress.addClass('bg-danger');
+
+    } else if (usage >= 70) {
+        $progress.addClass('bg-warning');
+
+    } else {
+        $progress.addClass('bg-success');
+    }
+
+    if (users.limit_reached) {
+        $('#planLimitAlert').removeClass('d-none');
+    } else {
+        $('#planLimitAlert').addClass('d-none');
+    }
+
+
+    $('#planSummaryLoading').addClass('d-none');
+
+    $('#planSummaryContent').removeClass('d-none');
+
+}
 
 function resetUserPassword(id) {
     $('#btnResetPassword')
@@ -117,7 +273,7 @@ function resetUserPassword(id) {
         .html('<i class="fas fa-spinner fa-spin"></i> Reseteando...');
 
     $.ajax({
-        url: buildRoute(window.configUserWebRoutes.resetPassword, id),
+        url: buildRoute(configUserWebRoutes.resetPassword, id),
         type: 'POST',
         dataType: 'json',
         data: {
@@ -332,7 +488,7 @@ function loadUsers(page = 1) {
     `);
 
     $.ajax({
-        url: window.configUserWebRoutes.getUsers,
+        url: configUserWebRoutes.getUsers,
         type: 'GET',
         dataType: 'json',
         data: {
@@ -554,7 +710,7 @@ function editUser(id) {
     clearEditUserForm();
 
     $.ajax({
-        url: buildRoute(window.configUserWebRoutes.edit, id),
+        url: buildRoute(configUserWebRoutes.edit, id),
         type: 'GET',
         dataType: 'json',
         success: function (response) {
@@ -614,7 +770,7 @@ function changeStatus(id, status) {
 
 function sendChangeStatus(id, status) {
     $.ajax({
-        url: buildRoute(window.configUserWebRoutes.changeStatus, id),
+        url: buildRoute(configUserWebRoutes.changeStatus, id),
         type: 'POST',
         dataType: 'json',
         data: {
@@ -622,8 +778,14 @@ function sendChangeStatus(id, status) {
             status: status
         },
         success: function (response) {
-            showSuccess(response.message || 'Estado actualizado correctamente.');
+            showSuccess(
+                response.message ||
+                'Estado actualizado correctamente.'
+            );
+
             loadUsers(currentPage);
+
+            loadPlanSummary();
         },
         error: function (xhr) {
             showError(getAjaxMessage(xhr, 'No se pudo actualizar el estado del usuario.'));

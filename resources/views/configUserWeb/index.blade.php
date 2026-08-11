@@ -22,8 +22,41 @@
 
 @section('styles')
     <style>
-        .select2-search__field{
-            width: 100% !important;
+        .plan-small-box {
+            min-height: 105px;
+            margin-bottom: 0;
+        }
+
+        .plan-small-box .inner {
+            padding: 14px 16px;
+        }
+
+        .plan-small-box .inner h4 {
+            font-size: 1.45rem;
+            font-weight: 600;
+        }
+
+        .plan-small-box .inner p {
+            font-size: 0.9rem;
+        }
+
+        .plan-small-box .icon {
+            top: 10px;
+            right: 12px;
+        }
+
+        .plan-small-box .icon > i {
+            font-size: 48px;
+        }
+
+        @media (max-width: 767.98px) {
+            .plan-small-box {
+                margin-bottom: 12px;
+            }
+
+            .plan-small-box .icon > i {
+                font-size: 42px;
+            }
         }
     </style>
 @endsection
@@ -48,77 +81,239 @@
 @section('content')
     <div class="container-fluid">
 
-        <div class="card">
+        <div id="config-user-web-app"
+             data-url-users="{{ route('configUserWeb.getUsers') }}"
 
-            <div class="card-body">
+             data-url-plan-summary="{{route('configUserWeb.planSummary')}}"
 
-                <div class="row mb-3">
-                    <div class="col-md-2">
-                        <label>Mostrar</label>
-                        <select id="perPage" class="form-control form-control-sm">
-                            <option value="10">10 registros</option>
-                            <option value="25">25 registros</option>
-                            <option value="50">50 registros</option>
-                        </select>
+             data-url-edit="{{route('configUserWeb.edit',['id' => ':id'])}}"
+
+             data-url-update="{{route('configUserWeb.update',['id' => ':id'])}}"
+
+             data-url-reset-password="{{route('configUserWeb.resetPassword',['id' => ':id'])}}"
+
+             data-url-change-status="{{route('configUserWeb.changeStatus',['id' => ':id'])}}">
+
+            <div id="planSummaryCard" class="card card-outline card-primary mb-3">
+                <div class="card-header">
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+
+                        <div>
+                            <h3 class="card-title mb-0">
+                                <i class="fas fa-layer-group mr-1" ></i>
+
+                                Plan del negocio
+                            </h3>
+                        </div>
+
+
+                        <div class="mt-2 mt-sm-0">
+
+                            <button
+                                    type="button"
+                                    id="btnNewUser"
+                                    class="btn btn-outline-success btn-sm"
+                            >
+                                <i class="fas fa-user-plus mr-1"></i>
+
+                                Nuevo usuario
+                            </button>
+
+                        </div>
+
+                        </div>
+
                     </div>
 
-                    <div class="col-md-3">
-                        <label>Estado</label>
-                        <select id="statusFilter" class="form-control form-control-sm">
-                            <option value="active">Activos</option>
-                            <option value="inactive">Inhabilitados</option>
-                            <option value="all">Todos</option>
-                        </select>
-                    </div>
 
-                    <div class="col-md-4 offset-md-3">
-                        <label>Buscar</label>
-                        <input type="text" id="searchUser" class="form-control form-control-sm"
-                               placeholder="Buscar por nombre o email">
+                    <div class="card-body">
+
+                        <div id="planSummaryLoading" class="text-center text-muted py-3" >
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Cargando información del plan...
+                        </div>
+
+
+                        <div id="planSummaryContent" class="d-none">
+
+                            <div class="row">
+
+                                <div class="col-xl-3 col-md-6 col-12">
+                                    <div class="small-box bg-info plan-small-box">
+                                        <div class="inner">
+                                            <h4 id="planName" class="mb-1">-</h4>
+                                            <p class="mb-0">Plan contratado</p>
+                                        </div>
+
+                                        <div class="icon">
+                                            <i class="fas fa-layer-group"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-xl-3 col-md-6 col-12">
+                                    <div class="small-box bg-success plan-small-box">
+                                        <div class="inner">
+                                            <h4 class="mb-1">
+                                                <span id="activeUsersCount">0</span>
+                                                /
+                                                <span id="maxUsersCount">0</span>
+                                            </h4>
+
+                                            <p class="mb-0">Usuarios activos</p>
+                                        </div>
+
+                                        <div class="icon">
+                                            <i class="fas fa-users"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-xl-3 col-md-6 col-12">
+                                    <div class="small-box bg-warning plan-small-box">
+                                        <div class="inner">
+                                            <h4 id="availableUsersCount" class="mb-1">0</h4>
+                                            <p class="mb-0">Cupos disponibles</p>
+                                        </div>
+
+                                        <div class="icon">
+                                            <i class="fas fa-user-plus"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-xl-3 col-md-6 col-12">
+                                    <div class="small-box bg-danger plan-small-box">
+                                        <div class="inner">
+                                            <h4 id="inactiveUsersCount" class="mb-1">0</h4>
+                                            <p class="mb-0">Usuarios inactivos</p>
+                                        </div>
+
+                                        <div class="icon">
+                                            <i class="fas fa-user-slash"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                            <div class="mt-3">
+
+                                <div class=" d-flex justify-content-between align-items-center mb-1">
+
+                                    <small>
+                                        Uso de usuarios del plan
+                                    </small>
+
+                                    <small id="planUsageText" class="font-weight-bold">
+                                        0%
+                                    </small>
+
+                                </div>
+
+
+                                <div class="progress" style="height: 8px;">
+
+                                    <div
+                                            id="planUsageProgress"
+                                            class="progress-bar bg-success"
+                                            role="progressbar"
+                                            style="width: 0%;"
+                                    ></div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div id="planLimitAlert" class="alert alert-warning mt-3 mb-0 d-none">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+
+                                <strong>
+                                    Límite alcanzado.
+                                </strong>
+
+                                No hay cupos disponibles para activar
+                                o crear nuevos usuarios.
+                            </div>
+
+                        </div>
+
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover table-sm">
-                        <thead>
-                        <tr>
-                            <th style="width: 60px;">#</th>
-                            <th>Nombre</th>
-                            <th>Email</th>
-                            <th>Última modificación</th>
-                            <th>Rol</th>
-                            <th style="width: 90px;">Imagen</th>
-                            <th style="width: 180px;">Acciones</th>
-                        </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                        <tr>
-                            <td colspan="7" class="text-center">
-                                Cargando usuarios...
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="card">
 
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <small id="paginationInfo"></small>
+                <div class="card-body">
+
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label>Mostrar</label>
+                            <select id="perPage" class="form-control form-control-sm">
+                                <option value="10">10 registros</option>
+                                <option value="25">25 registros</option>
+                                <option value="50">50 registros</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label>Estado</label>
+                            <select id="statusFilter" class="form-control form-control-sm">
+                                <option value="active">Activos</option>
+                                <option value="inactive">Inhabilitados</option>
+                                <option value="all">Todos</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 offset-md-3">
+                            <label>Buscar</label>
+                            <input type="text" id="searchUser" class="form-control form-control-sm"
+                                   placeholder="Buscar por nombre o email">
+                        </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <nav class="float-md-right">
-                            <ul class="pagination pagination-sm mb-0" id="paginationLinks"></ul>
-                        </nav>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover table-sm">
+                            <thead>
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Última modificación</th>
+                                <th>Rol</th>
+                                <th style="width: 90px;">Imagen</th>
+                                <th style="width: 180px;">Acciones</th>
+                            </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    Cargando usuarios...
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
 
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <small id="paginationInfo"></small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <nav class="float-md-right">
+                                <ul class="pagination pagination-sm mb-0" id="paginationLinks"></ul>
+                            </nav>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
 
-    </div>
-
-    <div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="modalEditUserLabel" aria-hidden="true">
+        <div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="modalEditUserLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <form id="formEditUser" enctype="multipart/form-data">
                 @csrf
@@ -207,23 +402,14 @@
             </form>
         </div>
     </div>
+    </div>
 @endsection
 
 @section('plugins')
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
+
 @endsection
 
 @section('scripts')
-    <script>
-        window.configUserWebRoutes = {
-            getUsers: "{{ route('configUserWeb.getUsers') }}",
-            edit: "{{ route('configUserWeb.edit', ['id' => ':id']) }}",
-            update: "{{ route('configUserWeb.update', ['id' => ':id']) }}",
-            resetPassword: "{{ route('configUserWeb.resetPassword', ['id' => ':id']) }}",
-            changeStatus: "{{ route('configUserWeb.changeStatus', ['id' => ':id']) }}"
-        };
-    </script>
 
     <script src="{{ asset('js/configUserWeb/index.js') }}"></script>
 @endsection

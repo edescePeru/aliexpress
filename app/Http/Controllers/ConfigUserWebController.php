@@ -557,4 +557,97 @@ class ConfigUserWebController extends Controller
                 (bool) $user->enable,
         ]);
     }
+
+    public function planSummary(TenantPlanService $planService) {
+        $this->ensureTenantOwner();
+
+        $tenant = Auth::user()->tenant;
+
+        if (!$tenant) {
+            return response()->json([
+                'message' =>
+                    'No se encontró el tenant del usuario.'
+            ], 422);
+        }
+
+        if (!$tenant->plan) {
+            return response()->json([
+                'message' =>
+                    'El tenant no tiene un plan asignado.'
+            ], 422);
+        }
+
+        $activeUsers =
+            $planService->activeUsersCount(
+                $tenant
+            );
+
+        $maxUsers =
+            $planService->maxActiveUsers(
+                $tenant
+            );
+
+        $availableUsers =
+            $planService->availableUsers(
+                $tenant
+            );
+
+        $inactiveUsers =
+            User::query()
+                ->where(
+                    'tenant_id',
+                    $tenant->id
+                )
+                ->where(
+                    'is_platform_admin',
+                    false
+                )
+                ->where(
+                    'enable',
+                    false
+                )
+                ->count();
+
+        $usagePercentage = 0;
+
+        if ($maxUsers > 0) {
+            $usagePercentage = round(
+                ($activeUsers / $maxUsers) * 100,
+                2
+            );
+        }
+
+        return response()->json([
+            'plan' => [
+                'id' =>
+                    $tenant->plan->id,
+
+                'code' =>
+                    $tenant->plan->code,
+
+                'name' =>
+                    $tenant->plan->name,
+            ],
+
+            'users' => [
+                'active' =>
+                    $activeUsers,
+
+                'inactive' =>
+                    $inactiveUsers,
+
+                'max' =>
+                    $maxUsers,
+
+                'available' =>
+                    $availableUsers,
+
+                'usage_percentage' =>
+                    $usagePercentage,
+
+                'limit_reached' =>
+                    $availableUsers <= 0,
+            ],
+        ]);
+    }
 }
