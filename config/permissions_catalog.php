@@ -517,5 +517,6 @@ return [
     'listUser_configUserWeb' => 'Listar configuracion de usuarios web',
     'editUser_configUserWeb' => 'Editar configuracion de usuarios web',
     'changeStatusUser_configUserWeb' => 'Cambiar estado de usuarios web',
-    'resetPasswordUser_configUserWeb' => 'Resetear contraseña de usuarios web'
+    'resetPasswordUser_configUserWeb' => 'Resetear contraseña de usuarios web',
+    'createUser_configUserWeb'=> 'Crear usuarios del negocio',
 ];

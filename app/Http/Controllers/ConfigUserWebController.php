@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use App\Branch;
+use App\Company;
+use App\Role;
+use Illuminate\Support\Facades\DB;
 
 class ConfigUserWebController extends Controller
 {
@@ -648,6 +652,576 @@ class ConfigUserWebController extends Controller
                 'limit_reached' =>
                     $availableUsers <= 0,
             ],
+        ]);
+    }
+
+    public function create()
+    {
+        $this->ensureTenantOwner();
+
+        $authUser = Auth::user();
+
+        $tenant = $authUser->tenant;
+
+        if (!$tenant) {
+            abort(
+                422,
+                'El usuario no tiene un tenant asignado.'
+            );
+        }
+
+        /*
+         * Solo perfiles que:
+         *
+         * - pertenezcan al tenant;
+         * - estén activos;
+         * - puedan ser asignados por el Owner.
+         */
+        $roles = Role::query()
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                'is_owner_assignable',
+                true
+            )
+            ->select(
+                'id',
+                'name',
+                'description'
+            )
+            ->orderBy('description')
+            ->get();
+
+        /*
+         * El Tenant Owner puede administrar
+         * las Companies de todo su tenant.
+         */
+        $companies = Company::query()
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->with([
+                'branches' => function ($query) {
+                    $query
+                        ->where(
+                            'is_active',
+                            true
+                        )
+                        ->select(
+                            'id',
+                            'company_id',
+                            'name',
+                            'code',
+                            'is_main'
+                        )
+                        ->orderByDesc(
+                            'is_main'
+                        )
+                        ->orderBy(
+                            'name'
+                        );
+                },
+            ])
+            ->select(
+                'id',
+                'business_name',
+                'trade_name'
+            )
+            ->orderBy(
+                'business_name'
+            )
+            ->get();
+
+        return view(
+            'configUserWeb.create',
+            compact(
+                'tenant',
+                'roles',
+                'companies'
+            )
+        );
+    }
+
+    public function store(Request $request, TenantPlanService $planService) {
+        $this->ensureTenantOwner();
+
+        $authUser = Auth::user();
+
+        $tenant = $authUser->tenant;
+
+        if (!$tenant) {
+            return response()->json([
+                'message' =>
+                    'No se encontró el tenant del usuario.'
+            ], 422);
+        }
+
+        /*
+         * Primero validamos el límite comercial.
+         */
+        try {
+
+            $planService
+                ->ensureCanActivateUser(
+                    $tenant
+                );
+
+        } catch (\RuntimeException $e) {
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email',
+            ],
+
+            'role_id' => [
+                'required',
+                'integer',
+            ],
+
+            'companies' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'companies.*' => [
+                'integer',
+            ],
+
+            'branches' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'branches.*' => [
+                'integer',
+            ],
+
+            'default_company_id' => [
+                'required',
+                'integer',
+            ],
+
+            'default_branch_id' => [
+                'required',
+                'integer',
+            ],
+        ], [
+            'name.required' =>
+                'El nombre es obligatorio.',
+
+            'email.required' =>
+                'El correo electrónico es obligatorio.',
+
+            'email.email' =>
+                'Ingrese un correo electrónico válido.',
+
+            'email.unique' =>
+                'Este correo electrónico ya está registrado.',
+
+            'role_id.required' =>
+                'Seleccione un perfil.',
+
+            'companies.required' =>
+                'Seleccione al menos una empresa.',
+
+            'branches.required' =>
+                'Seleccione al menos un local.',
+
+            'default_company_id.required' =>
+                'Seleccione una empresa predeterminada.',
+
+            'default_branch_id.required' =>
+                'Seleccione un local predeterminado.',
+        ]);
+
+        /*
+         * -------------------------------------------------
+         * VALIDAR ROLE
+         * -------------------------------------------------
+         *
+         * Nunca confiamos en role_id enviado por frontend.
+         */
+        $role = Role::query()
+            ->where(
+                'id',
+                $validated['role_id']
+            )
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                'is_owner_assignable',
+                true
+            )
+            ->first();
+
+        if (!$role) {
+            return response()->json([
+                'message' =>
+                    'El perfil seleccionado no está disponible para este tenant.'
+            ], 422);
+        }
+
+        /*
+         * -------------------------------------------------
+         * VALIDAR COMPANIES
+         * -------------------------------------------------
+         */
+        $companyIds = array_values(
+            array_unique(
+                array_map(
+                    'intval',
+                    $validated['companies']
+                )
+            )
+        );
+
+        $validCompanies = Company::query()
+            ->where(
+                'tenant_id',
+                $tenant->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->whereIn(
+                'id',
+                $companyIds
+            )
+            ->get();
+
+        if (
+            $validCompanies->count()
+            !==
+            count($companyIds)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Una o más empresas seleccionadas no pertenecen al tenant.'
+            ], 422);
+        }
+
+        /*
+         * -------------------------------------------------
+         * VALIDAR COMPANY DEFAULT
+         * -------------------------------------------------
+         */
+        $defaultCompanyId =
+            (int) $validated[
+            'default_company_id'
+            ];
+
+        if (
+        !in_array(
+            $defaultCompanyId,
+            $companyIds,
+            true
+        )
+        ) {
+            return response()->json([
+                'message' =>
+                    'La empresa predeterminada debe estar entre las empresas autorizadas.'
+            ], 422);
+        }
+
+        /*
+         * -------------------------------------------------
+         * VALIDAR BRANCHES
+         * -------------------------------------------------
+         */
+        $branchIds = array_values(
+            array_unique(
+                array_map(
+                    'intval',
+                    $validated['branches']
+                )
+            )
+        );
+
+        $validBranches = Branch::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->whereIn(
+                'company_id',
+                $companyIds
+            )
+            ->whereIn(
+                'id',
+                $branchIds
+            )
+            ->with('company')
+            ->get();
+
+        /*
+         * Además comprobamos tenant vía Company.
+         */
+        $validBranches = $validBranches
+            ->filter(
+                function ($branch) use (
+                    $tenant
+                ) {
+                    return
+                        $branch->company &&
+                        (int)
+                        $branch->company
+                            ->tenant_id
+                        ===
+                        (int)
+                        $tenant->id;
+                }
+            )
+            ->values();
+
+        if (
+            $validBranches->count()
+            !==
+            count($branchIds)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Uno o más locales seleccionados no son válidos para el tenant.'
+            ], 422);
+        }
+
+        /*
+         * -------------------------------------------------
+         * VALIDAR BRANCH DEFAULT
+         * -------------------------------------------------
+         */
+        $defaultBranchId =
+            (int) $validated[
+            'default_branch_id'
+            ];
+
+        if (
+        !in_array(
+            $defaultBranchId,
+            $branchIds,
+            true
+        )
+        ) {
+            return response()->json([
+                'message' =>
+                    'El local predeterminado debe estar entre los locales autorizados.'
+            ], 422);
+        }
+
+        $defaultBranch =
+            $validBranches
+                ->firstWhere(
+                    'id',
+                    $defaultBranchId
+                );
+
+        if (
+            !$defaultBranch ||
+            (int) $defaultBranch->company_id
+            !==
+            $defaultCompanyId
+        ) {
+            return response()->json([
+                'message' =>
+                    'El local predeterminado debe pertenecer a la empresa predeterminada.'
+            ], 422);
+        }
+
+        /*
+         * Antes de crear volvemos a comprobar cupo.
+         *
+         * Esto reduce problemas si dos peticiones
+         * intentan crear usuarios casi simultáneamente.
+         */
+        try {
+
+            $planService
+                ->ensureCanActivateUser(
+                    $tenant
+                );
+
+        } catch (\RuntimeException $e) {
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
+        }
+
+        $temporaryPassword =
+            $this->generateTemporaryPassword();
+
+        DB::beginTransaction();
+
+        try {
+
+            $user = User::create([
+                'tenant_id' =>
+                    $tenant->id,
+
+                'is_platform_admin' =>
+                    false,
+
+                'is_tenant_owner' =>
+                    false,
+
+                /*
+                 * Campo antiguo de cajas.
+                 * No tiene relación con Tenant Owner.
+                 */
+                'owner' =>
+                    false,
+
+                'name' =>
+                    $validated['name'],
+
+                'email' =>
+                    $validated['email'],
+
+                'password' =>
+                    Hash::make(
+                        $temporaryPassword
+                    ),
+
+                'image' =>
+                    'no_image.png',
+
+                'enable' =>
+                    true,
+
+                'must_change_password' =>
+                    true,
+            ]);
+
+            /*
+             * Un solo perfil operativo.
+             */
+            $user->syncRoles([
+                $role
+            ]);
+
+            /*
+             * Companies autorizadas.
+             */
+            $companySync = [];
+
+            foreach (
+                $companyIds as
+                $companyId
+            ) {
+                $companySync[
+                $companyId
+                ] = [
+                    'is_default' =>
+                        $companyId ===
+                        $defaultCompanyId,
+
+                    'is_active' =>
+                        true,
+                ];
+            }
+
+            $user->companies()
+                ->sync(
+                    $companySync
+                );
+
+            /*
+             * Branches autorizadas.
+             */
+            $branchSync = [];
+
+            foreach (
+                $branchIds as
+                $branchId
+            ) {
+                $branchSync[
+                $branchId
+                ] = [
+                    'is_default' =>
+                        $branchId ===
+                        $defaultBranchId,
+
+                    'is_active' =>
+                        true,
+                ];
+            }
+
+            $user->branches()
+                ->sync(
+                    $branchSync
+                );
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo crear el usuario.'
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Usuario creado correctamente.',
+
+            'user' => [
+                'id' =>
+                    $user->id,
+
+                'name' =>
+                    $user->name,
+
+                'email' =>
+                    $user->email,
+            ],
+
+            /*
+             * Solo se devuelve ahora.
+             *
+             * No la almacenamos en texto plano.
+             */
+            'temporary_password' =>
+                $temporaryPassword,
         ]);
     }
 }

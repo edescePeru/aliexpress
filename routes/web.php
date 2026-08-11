@@ -3279,6 +3279,14 @@ Route::middleware(['auth', 'check.user.enabled', 'tenant.context'])->group(funct
             ->name('configUserWeb.planSummary')
             ->middleware('permission:listUser_configUserWeb');
 
+        Route::get('configuracion/usuarios/web/nuevo','ConfigUserWebController@create')
+            ->name('configUserWeb.create')
+            ->middleware('permission:createUser_configUserWeb');
+
+        Route::post('configuracion/usuarios/web/guardar','ConfigUserWebController@store')
+            ->name('configUserWeb.store')
+            ->middleware('permission:createUser_configUserWeb');
+
         Route::get('configuracion/usuarios/web/{id}/editar', 'ConfigUserWebController@edit')
             ->name('configUserWeb.edit')
             ->middleware('permission:editUser_configUserWeb');

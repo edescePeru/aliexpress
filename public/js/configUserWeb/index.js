@@ -37,7 +37,12 @@ $(document).ready(function () {
         changeStatus:
             $app.data(
                 'url-change-status'
-            )
+            ),
+
+        create:
+            $app.data(
+                'url-create'
+            ),
 
     };
 
@@ -155,9 +160,8 @@ $(document).ready(function () {
         'click',
         function () {
 
-            showWarning(
-                'La creación de usuarios se habilitará en la siguiente fase.'
-            );
+            window.location.href =
+                configUserWebRoutes.create;
 
         }
     );

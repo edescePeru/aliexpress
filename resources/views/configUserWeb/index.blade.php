@@ -92,7 +92,10 @@
 
              data-url-reset-password="{{route('configUserWeb.resetPassword',['id' => ':id'])}}"
 
-             data-url-change-status="{{route('configUserWeb.changeStatus',['id' => ':id'])}}">
+             data-url-change-status="{{route('configUserWeb.changeStatus',['id' => ':id'])}}"
+
+             data-url-create="{{route('configUserWeb.create')}}"
+        >
 
             <div id="planSummaryCard" class="card card-outline card-primary mb-3">
                 <div class="card-header">
