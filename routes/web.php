@@ -3354,6 +3354,12 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
 
         Route::get('/','Platform\PlatformDashboardController@index')->name('platform.dashboard');
 
+        Route::get('activity-log','Platform\ActivityLogController@index')->name('platformActivity.index');
+
+        Route::get('activity-log/data','Platform\ActivityLogController@data')->name('platformActivity.data');
+
+        Route::get('activity-log/{id}','Platform\ActivityLogController@show')->name('platformActivity.show');
+
         Route::get('plans','PlanController@index')->name('plan.index');
         Route::get('plans/data','PlanController@data')->name('plan.data');
         Route::post('plans','PlanController@store')->name('plan.store');

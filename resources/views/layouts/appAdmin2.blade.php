@@ -335,6 +335,19 @@
                             </a>
 
                         </li>
+
+                        <li class="nav-item">
+
+                            <a href="{{route('platformActivity.index')}}" class="nav-link @yield('activePlatformActivity')">
+
+                                <i class="nav-icon fas fa-history"></i>
+
+                                <p> Auditoría</p>
+
+                            </a>
+
+                        </li>
+
                     @endif
 
                     @can('enable_puntoVenta')
