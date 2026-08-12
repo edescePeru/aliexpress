@@ -6,6 +6,7 @@ use App\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Services\PlatformAuditService;
 
 class PlanController extends Controller
 {
@@ -58,7 +59,7 @@ class PlanController extends Controller
         return response()->json($plans);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, PlatformAuditService $auditService)
     {
         $validated = $request->validate([
             'code' => [
@@ -90,9 +91,9 @@ class PlanController extends Controller
         ]);
 
         DB::transaction(function () use (
-            $validated
+            $validated, $auditService
         ) {
-            Plan::create([
+            $plan = Plan::create([
                 'code' => strtolower(
                     $validated['code']
                 ),
@@ -112,6 +113,32 @@ class PlanController extends Controller
 
                 'is_active' => true,
             ]);
+
+            $auditService->log(
+                'plan.created',
+                $plan,
+                [
+                    'new' => [
+                        'id' =>
+                            $plan->id,
+
+                        'code' =>
+                            $plan->code,
+
+                        'name' =>
+                            $plan->name,
+
+                        'max_active_users' =>
+                            $plan->max_active_users,
+
+                        'description' =>
+                            $plan->description,
+
+                        'is_active' =>
+                            (bool) $plan->is_active,
+                    ],
+                ]
+            );
         });
 
         return response()->json([
@@ -120,8 +147,25 @@ class PlanController extends Controller
         ]);
     }
 
-    public function update(Request $request,$id){
+    public function update(Request $request, $id, PlatformAuditService $auditService){
         $plan = Plan::findOrFail($id);
+
+        $oldValues = [
+            'code' =>
+                $plan->code,
+
+            'name' =>
+                $plan->name,
+
+            'max_active_users' =>
+                $plan->max_active_users,
+
+            'description' =>
+                $plan->description,
+
+            'is_active' =>
+                (bool) $plan->is_active,
+        ];
 
         $validated = $request->validate([
             'code' => [
@@ -158,7 +202,9 @@ class PlanController extends Controller
 
         DB::transaction(function () use (
             $plan,
-            $validated
+            $validated,
+            $auditService,
+            $oldValues
         ) {
             $plan->update([
                 'code' => strtolower(
@@ -178,6 +224,41 @@ class PlanController extends Controller
                     'description'
                     ] ?? null,
             ]);
+
+            $plan->refresh();
+
+            $newValues = [
+                'code' =>
+                    $plan->code,
+
+                'name' =>
+                    $plan->name,
+
+                'max_active_users' =>
+                    $plan->max_active_users,
+
+                'description' =>
+                    $plan->description,
+
+                'is_active' =>
+                    (bool) $plan->is_active,
+            ];
+
+            if ($oldValues !== $newValues) {
+
+                $auditService->log(
+                    'plan.updated',
+                    $plan,
+                    [
+                        'old' =>
+                            $oldValues,
+
+                        'new' =>
+                            $newValues,
+                    ]
+                );
+
+            }
         });
 
         return response()->json([
@@ -186,8 +267,7 @@ class PlanController extends Controller
         ]);
     }
 
-    public function toggleStatus($id)
-    {
+    public function toggleStatus( $id, PlatformAuditService $auditService ) {
         $plan = Plan::findOrFail($id);
 
         if (
@@ -202,10 +282,35 @@ class PlanController extends Controller
             ], 422);
         }
 
-        $plan->is_active =
-            !$plan->is_active;
+        DB::transaction(function () use (
+            $plan,
+            $auditService
+        ) {
 
-        $plan->save();
+            $oldStatus =
+                (bool) $plan->is_active;
+
+            $plan->is_active =
+                !$plan->is_active;
+
+            $plan->save();
+
+            $auditService->log(
+                'plan.status_changed',
+                $plan,
+                [
+                    'old' => [
+                        'is_active' =>
+                            $oldStatus,
+                    ],
+
+                    'new' => [
+                        'is_active' =>
+                            (bool) $plan->is_active,
+                    ],
+                ]
+            );
+        });
 
         return response()->json([
             'message' =>

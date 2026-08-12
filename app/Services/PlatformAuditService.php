@@ -37,6 +37,11 @@ class PlatformAuditService
         $properties['action'] =
             $action;
 
+        if ( !array_key_exists( 'tenant_id', $properties ) ) {
+            $properties['tenant_id'] =
+                null;
+        }
+
         $properties['ip'] =
             request()->ip();
 
