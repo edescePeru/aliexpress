@@ -11,12 +11,30 @@ class EnsurePlatformAdmin
     {
         $user = Auth::user();
 
-        if (!$user || !$user->isPlatformAdmin()) {
+        if (!$user) {
+            abort(401);
+        }
+
+        /*
+         * La Superadministración solamente puede
+         * ser utilizada por administradores de Venti360.
+         */
+        if (!$user->is_platform_admin) {
             abort(
                 403,
-                'No tiene permisos para acceder a la administración de Venti360.'
+                'No tienes autorización para acceder a la administración de plataforma.'
             );
         }
+
+        /*
+         * Un Platform Admin no debe pertenecer
+         * operacionalmente a ningún tenant.
+         *
+         * No bloqueamos aquí por tenant_id para evitar
+         * quedarnos sin acceso ante una inconsistencia
+         * histórica. Esa integridad la validaremos
+         * administrativamente.
+         */
 
         return $next($request);
     }

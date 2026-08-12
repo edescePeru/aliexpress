@@ -286,6 +286,20 @@
                         </li>
 
                         <li class="nav-item">
+
+                            <a href="{{ route('platform.dashboard') }}" class=" nav-link @yield('activePlatformDashboard') " >
+
+                                <i class="nav-icon fas fa-user-shield" ></i>
+
+                                <p>
+                                    Superadministración
+                                </p>
+
+                            </a>
+
+                        </li>
+
+                        <li class="nav-item">
                             <a
                                     href="{{ route('plan.index') }}"
                                     class="nav-link"

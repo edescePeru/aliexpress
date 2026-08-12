@@ -3349,8 +3349,11 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
     });
 });
 
-Route::middleware(['auth','check.user.enabled','platform.admin',])
-    ->prefix('platform')->group(function () {
+Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.admin',])
+    ->prefix('dashboard/plataforma')->group(function () {
+
+        Route::get('/','Platform\PlatformDashboardController@index')->name('platform.dashboard');
+
         Route::get('plans','PlanController@index')->name('plan.index');
         Route::get('plans/data','PlanController@data')->name('plan.data');
         Route::post('plans','PlanController@store')->name('plan.store');
