@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\PermissionRegistrar;
+use App\Services\PlatformAuditService;
 
 class TenantRoleController extends Controller
 {
@@ -159,7 +160,7 @@ class TenantRoleController extends Controller
         ]);
     }
 
-    public function store(Request $request,$tenantId) {
+    public function store(Request $request, $tenantId, PlatformAuditService $auditService) {
         $tenant = Tenant::query()
             ->where('is_active', true)
             ->findOrFail(
@@ -225,7 +226,8 @@ class TenantRoleController extends Controller
         DB::transaction(
             function () use (
                 $tenant,
-                $validated
+                $validated,
+                $auditService
             ) {
                 /*
                  * No usamos Role::create()
@@ -268,6 +270,43 @@ class TenantRoleController extends Controller
                     'permissions'
                     ] ?? []
                 );
+
+                /*
+                 * ---------------------------------------
+                 * AUDITORÍA
+                 * ---------------------------------------
+                 */
+
+                $role->load(
+                    'permissions',
+                    'template'
+                );
+
+                $auditService->log(
+                    'tenant_role.created',
+                    $role,
+                    [
+                        'tenant_id' => $tenant->id,
+                        'tenant_name' => $tenant->name,
+                        'new' => [
+                            'id' => $role->id,
+                            'name' => $role->name,
+                            'description' => $role->description,
+                            'role_template_id' => $role->role_template_id,
+                            'role_template' => $role->roleTemplate ? $role->roleTemplate->name : null,
+                            'is_owner_assignable' => (bool) $role->is_owner_assignable,
+                            'is_customized' =>(bool) $role->is_customized,
+                            'is_active' =>(bool) $role->is_active,
+                            'permissions' =>
+                                $role
+                                    ->permissions
+                                    ->pluck('name')
+                                    ->sort()
+                                    ->values()
+                                    ->all(),
+                        ],
+                    ]
+                );
             }
         );
 
@@ -281,7 +320,7 @@ class TenantRoleController extends Controller
         ]);
     }
 
-    public function update(Request $request,$tenantId,$roleId) {
+    public function update(Request $request, $tenantId, $roleId, PlatformAuditService $auditService) {
         $tenant = Tenant::findOrFail(
             $tenantId
         );
@@ -294,6 +333,56 @@ class TenantRoleController extends Controller
             ->findOrFail(
                 $roleId
             );
+
+        $role->load(
+            'permissions',
+            'template'
+        );
+
+        $oldValues = [
+            'name' =>
+                $role->name,
+
+            'description' =>
+                $role->description,
+
+            'type' =>
+                $role->role_template_id === null
+                    ? 'exclusive'
+                    : (
+                $role->is_customized
+                    ? 'customized'
+                    : 'standard'
+                ),
+
+            'role_template_id' =>
+                $role->role_template_id,
+
+            'role_template' =>
+                $role->roleTemplate
+                    ? $role->roleTemplate->name
+                    : null,
+
+            'is_owner_assignable' =>
+                (bool)
+                $role->is_owner_assignable,
+
+            'is_customized' =>
+                (bool)
+                $role->is_customized,
+
+            'is_active' =>
+                (bool)
+                $role->is_active,
+
+            'permissions' =>
+                $role
+                    ->permissions
+                    ->pluck('name')
+                    ->sort()
+                    ->values()
+                    ->all(),
+        ];
 
         $validated = $request->validate([
             'name' => [
@@ -354,7 +443,10 @@ class TenantRoleController extends Controller
         DB::transaction(
             function () use (
                 $role,
-                $validated
+                $validated,
+                $auditService,
+                $oldValues,
+                $tenant
             ) {
                 $role->name =
                     $validated['name'];
@@ -383,6 +475,107 @@ class TenantRoleController extends Controller
                     'permissions'
                     ] ?? []
                 );
+
+                $role->refresh();
+
+                $role->load(
+                    'permissions',
+                    'template'
+                );
+
+                $newValues = [
+                    'name' =>
+                        $role->name,
+
+                    'description' =>
+                        $role->description,
+
+                    'type' =>
+                        $role->role_template_id === null
+                            ? 'exclusive'
+                            : (
+                        $role->is_customized
+                            ? 'customized'
+                            : 'standard'
+                        ),
+
+                    'role_template_id' =>
+                        $role->role_template_id,
+
+                    'role_template' =>
+                        $role->roleTemplate
+                            ? $role->roleTemplate->name
+                            : null,
+
+                    'is_owner_assignable' =>
+                        (bool)
+                        $role->is_owner_assignable,
+
+                    'is_customized' =>
+                        (bool)
+                        $role->is_customized,
+
+                    'is_active' =>
+                        (bool)
+                        $role->is_active,
+
+                    'permissions' =>
+                        $role
+                            ->permissions
+                            ->pluck('name')
+                            ->sort()
+                            ->values()
+                            ->all(),
+                ];
+
+                $oldPermissions =
+                    $oldValues['permissions'];
+
+                $newPermissions =
+                    $newValues['permissions'];
+
+                $permissionsAdded =
+                    array_values(
+                        array_diff(
+                            $newPermissions,
+                            $oldPermissions
+                        )
+                    );
+
+                $permissionsRemoved =
+                    array_values(
+                        array_diff(
+                            $oldPermissions,
+                            $newPermissions
+                        )
+                    );
+
+                if ($oldValues !== $newValues) {
+
+                    $auditService->log(
+                        'tenant_role.updated',
+                        $role,
+                        [
+                            'tenant_id' =>
+                                $tenant->id,
+
+                            'tenant_name' =>
+                                $tenant->name,
+
+                            'old' =>
+                                $oldValues,
+
+                            'new' =>
+                                $newValues,
+
+                            'permissions_added' =>
+                                $permissionsAdded,
+
+                            'permissions_removed' =>
+                                $permissionsRemoved,
+                        ]
+                    );
+                }
             }
         );
 
@@ -396,7 +589,7 @@ class TenantRoleController extends Controller
         ]);
     }
 
-    public function toggleStatus($tenantId,$roleId) {
+    public function toggleStatus($tenantId, $roleId, PlatformAuditService $auditService) {
         $tenant = Tenant::findOrFail(
             $tenantId
         );
@@ -429,10 +622,43 @@ class TenantRoleController extends Controller
             ], 422);
         }
 
-        $role->is_active =
-            !$role->is_active;
+        DB::transaction(function () use (
+            $tenant,
+            $role,
+            $auditService
+        ) {
 
-        $role->save();
+            $oldStatus =
+                (bool) $role->is_active;
+
+            $role->is_active =
+                !$role->is_active;
+
+            $role->save();
+
+            $auditService->log(
+                'tenant_role.status_changed',
+                $role,
+                [
+                    'tenant_id' =>
+                        $tenant->id,
+
+                    'tenant_name' =>
+                        $tenant->name,
+
+                    'old' => [
+                        'is_active' =>
+                            $oldStatus,
+                    ],
+
+                    'new' => [
+                        'is_active' =>
+                            (bool)
+                            $role->is_active,
+                    ],
+                ]
+            );
+        });
 
         app(
             PermissionRegistrar::class
