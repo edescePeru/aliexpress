@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
+use App\Services\PlatformAuditService;
 
 class RoleTemplateController extends Controller
 {
@@ -200,7 +201,7 @@ class RoleTemplateController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, PlatformAuditService $auditService)
     {
         $validated = $request->validate([
             'code' => [
@@ -240,7 +241,8 @@ class RoleTemplateController extends Controller
         ]);
 
         DB::transaction(function () use (
-            $validated
+            $validated,
+            $auditService
         ) {
             $template = RoleTemplate::create([
                 'code' => strtolower(
@@ -264,12 +266,54 @@ class RoleTemplateController extends Controller
                 'is_active' => true,
             ]);
 
-            $template->permissions()
+            $permissionIds =
+                $validated['permissions']
+                ?? [];
+
+            /*
+             * Antes de hacer sync, valida igual que
+             * actualmente haces en tu controller.
+             */
+            $template
+                ->permissions()
                 ->sync(
-                    $validated[
-                    'permissions'
-                    ] ?? []
+                    $permissionIds
                 );
+
+            $template->load(
+                'permissions'
+            );
+
+            $auditService->log(
+                'role_template.created',
+                $template,
+                [
+                    'new' => [
+                        'id' =>
+                            $template->id,
+
+                        'code' =>
+                            $template->code,
+
+                        'name' =>
+                            $template->name,
+
+                        'description' =>
+                            $template->description,
+
+                        'is_active' =>
+                            (bool) $template->is_active,
+
+                        'permissions' =>
+                            $template
+                                ->permissions
+                                ->pluck('name')
+                                ->sort()
+                                ->values()
+                                ->all(),
+                    ],
+                ]
+            );
         });
 
         return response()->json([
@@ -278,12 +322,32 @@ class RoleTemplateController extends Controller
         ]);
     }
 
-    public function update(
-        Request $request,
-        $id
-    ) {
-        $template =
-            RoleTemplate::findOrFail($id);
+    public function update( Request $request, $id, PlatformAuditService $auditService) {
+        $template = RoleTemplate::findOrFail($id);
+
+        $template->load( 'permissions' );
+
+        $oldValues = [
+            'code' =>
+                $template->code,
+
+            'name' =>
+                $template->name,
+
+            'description' =>
+                $template->description,
+
+            'is_active' =>
+                (bool) $template->is_active,
+
+            'permissions' =>
+                $template
+                    ->permissions
+                    ->pluck('name')
+                    ->sort()
+                    ->values()
+                    ->all(),
+        ];
 
         $validated = $request->validate([
             'code' => [
@@ -328,7 +392,9 @@ class RoleTemplateController extends Controller
 
         DB::transaction(function () use (
             $template,
-            $validated
+            $validated,
+            $auditService,
+            $oldValues
         ) {
             $template->update([
                 'code' => strtolower(
@@ -350,12 +416,90 @@ class RoleTemplateController extends Controller
                     ),
             ]);
 
-            $template->permissions()
+            $permissionIds =
+                $validated['permissions']
+                ?? [];
+
+            $template
+                ->permissions()
                 ->sync(
-                    $validated[
-                    'permissions'
-                    ] ?? []
+                    $permissionIds
                 );
+
+            $template->refresh();
+
+            $template->load(
+                'permissions'
+            );
+
+            $newValues = [
+                'code' =>
+                    $template->code,
+
+                'name' =>
+                    $template->name,
+
+                'description' =>
+                    $template->description,
+
+                'is_active' =>
+                    (bool) $template->is_active,
+
+                'permissions' =>
+                    $template
+                        ->permissions
+                        ->pluck('name')
+                        ->sort()
+                        ->values()
+                        ->all(),
+            ];
+
+            if ($oldValues !== $newValues) {
+
+                $oldPermissions =
+                    $oldValues[
+                    'permissions'
+                    ];
+
+                $newPermissions =
+                    $newValues[
+                    'permissions'
+                    ];
+
+                $permissionsAdded =
+                    array_values(
+                        array_diff(
+                            $newPermissions,
+                            $oldPermissions
+                        )
+                    );
+
+                $permissionsRemoved =
+                    array_values(
+                        array_diff(
+                            $oldPermissions,
+                            $newPermissions
+                        )
+                    );
+
+                $auditService->log(
+                    'role_template.updated',
+                    $template,
+                    [
+                        'old' =>
+                            $oldValues,
+
+                        'new' =>
+                            $newValues,
+
+                        'permissions_added' =>
+                            $permissionsAdded,
+
+                        'permissions_removed' =>
+                            $permissionsRemoved,
+                    ]
+                );
+            }
         });
 
         return response()->json([
@@ -364,15 +508,40 @@ class RoleTemplateController extends Controller
         ]);
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus($id, PlatformAuditService $auditService)
     {
         $template =
             RoleTemplate::findOrFail($id);
 
-        $template->is_active =
-            !$template->is_active;
+        DB::transaction(function () use (
+            $template,
+            $auditService
+        ) {
 
-        $template->save();
+            $oldStatus =
+                (bool) $template->is_active;
+
+            $template->is_active =
+                !$template->is_active;
+
+            $template->save();
+
+            $auditService->log(
+                'role_template.status_changed',
+                $template,
+                [
+                    'old' => [
+                        'is_active' =>
+                            $oldStatus,
+                    ],
+
+                    'new' => [
+                        'is_active' =>
+                            (bool) $template->is_active,
+                    ],
+                ]
+            );
+        });
 
         return response()->json([
             'message' =>
