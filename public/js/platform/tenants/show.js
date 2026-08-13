@@ -14,6 +14,11 @@ $(function () {
             'url-toggle-status'
         );
 
+    const urlResetOwner =
+        $app.data(
+            'url-reset-owner'
+        );
+
 
     $('#btnEditTenant').on(
         'click',
@@ -128,6 +133,64 @@ $(function () {
         }
     );
 
+    $('#btnResetOwnerPassword').on(
+        'click',
+        function () {
+
+            $.confirm({
+
+                title:
+                    'Resetear contraseña del Owner',
+
+                content: `
+
+                <p>
+                    Se generará una nueva contraseña
+                    temporal para el propietario.
+                </p>
+
+                <p class="mb-0 text-muted">
+                    La contraseña actual dejará
+                    de funcionar.
+                </p>
+
+            `,
+
+                type:
+                    'orange',
+
+                buttons: {
+
+                    confirm: {
+
+                        text:
+                            'Sí, resetear',
+
+                        btnClass:
+                            'btn-warning',
+
+                        action:
+                            function () {
+
+                                resetOwnerPassword();
+
+                            }
+
+                    },
+
+                    cancel: {
+
+                        text:
+                            'Cancelar'
+
+                    }
+
+                }
+
+            });
+
+        }
+    );
 
     function showEditTenant(
         tenant
@@ -407,6 +470,105 @@ $(function () {
 
     }
 
+    function resetOwnerPassword() {
+
+        $.ajax({
+
+            url:
+            urlResetOwner,
+
+            type:
+                'POST',
+
+            headers: {
+                'X-CSRF-TOKEN':
+                    $('meta[name="csrf-token"]')
+                        .attr('content')
+            },
+
+            success:
+                function (
+                    response
+                ) {
+
+                    $.alert({
+
+                        title:
+                            'Contraseña temporal',
+
+                        type:
+                            'green',
+
+                        content: `
+
+                        <p>
+                            La contraseña del propietario
+                            fue reseteada correctamente.
+                        </p>
+
+                        <div
+                            class="
+                                alert
+                                alert-warning
+                                text-center
+                            "
+                        >
+
+                            <small>
+                                Nueva contraseña temporal
+                            </small>
+
+                            <div
+                                class="
+                                    h4
+                                    font-weight-bold
+                                    mt-2
+                                    mb-1
+                                "
+                            >
+                                ${escapeHtml(
+                            response
+                                .temporary_password
+                        )}
+                            </div>
+
+                        </div>
+
+                        <p class="text-muted mb-0">
+                            Copie esta contraseña antes
+                            de cerrar la ventana.
+                        </p>
+
+                    `,
+
+                        buttons: {
+
+                            ok: {
+                                text:
+                                    'Entendido'
+                            }
+
+                        }
+
+                    });
+
+                },
+
+            error:
+                function (
+                    xhr
+                ) {
+
+                    showAjaxError(
+                        xhr,
+                        'No se pudo resetear la contraseña del propietario.'
+                    );
+
+                }
+
+        });
+
+    }
 
     function showAjaxError(
         xhr,

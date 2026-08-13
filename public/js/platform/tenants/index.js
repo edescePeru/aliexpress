@@ -12,7 +12,10 @@ $(function () {
             $app.data('url-data'),
 
         show:
-            $app.data('url-show')
+            $app.data('url-show'),
+
+        create:
+            $app.data('url-create')
     };
 
 
@@ -62,18 +65,7 @@ $(function () {
     $('#btnNewTenant').on(
         'click',
         function () {
-
-            $.alert({
-                title:
-                    'Nuevo tenant',
-
-                content:
-                    'La creación de tenants se habilitará en la siguiente fase.',
-
-                type:
-                    'blue'
-            });
-
+            window.location.href = tenantRoutes.create;
         }
     );
 

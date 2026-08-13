@@ -12,6 +12,7 @@ use App\Branch;
 use App\Company;
 use App\Role;
 use Illuminate\Support\Facades\DB;
+use App\Services\TemporaryPasswordService;
 
 class ConfigUserWebController extends Controller
 {
@@ -837,7 +838,7 @@ class ConfigUserWebController extends Controller
         ]);
     }
 
-    public function resetPassword($id)
+    public function resetPassword($id, TemporaryPasswordService $passwordService)
     {
         $this->ensureTenantOwner();
 
@@ -869,7 +870,7 @@ class ConfigUserWebController extends Controller
         }
 
         $temporaryPassword =
-            $this->generateTemporaryPassword();
+            $passwordService->generate();
 
         $user->password =
             Hash::make(
@@ -903,115 +904,6 @@ class ConfigUserWebController extends Controller
             'temporary_password' =>
                 $temporaryPassword,
         ]);
-    }
-
-    private function generateTemporaryPassword()
-    {
-        /*
-         * 10 caracteres:
-         *
-         * mayúscula
-         * minúscula
-         * número
-         * símbolo
-         * + 6 aleatorios
-         */
-
-        $upper =
-            'ABCDEFGHJKLMNPQRSTUVWXYZ';
-
-        $lower =
-            'abcdefghijkmnopqrstuvwxyz';
-
-        $numbers =
-            '23456789';
-
-        $symbols =
-            '!@#$%';
-
-        $all =
-            $upper .
-            $lower .
-            $numbers .
-            $symbols;
-
-        $password =
-            $upper[
-            random_int(
-                0,
-                strlen($upper) - 1
-            )
-            ];
-
-        $password .=
-            $lower[
-            random_int(
-                0,
-                strlen($lower) - 1
-            )
-            ];
-
-        $password .=
-            $numbers[
-            random_int(
-                0,
-                strlen($numbers) - 1
-            )
-            ];
-
-        $password .=
-            $symbols[
-            random_int(
-                0,
-                strlen($symbols) - 1
-            )
-            ];
-
-        for ($i = 0; $i < 6; $i++) {
-
-            $password .=
-                $all[
-                random_int(
-                    0,
-                    strlen($all) - 1
-                )
-                ];
-        }
-
-        /*
-         * Mezclamos usando random_int en lugar
-         * de depender de str_shuffle.
-         */
-        $characters =
-            str_split(
-                $password
-            );
-
-        for (
-            $i = count($characters) - 1;
-            $i > 0;
-            $i--
-        ) {
-            $j =
-                random_int(
-                    0,
-                    $i
-                );
-
-            $tmp =
-                $characters[$i];
-
-            $characters[$i] =
-                $characters[$j];
-
-            $characters[$j] =
-                $tmp;
-        }
-
-        return implode(
-            '',
-            $characters
-        );
     }
 
     public function changeStatus(Request $request,$id,TenantPlanService $planService) {
@@ -1334,7 +1226,7 @@ class ConfigUserWebController extends Controller
         );
     }
 
-    public function store(Request $request, TenantPlanService $planService) {
+    public function store(Request $request, TenantPlanService $planService, TemporaryPasswordService $passwordService) {
         $this->ensureTenantOwner();
 
         $authUser = Auth::user();
@@ -1664,7 +1556,7 @@ class ConfigUserWebController extends Controller
         }
 
         $temporaryPassword =
-            $this->generateTemporaryPassword();
+            $passwordService->generate();
 
         DB::beginTransaction();
 

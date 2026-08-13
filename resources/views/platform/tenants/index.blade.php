@@ -12,8 +12,9 @@
 @section('content')
 
     <div id="platform-tenants-app" class="container-fluid"
-            data-url-data="{{route('platformTenant.data')}}"
-            data-url-show="{{route('platformTenant.show',['id' => ':id'])}}"
+         data-url-data="{{route('platformTenant.data')}}"
+         data-url-show="{{route('platformTenant.show',['id' => ':id'])}}"
+         data-url-create="{{route('platformTenant.create')}}"
     >
 
         <div class="card card-outline card-primary">

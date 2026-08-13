@@ -3360,10 +3360,13 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
 
         Route::get('tenants','Platform\TenantController@index')->name('platformTenant.index');
         Route::get('tenants/data','Platform\TenantController@data')->name('platformTenant.data');
+        Route::get('tenants/create','Platform\TenantController@create')->name('platformTenant.create');
+        Route::post('tenants','Platform\TenantController@store')->name('platformTenant.store');
         Route::get('tenants/{id}','Platform\TenantController@show')->name('platformTenant.show');
         Route::get('tenants/{id}/edit-data','Platform\TenantController@editData')->name('platformTenant.editData');
         Route::post('tenants/{id}/update','Platform\TenantController@update')->name('platformTenant.update');
         Route::post('tenants/{id}/toggle-status','Platform\TenantController@toggleStatus')->name('platformTenant.toggleStatus');
+        Route::post('tenants/{tenantId}/owner/reset-password','Platform\TenantController@resetOwnerPassword')->name('platformTenant.resetOwnerPassword');
 
         Route::get('plans','PlanController@index')->name('plan.index');
         Route::get('plans/data','PlanController@data')->name('plan.data');

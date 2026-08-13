@@ -22,6 +22,8 @@
             data-url-update="{{route('platformTenant.update',$tenant->id)}}"
 
             data-url-toggle-status="{{route('platformTenant.toggleStatus',$tenant->id)}}"
+
+            data-url-reset-owner="{{route('platformTenant.resetOwnerPassword',$tenant->id)}}"
     >
         <select id="tenantAvailablePlans" class="d-none">
 
@@ -323,35 +325,14 @@
 
                             <button
                                     type="button"
-                                    class="
-                                btn
-                                btn-outline-secondary
-                                btn-sm
-                            "
-                                    disabled
+                                    id="btnResetOwnerPassword"
+                                    class="btn btn-outline-secondary btn-sm"
                             >
 
-                                <i
-                                        class="
-                                    fas
-                                    fa-key
-                                    mr-1
-                                "
-                                ></i>
-
+                                <i class="fas fa-key mr-1"></i>
                                 Resetear contraseña
 
                             </button>
-
-                            <small
-                                    class="
-                                text-muted
-                                d-block
-                                mt-2
-                            "
-                            >
-                                Se habilitará en 4H-4.
-                            </small>
 
                         @else
 
