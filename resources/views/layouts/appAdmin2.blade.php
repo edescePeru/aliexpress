@@ -348,6 +348,20 @@
 
                         </li>
 
+                        <li class="nav-item">
+
+                            <a  href="{{ route( 'platformTenant.index' ) }}"
+                                    class="nav-link @yield('activePlatformTenants')">
+
+                                <i class="nav-icon fas fa-building"></i>
+
+                                <p>
+                                    Tenants
+                                </p>
+
+                            </a>
+
+                        </li>
                     @endif
 
                     @can('enable_puntoVenta')

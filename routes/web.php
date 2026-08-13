@@ -3355,10 +3355,15 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::get('/','Platform\PlatformDashboardController@index')->name('platform.dashboard');
 
         Route::get('activity-log','Platform\ActivityLogController@index')->name('platformActivity.index');
-
         Route::get('activity-log/data','Platform\ActivityLogController@data')->name('platformActivity.data');
-
         Route::get('activity-log/{id}','Platform\ActivityLogController@show')->name('platformActivity.show');
+
+        Route::get('tenants','Platform\TenantController@index')->name('platformTenant.index');
+        Route::get('tenants/data','Platform\TenantController@data')->name('platformTenant.data');
+        Route::get('tenants/{id}','Platform\TenantController@show')->name('platformTenant.show');
+        Route::get('tenants/{id}/edit-data','Platform\TenantController@editData')->name('platformTenant.editData');
+        Route::post('tenants/{id}/update','Platform\TenantController@update')->name('platformTenant.update');
+        Route::post('tenants/{id}/toggle-status','Platform\TenantController@toggleStatus')->name('platformTenant.toggleStatus');
 
         Route::get('plans','PlanController@index')->name('plan.index');
         Route::get('plans/data','PlanController@data')->name('plan.data');
