@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Brand;
-use App\Exampler;
 use App\Http\Requests\DeleteBrandRequest;
 use App\Http\Requests\StoreBrandRequest;
 use App\Http\Requests\UpdateBrandRequest;
@@ -16,12 +15,25 @@ class BrandController extends Controller
 {
     public function index()
     {
+        /*
+         * TenantScope se aplica automáticamente.
+         */
         $brands = Brand::all();
-        //$permissions = Permission::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        return view('brand.index', compact('brands', 'permissions'));
+        $user = Auth::user();
+
+        $permissions = $user
+            ->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
+
+        return view(
+            'brand.index',
+            compact(
+                'brands',
+                'permissions'
+            )
+        );
     }
 
     public function store(StoreBrandRequest $request)
@@ -29,26 +41,58 @@ class BrandController extends Controller
         $validated = $request->validated();
 
         DB::beginTransaction();
+
         try {
 
+            /*
+             * NO enviamos tenant_id.
+             *
+             * BelongsToTenant lo asignará
+             * automáticamente desde TenantContext.
+             */
             $brand = Brand::create([
-                'name' => $request->get('name'),
-                'comment' => $request->get('comment'),
+                'name' =>
+                    $validated['name'],
+
+                'comment' =>
+                    $validated['comment']
+                    ?? null,
             ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
+
+            report($e);
+
             return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
+                'success' =>
+                    false,
+
+                'message' =>
+                    'No se pudo registrar la marca.',
             ], 422);
         }
+
         return response()->json([
-            'message' => 'Marca de material guardado con éxito.',
-            'success' => true,
-            'data' => $brand,
+            'message' =>
+                'Marca de material guardada con éxito.',
+
+            'success' =>
+                true,
+
+            'data' => [
+                'id' =>
+                    $brand->id,
+
+                'name' =>
+                    $brand->name,
+
+                'comment' =>
+                    $brand->comment,
+            ],
         ], 200);
     }
 
@@ -56,41 +100,96 @@ class BrandController extends Controller
     {
         $validated = $request->validated();
 
+        /*
+         * IMPORTANTE:
+         *
+         * findOrFail pasa por TenantScope.
+         *
+         * Si Tenant 1 intenta modificar una
+         * Brand de Tenant 2, devuelve 404.
+         *
+         * Lo hacemos FUERA del try/catch para
+         * conservar correctamente el 404.
+         */
+        $brand = Brand::findOrFail(
+            $validated['brand_id']
+        );
+
         DB::beginTransaction();
+
         try {
 
-            $brand = Brand::find($request->get('brand_id'));
+            $brand->name =
+                $validated['name'];
 
-            $brand->name = $request->get('name');
-            $brand->comment = $request->get('comment');
+            $brand->comment =
+                $validated['comment']
+                ?? null;
+
             $brand->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar la marca.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Marca de material modificada con éxito.','url'=>route('brand.index')], 200);
+        return response()->json([
+            'message' =>
+                'Marca de material modificada con éxito.',
+
+            'url' =>
+                route('brand.index'),
+        ], 200);
     }
 
     public function destroy(DeleteBrandRequest $request)
     {
         $validated = $request->validated();
 
+        /*
+         * También protegido por TenantScope.
+         */
+        $brand = Brand::findOrFail(
+            $validated['brand_id']
+        );
+
         DB::beginTransaction();
+
         try {
 
-            $brand = Brand::find($request->get('brand_id'));
+            $examplers =
+                $brand->examplers;
 
-            $examplers = $brand->examplers;
+            foreach (
+                $examplers as $exampler
+            ) {
 
-            foreach ($examplers as $exampler) {
-                // Poner en null los materiales relacionados antes de eliminar el exampler
-                Material::where('exampler_id', $exampler->id)->update(['exampler_id' => null]);
+                /*
+                 * Material todavía no ha sido migrado
+                 * a TenantScope.
+                 *
+                 * Esta consulta se mantiene por ahora
+                 * porque exampler_id pertenece a un
+                 * Exampler obtenido desde una Brand
+                 * previamente validada por TenantScope.
+                 */
+                Material::where(
+                    'exampler_id',
+                    $exampler->id
+                )->update([
+                    'exampler_id' =>
+                        null,
+                ]);
 
-                // Ahora sí puedes eliminarlo sin error
                 $exampler->delete();
             }
 
@@ -98,71 +197,192 @@ class BrandController extends Controller
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar la marca.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Marca de material eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Marca de material eliminada con éxito.',
+        ], 200);
     }
 
     public function create()
     {
-        return view('brand.create');
+        return view(
+            'brand.create'
+        );
     }
 
     public function edit($id)
     {
-        $brand = Brand::find($id);
-        return view('brand.edit', compact('brand'));
-    }
+        /*
+         * Antes:
+         * Brand::find($id)
+         *
+         * Ahora:
+         * TenantScope + 404 cross-tenant.
+         */
+        $brand = Brand::findOrFail(
+            $id
+        );
 
+        return view(
+            'brand.edit',
+            compact('brand')
+        );
+    }
 
     public function getBrands()
     {
-        $brands = Brand::select('id', 'name', 'comment')
-            ->orderBy('name', 'asc')
+        /*
+         * TenantScope se aplica automáticamente.
+         */
+        $brands = Brand::query()
+            ->select(
+                'id',
+                'name',
+                'comment'
+            )
+            ->orderBy(
+                'name',
+                'asc'
+            )
             ->get();
-        return datatables($brands)->toJson();
-        //dd(datatables($customers)->toJson());
+
+        return datatables(
+            $brands
+        )->toJson();
     }
 
     public function getJsonBrands($id)
     {
-        $examplers = Exampler::where('brand_id', $id)->get();
+        /*
+         * Antes se hacía:
+         *
+         * Exampler::where('brand_id', $id)
+         *
+         * Eso permitía enviar directamente el ID
+         * de una Brand perteneciente a otro Tenant.
+         *
+         * Primero validamos la Brand usando
+         * TenantScope.
+         */
+        $brand = Brand::findOrFail(
+            $id
+        );
+
+        /*
+         * Ahora obtenemos los Examplers
+         * mediante la relación de la Brand
+         * ya autorizada.
+         */
+        $examplers =
+            $brand->examplers()
+                ->get();
+
         $array = [];
-        foreach ( $examplers as $exampler )
-        {
-            array_push($array, ['id'=> $exampler->id, 'exampler' => $exampler->name]);
+
+        foreach (
+            $examplers as $exampler
+        ) {
+
+            $array[] = [
+                'id' =>
+                    $exampler->id,
+
+                'exampler' =>
+                    $exampler->name,
+            ];
         }
 
-        //dd($array);
         return $array;
     }
 
     public function deleteMultiple(Request $request)
     {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+        $ids = $request->input(
+            'ids'
+        );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        $brands = Brand::whereIn('id', $ids)->get();
+        /*
+         * TenantScope actúa aquí.
+         *
+         * IDs pertenecientes a otros tenants
+         * simplemente no serán encontrados.
+         */
+        $brands = Brand::query()
+            ->whereIn(
+                'id',
+                $ids
+            )
+            ->get();
 
-        foreach ( $brands as $brand ) {
-            $examplers = $brand->examplers;
+        DB::beginTransaction();
 
-            foreach ($examplers as $exampler) {
-                // Poner en null los materiales relacionados antes de eliminar el exampler
-                Material::where('exampler_id', $exampler->id)->update(['exampler_id' => null]);
+        try {
 
-                // Ahora sí puedes eliminarlo sin error
-                $exampler->delete();
+            foreach (
+                $brands as $brand
+            ) {
+
+                $examplers =
+                    $brand->examplers;
+
+                foreach (
+                    $examplers as $exampler
+                ) {
+
+                    Material::where(
+                        'exampler_id',
+                        $exampler->id
+                    )->update([
+                        'exampler_id' =>
+                            null,
+                    ]);
+
+                    $exampler->delete();
+                }
+
+                $brand->delete();
             }
 
-            $brand->delete();
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar las marcas.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Marcas eliminadas correctamente.']);
+        return response()->json([
+            'message' =>
+                'Marcas eliminadas correctamente.',
+        ]);
     }
 }

@@ -2,27 +2,42 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Iatstuti\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Brand extends Model
 {
-    use SoftDeletes, CascadeSoftDeletes;
+    use SoftDeletes,
+        CascadeSoftDeletes,
+        BelongsToTenant;
 
-    protected $cascadeDeletes = ['examplers'];
+    protected $cascadeDeletes = [
+        'examplers',
+    ];
 
-    protected $fillable = ['name','comment'];
+    protected $fillable = [
+        'tenant_id',
+        'name',
+        'comment',
+    ];
+
+    protected $dates = [
+        'deleted_at',
+    ];
 
     public function materials()
     {
-        return $this->hasMany('App\Material');
+        return $this->hasMany(
+            'App\Material'
+        );
     }
 
     public function examplers()
     {
-        return $this->hasMany('App\Exampler');
+        return $this->hasMany(
+            'App\Exampler'
+        );
     }
-
-    protected $dates = ['deleted_at'];
 }

@@ -2,44 +2,61 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteBrandRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
         return [
-            'brand_id' => 'required|exists:brands,id',
+            'brand_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'brands',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'brand_id.required' => 'El :attribute es obligatorio.',
-            'brand_id.exists' => 'El :attribute no existe en la base de datos.'
+            'brand_id.required' =>
+                'El :attribute es obligatorio.',
+
+            'brand_id.integer' =>
+                'El :attribute no es válido.',
+
+            'brand_id.exists' =>
+                'La marca indicada no existe o no pertenece al negocio actual.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'brand_id' => 'id de la marca de material'
+            'brand_id' =>
+                'id de la marca de material',
         ];
     }
 }
