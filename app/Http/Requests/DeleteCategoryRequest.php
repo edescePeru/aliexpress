@@ -2,44 +2,61 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteCategoryRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
         return [
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'categories',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'category_id.required' => 'El :attribute es obligatorio.',
-            'category_id.exists' => 'El :attribute no existe en la base de datos.'
+            'category_id.required' =>
+                'El :attribute es obligatorio.',
+
+            'category_id.integer' =>
+                'El :attribute no es válido.',
+
+            'category_id.exists' =>
+                'La categoría indicada no existe o no pertenece al negocio actual.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'category_id' => 'id de categoría de material'
+            'category_id' =>
+                'id de categoría de material',
         ];
     }
 }
