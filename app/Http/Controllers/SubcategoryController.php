@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Category;
 use App\Http\Requests\DeleteSubcategoryRequest;
-use App\Http\Requests\StoreSubcategoryIndividualRequest;
 use App\Http\Requests\StoreSubcategoryRequest;
 use App\Http\Requests\UpdateSubcategoryRequest;
 use App\Subcategory;
@@ -16,154 +15,373 @@ class SubcategoryController extends Controller
 {
     public function index()
     {
-        $subcategories = Subcategory::with('category')->get();
-        //$permissions = Permission::all();
+        /*
+         * TenantScope se aplica automáticamente
+         * tanto a Subcategory como a Category.
+         */
+        $subcategories = Subcategory::with(
+            'category'
+        )->get();
+
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        return view('subcategory.index', compact('subcategories', 'permissions'));
+        $permissions = $user
+            ->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
+
+        return view(
+            'subcategory.index',
+            compact(
+                'subcategories',
+                'permissions'
+            )
+        );
     }
 
-    public function store(StoreSubcategoryRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreSubcategoryRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Segunda barrera.
+         *
+         * La validación ya comprueba que
+         * category_id pertenece al Tenant actual,
+         * pero volvemos a resolverla mediante
+         * Category + TenantScope.
+         */
+        $category =
+            Category::findOrFail(
+                $validated['category_id']
+            );
 
         DB::beginTransaction();
+
         try {
+
             $created = [];
 
-            foreach ($validated['subcategories'] as $sub) {
-                $subcategory = Subcategory::create([
-                    'name' => $sub['name'],
-                    'description' => $sub['description'] ?? null,
-                    'category_id' => $validated['category_id'],
-                ]);
-                $created[] = $subcategory;
+            foreach (
+                $validated['subcategories']
+                as $sub
+            ) {
+
+                $subcategory =
+                    Subcategory::create([
+                        'name' =>
+                            $sub['name'],
+
+                        'description' =>
+                            $sub['description']
+                            ?? null,
+
+                        'category_id' =>
+                            $category->id,
+                    ]);
+
+                $created[] =
+                    $subcategory;
             }
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Subcategorías guardadas con éxito.',
-                'data' => $created
-            ], 200);
-
         } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
 
-    public function storeIndividual(StoreSubcategoryRequest $request)
-    {
-        $validated = $request->validated();
-
-        DB::beginTransaction();
-        try {
-            $created = [];
-
-            foreach ($validated['subcategories'] as $sub) {
-                $subcategory = Subcategory::create([
-                    'name' => $sub['name'],
-                    'description' => $sub['description'] ?? null,
-                    'category_id' => $validated['category_id'],
-                ]);
-                $created[] = $subcategory;
-            }
-
-            DB::commit();
+            report($e);
 
             return response()->json([
-                'message' => 'Subcategorías guardadas con éxito.',
-                'data' => $created
-            ], 200);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+                'message' =>
+                    'No se pudieron registrar las subcategorías.',
+            ], 422);
         }
+
+        return response()->json([
+            'message' =>
+                'Subcategorías guardadas con éxito.',
+
+            'data' =>
+                $created,
+        ], 200);
     }
 
-    public function update(UpdateSubcategoryRequest $request)
-    {
-        $validated = $request->validated();
+
+    /*
+     * Actualmente ambos flujos utilizan
+     * la misma estructura de validación.
+     */
+    public function storeIndividual(
+        StoreSubcategoryRequest $request
+    ) {
+        return $this->store(
+            $request
+        );
+    }
+
+
+    public function update(
+        UpdateSubcategoryRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Subcategory protegida por TenantScope.
+         *
+         * Fuera del try/catch para conservar 404
+         * si se manipula el ID de otro Tenant.
+         */
+        $subcategory =
+            Subcategory::findOrFail(
+                $validated['subcategory_id']
+            );
+
+        /*
+         * La nueva Category también debe
+         * pertenecer al Tenant actual.
+         */
+        $category =
+            Category::findOrFail(
+                $validated['category_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $subcategory = Subcategory::find($request->get('subcategory_id'));
+            $subcategory->name =
+                $validated['name'];
 
-            $subcategory->name = $request->get('name');
-            $subcategory->description = $request->get('description');
-            $subcategory->category_id = $request->get('category_id');
+            $subcategory->description =
+                $validated['description']
+                ?? null;
+
+            $subcategory->category_id =
+                $category->id;
+
             $subcategory->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar la subcategoría.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Subcategoría modificada con éxito.','url'=>route('subcategory.index')], 200);
+        return response()->json([
+            'message' =>
+                'Subcategoría modificada con éxito.',
+
+            'url' =>
+                route('subcategory.index'),
+        ], 200);
     }
 
-    public function destroy(DeleteSubcategoryRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteSubcategoryRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $subcategory =
+            Subcategory::findOrFail(
+                $validated['subcategory_id']
+            );
 
         DB::beginTransaction();
-        try {
 
-            $subcategory = Subcategory::find($request->get('subcategory_id'));
+        try {
 
             $subcategory->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar la subcategoría.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Subcategoría eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Subcategoría eliminada con éxito.',
+        ], 200);
     }
+
 
     public function create()
     {
-        $categories = Category::all();
-        return view('subcategory.create', compact('categories'));
+        /*
+         * Category ya tiene TenantScope.
+         */
+        $categories = Category::query()
+            ->orderBy(
+                'name',
+                'asc'
+            )
+            ->get();
+
+        return view(
+            'subcategory.create',
+            compact('categories')
+        );
     }
+
 
     public function edit($id)
     {
-        $categories = Category::all();
-        $subcategory = Subcategory::with('category')->find($id);
-        return view('subcategory.edit', compact('categories', 'subcategory'));
+        /*
+         * Ambas consultas quedan filtradas
+         * por TenantScope.
+         */
+        $categories = Category::query()
+            ->orderBy(
+                'name',
+                'asc'
+            )
+            ->get();
+
+        $subcategory =
+            Subcategory::with(
+                'category'
+            )->findOrFail(
+                $id
+            );
+
+        return view(
+            'subcategory.edit',
+            compact(
+                'categories',
+                'subcategory'
+            )
+        );
     }
 
 
     public function getSubcategories()
     {
-        $subcategories = Subcategory::select('subcategories.*')
-            ->join('categories', 'subcategories.category_id', '=', 'categories.id')
-            ->orderBy('categories.name', 'asc')
-            ->orderBy('subcategories.name', 'asc')
-            ->with('category')
-            ->get();
+        /*
+         * IMPORTANTE:
+         *
+         * La consulta comienza desde Subcategory,
+         * por lo tanto TenantScope se aplica
+         * automáticamente.
+         */
+        $subcategories =
+            Subcategory::query()
+                ->select(
+                    'subcategories.*'
+                )
+                ->join(
+                    'categories',
+                    'subcategories.category_id',
+                    '=',
+                    'categories.id'
+                )
+                /*
+                 * Protección adicional.
+                 *
+                 * Category también tiene tenant_id,
+                 * así que aseguramos consistencia
+                 * entre padre e hijo.
+                 */
+                ->whereColumn(
+                    'subcategories.tenant_id',
+                    'categories.tenant_id'
+                )
+                ->orderBy(
+                    'categories.name',
+                    'asc'
+                )
+                ->orderBy(
+                    'subcategories.name',
+                    'asc'
+                )
+                ->with('category')
+                ->get();
 
-        return datatables($subcategories)->toJson();
+        return datatables(
+            $subcategories
+        )->toJson();
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input('ids');
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        Subcategory::whereIn('id', $ids)->delete();
+        /*
+         * TenantScope elimina automáticamente
+         * de la consulta IDs pertenecientes
+         * a otros tenants.
+         */
+        $subcategories =
+            Subcategory::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
-        return response()->json(['message' => 'Unidades eliminadas correctamente.']);
+        DB::beginTransaction();
+
+        try {
+
+            foreach (
+                $subcategories
+                as $subcategory
+            ) {
+                $subcategory->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar las subcategorías.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Subcategorías eliminadas correctamente.',
+        ]);
     }
 }
