@@ -9,8 +9,6 @@ class Genero extends Model
 {
     use SoftDeletes;
 
-    protected $table = "warrants";
-
     protected $fillable = [
         'name',
         'description'
@@ -18,7 +16,7 @@ class Genero extends Model
 
     public function materials()
     {
-        return $this->hasMany('App\Material');
+        return $this->hasMany('App\Material', 'genero_id');
     }
 
     protected $dates = ['deleted_at'];
