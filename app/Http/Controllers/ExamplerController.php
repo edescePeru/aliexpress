@@ -16,130 +16,333 @@ class ExamplerController extends Controller
 {
     public function index()
     {
-        $examplers = Exampler::with('brand')->get();
-        //$permissions = Permission::all();
+        /*
+         * TenantScope se aplica automáticamente.
+         */
+        $examplers = Exampler::with(
+            'brand'
+        )->get();
+
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
+        $permissions = $user
+            ->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
 
-        return view('exampler.index', compact('examplers', 'permissions'));
+        return view(
+            'exampler.index',
+            compact(
+                'examplers',
+                'permissions'
+            )
+        );
     }
 
-    public function store(StoreExamplerRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreExamplerRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Segunda barrera.
+         *
+         * Brand debe pertenecer al Tenant actual.
+         */
+        $brand = Brand::findOrFail(
+            $validated['brand_id']
+        );
 
         DB::beginTransaction();
+
         try {
 
             $exampler = Exampler::create([
-                'name' => $request->get('name'),
-                'comment' => $request->get('comment'),
-                'brand_id' => $request->get('brand_id'),
+                'name' =>
+                    $validated['name'],
+
+                'comment' =>
+                    $validated['comment']
+                    ?? null,
+
+                'brand_id' =>
+                    $brand->id,
             ]);
 
             DB::commit();
-            return response()->json([
-                'id' => $exampler->id,
-                'exampler' => $exampler->name,
-                'message' => 'Modelo guardado con éxito.'
-            ], 200);
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo registrar el modelo.',
+            ], 422);
         }
 
+        return response()->json([
+            'id' =>
+                $exampler->id,
+
+            'exampler' =>
+                $exampler->name,
+
+            'message' =>
+                'Modelo guardado con éxito.',
+        ], 200);
     }
 
-    public function update(UpdateExamplerRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateExamplerRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Exampler protegido por TenantScope.
+         */
+        $exampler =
+            Exampler::findOrFail(
+                $validated['exampler_id']
+            );
+
+        /*
+         * Nueva Brand también debe
+         * pertenecer al mismo Tenant.
+         */
+        $brand =
+            Brand::findOrFail(
+                $validated['brand_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $exampler = Exampler::find($request->get('exampler_id'));
+            $exampler->name =
+                $validated['name'];
 
-            $exampler->name = $request->get('name');
-            $exampler->comment = $request->get('comment');
-            $exampler->brand_id = $request->get('brand_id');
+            $exampler->comment =
+                $validated['comment']
+                ?? null;
+
+            $exampler->brand_id =
+                $brand->id;
+
             $exampler->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar el modelo.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Modelo modificado con éxito.','url'=>route('exampler.index')], 200);
+        return response()->json([
+            'message' =>
+                'Modelo modificado con éxito.',
+
+            'url' =>
+                route('exampler.index'),
+        ], 200);
     }
 
-    public function destroy(DeleteExamplerRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteExamplerRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $exampler =
+            Exampler::findOrFail(
+                $validated['exampler_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $exampler = Exampler::find($request->get('exampler_id'));
-
-            Material::where('exampler_id', $exampler->id)->update(['exampler_id' => null]);
+            /*
+             * Material todavía no está migrado
+             * a TenantScope.
+             *
+             * Esta operación es aceptable por ahora
+             * porque $exampler ya fue validado
+             * dentro del Tenant actual.
+             */
+            Material::where(
+                'exampler_id',
+                $exampler->id
+            )->update([
+                'exampler_id' =>
+                    null,
+            ]);
 
             $exampler->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar el modelo.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Modelo eliminado con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Modelo eliminado con éxito.',
+        ], 200);
     }
+
 
     public function create()
     {
-        $brands = Brand::all();
-        return view('exampler.create', compact('brands'));
+        /*
+         * Brand ya está aislado por TenantScope.
+         */
+        $brands = Brand::query()
+            ->orderBy(
+                'name',
+                'asc'
+            )
+            ->get();
+
+        return view(
+            'exampler.create',
+            compact('brands')
+        );
     }
+
 
     public function edit($id)
     {
-        $brands = Brand::all();
-        $exampler = Exampler::with('brand')->find($id);
-        return view('exampler.edit', compact('exampler', 'brands'));
+        $brands = Brand::query()
+            ->orderBy(
+                'name',
+                'asc'
+            )
+            ->get();
+
+        $exampler =
+            Exampler::with(
+                'brand'
+            )->findOrFail(
+                $id
+            );
+
+        return view(
+            'exampler.edit',
+            compact(
+                'exampler',
+                'brands'
+            )
+        );
     }
 
 
     public function getExamplers()
     {
-        $examplers = Exampler::with('brand')
-            ->orderBy('name', 'asc')
-            ->get();
-        //dd($examplers);
-        return datatables($examplers)->toJson();
-        //dd(datatables($customers)->toJson());
+        $examplers =
+            Exampler::with(
+                'brand'
+            )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        return datatables(
+            $examplers
+        )->toJson();
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input('ids');
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        $examplers = Exampler::whereIn('id', $ids)->get();
+        /*
+         * TenantScope filtra automáticamente
+         * IDs pertenecientes a otros tenants.
+         */
+        $examplers =
+            Exampler::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
-        foreach ($examplers as $exampler) {
-            // Poner en null los materiales relacionados antes de eliminar el exampler
-            Material::where('exampler_id', $exampler->id)->update(['exampler_id' => null]);
+        DB::beginTransaction();
 
-            // Ahora sí puedes eliminarlo sin error
-            $exampler->delete();
+        try {
+
+            foreach (
+                $examplers
+                as $exampler
+            ) {
+
+                Material::where(
+                    'exampler_id',
+                    $exampler->id
+                )->update([
+                    'exampler_id' =>
+                        null,
+                ]);
+
+                $exampler->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar los modelos.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Modelos eliminadas correctamente.']);
+        return response()->json([
+            'message' =>
+                'Modelos eliminados correctamente.',
+        ]);
     }
 }

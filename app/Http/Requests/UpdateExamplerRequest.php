@@ -2,72 +2,149 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateExamplerRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $examplerId =
+            $this->input(
+                'exampler_id'
+            );
+
+        $brandId =
+            $this->input(
+                'brand_id'
+            );
+
         return [
-            /*'name' => 'required|string|max:255',*/
-            'exampler_id' => 'required|exists:examplers,id',
+            'exampler_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'examplers',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    ),
+            ],
+
+            'brand_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'brands',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('examplers', 'name')
-                    ->where(function ($q) {
-                        $q->where('brand_id', $this->input('brand_id'));
-                    })
-                    ->ignore($this->input('exampler_id'), 'id'),
+
+                Rule::unique(
+                    'examplers',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->where(
+                        'brand_id',
+                        $brandId
+                    )
+                    ->ignore(
+                        $examplerId
+                    ),
             ],
-            'comment' => 'nullable|string|max:255',
-            'brand_id' => 'required|exists:brands,id'
+
+            'comment' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'exampler_id.required' => 'El :attribute es obligatoria.',
-            'exampler_id.exists' => 'El :attribute no existe en la base de datos.',
+            'exampler_id.required' =>
+                'El :attribute es obligatorio.',
 
-            'brand_id.required' => 'El :attribute es obligatorio.',
-            'brand_id.exists' => 'El :attribute no existe en las marcas registradas.',
+            'exampler_id.integer' =>
+                'El :attribute no es válido.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'exampler_id.exists' =>
+                'El modelo indicado no existe o no pertenece al negocio actual.',
 
-            'comment.string' => 'La :attribute debe contener caracteres válidos.',
-            'comment.max' => 'La :attribute es demasiado largo.',
+            'brand_id.required' =>
+                'La :attribute es obligatoria.',
+
+            'brand_id.integer' =>
+                'La :attribute no es válida.',
+
+            'brand_id.exists' =>
+                'La marca seleccionada no existe o no pertenece al negocio actual.',
+
+            'name.required' =>
+                'El :attribute es obligatorio.',
+
+            'name.string' =>
+                'El :attribute debe contener caracteres válidos.',
+
+            'name.max' =>
+                'El :attribute debe contener máximo 255 caracteres.',
+
+            'name.unique' =>
+                'Ya existe un modelo con ese nombre para esta marca.',
+
+            'comment.string' =>
+                'La :attribute debe contener caracteres válidos.',
+
+            'comment.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'exampler_id' => 'id del modelo',
-            'brand_id' => 'id de la marca de material',
-            'name' => 'nombre del modelo de material',
-            'comment' => 'descripción del modelo de material',
+            'exampler_id' =>
+                'id del modelo',
+
+            'brand_id' =>
+                'marca de material',
+
+            'name' =>
+                'nombre del modelo de material',
+
+            'comment' =>
+                'descripción del modelo de material',
         ];
     }
 }
