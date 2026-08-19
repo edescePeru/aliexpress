@@ -2,64 +2,117 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateUnitMeasureRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $unitMeasureId =
+            $this->input(
+                'unitMeasure_id'
+            );
+
         return [
-            'unitMeasure_id' => 'required|exists:unit_measures,id',
-            /*'name' => 'required|string|max:255',*/
+            'unitMeasure_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'unit_measures',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('unit_measures', 'name')->ignore($this->get('unitMeasure_id')),
+
+                Rule::unique(
+                    'unit_measures',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $unitMeasureId
+                    ),
             ],
-            'description' => 'nullable|string|max:255',
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'unitMeasure_id.required' => 'El :attribute es obligatoria.',
-            'unitMeasure_id.exists' => 'El :attribute no existe en la base de datos.',
+            'unitMeasure_id.required' =>
+                'El :attribute es obligatorio.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'unitMeasure_id.integer' =>
+                'El :attribute no es válido.',
 
-            'description.string' => 'La :attribute debe contener caracteres válidos.',
-            'description.max' => 'La :attribute es demasiado largo.',
+            'unitMeasure_id.exists' =>
+                'La unidad de medida indicada no existe o no pertenece al negocio actual.',
 
+            'name.required' =>
+                'El :attribute es obligatorio.',
+
+            'name.string' =>
+                'El :attribute debe contener caracteres válidos.',
+
+            'name.max' =>
+                'El :attribute debe contener máximo 255 caracteres.',
+
+            'name.unique' =>
+                'Ya existe una unidad de medida con ese nombre para este negocio.',
+
+            'description.string' =>
+                'La :attribute debe contener caracteres válidos.',
+
+            'description.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'unitMeasure_id' => 'id de unidad de medida',
-            'name' => 'nombre de unidad de medida',
-            'description' => 'descripción de unidad de medida',
+            'unitMeasure_id' =>
+                'id de unidad de medida',
+
+            'name' =>
+                'nombre de unidad de medida',
+
+            'description' =>
+                'descripción de unidad de medida',
         ];
     }
 }

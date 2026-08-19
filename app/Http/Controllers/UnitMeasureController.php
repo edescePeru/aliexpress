@@ -14,120 +14,301 @@ class UnitMeasureController extends Controller
 {
     public function index()
     {
-        $unitMeasures = UnitMeasure::orderBy('name', 'asc')->get();
-        //$permissions = Permission::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        /*
+         * TenantScope se aplica automáticamente.
+         */
+        $unitMeasures = UnitMeasure::query()
+            ->orderBy('name', 'asc')
+            ->get();
 
-        return view('unitMeasure.index', compact('unitMeasures', 'permissions'));
+        $user = Auth::user();
+
+        $permissions = $user
+            ->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
+
+        return view(
+            'unitMeasure.index',
+            compact(
+                'unitMeasures',
+                'permissions'
+            )
+        );
     }
 
-    public function store(StoreUnitMeasureRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreUnitMeasureRequest $request
+    ) {
+        $validated =
+            $request->validated();
 
         DB::beginTransaction();
+
         try {
 
-            $unit = UnitMeasure::create([
-                'name' => $request->get('name'),
-                'description' => $request->get('description'),
+            /*
+             * No mandamos tenant_id.
+             * BelongsToTenant lo coloca automáticamente.
+             */
+            $unitMeasure = UnitMeasure::create([
+                'name' =>
+                    $validated['name'],
+
+                'description' =>
+                    $validated['description']
+                    ?? null,
             ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
+
+            report($e);
+
             return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
+                'success' =>
+                    false,
+
+                'message' =>
+                    'No se pudo registrar la unidad de medida.',
             ], 422);
         }
+
         return response()->json([
-            'success' => true,
-            'message' => 'Unidad de medida guardado con éxito.',
+            'success' =>
+                true,
+
+            'message' =>
+                'Unidad de medida guardada con éxito.',
+
             'data' => [
-                'id' => $unit->id,
-                'description' => $unit->name
-            ]
+                'id' =>
+                    $unitMeasure->id,
+
+                'description' =>
+                    $unitMeasure->name,
+            ],
         ], 200);
     }
 
-    public function update(UpdateUnitMeasureRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateUnitMeasureRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * TenantScope se aplica.
+         *
+         * Si mandan un ID de otro Tenant,
+         * este recurso no existe para el usuario.
+         */
+        $unitMeasure =
+            UnitMeasure::findOrFail(
+                $validated[
+                'unitMeasure_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $unitMeasure = UnitMeasure::find($request->get('unitMeasure_id'));
+            $unitMeasure->name =
+                $validated['name'];
 
-            $unitMeasure->name = $request->get('name');
-            $unitMeasure->description = $request->get('description');
+            $unitMeasure->description =
+                $validated['description']
+                ?? null;
+
             $unitMeasure->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar la unidad de medida.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Unidad de medida modificada con éxito.','url'=>route('unitmeasure.index')], 200);
+        return response()->json([
+            'message' =>
+                'Unidad de medida modificada con éxito.',
+
+            'url' =>
+                route(
+                    'unitmeasure.index'
+                ),
+        ], 200);
     }
 
-    public function destroy(DeleteUnitMeasureRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteUnitMeasureRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Fuera del try/catch para conservar
+         * correctamente el 404 de TenantScope.
+         */
+        $unitMeasure =
+            UnitMeasure::findOrFail(
+                $validated[
+                'unitMeasure_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $brand = UnitMeasure::find($request->get('unitMeasure_id'));
-
-            $brand->delete();
+            $unitMeasure->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar la unidad de medida.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Unidad de medida eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Unidad de medida eliminada con éxito.',
+        ], 200);
     }
+
 
     public function create()
     {
-        return view('unitMeasure.create');
+        return view(
+            'unitMeasure.create'
+        );
     }
+
 
     public function edit($id)
     {
-        $unitMeasure = UnitMeasure::find($id);
-        return view('unitMeasure.edit', compact('unitMeasure'));
+        /*
+         * Antes:
+         * UnitMeasure::find($id)
+         *
+         * Ahora:
+         * TenantScope + 404 cross-tenant.
+         */
+        $unitMeasure =
+            UnitMeasure::findOrFail(
+                $id
+            );
+
+        return view(
+            'unitMeasure.edit',
+            compact(
+                'unitMeasure'
+            )
+        );
     }
 
 
     public function getUnitMeasure()
     {
-        $unitMeasures = UnitMeasure::select('id', 'name', 'description')
-            ->orderBy('name', 'asc')
-            ->get();
-        return datatables($unitMeasures)->toJson();
+        $unitMeasures =
+            UnitMeasure::query()
+                ->select(
+                    'id',
+                    'name',
+                    'description'
+                )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
 
+        return datatables(
+            $unitMeasures
+        )->toJson();
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        UnitMeasure::whereIn('id', $ids)->delete();
+        /*
+         * IDs de otros tenants simplemente
+         * no son devueltos por TenantScope.
+         */
+        $unitMeasures =
+            UnitMeasure::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
-        return response()->json(['message' => 'Unidades eliminadas correctamente.']);
+        DB::beginTransaction();
+
+        try {
+
+            foreach (
+                $unitMeasures
+                as $unitMeasure
+            ) {
+
+                $unitMeasure->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar las unidades de medida.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Unidades eliminadas correctamente.',
+        ]);
     }
-
 }
