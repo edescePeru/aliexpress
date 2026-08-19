@@ -2,64 +2,117 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateGeneroRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $generoId =
+            $this->input(
+                'genero_id'
+            );
+
         return [
-            'warrant_id' => 'required|exists:warrants,id',
-            /*'name' => 'required|string|max:255',*/
+            'genero_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'generos',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
-                'max:255',
-                Rule::unique('warrants', 'name')->ignore($this->get('warrant_id')),
+                'max:191',
+
+                Rule::unique(
+                    'generos',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $generoId
+                    ),
             ],
-            'description' => 'nullable|string|max:255',
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'warrant_id.required' => 'El :attribute es obligatoria.',
-            'genero_id.exists' => 'El :attribute no existe en la base de datos.',
+            'genero_id.required' =>
+                'El :attribute es obligatorio.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'genero_id.integer' =>
+                'El :attribute no es válido.',
 
-            'description.string' => 'La :attribute debe contener caracteres válidos.',
-            'description.max' => 'La :attribute es demasiado largo.',
+            'genero_id.exists' =>
+                'El género indicado no existe o no pertenece al negocio actual.',
 
+            'name.required' =>
+                'El :attribute es obligatorio.',
+
+            'name.string' =>
+                'El :attribute debe contener caracteres válidos.',
+
+            'name.max' =>
+                'El :attribute debe contener máximo 191 caracteres.',
+
+            'name.unique' =>
+                'Ya existe un género con ese nombre para este negocio.',
+
+            'description.string' =>
+                'La :attribute debe contener caracteres válidos.',
+
+            'description.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'warrant_id' => 'id del género',
-            'name' => 'nombre de género de material',
-            'description' => 'descripción de la género de material',
+            'genero_id' =>
+                'id del género',
+
+            'name' =>
+                'nombre del género',
+
+            'description' =>
+                'descripción del género',
         ];
     }
 }

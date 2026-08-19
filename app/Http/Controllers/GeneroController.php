@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Genero;
+use App\Http\Requests\DeleteGeneroRequest;
 use App\Http\Requests\StoreGeneroRequest;
 use App\Http\Requests\UpdateGeneroRequest;
 use Illuminate\Http\Request;
@@ -13,116 +14,283 @@ class GeneroController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $user =
+            Auth::user();
 
-        return view('warrant.index', compact( 'permissions'));
+        $permissions =
+            $user
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->toArray();
+
+        return view(
+            'genero.index',
+            compact(
+                'permissions'
+            )
+        );
     }
+
 
     public function create()
     {
-        return view('warrant.create');
+        return view(
+            'genero.create'
+        );
     }
 
-    public function store(StoreGeneroRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreGeneroRequest $request
+    ) {
+        $validated =
+            $request->validated();
 
         DB::beginTransaction();
+
         try {
 
-            $unit = Genero::create([
-                'name' => $request->get('name'),
-                'description' => $request->get('description'),
-            ]);
+            /*
+             * tenant_id lo asigna automáticamente
+             * BelongsToTenant.
+             */
+            $genero =
+                Genero::create([
+                    'name' =>
+                        $validated['name'],
+
+                    'description' =>
+                        $validated['description']
+                        ?? null,
+                ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
+
+            report($e);
+
             return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
+                'success' =>
+                    false,
+
+                'message' =>
+                    'No se pudo registrar el género.',
             ], 422);
         }
+
         return response()->json([
-            'success' => true,
-            'message' => 'Género guardado con éxito.',
+            'success' =>
+                true,
+
+            'message' =>
+                'Género guardado con éxito.',
+
             'data' => [
-                'id' => $unit->id,
-                'description' => $unit->name
-            ]
+                'id' =>
+                    $genero->id,
+
+                'description' =>
+                    $genero->name,
+            ],
         ], 200);
     }
 
+
     public function edit($id)
     {
-        $warrant = Genero::find($id);
-        return view('warrant.edit', compact('warrant'));
+        /*
+         * TenantScope garantiza que un ID
+         * de otro Tenant devuelva 404.
+         */
+        $genero =
+            Genero::findOrFail(
+                $id
+            );
+
+        return view(
+            'genero.edit',
+            compact(
+                'genero'
+            )
+        );
     }
 
-    public function update(UpdateGeneroRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateGeneroRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Fuera del try/catch para preservar 404.
+         */
+        $genero =
+            Genero::findOrFail(
+                $validated['genero_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $warrant = Genero::find($request->get('warrant_id'));
+            $genero->name =
+                $validated['name'];
 
-            $warrant->name = $request->get('name');
-            $warrant->description = $request->get('description');
-            $warrant->save();
+            $genero->description =
+                $validated['description']
+                ?? null;
+
+            $genero->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar el género.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Género de material modificada con éxito.','url'=>route('genero.index')], 200);
+        return response()->json([
+            'message' =>
+                'Género modificado con éxito.',
+
+            'url' =>
+                route(
+                    'genero.index'
+                ),
+        ], 200);
     }
 
-    public function destroy(Request $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteGeneroRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $genero =
+            Genero::findOrFail(
+                $validated['genero_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $warrant = Genero::find($request->get('warrant_id'));
-
-            $warrant->delete();
+            $genero->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar el género.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Género de material eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Género eliminado con éxito.',
+        ], 200);
     }
+
 
     public function getGeneros()
     {
-        $warrants = Genero::select('id', 'name', 'description')
-            ->orderBy('name', 'asc')
-            ->get();
-        return datatables($warrants)->toJson();
-        //dd(datatables($customers)->toJson());
+        /*
+         * TenantScope filtra automáticamente.
+         */
+        $generos =
+            Genero::query()
+                ->select(
+                    'id',
+                    'name',
+                    'description'
+                )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        return datatables(
+            $generos
+        )->toJson();
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        Genero::whereIn('id', $ids)->delete();
+        /*
+         * IDs de otros tenants son filtrados
+         * automáticamente por TenantScope.
+         */
+        $generos =
+            Genero::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
-        return response()->json(['message' => 'Géneros eliminados correctamente.']);
+        DB::beginTransaction();
+
+        try {
+
+            foreach (
+                $generos as $genero
+            ) {
+                $genero->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar los géneros.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Géneros eliminados correctamente.',
+        ]);
     }
 }

@@ -519,4 +519,9 @@ return [
     'changeStatusUser_configUserWeb' => 'Cambiar estado de usuarios web',
     'resetPasswordUser_configUserWeb' => 'Resetear contraseña de usuarios web',
     'createUser_configUserWeb'=> 'Crear usuarios del negocio',
+
+    'create_genero' => 'Crear Géneros',
+    'list_genero' => 'Listar Géneros',
+    'update_genero' => 'Modificar Géneros',
+    'destroy_genero' => 'Eliminar Géneros',
 ];

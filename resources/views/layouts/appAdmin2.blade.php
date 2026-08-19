@@ -1074,9 +1074,9 @@
                                 </li>
                             @endcan
 
-                            {{--@can('list_warrant')
-                                <li class="nav-item has-treeview @yield('openWarrant')">
-                                    <a href="#" class="nav-link @yield('activeWarrant')">
+                            @can('list_genero')
+                                <li class="nav-item has-treeview @yield('openGenero')">
+                                    <a href="#" class="nav-link @yield('activeGenero')">
                                         <i class="far fa-circle nav-icon text-success"></i>
                                         <p>
                                             Género
@@ -1084,17 +1084,17 @@
                                         </p>
                                     </a>
                                     <ul class="nav nav-treeview">
-                                        @can('list_warrant')
+                                        @can('list_genero')
                                         <li class="nav-item">
-                                            <a href="{{ route('genero.index') }}" class="nav-link @yield('activeListWarrant')">
+                                            <a href="{{ route('genero.index') }}" class="nav-link @yield('activeListGenero')">
                                                 <i class="far fa-dot-circle nav-icon text-warning"></i>
                                                 <p>Listar géneros</p>
                                             </a>
                                         </li>
                                         @endcan
-                                        @can('create_warrant')
+                                        @can('create_genero')
                                         <li class="nav-item">
-                                            <a href="{{ route('genero.create') }}" class="nav-link @yield('activeCreateWarrant')">
+                                            <a href="{{ route('genero.create') }}" class="nav-link @yield('activeCreateGenero')">
                                                 <i class="far fa-dot-circle nav-icon text-warning"></i>
                                                 <p>Crear géneros</p>
                                             </a>
@@ -1102,7 +1102,7 @@
                                         @endcan
                                     </ul>
                                 </li>
-                            @endcan--}}
+                            @endcan
 
                             {{--@can('list_quality')
                                 <li class="nav-item has-treeview @yield('openQuality')">

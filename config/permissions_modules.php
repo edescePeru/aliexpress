@@ -99,5 +99,7 @@ return [
 
     'cashBox' => 'CASH BOXES',
     'cashBoxSubtype' => 'CASH BOXES SUBTIPOS',
-    'configUserWeb' => 'CONFIGURAR USUARIOS WEB'
+    'configUserWeb' => 'CONFIGURAR USUARIOS WEB',
+
+    'genero' => 'GÉNEROS',
 ];

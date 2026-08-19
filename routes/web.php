@@ -477,26 +477,27 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         //GENEROS
         Route::get('/all/generos', 'GeneroController@getGeneros')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:list_genero');
         Route::get('generos', 'GeneroController@index')
             ->name('genero.index')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:list_genero');
         Route::get('crear/genero', 'GeneroController@create')
             ->name('genero.create')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:create_genero');
         Route::post('genero/store', 'GeneroController@store')
             ->name('genero.store')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:create_genero');
         Route::get('/editar/genero/{id}', 'GeneroController@edit')
             ->name('genero.edit')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:update_genero');
         Route::post('genero/update', 'GeneroController@update')
             ->name('genero.update')
-            /*->middleware('permission:list_unitMeasure')*/;
+            ->middleware('permission:update_genero');
         Route::post('genero/destroy', 'GeneroController@destroy')
             ->name('genero.destroy')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::post('/genero/delete-multiple', 'GeneroController@deleteMultiple');
+            ->middleware('permission:destroy_genero');
+        Route::post('/genero/delete-multiple', 'GeneroController@deleteMultiple')
+            ->middleware('permission:destroy_genero');
 
         //TALLAS
         Route::get('/all/tallas', 'TallaController@getTallas')
