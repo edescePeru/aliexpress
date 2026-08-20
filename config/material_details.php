@@ -54,6 +54,24 @@ return [
             'model' => \App\Subcategory::class,
         ],
 
+        'material_type' => [
+            'label' => 'Tipo de Material',
+            'type'  => 'relation',
+            'model' => \App\MaterialType::class,
+        ],
+
+        'subtype' => [
+            'label' => 'Subtipo de Material',
+            'type'  => 'relation',
+            'model' => \App\Subtype::class,
+        ],
+
+        'typescrap' => [
+            'label' => 'Tipo de Retacería',
+            'type'  => 'relation',
+            'model' => \App\Typescrap::class,
+        ],
+
         /*'calidad' => [
             'label' => 'Calidades',
             'type'  => 'relation',

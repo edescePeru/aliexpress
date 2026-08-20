@@ -2,71 +2,120 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateSubtypeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $subtypeId =
+            $this->input(
+                'subtype_id'
+            );
+
+        $materialTypeId =
+            $this->input(
+                'material_type_id'
+            );
+
         return [
-            'subtype_id' => 'required|exists:subtypes,id',
-            /*'name' => 'required|string|max:255',*/
+            'subtype_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'subtypes',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
+            'material_type_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'material_types',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('subtypes', 'name')->ignore($this->get('subtype_id')),
+
+                Rule::unique(
+                    'subtypes',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->where(
+                        'material_type_id',
+                        $materialTypeId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $subtypeId
+                    ),
             ],
-            'description' => 'nullable|string|max:255',
-            'material_type_id' => 'required|exists:material_types,id',
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
+            'subtype_id.required' =>
+                'El subtipo es obligatorio.',
 
-            'subtype_id.required' => 'El :attribute es obligatorio.',
-            'subtype_id.exists' => 'El :attribute debe existir en la base de datos.',
+            'subtype_id.exists' =>
+                'El subtipo indicado no existe o no pertenece al negocio actual.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'material_type_id.required' =>
+                'El tipo de material es obligatorio.',
 
-            'description.string' => 'El :attribute debe contener caracteres válidos.',
-            'description.max' => 'El :attribute debe contener máximo 255 caracteres.',
+            'material_type_id.exists' =>
+                'El tipo de material indicado no existe o no pertenece al negocio actual.',
 
-            'material_type_id.required' => 'El :attribute es obligatoria.',
-            'material_type_id.exists' => 'El :attribute no existe en la base de datos.',
+            'name.required' =>
+                'El nombre del subtipo es obligatorio.',
 
-        ];
-    }
-
-    public function attributes()
-    {
-        return [
-            'subtype_id' => 'id del subtipo',
-            'name' => 'nombre del subtipo',
-            'description' => 'descripción del subtipo',
-            'material_type_id' => 'tipo',
-
+            'name.unique' =>
+                'Ya existe un subtipo con ese nombre dentro de este tipo de material.',
         ];
     }
 }

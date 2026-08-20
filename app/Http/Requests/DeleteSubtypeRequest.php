@@ -2,44 +2,50 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteSubtypeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
         return [
-            'subtype_id' => 'required|exists:subtypes,id',
+            'subtype_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'subtypes',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'subtype_id.required' => 'El :attribute es obligatorio.',
-            'subtype_id.exists' => 'El :attribute no existe en la base de datos.'
-        ];
-    }
+            'subtype_id.required' =>
+                'El subtipo es obligatorio.',
 
-    public function attributes()
-    {
-        return [
-            'subtype_id' => 'id del subtipo de material'
+            'subtype_id.exists' =>
+                'El subtipo indicado no existe o no pertenece al negocio actual.',
         ];
     }
 }
