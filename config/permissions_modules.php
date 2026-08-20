@@ -103,4 +103,5 @@ return [
 
     'genero' => 'GÉNEROS',
     'color' => 'COLORES',
+    'talla' => 'TALLAS',
 ];

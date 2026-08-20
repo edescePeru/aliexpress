@@ -2,30 +2,31 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Talla extends Model
 {
-    use SoftDeletes;
-
-    protected $table = "qualities";
+    use SoftDeletes,
+        BelongsToTenant;
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'description',
-        'short_name'
+        'short_name',
     ];
 
-    public function materials()
-    {
-        return $this->hasMany('App\Material');
-    }
+    protected $dates = [
+        'deleted_at',
+    ];
 
     public function variants()
     {
-        return $this->hasMany(Variant::class, 'quality_id');
+        return $this->hasMany(
+            Variant::class,
+            'talla_id'
+        );
     }
-
-    protected $dates = ['deleted_at'];
 }

@@ -529,4 +529,9 @@ return [
     'list_color' => 'Listar Colores',
     'update_color' => 'Modificar Colores',
     'destroy_color' => 'Eliminar Colores',
+
+    'create_talla' => 'Crear Tallas',
+    'list_talla' => 'Listar Tallas',
+    'update_talla' => 'Modificar Tallas',
+    'destroy_talla' => 'Eliminar Tallas',
 ];

@@ -2,64 +2,94 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTallaRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $tallaId =
+            $this->input(
+                'talla_id'
+            );
+
         return [
-            'quality_id' => 'required|exists:qualities,id',
-            /*'name' => 'required|string|max:255',*/
+            'talla_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'tallas',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
-                'max:255',
-                Rule::unique('qualities', 'name')->ignore($this->get('quality_id')),
+                'max:191',
+
+                Rule::unique(
+                    'tallas',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $tallaId
+                    ),
             ],
-            'description' => 'nullable|string|max:255',
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'short_name' => [
+                'nullable',
+                'string',
+                'max:191',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'quality_id.required' => 'El :attribute es obligatoria.',
-            'quality_id.exists' => 'El :attribute no existe en la base de datos.',
+            'talla_id.required' =>
+                'La talla es obligatoria.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'talla_id.exists' =>
+                'La talla indicada no existe o no pertenece al negocio actual.',
 
-            'description.string' => 'La :attribute debe contener caracteres válidos.',
-            'description.max' => 'La :attribute es demasiado largo.',
+            'name.required' =>
+                'El nombre de la talla es obligatorio.',
 
-        ];
-    }
-
-    public function attributes()
-    {
-        return [
-            'quality_id' => 'id de la talla',
-            'name' => 'nombre de talla de material',
-            'description' => 'descripción de la talla',
+            'name.unique' =>
+                'Ya existe una talla con ese nombre para este negocio.',
         ];
     }
 }

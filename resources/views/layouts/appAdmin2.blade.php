@@ -1103,6 +1103,44 @@
                                     </ul>
                                 </li>
                             @endcan
+                            @can('list_talla')
+
+                                <li class="nav-item has-treeview @yield('openTalla')">
+
+                                    <a href="#" class="nav-link @yield('activeTalla')">
+                                        <i class="far fa-circle nav-icon text-success"></i>
+
+                                        <p>
+                                            Tallas
+                                            <i class="right fas fa-angle-left"></i>
+                                        </p>
+                                    </a>
+
+                                    <ul class="nav nav-treeview">
+
+                                        @can('list_talla')
+                                            <li class="nav-item">
+                                                <a href="{{ route('talla.index') }}" class="nav-link @yield('activeListTalla') ">
+                                                    <i class="far fa-dot-circle nav-icon text-warning"></i>
+                                                    <p>Listar tallas</p>
+                                                </a>
+                                            </li>
+                                        @endcan
+
+                                        @can('create_talla')
+                                            <li class="nav-item">
+                                                <a href="{{ route('talla.create') }}" class="nav-link @yield('activeCreateTalla')">
+                                                    <i class="far fa-dot-circle nav-icon text-warning"></i>
+                                                    <p>Crear talla</p>
+                                                </a>
+                                            </li>
+                                        @endcan
+
+                                    </ul>
+
+                                </li>
+
+                            @endcan
                             @can('list_color')
                                 <li class="nav-item has-treeview @yield('openColor')">
 

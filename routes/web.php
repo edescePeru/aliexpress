@@ -500,27 +500,24 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:destroy_genero');
 
         //TALLAS
-        Route::get('/all/tallas', 'TallaController@getTallas')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::get('tallas', 'TallaController@index')
-            ->name('talla.index')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::get('crear/talla', 'TallaController@create')
-            ->name('talla.create')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::post('talla/store', 'TallaController@store')
-            ->name('talla.store')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::get('/editar/talla/{id}', 'TallaController@edit')
-            ->name('talla.edit')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::post('talla/update', 'TallaController@update')
-            ->name('talla.update')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::post('talla/destroy', 'TallaController@destroy')
-            ->name('talla.destroy')
-            /*->middleware('permission:list_unitMeasure')*/;
-        Route::post('/talla/delete-multiple', 'TallaController@deleteMultiple');
+        Route::get('/all/tallas','TallaController@getTallas')
+            ->name('talla.data')
+            ->middleware('permission:list_talla');
+        Route::get('tallas','TallaController@index')->name('talla.index')
+            ->middleware('permission:list_talla');
+        Route::get('crear/talla','TallaController@create')->name('talla.create')
+            ->middleware('permission:create_talla');
+        Route::post('talla/store','TallaController@store')->name('talla.store')
+            ->middleware('permission:create_talla');
+        Route::get('editar/talla/{id}','TallaController@edit')->name('talla.edit')
+            ->middleware('permission:update_talla');
+        Route::post('talla/update','TallaController@update')->name('talla.update')
+            ->middleware('permission:update_talla');
+        Route::post('talla/destroy','TallaController@destroy')->name('talla.destroy')
+            ->middleware('permission:destroy_talla');
+        Route::post('talla/delete-multiple','TallaController@deleteMultiple')
+            ->name('talla.deleteMultiple')
+            ->middleware('permission:destroy_talla');
 
         //ROL
         Route::get('roles', 'RoleController@index')

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteTallaRequest;
 use App\Http\Requests\StoreTallaRequest;
 use App\Http\Requests\UpdateTallaRequest;
 use App\Talla;
@@ -13,116 +14,360 @@ class TallaController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $user =
+            Auth::user();
 
-        return view('quality.index', compact( 'permissions'));
+        $permissions =
+            $user
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->toArray();
+
+        return view(
+            'talla.index',
+            compact(
+                'permissions'
+            )
+        );
     }
+
 
     public function create()
     {
-        return view('quality.create');
+        return view(
+            'talla.create'
+        );
     }
 
-    public function store(StoreTallaRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreTallaRequest $request
+    ) {
+        $validated =
+            $request->validated();
 
         DB::beginTransaction();
+
         try {
 
-            $unit = Talla::create([
-                'name' => $request->get('name'),
-                'description' => $request->get('description'),
+            $talla = Talla::create([
+                'name' =>
+                    $validated['name'],
+
+                'description' =>
+                    $validated['description']
+                    ?? null,
+
+                'short_name' =>
+                    $validated['short_name']
+                    ?? null,
             ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
+
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' =>
+                    'No se pudo registrar la talla.',
             ], 422);
         }
+
         return response()->json([
             'success' => true,
-            'message' => 'Talla guardada con éxito.',
+
+            'message' =>
+                'Talla guardada con éxito.',
+
             'data' => [
-                'id' => $unit->id,
-                'description' => $unit->name
-            ]
+                'id' =>
+                    $talla->id,
+
+                'description' =>
+                    $talla->name,
+
+                'short_name' =>
+                    $talla->short_name,
+            ],
         ], 200);
     }
 
+
     public function edit($id)
     {
-        $quality = Talla::find($id);
-        return view('quality.edit', compact('quality'));
+        $talla =
+            Talla::findOrFail(
+                $id
+            );
+
+        return view(
+            'talla.edit',
+            compact(
+                'talla'
+            )
+        );
     }
 
-    public function update(UpdateTallaRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateTallaRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $talla =
+            Talla::findOrFail(
+                $validated['talla_id']
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $warrant = Talla::find($request->get('quality_id'));
+            $talla->name =
+                $validated['name'];
 
-            $warrant->name = $request->get('name');
-            $warrant->description = $request->get('description');
-            $warrant->save();
+            $talla->description =
+                $validated['description']
+                ?? null;
+
+            $talla->short_name =
+                $validated['short_name']
+                ?? null;
+
+            $talla->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar la talla.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Talla de modificada con éxito.','url'=>route('talla.index')], 200);
+        return response()->json([
+            'message' =>
+                'Talla modificada con éxito.',
+
+            'url' =>
+                route('talla.index'),
+        ]);
     }
 
-    public function destroy(Request $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteTallaRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $talla =
+            Talla::findOrFail(
+                $validated['talla_id']
+            );
+
+        /*
+         * Igual que Color:
+         * una Talla utilizada por Variant
+         * no debe desaparecer.
+         */
+        if (
+        $talla->variants()
+            ->exists()
+        ) {
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar la talla porque está siendo utilizada por una o más variantes.',
+            ], 422);
+        }
 
         DB::beginTransaction();
+
         try {
 
-            $warrant = Talla::find($request->get('quality_id'));
-
-            $warrant->delete();
+            $talla->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar la talla.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Género de material eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Talla eliminada con éxito.',
+        ]);
     }
 
-    public function getTallas()
-    {
-        $warrants = Talla::select('id', 'name', 'description')
-            ->orderBy('name', 'asc')
-            ->get();
-        return datatables($warrants)->toJson();
-        //dd(datatables($customers)->toJson());
-    }
 
-    public function deleteMultiple(Request $request)
+    public function getTallas(Request $request)
     {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+        $perPage =
+            (int) $request->get(
+                'per_page',
+                10
+            );
+
+        if (
+        !in_array(
+            $perPage,
+            [10, 25, 50],
+            true
+        )
+        ) {
+            $perPage = 10;
         }
 
-        Talla::whereIn('id', $ids)->delete();
+        $search =
+            trim(
+                $request->get(
+                    'search',
+                    ''
+                )
+            );
 
-        return response()->json(['message' => 'Tallaa eliminadas correctamente.']);
+        $query =
+            Talla::query()
+                ->select(
+                    'id',
+                    'name',
+                    'description',
+                    'short_name'
+                );
+
+        if ($search !== '') {
+
+            $query->where(
+                function ($q) use ($search) {
+
+                    $q->where(
+                        'name',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                        ->orWhere(
+                            'short_name',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhere(
+                            'description',
+                            'like',
+                            '%' . $search . '%'
+                        );
+
+                }
+            );
+        }
+
+        $tallas =
+            $query
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->paginate(
+                    $perPage
+                );
+
+        return response()->json(
+            $tallas
+        );
+    }
+
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
+        }
+
+        $tallas =
+            Talla::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
+
+        /*
+         * Evitamos eliminación parcial.
+         */
+        foreach (
+            $tallas as $talla
+        ) {
+
+            if (
+            $talla->variants()
+                ->exists()
+            ) {
+                return response()->json([
+                    'message' =>
+                        'No se pueden eliminar las tallas seleccionadas porque "' .
+                        $talla->name .
+                        '" está siendo utilizada por una o más variantes.',
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach (
+                $tallas as $talla
+            ) {
+                $talla->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar las tallas.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Tallas eliminadas correctamente.',
+        ]);
     }
 }

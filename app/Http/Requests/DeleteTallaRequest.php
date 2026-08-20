@@ -6,7 +6,7 @@ use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreTallaRequest extends FormRequest
+class DeleteTallaRequest extends FormRequest
 {
     public function authorize()
     {
@@ -19,14 +19,13 @@ class StoreTallaRequest extends FormRequest
             TenantContext::tenantId();
 
         return [
-            'name' => [
+            'talla_id' => [
                 'required',
-                'string',
-                'max:191',
+                'integer',
 
-                Rule::unique(
+                Rule::exists(
                     'tallas',
-                    'name'
+                    'id'
                 )
                     ->where(
                         'tenant_id',
@@ -36,29 +35,20 @@ class StoreTallaRequest extends FormRequest
                         'deleted_at'
                     ),
             ],
-
-            'description' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
-
-            'short_name' => [
-                'nullable',
-                'string',
-                'max:191',
-            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'name.required' =>
-                'El nombre de la talla es obligatorio.',
+            'talla_id.required' =>
+                'La talla es obligatoria.',
 
-            'name.unique' =>
-                'Ya existe una talla con ese nombre para este negocio.',
+            'talla_id.integer' =>
+                'La talla indicada no es válida.',
+
+            'talla_id.exists' =>
+                'La talla indicada no existe o no pertenece al negocio actual.',
         ];
     }
 }
