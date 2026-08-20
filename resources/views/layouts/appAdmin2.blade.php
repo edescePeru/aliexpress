@@ -1103,7 +1103,55 @@
                                     </ul>
                                 </li>
                             @endcan
+                            @can('list_color')
+                                <li class="nav-item has-treeview @yield('openColor')">
 
+                                    <a href="#" class="nav-link @yield('activeColor')">
+
+                                        <i class=" far fa-circle nav-icon text-success"></i>
+
+                                        <p>
+                                            Colores
+
+                                            <i class=" right fas fa-angle-left"></i>
+                                        </p>
+
+                                    </a>
+
+
+                                    <ul class="nav nav-treeview">
+
+                                        <li class="nav-item">
+
+                                            <a href="{{ route('color.index') }}" class=" nav-link @yield('activeListColor') ">
+
+                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
+
+                                                <p>
+                                                    Listar colores
+                                                </p>
+
+                                            </a>
+
+                                        </li>
+
+
+                                        <li class="nav-item">
+
+                                            <a href="{{ route('color.create') }}" class="nav-link @yield('activeCreateColor')">
+
+                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
+
+                                                <p> Crear color</p>
+
+                                            </a>
+
+                                        </li>
+
+                                    </ul>
+
+                                </li>
+                            @endcan
                             {{--@can('list_quality')
                                 <li class="nav-item has-treeview @yield('openQuality')">
                                     <a href="#" class="nav-link @yield('activeQuality')">

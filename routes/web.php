@@ -3216,27 +3216,30 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('stockitems.inventory-levels.update');
 
         //COLORS
-        /*Route::get('/all/tallas', 'TallaController@getTallas')
-            ->middleware('permission:list_unitMeasure')*/;
-        /*Route::get('tallas', 'TallaController@index')
-            ->name('talla.index')
-            ->middleware('permission:list_unitMeasure')*/;
-        /*Route::get('crear/talla', 'TallaController@create')
-            ->name('talla.create')
-            ->middleware('permission:list_unitMeasure')*/;
+        Route::get('colors','ColorController@index')
+            ->name('color.index')
+            ->middleware('permission:list_color');
+        Route::get('colors/data','ColorController@getColors')
+            ->name('color.data')
+            ->middleware('permission:list_color');
+        Route::get('crear/color','ColorController@create')
+            ->name('color.create')
+            ->middleware('permission:create_color');
         Route::post('color/store', 'ColorController@store')
             ->name('color.store')
-            /*->middleware('permission:list_unitMeasure')*/;
-        /*Route::get('/editar/talla/{id}', 'TallaController@edit')
-            ->name('talla.edit')
-            ->middleware('permission:list_unitMeasure')*/;
-        /*Route::post('talla/update', 'TallaController@update')
-            ->name('talla.update')
-            ->middleware('permission:list_unitMeasure')*/;
-        /*Route::post('talla/destroy', 'TallaController@destroy')
-            ->name('talla.destroy')
-            ->middleware('permission:list_unitMeasure')*/;
-        /*Route::post('/talla/delete-multiple', 'TallaController@deleteMultiple');*/
+            ->middleware('permission:create_color');
+        Route::get('editar/color/{id}','ColorController@edit')
+            ->name('color.edit')
+            ->middleware('permission:update_color');
+        Route::post('color/update','ColorController@update')
+            ->name('color.update')
+            ->middleware('permission:update_color');
+        Route::post('color/destroy','ColorController@destroy')
+            ->name('color.destroy')
+            ->middleware('permission:destroy_color');
+        Route::post('color/delete-multiple','ColorController@deleteMultiple')
+            ->name('color.deleteMultiple')
+            ->middleware('permission:destroy_color');
 
         Route::get('/materials/stock-items-entry/json', 'MaterialController@getJsonMaterialStockItemsEntryV2')
             ->name('materials.stock-items-entry.json');

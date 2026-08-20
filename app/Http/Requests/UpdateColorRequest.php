@@ -6,7 +6,7 @@ use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreColorRequest extends FormRequest
+class UpdateColorRequest extends FormRequest
 {
     public function authorize()
     {
@@ -18,7 +18,25 @@ class StoreColorRequest extends FormRequest
         $tenantId =
             TenantContext::tenantId();
 
+        $colorId =
+            $this->input(
+                'color_id'
+            );
+
         return [
+            'color_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'colors',
+                    'id'
+                )->where(
+                    'tenant_id',
+                    $tenantId
+                ),
+            ],
+
             'name' => [
                 'required',
                 'string',
@@ -27,10 +45,14 @@ class StoreColorRequest extends FormRequest
                 Rule::unique(
                     'colors',
                     'name'
-                )->where(
-                    'tenant_id',
-                    $tenantId
-                ),
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->ignore(
+                        $colorId
+                    ),
             ],
 
             'code' => [
@@ -47,31 +69,15 @@ class StoreColorRequest extends FormRequest
                 Rule::unique(
                     'colors',
                     'short_name'
-                )->where(
-                    'tenant_id',
-                    $tenantId
-                ),
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->ignore(
+                        $colorId
+                    ),
             ],
-        ];
-    }
-
-    public function messages()
-    {
-        return [
-            'name.required' =>
-                'El nombre del color es obligatorio.',
-
-            'name.unique' =>
-                'Ya existe un color con ese nombre para este negocio.',
-
-            'short_name.required' =>
-                'El nombre corto del color es obligatorio.',
-
-            'short_name.unique' =>
-                'Ya existe un color con ese nombre corto para este negocio.',
-
-            'code.regex' =>
-                'El código del color debe tener un formato hexadecimal válido, por ejemplo #FFFFFF.',
         ];
     }
 }

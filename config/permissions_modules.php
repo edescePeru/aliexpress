@@ -102,4 +102,5 @@ return [
     'configUserWeb' => 'CONFIGURAR USUARIOS WEB',
 
     'genero' => 'GÉNEROS',
+    'color' => 'COLORES',
 ];

@@ -42,7 +42,7 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Cédulas</h1>
+    <h1 class="page-title">Géneros</h1>
 @endsection
 
 @section('page-title')

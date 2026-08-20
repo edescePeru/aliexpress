@@ -524,4 +524,9 @@ return [
     'list_genero' => 'Listar Géneros',
     'update_genero' => 'Modificar Géneros',
     'destroy_genero' => 'Eliminar Géneros',
+
+    'create_color' => 'Crear Colores',
+    'list_color' => 'Listar Colores',
+    'update_color' => 'Modificar Colores',
+    'destroy_color' => 'Eliminar Colores',
 ];

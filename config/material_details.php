@@ -33,6 +33,11 @@ return [
             'type'  => 'relation',
             'model' => \App\Talla::class,
         ],
+        'color' => [
+            'label' => 'Color',
+            'type'  => 'relation',
+            'model' => \App\Color::class,
+        ],
         'perecible' => [
             'label' => 'Perecible',
             'type'  => 'field',
