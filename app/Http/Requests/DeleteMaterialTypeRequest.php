@@ -2,44 +2,39 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteMaterialTypeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
-        return [
-            'materialtype_id' => 'required|exists:material_types,id',
-        ];
-    }
+        $tenantId =
+            TenantContext::tenantId();
 
-    public function messages()
-    {
         return [
-            'materialtype_id.required' => 'El :attribute es obligatorio.',
-            'materialtype_id.exists' => 'El :attribute no existe en la base de datos.'
-        ];
-    }
+            'materialtype_id' => [
+                'required',
+                'integer',
 
-    public function attributes()
-    {
-        return [
-            'materialtype_id' => 'id del tipo de material'
+                Rule::exists(
+                    'material_types',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
         ];
     }
 }

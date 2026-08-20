@@ -2,58 +2,89 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreMaterialTypeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
-        return [
-            /*'name' => 'required|string|max:255',*/
-            'name' => 'required|string|max:255|unique:material_types,name',
-            'description' => 'nullable|string|max:255',
-            'subcategory_id' => 'required|exists:subcategories,id',
+        $tenantId =
+            TenantContext::tenantId();
 
+        $subcategoryId =
+            $this->input(
+                'subcategory_id'
+            );
+
+        return [
+            'subcategory_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'subcategories',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+
+                Rule::unique(
+                    'material_types',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->where(
+                        'subcategory_id',
+                        $subcategoryId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'subcategory_id.required' =>
+                'La subcategoría es obligatoria.',
 
-            'description.string' => 'El :attribute debe contener caracteres válidos.',
-            'description.max' => 'El :attribute debe contener máximo 255 caracteres.',
+            'subcategory_id.exists' =>
+                'La subcategoría indicada no existe o no pertenece al negocio actual.',
 
-            'subcategory_id.required' => 'El :attribute es obligatoria.',
-            'subcategory_id.exists' => 'El :attribute no existe en la base de datos.',
-        ];
-    }
+            'name.required' =>
+                'El nombre del tipo es obligatorio.',
 
-    public function attributes()
-    {
-        return [
-            'name' => 'nombre del tipo',
-            'description' => 'descripción del tipo',
-            'subcategory_id' => 'subcategoría del tipo',
+            'name.unique' =>
+                'Ya existe un tipo con ese nombre dentro de esta subcategoría.',
         ];
     }
 }

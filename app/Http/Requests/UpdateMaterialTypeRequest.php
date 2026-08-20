@@ -2,71 +2,97 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateMaterialTypeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $materialTypeId =
+            $this->input(
+                'materialtype_id'
+            );
+
+        $subcategoryId =
+            $this->input(
+                'subcategory_id'
+            );
+
         return [
-            'materialtype_id' => 'required|exists:material_types,id',
-            /*'name' => 'required|string|max:255',*/
+            'materialtype_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'material_types',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
+            'subcategory_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'subcategories',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('material_types', 'name')->ignore($this->get('materialtype_id')),
+
+                Rule::unique(
+                    'material_types',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->where(
+                        'subcategory_id',
+                        $subcategoryId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $materialTypeId
+                    ),
             ],
-            'description' => 'nullable|string|max:255',
-            'subcategory_id' => 'required|exists:subcategories,id',
-        ];
-    }
 
-    public function messages()
-    {
-        return [
-
-            'materialtype_id.required' => 'El :attribute es obligatorio.',
-            'materialtype_id.exists' => 'El :attribute debe existir en la base de datos.',
-
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
-
-            'description.string' => 'El :attribute debe contener caracteres válidos.',
-            'description.max' => 'El :attribute debe contener máximo 255 caracteres.',
-
-            'subcategory_id.required' => 'El :attribute es obligatoria.',
-            'subcategory_id.exists' => 'El :attribute no existe en la base de datos.',
-
-        ];
-    }
-
-    public function attributes()
-    {
-        return [
-            'materialtype_id' => 'id del tipo',
-            'name' => 'nombre del tipo',
-            'description' => 'descripción del tipo',
-            'subcategory_id' => 'subcategoría del tipo',
-            
+            'description' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 }

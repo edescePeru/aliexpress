@@ -13,148 +13,360 @@ use Illuminate\Support\Facades\DB;
 
 class MaterialTypeController extends Controller
 {
- 
     public function index()
     {
-        $materialtypes = MaterialType::all();
-        //$permissions = Permission::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $materialtypes =
+            MaterialType::all();
 
-        return view('materialtype.index', compact('materialtypes', 'permissions'));
+        $user =
+            Auth::user();
+
+        $permissions =
+            $user
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->toArray();
+
+        return view(
+            'materialtype.index',
+            compact(
+                'materialtypes',
+                'permissions'
+            )
+        );
     }
 
-    public function store(StoreMaterialTypeRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreMaterialTypeRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        /*
+         * Subcategory también debe pertenecer
+         * al Tenant actual.
+         */
+        $subcategory =
+            Subcategory::findOrFail(
+                $validated[
+                'subcategory_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-                $materialType = MaterialType::create([
-                    'name' => $request->get('name'),
-                    'description' => $request->get('description'),
-                    'subcategory_id' => $request->get('subcategory_id'),
+            $materialType =
+                MaterialType::create([
+                    'name' =>
+                        $validated['name'],
+
+                    'description' =>
+                        $validated['description']
+                        ?? null,
+
+                    'subcategory_id' =>
+                        $subcategory->id,
                 ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo registrar el tipo de material.',
+            ], 422);
         }
-        return response()->json(['message' => 'Tipo de Material guardado con éxito.'], 200);
+
+        return response()->json([
+            'message' =>
+                'Tipo de material guardado con éxito.',
+        ], 200);
     }
 
-    public function update(UpdateMaterialTypeRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateMaterialTypeRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $materialType =
+            MaterialType::findOrFail(
+                $validated[
+                'materialtype_id'
+                ]
+            );
+
+        $subcategory =
+            Subcategory::findOrFail(
+                $validated[
+                'subcategory_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $materialType = MaterialType::find($request->get('materialtype_id'));
+            $materialType->name =
+                $validated['name'];
 
-            $materialType->name = $request->get('name');
-            $materialType->description = $request->get('description');
-            $materialType->subcategory_id = $request->get('subcategory_id');
+            $materialType->description =
+                $validated['description']
+                ?? null;
+
+            $materialType->subcategory_id =
+                $subcategory->id;
+
             $materialType->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar el tipo de material.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Tipo de material modificado con éxito.','url'=>route('materialtype.index')], 200);
+        return response()->json([
+            'message' =>
+                'Tipo de material modificado con éxito.',
+
+            'url' =>
+                route(
+                    'materialtype.index'
+                ),
+        ], 200);
     }
 
-    public function destroy(DeleteMaterialTypeRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteMaterialTypeRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $materialType =
+            MaterialType::findOrFail(
+                $validated[
+                'materialtype_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $materialtype = MaterialType::find($request->get('materialtype_id'));
-
-            $materialtype->delete();
+            /*
+             * Mantenemos el comportamiento
+             * histórico de CascadeSoftDeletes.
+             */
+            $materialType->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar el tipo de material.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Tipo de material eliminado con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Tipo de material eliminado con éxito.',
+        ], 200);
     }
+
 
     public function create()
     {
-        $subcategories = Subcategory::all();
-        return view('materialtype.create', compact('subcategories'));
+        $subcategories =
+            Subcategory::query()
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        return view(
+            'materialtype.create',
+            compact(
+                'subcategories'
+            )
+        );
     }
+
 
     public function edit($id)
     {
-        $subcategories = Subcategory::all();
-        $materialtype = MaterialType::find($id);
-        return view('materialtype.edit', compact('materialtype', 'subcategories'));
+        $subcategories =
+            Subcategory::query()
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        $materialtype =
+            MaterialType::findOrFail(
+                $id
+            );
+
+        return view(
+            'materialtype.edit',
+            compact(
+                'materialtype',
+                'subcategories'
+            )
+        );
     }
+
 
     public function getMaterialTypes()
     {
-        $materialtypes = MaterialType::with('subcategory')
-            ->orderBy('name', 'asc')
-            ->get();
-        return datatables($materialtypes)->toJson();
-        //dd(datatables($customers)->toJson());
+        $materialtypes =
+            MaterialType::with(
+                'subcategory'
+            )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        return datatables(
+            $materialtypes
+        )->toJson();
     }
 
-    public function getTypesBySubCategory($id)
-    {
-        $types = MaterialType::where('subcategory_id', $id)->get();
+
+    public function getTypesBySubCategory(
+        $id
+    ) {
+        /*
+         * Primero validar Subcategory
+         * dentro del Tenant actual.
+         */
+        $subcategory =
+            Subcategory::findOrFail(
+                $id
+            );
+
+        $types =
+            MaterialType::query()
+                ->where(
+                    'subcategory_id',
+                    $subcategory->id
+                )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
         $array = [];
-        foreach ( $types as $type )
-        {
-            array_push($array, ['id'=> $type->id, 'type' => $type->name]);
+
+        foreach (
+            $types as $type
+        ) {
+
+            $array[] = [
+                'id' =>
+                    $type->id,
+
+                'type' =>
+                    $type->name,
+            ];
         }
 
-        //dd($array);
         return $array;
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
+
+        $materialTypes =
+            MaterialType::with(
+                'subtypes'
+            )
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
         DB::beginTransaction();
 
         try {
-            $materialTypes = MaterialType::with('subtypes')->whereIn('id', $ids)->get();
 
-            foreach ($materialTypes as $materialType) {
-                // Eliminar subcategorías
-                foreach ($materialType->subtypes as $subtype) {
+            foreach (
+                $materialTypes
+                as $materialType
+            ) {
+
+                foreach (
+                    $materialType->subtypes
+                    as $subtype
+                ) {
                     $subtype->delete();
                 }
 
-                // Eliminar categoría
                 $materialType->delete();
             }
 
             DB::commit();
-            return response()->json(['message' => 'Tipos de material eliminados correctamente.']);
 
         } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar los tipos de material.',
+            ], 422);
         }
+
+        return response()->json([
+            'message' =>
+                'Tipos de material eliminados correctamente.',
+        ]);
     }
-    
 }
