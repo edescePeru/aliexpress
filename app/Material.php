@@ -2,16 +2,18 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Material extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToTenant;
 
     protected $appends = ['full_description', 'stock_store', 'price_final', 'name_unit', 'stock_current_total'];
 
     protected $fillable = [
+        'tenant_id',
         'code',
         'description',
         'measure',
@@ -248,7 +250,7 @@ class Material extends Model
 
     public function genero()
     {
-        return $this->belongsTo('App\Warrant');
+        return $this->belongsTo(Genero::class,'genero_id');
     }
 
     public function talla()
