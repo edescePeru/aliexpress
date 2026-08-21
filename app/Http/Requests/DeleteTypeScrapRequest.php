@@ -2,44 +2,39 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteTypeScrapRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
-        return [
-            'typeScrap_id' => 'required|exists:typescraps,id',
-        ];
-    }
+        $tenantId =
+            TenantContext::tenantId();
 
-    public function messages()
-    {
         return [
-            'typeScrap_id.required' => 'El :attribute es obligatorio.',
-            'typeScrap_id.exists' => 'El :attribute no existe en la base de datos.'
-        ];
-    }
+            'typeScrap_id' => [
+                'required',
+                'integer',
 
-    public function attributes()
-    {
-        return [
-            'typeScrap_id' => 'id del tipo de retacería'
+                Rule::exists(
+                    'typescraps',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
         ];
     }
 }

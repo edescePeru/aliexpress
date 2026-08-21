@@ -2,24 +2,30 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Typescrap extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes,
+        BelongsToTenant;
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'length',
-        'width'
+        'width',
+    ];
+
+    protected $dates = [
+        'deleted_at',
     ];
 
     public function materials()
     {
-        return $this->hasMany('App\Material');
+        return $this->hasMany(
+            'App\Material'
+        );
     }
-
-
-    protected $dates = ['deleted_at'];
 }

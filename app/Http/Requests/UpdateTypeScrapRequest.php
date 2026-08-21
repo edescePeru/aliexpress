@@ -2,70 +2,94 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTypeScrapRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $typeScrapId =
+            $this->input(
+                'typeScrap_id'
+            );
+
         return [
-            'typeScrap_id' => 'required|exists:typescraps,id',
+            'typeScrap_id' => [
+                'required',
+                'integer',
+
+                Rule::exists(
+                    'typescraps',
+                    'id'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
             'name' => [
                 'required',
                 'string',
-                'max:255',
-                Rule::unique('typescraps', 'name')->ignore($this->get('typeScrap_id')),
+                'max:191',
+
+                Rule::unique(
+                    'typescraps',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    )
+                    ->ignore(
+                        $typeScrapId
+                    ),
             ],
-            'width' => 'required|numeric|between:0,99999.99',
-            'length' => 'required|numeric|between:0,99999.99',
+
+            'width' => [
+                'required',
+                'numeric',
+                'between:0,99999.99',
+            ],
+
+            'length' => [
+                'required',
+                'numeric',
+                'between:0,99999.99',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'typeScrap_id.required' => 'El :attribute es obligatoria.',
-            'typeScrap_id.exists' => 'El :attribute no existe en la based de datos.',
+            'typeScrap_id.required' =>
+                'El tipo de retacería es obligatorio.',
 
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'typeScrap_id.exists' =>
+                'El tipo de retacería indicado no existe o no pertenece al negocio actual.',
 
-            'width.required' => 'El :attribute es obligatorio.',
-            'width.numeric' => 'El :attribute debe ser un número.',
-            'width.between' => 'El :attribute esta fuera del rango numérico.',
+            'name.required' =>
+                'El nombre del tipo de retacería es obligatorio.',
 
-            'length.required' => 'El :attribute es obligatorio.',
-            'length.numeric' => 'El :attribute debe ser un número.',
-            'length.between' => 'El :attribute esta fuera del rango numérico.',
-
-        ];
-    }
-
-    public function attributes()
-    {
-        return [
-            'typeScrap_id' => 'id del tipo de retacería',
-            'name' => 'nombre del tipo de retacería',
-            'width' => 'ancho del tipo de retacería',
-            'length' => 'largo del tipo de retacería',
+            'name.unique' =>
+                'Ya existe un tipo de retacería con ese nombre para este negocio.',
         ];
     }
 }

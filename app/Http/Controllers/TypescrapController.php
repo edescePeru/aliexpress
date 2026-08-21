@@ -9,117 +9,303 @@ use App\Typescrap;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Laracasts\Utilities\JavaScript\JavaScriptFacade;
 
 class TypescrapController extends Controller
 {
     public function index()
     {
-        $typescraps = Typescrap::all();
-        //$permissions = Permission::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $typescraps =
+            Typescrap::all();
 
-        return view('typeScrap.index', compact('typescraps', 'permissions'));
+        $user =
+            Auth::user();
+
+        $permissions =
+            $user
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->toArray();
+
+        return view(
+            'typeScrap.index',
+            compact(
+                'typescraps',
+                'permissions'
+            )
+        );
     }
 
-    public function store(StoreTypeScrapRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function store(
+        StoreTypeScrapRequest $request
+    ) {
+        $validated =
+            $request->validated();
 
         DB::beginTransaction();
+
         try {
 
-            $typeScrap = Typescrap::create([
-                'name' => $request->get('name'),
-                'width' => $request->get('width'),
-                'length' => $request->get('length'),
-            ]);
+            $typeScrap =
+                Typescrap::create([
+                    'name' =>
+                        $validated['name'],
+
+                    'width' =>
+                        $validated['width'],
+
+                    'length' =>
+                        $validated['length'],
+                ]);
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo registrar el tipo de retacería.',
+            ], 422);
         }
-        return response()->json(['message' => 'Tipo de retacería guardado con éxito.'], 200);
+
+        return response()->json([
+            'message' =>
+                'Tipo de retacería guardado con éxito.',
+        ], 200);
     }
 
-    public function update(UpdateTypeScrapRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function update(
+        UpdateTypeScrapRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $typeScrap =
+            Typescrap::findOrFail(
+                $validated[
+                'typeScrap_id'
+                ]
+            );
 
         DB::beginTransaction();
+
         try {
 
-            $typeScrap = Typescrap::find($request->get('typeScrap_id'));
+            $typeScrap->name =
+                $validated['name'];
 
-            $typeScrap->name = $request->get('name');
-            $typeScrap->width = $request->get('width');
-            $typeScrap->length = $request->get('length');
+            $typeScrap->width =
+                $validated['width'];
+
+            $typeScrap->length =
+                $validated['length'];
+
             $typeScrap->save();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo modificar el tipo de retacería.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Tipo de retacería modificada con éxito.','url'=>route('typescrap.index')], 200);
+        return response()->json([
+            'message' =>
+                'Tipo de retacería modificado con éxito.',
+
+            'url' =>
+                route(
+                    'typescrap.index'
+                ),
+        ], 200);
     }
 
-    public function destroy(DeleteTypeScrapRequest $request)
-    {
-        $validated = $request->validated();
+
+    public function destroy(
+        DeleteTypeScrapRequest $request
+    ) {
+        $validated =
+            $request->validated();
+
+        $typeScrap =
+            Typescrap::findOrFail(
+                $validated[
+                'typeScrap_id'
+                ]
+            );
+
+        /*
+         * Evitamos eliminar un catálogo
+         * que todavía esté asociado a materiales.
+         */
+        if (
+        $typeScrap->materials()
+            ->exists()
+        ) {
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar el tipo de retacería porque está siendo utilizado por uno o más materiales.',
+            ], 422);
+        }
 
         DB::beginTransaction();
-        try {
 
-            $typeScrap = Typescrap::find($request->get('typeScrap_id'));
+        try {
 
             $typeScrap->delete();
 
             DB::commit();
 
-        } catch ( \Throwable $e ) {
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudo eliminar el tipo de retacería.',
+            ], 422);
         }
 
-        return response()->json(['message' => 'Tipo de retacería eliminada con éxito.'], 200);
+        return response()->json([
+            'message' =>
+                'Tipo de retacería eliminado con éxito.',
+        ], 200);
     }
+
 
     public function create()
     {
-        return view('typeScrap.create');
+        return view(
+            'typeScrap.create'
+        );
     }
+
 
     public function edit($id)
     {
-        $typeScrap = Typescrap::find($id);
-        return view('typeScrap.edit', compact('typeScrap'));
+        $typeScrap =
+            Typescrap::findOrFail(
+                $id
+            );
+
+        return view(
+            'typeScrap.edit',
+            compact(
+                'typeScrap'
+            )
+        );
     }
 
 
     public function getTypeScraps()
     {
-        $typescraps = Typescrap::select('id', 'name', 'length', 'width')
-            ->orderBy('name', 'asc')->get();
-        return datatables($typescraps)->toJson();
-        //dd(datatables($customers)->toJson());
+        $typescraps =
+            Typescrap::query()
+                ->select(
+                    'id',
+                    'name',
+                    'length',
+                    'width'
+                )
+                ->orderBy(
+                    'name',
+                    'asc'
+                )
+                ->get();
+
+        return datatables(
+            $typescraps
+        )->toJson();
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!$ids || !is_array($ids)) {
-            return response()->json(['message' => 'Datos inválidos'], 400);
+
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
+
+        if (
+            !$ids ||
+            !is_array($ids)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Datos inválidos.',
+            ], 400);
         }
 
-        Typescrap::whereIn('id', $ids)->delete();
+        $typescraps =
+            Typescrap::query()
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
 
-        return response()->json(['message' => 'Tipos de Retacería eliminadas correctamente.']);
+        /*
+         * No hacemos eliminación parcial.
+         */
+        foreach (
+            $typescraps as $typeScrap
+        ) {
+
+            if (
+            $typeScrap->materials()
+                ->exists()
+            ) {
+                return response()->json([
+                    'message' =>
+                        'No se pueden eliminar los tipos seleccionados porque "' .
+                        $typeScrap->name .
+                        '" está siendo utilizado por uno o más materiales.',
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach (
+                $typescraps as $typeScrap
+            ) {
+                $typeScrap->delete();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            report($e);
+
+            return response()->json([
+                'message' =>
+                    'No se pudieron eliminar los tipos de retacería.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' =>
+                'Tipos de retacería eliminados correctamente.',
+        ]);
     }
-
 }

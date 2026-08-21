@@ -2,59 +2,81 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTypeScrapRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
         return [
-            'name' => 'required|string|max:255|unique:typescraps,name',
-            'width' => 'required|numeric|between:0,99999.99',
-            'length' => 'required|numeric|between:0,99999.99',
+            'name' => [
+                'required',
+                'string',
+                'max:191',
+
+                Rule::unique(
+                    'typescraps',
+                    'name'
+                )
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->whereNull(
+                        'deleted_at'
+                    ),
+            ],
+
+            'width' => [
+                'required',
+                'numeric',
+                'between:0,99999.99',
+            ],
+
+            'length' => [
+                'required',
+                'numeric',
+                'between:0,99999.99',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'name.required' => 'El :attribute es obligatoria.',
-            'name.string' => 'El :attribute debe contener caracteres válidos.',
-            'name.max' => 'El :attribute debe contener máximo 255 caracteres.',
-            'name.unique' => 'Ya existe un :attribute en la base de datos.',
+            'name.required' =>
+                'El nombre del tipo de retacería es obligatorio.',
 
-            'width.required' => 'El :attribute es obligatorio.',
-            'width.numeric' => 'El :attribute debe ser un número.',
-            'width.between' => 'El :attribute esta fuera del rango numérico.',
+            'name.unique' =>
+                'Ya existe un tipo de retacería con ese nombre para este negocio.',
 
-            'length.required' => 'El :attribute es obligatorio.',
-            'length.numeric' => 'El :attribute debe ser un número.',
-            'length.between' => 'El :attribute esta fuera del rango numérico.',
+            'width.required' =>
+                'El ancho es obligatorio.',
 
-        ];
-    }
+            'width.numeric' =>
+                'El ancho debe ser numérico.',
 
-    public function attributes()
-    {
-        return [
-            'name' => 'nombre del tipo de retacería',
-            'width' => 'ancho del tipo de retacería',
-            'length' => 'largo del tipo de retacería',
+            'width.between' =>
+                'El ancho está fuera del rango permitido.',
+
+            'length.required' =>
+                'El largo es obligatorio.',
+
+            'length.numeric' =>
+                'El largo debe ser numérico.',
+
+            'length.between' =>
+                'El largo está fuera del rango permitido.',
         ];
     }
 }
