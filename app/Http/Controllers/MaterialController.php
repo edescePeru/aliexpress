@@ -47,6 +47,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Intervention\Image\Facades\Image;
+use App\Support\TenantContext;
 
 class MaterialController extends Controller
 {
@@ -81,7 +82,10 @@ class MaterialController extends Controller
         $discountQuantities = DiscountQuantity::all();
         return view('material.create', compact('discountQuantities', 'tipoVentas','tallas','generos', 'categories', 'warrants', 'brands', 'qualities', 'typescraps', 'unitMeasures'));*/
         // 1) Leer configuración global
-        $setting = MaterialDetailSetting::first();
+        $setting = MaterialDetailSetting::query()
+            ->forCompany(
+                TenantContext::companyId()
+            )->first();
         $enabled = [];
         if ($setting && is_array($setting->enabled_sections)) {
             $enabled = $setting->enabled_sections;
@@ -447,7 +451,10 @@ class MaterialController extends Controller
     {
 
         // 1) Configuración global
-        $setting = MaterialDetailSetting::first();
+        $setting = MaterialDetailSetting::query()->forCompany(
+            TenantContext::companyId()
+        )->first();
+
         $enabled = [];
         if ($setting && is_array($setting->enabled_sections)) {
             $enabled = $setting->enabled_sections;
@@ -593,7 +600,11 @@ class MaterialController extends Controller
     public function edit($id)
     {
         // 1) Configuración global
-        $setting = MaterialDetailSetting::first();
+        $setting = MaterialDetailSetting::query()
+    ->forCompany(
+        TenantContext::companyId()
+    )
+    ->first();
         $enabled = [];
         if ($setting && is_array($setting->enabled_sections)) {
             $enabled = $setting->enabled_sections;

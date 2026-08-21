@@ -3,62 +3,242 @@
 namespace App\Http\Controllers;
 
 use App\MaterialDetailSetting;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 
 class MaterialDetailSettingController extends Controller
 {
-    /**
-     * Mostrar la vista de configuración
-     */
     public function index()
     {
-        $setting  = MaterialDetailSetting::first();
-        $sections = config('material_details.sections');
+        $companyId =
+            TenantContext::companyId();
+
+        $setting =
+            MaterialDetailSetting::query()
+                ->forCompany(
+                    $companyId
+                )
+                ->first();
+
+        $sections =
+            config(
+                'material_details.sections'
+            );
 
         $enabled = [];
-        if ($setting && is_array($setting->enabled_sections)) {
-            $enabled = $setting->enabled_sections;
+
+        if (
+            $setting &&
+            is_array(
+                $setting->enabled_sections
+            )
+        ) {
+            $enabled =
+                $setting->enabled_sections;
         }
 
-        return view('materialDetailSetting.index', [
-            'setting'  => $setting,
-            'sections' => $sections,
-            'enabled'  => $enabled,
-        ]);
+        return view(
+            'materialDetailSetting.index',
+            [
+                'setting' =>
+                    $setting,
+
+                'sections' =>
+                    $sections,
+
+                'enabled' =>
+                    $enabled,
+            ]
+        );
     }
 
-    /**
-     * Guardar configuración
-     */
-    public function store(Request $request)
-    {
-        $validKeys = array_keys(config('material_details.sections'));
+    public function store(Request $request) {
+        $tenantId =
+            TenantContext::tenantId();
+
+        $companyId =
+            TenantContext::companyId();
+
+
+        $validKeys =
+            array_keys(
+                config(
+                    'material_details.sections'
+                )
+            );
+
 
         $enabled = [];
-        if ($request->has('enabled_sections')) {
-            foreach ($request->enabled_sections as $key) {
-                if (in_array($key, $validKeys, true)) {
-                    $enabled[] = $key;
+
+
+        if (
+        $request->has(
+            'enabled_sections'
+        )
+        ) {
+
+            foreach (
+                $request->enabled_sections
+                as $key
+            ) {
+
+                if (
+                in_array(
+                    $key,
+                    $validKeys,
+                    true
+                )
+                ) {
+                    $enabled[] =
+                        $key;
                 }
             }
         }
 
-        // Dependencias
-        if (in_array('subcategory', $enabled, true) && !in_array('category', $enabled, true)) {
-            $enabled[] = 'category';
+
+        /*
+         * =========================================================
+         * DEPENDENCIAS
+         * =========================================================
+         */
+
+
+        /*
+         * Subcategory necesita Category.
+         */
+        if (
+        in_array(
+            'subcategory',
+            $enabled,
+            true
+        )
+        ) {
+            $this->ensureEnabled(
+                $enabled,
+                'category'
+            );
         }
 
-        if (in_array('exampler', $enabled, true) && !in_array('brand', $enabled, true)) {
-            $enabled[] = 'brand';
+
+        /*
+         * Exampler necesita Brand.
+         */
+        if (
+        in_array(
+            'exampler',
+            $enabled,
+            true
+        )
+        ) {
+            $this->ensureEnabled(
+                $enabled,
+                'brand'
+            );
         }
+
+
+        /*
+         * MaterialType necesita:
+         *
+         * Category
+         * └── Subcategory
+         *     └── MaterialType
+         */
+        if (
+        in_array(
+            'material_type',
+            $enabled,
+            true
+        )
+        ) {
+            $this->ensureEnabled(
+                $enabled,
+                'category'
+            );
+
+            $this->ensureEnabled(
+                $enabled,
+                'subcategory'
+            );
+        }
+
+
+        /*
+         * Subtype necesita toda la cadena:
+         *
+         * Category
+         * └── Subcategory
+         *     └── MaterialType
+         *         └── Subtype
+         */
+        if (
+        in_array(
+            'subtype',
+            $enabled,
+            true
+        )
+        ) {
+            $this->ensureEnabled(
+                $enabled,
+                'category'
+            );
+
+            $this->ensureEnabled(
+                $enabled,
+                'subcategory'
+            );
+
+            $this->ensureEnabled(
+                $enabled,
+                'material_type'
+            );
+        }
+
+
+        /*
+         * Eliminamos posibles duplicados.
+         */
+        $enabled =
+            array_values(
+                array_unique(
+                    $enabled
+                )
+            );
+
 
         MaterialDetailSetting::updateOrCreate(
-            ['id' => 1],
-            ['enabled_sections' => $enabled]
+            [
+                'tenant_id' =>
+                    $tenantId,
+
+                'company_id' =>
+                    $companyId,
+            ],
+            [
+                'enabled_sections' =>
+                    $enabled,
+            ]
         );
+
 
         return redirect()
             ->back()
-            ->with('success', 'Configuración de detalles de producto guardada correctamente.');
+            ->with(
+                'success',
+                'Configuración de detalles de producto guardada correctamente.'
+            );
+    }
+
+    private function ensureEnabled(array &$enabled,$key) {
+        if (
+        !in_array(
+            $key,
+            $enabled,
+            true
+        )
+        ) {
+            $enabled[] =
+                $key;
+        }
     }
 }
