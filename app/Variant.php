@@ -2,23 +2,37 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Variant extends Model
 {
-    protected $fillable=[
-        'material_id', // El id del material
-        'quality_id',  // es el talla_id
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'tenant_id',
+        'material_id',
+
+        /*
+         * quality_id queda temporalmente
+         * por compatibilidad con código legacy.
+         * No debe utilizarse en nuevas variantes.
+         */
+        'quality_id',
+
         'talla_id',
-        'color_id',    // es el color_id
-        'attribute_summary', // es la union de 40 / Blanco talla(short_name) y el color(name)
-        'image',   // imagen de la variante
-        'is_active'  // si es activo o no la variante
+        'color_id',
+        'attribute_summary',
+        'image',
+        'is_active',
     ];
 
     public function stockItem()
     {
-        return $this->hasOne(StockItem::class, 'variant_id');
+        return $this->hasOne(
+            StockItem::class,
+            'variant_id'
+        );
     }
 
     public function talla()
@@ -31,17 +45,25 @@ class Variant extends Model
 
     public function color()
     {
-        return $this->belongsTo(Color::class, 'color_id');
+        return $this->belongsTo(
+            Color::class,
+            'color_id'
+        );
     }
 
     public function material()
     {
-        return $this->belongsTo(Material::class, 'material_id');
+        return $this->belongsTo(
+            Material::class,
+            'material_id'
+        );
     }
 
     public function stockItems()
     {
-        return $this->hasMany(StockItem::class, 'variant_id');
+        return $this->hasMany(
+            StockItem::class,
+            'variant_id'
+        );
     }
-
 }
