@@ -5,15 +5,19 @@ namespace App;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
-class Area extends Model
+class CompanyStockItem extends Model
 {
     use BelongsToTenant;
 
     protected $fillable = [
         'tenant_id',
         'company_id',
-        'name',
-        'comment',
+        'stock_item_id',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
 
@@ -26,20 +30,11 @@ class Area extends Model
     }
 
 
-    public function warehouses()
+    public function stockItem()
     {
-        return $this->hasMany(
-            Warehouse::class,
-            'area_id'
-        );
-    }
-
-
-    public function locations()
-    {
-        return $this->hasMany(
-            Location::class,
-            'area_id'
+        return $this->belongsTo(
+            StockItem::class,
+            'stock_item_id'
         );
     }
 }

@@ -48,6 +48,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Intervention\Image\Facades\Image;
 use App\Support\TenantContext;
+use App\CompanyStockItem;
 
 class MaterialController extends Controller
 {
@@ -145,6 +146,554 @@ class MaterialController extends Controller
     }
 
     public function store(StoreMaterialRequest $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            /*
+             * ============================================================
+             * CONTEXTO OPERATIVO
+             * ============================================================
+             */
+
+            $tenantId = TenantContext::tenantId();
+            $companyId = TenantContext::companyId();
+
+
+            /*
+             * ============================================================
+             * CONFIGURACIÓN GENERAL
+             * ============================================================
+             */
+
+            // 0 = sin variantes
+            // 1 = con variantes
+            $tipoVariantes = (int) $request->input(
+                'tipo_variantes',
+                0
+            );
+
+            $variantes = json_decode(
+                $request->input(
+                    'variantes_json',
+                    '[]'
+                ),
+                true
+            );
+
+            if (!is_array($variantes)) {
+                throw new \Exception(
+                    'El formato de variantes_json es inválido.'
+                );
+            }
+
+            if (count($variantes) === 0) {
+                throw new \Exception(
+                    'Debe enviar al menos un registro de variante.'
+                );
+            }
+
+
+            /*
+             * ============================================================
+             * MATERIAL
+             * ============================================================
+             *
+             * tenant_id será asignado automáticamente por BelongsToTenant.
+             */
+
+            $material = Material::create([
+                'description' => $request->input('description'),
+
+                'unit_measure_id' => $request->input('unit_measure'),
+
+                'stock_max' => 0,
+                'stock_min' => 0,
+                'stock_current' => 0,
+                'stock_reserved' => 0,
+
+                'priority' => 'Aceptable',
+
+                'unit_price' => $request->input('unit_price', 0),
+
+                'category_id' => $request->input('category'),
+
+                'subcategory_id' => $request->input('subcategory'),
+
+                'material_type_id' =>$request->input('material_type'),
+
+                'subtype_id' => $request->input('subtype'),
+
+                'brand_id' => $request->input('brand'),
+
+                'exampler_id' => $request->input('exampler'),
+
+                'typescrap_id' => $request->input('typescrap'),
+
+                /*
+                 * Género correcto.
+                 *
+                 * Antes se guardaba erróneamente
+                 * en warrant_id.
+                 */
+                'genero_id' => $request->input('genero'),
+
+                'enable_status' => 1,
+
+                'full_name' => $request->input('name'),
+
+                'tipo_venta_id' => $request->input('tipo_venta'),
+
+                'perecible' => $request->input('perecible'),
+
+                'type_tax_id' => $request->input('type_tax_id'),
+
+                'list_price' => (float) $request->input('unit_price',0),
+
+                'inventory' => 0,
+
+                'image' => 'no_image.png',
+
+                /*
+                 * Campos legacy.
+                 * Las variantes nuevas ya trabajan
+                 * con variants.talla_id.
+                 */
+                'quality_id' => null,
+
+                'codigo' => null,
+
+                'isPack' => 0,
+
+                'quantityPack' => 0,
+
+                'stock_unPack' => 0,
+            ]);
+
+
+            /*
+             * ============================================================
+             * CÓDIGO INTERNO MATERIAL
+             * ============================================================
+             */
+
+            $material->code =
+                'P-' .
+                str_pad(
+                    $material->id,
+                    5,
+                    '0',
+                    STR_PAD_LEFT
+                );
+
+            $material->save();
+
+
+            /*
+             * ============================================================
+             * IMAGEN GENERAL
+             * ============================================================
+             */
+
+            if ($request->hasFile('image')) {
+
+                $image =
+                    $request->file('image');
+
+                $filename =
+                    $material->id .
+                    '.' .
+                    $image->getClientOriginalExtension();
+
+                $path =
+                    public_path(
+                        'images/material/' .
+                        $filename
+                    );
+
+                Image::make($image)
+                    ->save($path);
+
+                $material->image =
+                    $filename;
+
+                $material->save();
+            }
+
+
+            /*
+             * ============================================================
+             * VARIANTS + STOCK ITEMS
+             * ============================================================
+             */
+
+            foreach ($variantes as $index => $item) {
+
+                $tallaId = $item['talla_id'] ?? null;
+
+                $colorId = $item['color_id'] ?? null;
+
+                $sku = trim($item['sku'] ?? '');
+
+                $barcode = trim($item['codigo_barras'] ?? '' );
+
+                $stockMinimo = ($item['stock_minimo'] ?? '') !== '' ? (float) $item['stock_minimo'] : 0;
+
+                $stockMaximo = ($item['stock_maximo'] ?? '') !== '' ? (float) $item['stock_maximo'] : 0;
+
+                $isActive = isset($item['is_active']) ? (int) $item['is_active'] : 1;
+
+                $tracksInventory = isset($item['afecto_inventario']) ? (int) $item['afecto_inventario'] : 1;
+
+                $isPack = isset($item['pack']) ? (int) $item['pack'] : 0;
+
+                $cantidadPack = isset($item['cantidad_pack']) ? (float) $item['cantidad_pack'] : 1;
+
+                $imageKey = $item['image_key'] ?? null;
+
+                if ($sku === '') {
+                    throw new \Exception('Uno de los registros no tiene SKU.');
+                }
+
+
+                $variantId = null;
+
+                $displayName = $material->full_name;
+
+                /*
+                 * ========================================================
+                 * PRODUCTO CON VARIANTES
+                 * ========================================================
+                 */
+
+                if ($tipoVariantes === 1) {
+
+                    /*
+                     * Talla y Color ya están TenantScope.
+                     */
+                    $talla = $tallaId ? Talla::find($tallaId) : null;
+
+                    $color = $colorId ? Color::find($colorId) : null;
+
+                    /*
+                     * Si se envió un ID pero no pertenece
+                     * al Tenant actual, no continuamos.
+                     */
+
+                    if ($tallaId && !$talla) {
+                        throw new \Exception(
+                            'Una de las tallas seleccionadas no pertenece al grupo empresarial actual.'
+                        );
+                    }
+
+                    if ($colorId && !$color) {
+                        throw new \Exception(
+                            'Uno de los colores seleccionados no pertenece al grupo empresarial actual.'
+                        );
+                    }
+
+
+                    $tallaTexto =
+                        $talla
+                            ? (
+                        $talla->short_name
+                            ?: $talla->name
+                        )
+                            : '';
+
+                    $colorTexto =
+                        $color
+                            ? $color->name
+                            : '';
+
+
+                    $attributeSummary =
+                        collect([
+                            $tallaTexto,
+                            $colorTexto,
+                        ])
+                            ->filter()
+                            ->implode(' / ');
+
+
+                    $displayName =
+                        trim(
+                            $material->full_name .
+                            ' - ' .
+                            collect([
+                                $tallaTexto,
+                                $colorTexto,
+                            ])
+                                ->filter()
+                                ->implode(' - ')
+                        );
+
+
+                    /*
+                     * Imagen propia de variante.
+                     */
+
+                    $variantImageName = null;
+
+                    if (
+                        $imageKey &&
+                        $request->hasFile($imageKey)
+                    ) {
+
+                        $variantImage =
+                            $request->file(
+                                $imageKey
+                            );
+
+                        $variantImageName =
+                            'variant_' .
+                            $material->id .
+                            '_' .
+                            uniqid() .
+                            '.' .
+                            $variantImage
+                                ->getClientOriginalExtension();
+
+                        $variantPath =
+                            public_path(
+                                'images/material/variants/' .
+                                $variantImageName
+                            );
+
+                        Image::make(
+                            $variantImage
+                        )->save(
+                            $variantPath
+                        );
+                    }
+
+
+                    /*
+                     * Variant es Tenant-level.
+                     *
+                     * tenant_id se asigna mediante
+                     * BelongsToTenant.
+                     */
+
+                    $variant =
+                        Variant::create([
+                            'material_id' => $material->id,
+
+                            /*
+                             * Ya NO usamos quality_id.
+                             */
+                            'talla_id' => $tallaId,
+
+                            'color_id' => $colorId,
+
+                            'attribute_summary' => $attributeSummary,
+
+                            'image' => $variantImageName,
+
+                            'is_active' => $isActive,
+                        ]);
+
+                    $variantId =
+                        $variant->id;
+                }
+
+
+                /*
+                 * ========================================================
+                 * PRODUCTO SIN VARIANTES
+                 * ========================================================
+                 */
+
+                else {
+
+                    /*
+                     * Material no necesita almacenar
+                     * talla/color para producto simple.
+                     *
+                     * El StockItem representa directamente
+                     * la unidad vendible.
+                     */
+
+                    $material->update([
+                        'codigo' =>
+                            $barcode !== ''
+                                ? $barcode
+                                : null,
+
+                        'stock_min' =>
+                            $stockMinimo,
+
+                        'stock_max' =>
+                            $stockMaximo,
+
+                        'isPack' =>
+                            $isPack,
+
+                        'quantityPack' =>
+                            $isPack
+                                ? $cantidadPack
+                                : 0,
+                    ]);
+                }
+
+
+                /*
+                 * ========================================================
+                 * STOCK ITEM
+                 * ========================================================
+                 *
+                 * StockItem también es Tenant-level.
+                 * BelongsToTenant asigna tenant_id.
+                 */
+
+                $stockItem =
+                    StockItem::create([
+                        'material_id' =>
+                            $material->id,
+
+                        'variant_id' =>
+                            $variantId,
+
+                        'sku' =>
+                            $sku,
+
+                        'barcode' =>
+                            $barcode !== ''
+                                ? $barcode
+                                : null,
+
+                        'display_name' =>
+                            $displayName,
+
+                        'unit_measure_id' =>
+                            $material->unit_measure_id,
+
+                        'tracks_inventory' =>
+                            $tracksInventory,
+
+                        'is_active' =>
+                            $isActive,
+                    ]);
+
+
+                /*
+                 * ========================================================
+                 * HABILITACIÓN COMERCIAL PARA COMPANY ACTUAL
+                 * ========================================================
+                 *
+                 * Esta es la parte nueva de 5E-4B.
+                 */
+
+                CompanyStockItem::create([
+                    'company_id' =>
+                        $companyId,
+
+                    'stock_item_id' =>
+                        $stockItem->id,
+
+                    'is_active' =>
+                        true,
+                ]);
+
+
+                /*
+                 * ========================================================
+                 * INVENTORY LEVEL
+                 * ========================================================
+                 *
+                 * ATENCIÓN:
+                 *
+                 * warehouse_id = 1 y location_id = 1
+                 * todavía son legacy.
+                 *
+                 * Lo vamos a resolver al aislar Warehouse /
+                 * InventoryLevel por Company.
+                 */
+
+                InventoryLevel::create([
+                    'stock_item_id' => $stockItem->id,
+
+                    'location_id' => 1,
+
+                    'warehouse_id' => 1,
+
+                    'qty_on_hand' => 0,
+
+                    'qty_reserved' => 0,
+
+                    'min_alert' => $stockMinimo,
+
+                    'max_alert' => $stockMaximo,
+
+                    'average_cost' => 0,
+
+                    'last_cost' => 0,
+                ]);
+            }
+
+
+            /*
+             * ============================================================
+             * DESCUENTOS POR CANTIDAD
+             * ============================================================
+             */
+
+            $discounts =
+                $request->input(
+                    'discount',
+                    []
+                );
+
+            $percentages =
+                $request->input(
+                    'percentage',
+                    []
+                );
+
+            foreach ( $discounts as $discountId => $value ) {
+
+                if (isset($value)) {
+
+                    $percentage =
+                        $percentages[
+                        $discountId
+                        ] ?? null;
+
+                    MaterialDiscountQuantity::create([
+                        'material_id' =>
+                            $material->id,
+
+                        'discount_quantity_id' =>
+                            $discountId,
+
+                        'percentage' =>
+                            $percentage,
+                    ]);
+                }
+            }
+
+
+            DB::commit();
+
+
+            return response()->json([
+                'message' =>
+                    'Material guardado con éxito.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function storeLegacy(StoreMaterialRequest $request)
     {
         //dd($request);
         DB::beginTransaction();

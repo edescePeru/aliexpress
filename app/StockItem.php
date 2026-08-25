@@ -132,4 +132,44 @@ class StockItem extends Model
     {
         return $this->hasMany(QuoteStockLot::class, 'stock_item_id');
     }
+
+    public function companyStockItems()
+    {
+        return $this->hasMany(CompanyStockItem::class,'stock_item_id');
+    }
+
+    public function companies()
+    {
+        return $this->belongsToMany(
+            Company::class,
+            'company_stock_items',
+            'stock_item_id',
+            'company_id'
+        )
+            ->withPivot([
+                'is_active',
+            ])
+            ->withTimestamps();
+    }
+
+    public function scopeEnabledForCompany(
+        $query,
+        $companyId
+    ) {
+        return $query->whereHas(
+            'companyStockItems',
+            function ($companyStockItemQuery) use ($companyId) {
+
+                $companyStockItemQuery
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        true
+                    );
+            }
+        );
+    }
 }

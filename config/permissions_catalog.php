@@ -534,4 +534,6 @@ return [
     'list_talla' => 'Listar Tallas',
     'update_talla' => 'Modificar Tallas',
     'destroy_talla' => 'Eliminar Tallas',
+
+    'manage_companyStockItem' => 'Administrar productos comercializados por empresa',
 ];

@@ -3310,6 +3310,17 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('configUserWeb.changeStatus')
             ->middleware('permission:changeStatusUser_configUserWeb');
 
+        Route::get('/dashboard/company-stock-items','CompanyStockItemController@index')
+            ->name('companyStockItem.index')
+            ->middleware('permission:manage_companyStockItem');
+
+        Route::get('/dashboard/company-stock-items/data','CompanyStockItemController@getData')
+            ->name('companyStockItem.data')
+            ->middleware('permission:manage_companyStockItem');
+
+        Route::post('/dashboard/company-stock-items/status','CompanyStockItemController@updateStatus')
+            ->name('companyStockItem.status')
+            ->middleware('permission:manage_companyStockItem');
 
         Route::prefix('/ventas-libres')->group(function () {
             Route::get('/', [FreeSaleController::class, 'index'])

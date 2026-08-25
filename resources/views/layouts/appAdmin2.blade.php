@@ -1393,6 +1393,14 @@
                                         </a>
                                     </li>
                                 @endcan
+                                @can('manage_companyStockItem')
+                                    <li class="nav-item">
+                                        <a href="{{ route('companyStockItem.index') }}" class="nav-link @yield('manageCompanyStockItem')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Catálogo por empresa</p>
+                                        </a>
+                                    </li>
+                                @endcan
                                     {{--<li class="nav-item">
                                         <a href="{{ route('index.combos') }}" class="nav-link @yield('listComboMaterial')">
                                             <i class="far fa-circle nav-icon"></i>

@@ -43,4 +43,50 @@ class Company extends Model
             ])
             ->withTimestamps();
     }
+
+    public function companyStockItems()
+    {
+        return $this->hasMany(
+            CompanyStockItem::class,
+            'company_id'
+        );
+    }
+
+    public function stockItems()
+    {
+        return $this->belongsToMany(
+            StockItem::class,
+            'company_stock_items',
+            'company_id',
+            'stock_item_id'
+        )
+            ->withPivot([
+                'is_active',
+            ])
+            ->withTimestamps();
+    }
+
+    public function areas()
+    {
+        return $this->hasMany(
+            Area::class,
+            'company_id'
+        );
+    }
+
+    public function warehouses()
+    {
+        return $this->hasMany(
+            Warehouse::class,
+            'company_id'
+        );
+    }
+
+    public function locations()
+    {
+        return $this->hasMany(
+            Location::class,
+            'company_id'
+        );
+    }
 }

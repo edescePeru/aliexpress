@@ -104,4 +104,6 @@ return [
     'genero' => 'GÉNEROS',
     'color' => 'COLORES',
     'talla' => 'TALLAS',
+
+    'companyStockItem' => 'CATÁLOGO POR EMPRESA',
 ];

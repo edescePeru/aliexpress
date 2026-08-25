@@ -38,4 +38,12 @@ class Branch extends Model
             ])
             ->withTimestamps();
     }
+
+    public function warehouses()
+    {
+        return $this->hasMany(
+            Warehouse::class,
+            'branch_id'
+        );
+    }
 }
