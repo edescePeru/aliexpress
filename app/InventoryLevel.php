@@ -2,11 +2,16 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class InventoryLevel extends Model
 {
-    protected $fillable=[
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'tenant_id',
+        'company_id',
         'stock_item_id',
         'location_id',
         'warehouse_id',
@@ -15,22 +20,38 @@ class InventoryLevel extends Model
         'min_alert',
         'max_alert',
         'average_cost',
-        'last_cost'
+        'last_cost',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(
+            Company::class,
+            'company_id'
+        );
+    }
 
     public function stockItem()
     {
-        return $this->belongsTo(StockItem::class, 'stock_item_id');
+        return $this->belongsTo(
+            StockItem::class,
+            'stock_item_id'
+        );
     }
 
     public function warehouse()
     {
-        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+        return $this->belongsTo(
+            Warehouse::class,
+            'warehouse_id'
+        );
     }
 
-    // o si usas location_id
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(
+            Location::class,
+            'location_id'
+        );
     }
 }

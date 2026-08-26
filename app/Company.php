@@ -89,4 +89,12 @@ class Company extends Model
             'company_id'
         );
     }
+
+    public function inventoryLevels()
+    {
+        return $this->hasMany(
+            InventoryLevel::class,
+            'company_id'
+        );
+    }
 }

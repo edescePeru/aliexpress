@@ -152,10 +152,7 @@ class StockItem extends Model
             ->withTimestamps();
     }
 
-    public function scopeEnabledForCompany(
-        $query,
-        $companyId
-    ) {
+    public function scopeEnabledForCompany($query,$companyId) {
         return $query->whereHas(
             'companyStockItems',
             function ($companyStockItemQuery) use ($companyId) {
@@ -171,5 +168,13 @@ class StockItem extends Model
                     );
             }
         );
+    }
+
+    public function inventoryLevelsForCompany($companyId) {
+        return $this->inventoryLevels()
+            ->where(
+                'company_id',
+                $companyId
+            );
     }
 }

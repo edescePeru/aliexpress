@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\DB;
 use Intervention\Image\Facades\Image;
 use App\Support\TenantContext;
 use App\CompanyStockItem;
+use App\Services\Inventory\DefaultInventoryLocationResolver;
 
 class MaterialController extends Controller
 {
@@ -160,6 +161,15 @@ class MaterialController extends Controller
             $tenantId = TenantContext::tenantId();
             $companyId = TenantContext::companyId();
 
+            /** @var DefaultInventoryLocationResolver $inventoryLocationResolver */
+            $inventoryLocationResolver =
+                app(DefaultInventoryLocationResolver::class);
+
+            $defaultInventoryLocation = $inventoryLocationResolver->resolveCurrent();
+
+            $defaultWarehouse = $defaultInventoryLocation['warehouse'];
+
+            $defaultLocation = $defaultInventoryLocation['location'];
 
             /*
              * ============================================================
@@ -612,11 +622,13 @@ class MaterialController extends Controller
                  */
 
                 InventoryLevel::create([
+                    'company_id' => $companyId,
+
                     'stock_item_id' => $stockItem->id,
 
-                    'location_id' => 1,
+                    'location_id' => $defaultLocation->id,
 
-                    'warehouse_id' => 1,
+                    'warehouse_id' => $defaultWarehouse->id,
 
                     'qty_on_hand' => 0,
 
