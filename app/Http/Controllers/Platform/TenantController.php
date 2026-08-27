@@ -507,6 +507,17 @@ class TenantController extends Controller
                             true,
                     ]);
 
+                    /** @var \App\Services\Inventory\CompanyInventoryStructureService $inventoryStructureService */
+                    $inventoryStructureService =
+                        app(
+                            \App\Services\Inventory\CompanyInventoryStructureService::class
+                        );
+
+                    $inventoryStructureService
+                        ->provision(
+                            $company
+                        );
+
 
                     $branchCode =
                         !empty(
