@@ -258,64 +258,291 @@
     <!--end::Form-->
 
     <div class="row mt-3">
+
+        {{-- CÓDIGO --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="codigo" class="custom-control-input" id="customSwitch1">
-            <label class="custom-control-label" for="customSwitch1">Código</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="descripcion" class="custom-control-input" id="customSwitch2">
-            <label class="custom-control-label" for="customSwitch2">Descripcion</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="unidad_medida" class="custom-control-input" id="customSwitch3">
-            <label class="custom-control-label" for="customSwitch3">Unidad Medida</label>
-        </div>
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch4">
-            <label class="custom-control-label" for="customSwitch4">Stock Actual</label>
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="codigo"
+                    class="custom-control-input column-toggle"
+                    id="columnCodigo"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnCodigo"
+            >
+                Código
+            </label>
         </div>
 
+
+        {{-- DESCRIPCIÓN --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_min" class="custom-control-input" id="customSwitch5">
-            <label class="custom-control-label" for="customSwitch5">Stock Minimo</label>
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="descripcion"
+                    class="custom-control-input column-toggle"
+                    id="columnDescripcion"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnDescripcion"
+            >
+                Descripción
+            </label>
         </div>
 
+
+        {{-- UNIDAD MEDIDA --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_max" class="custom-control-input" id="customSwitch6">
-            <label class="custom-control-label" for="customSwitch6">Stock Maximo</label>
+            <input
+                    type="checkbox"
+                    {{ in_array('unit_measure', $enabled, true) ? 'checked' : '' }}
+                    data-column="unidad_medida"
+                    class="custom-control-input column-toggle"
+                    id="columnUnidadMedida"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnUnidadMedida"
+            >
+                Unidad Medida
+            </label>
         </div>
-        {{--<div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="precio_unitario" class="custom-control-input" id="customSwitch5">
-            <label class="custom-control-label" for="customSwitch5">Precio Costo</label>
-        </div>
+
+
+        {{-- STOCK ACTUAL --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="precio_lista" class="custom-control-input" id="customSwitch6">
-            <label class="custom-control-label" for="customSwitch6">Precio Venta</label>
-        </div>--}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch7">
-            <label class="custom-control-label" for="customSwitch7">Categoría</label>
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="stock_actual"
+                    class="custom-control-input column-toggle"
+                    id="columnStockActual"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnStockActual"
+            >
+                Stock Actual
+            </label>
         </div>
+
+
+        {{-- STOCK MÍNIMO --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="sub_categoria" class="custom-control-input" id="customSwitch8">
-            <label class="custom-control-label" for="customSwitch8">SubCategoría</label>
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="stock_min"
+                    class="custom-control-input column-toggle"
+                    id="columnStockMin"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnStockMin"
+            >
+                Stock Mínimo
+            </label>
         </div>
+
+
+        {{-- STOCK MÁXIMO --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="marca" class="custom-control-input" id="customSwitch9">
-            <label class="custom-control-label" for="customSwitch9">Marca</label>
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="stock_max"
+                    class="custom-control-input column-toggle"
+                    id="columnStockMax"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnStockMax"
+            >
+                Stock Máximo
+            </label>
         </div>
+
+
+        {{-- CATEGORÍA --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="modelo" class="custom-control-input" id="customSwitch10">
-            <label class="custom-control-label" for="customSwitch10">Modelo</label>
+            <input
+                    type="checkbox"
+                    {{ in_array('category', $enabled, true) ? 'checked' : '' }}
+                    data-column="categoria"
+                    class="custom-control-input column-toggle"
+                    id="columnCategoria"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnCategoria"
+            >
+                Categoría
+            </label>
         </div>
+
+
+        {{-- SUBCATEGORÍA --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="imagen" class="custom-control-input" id="customSwitch11">
-            <label class="custom-control-label" for="customSwitch11">Imagen</label>
+            <input
+                    type="checkbox"
+                    {{ in_array('subcategory', $enabled, true) ? 'checked' : '' }}
+                    data-column="sub_categoria"
+                    class="custom-control-input column-toggle"
+                    id="columnSubcategoria"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnSubcategoria"
+            >
+                SubCategoría
+            </label>
         </div>
+
+
+        {{-- MARCA --}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="rotation" class="custom-control-input" id="customSwitch12">
-            <label class="custom-control-label" for="customSwitch12">Rotación</label>
+            <input
+                    type="checkbox"
+                    {{ in_array('brand', $enabled, true) ? 'checked' : '' }}
+                    data-column="marca"
+                    class="custom-control-input column-toggle"
+                    id="columnMarca"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnMarca"
+            >
+                Marca
+            </label>
         </div>
+
+
+        {{-- MODELO --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    {{ in_array('exampler', $enabled, true) ? 'checked' : '' }}
+                    data-column="modelo"
+                    class="custom-control-input column-toggle"
+                    id="columnModelo"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnModelo"
+            >
+                Modelo
+            </label>
+        </div>
+
+
+        {{-- TIPO MATERIAL --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    {{ in_array('material_type', $enabled, true) ? 'checked' : '' }}
+                    data-column="tipo_material"
+                    class="custom-control-input column-toggle"
+                    id="columnTipoMaterial"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnTipoMaterial"
+            >
+                Tipo Material
+            </label>
+        </div>
+
+
+        {{-- SUBTIPO --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    {{ in_array('subtype', $enabled, true) ? 'checked' : '' }}
+                    data-column="subtipo"
+                    class="custom-control-input column-toggle"
+                    id="columnSubtipo"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnSubtipo"
+            >
+                Subtipo
+            </label>
+        </div>
+
+
+        {{-- TIPO RETACERÍA --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    {{ in_array('typescrap', $enabled, true) ? 'checked' : '' }}
+                    data-column="retaceria"
+                    class="custom-control-input column-toggle"
+                    id="columnRetaceria"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnRetaceria"
+            >
+                Tipo Retacería
+            </label>
+        </div>
+
+
+        {{-- IMAGEN --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="imagen"
+                    class="custom-control-input column-toggle"
+                    id="columnImagen"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnImagen"
+            >
+                Imagen
+            </label>
+        </div>
+
+
+        {{-- ROTACIÓN --}}
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input
+                    type="checkbox"
+                    checked
+                    data-column="rotation"
+                    class="custom-control-input column-toggle"
+                    id="columnRotation"
+            >
+
+            <label
+                    class="custom-control-label"
+                    for="columnRotation"
+            >
+                Rotación
+            </label>
+        </div>
+
     </div>
 
     <!--begin::Toolbar-->
@@ -371,6 +598,9 @@
             <th data-column="sub_categoria" data-sub_categoria>SubCategoría</th>
             <th data-column="marca" data-marca>Marca</th>
             <th data-column="modelo" data-modelo>Modelo</th>
+            <th data-column="tipo_material" data-tipo_material>Tipo Material</th>
+            <th data-column="subtipo" data-subtipo>Subtipo</th>
+            <th data-column="retaceria" data-retaceria>Tipo Retacería</th>
             <th data-column="imagen" data-imagen>Imagen</th>
             <th data-column="rotation" data-rotation>Rotación</th>
             <th></th>
@@ -421,6 +651,9 @@
             <td data-column="sub_categoria" data-sub_categoria></td>
             <td data-column="marca" data-marca></td>
             <td data-column="modelo" data-modelo></td>
+            <td data-column="tipo_material" data-tipo_material></td>
+            <td data-column="subtipo" data-subtipo></td>
+            <td data-column="retaceria" data-retaceria></td>
             <td data-column="imagen" data-imagen>
                 <button data-ver_imagen data-src="{{--'+document.location.origin+ '/images/material/'+item.image+'--}}" data-image="{{--'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>
             </td>

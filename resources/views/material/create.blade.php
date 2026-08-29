@@ -155,6 +155,135 @@
                         </div>
 
                         <div class="form-group row">
+
+                            @if(in_array('material_type', $enabled, true))
+
+                                <div class="col-md-3">
+
+                                    <label for="material_type">
+                                        Tipo de Material
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="material_type"
+                                                name="material_type"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    id="btn-newMaterialType"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalMaterialType"
+                                                    style="display: none;"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            @endif
+
+                            @if(in_array('subtype', $enabled, true))
+
+                                <div class="col-md-3">
+
+                                    <label for="subtype">
+                                        Subtipo de Material
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="subtype"
+                                                name="subtype"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    id="btn-newSubtype"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalSubtype"
+                                                    style="display: none;"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            @endif
+
+                            @if(in_array('typescrap', $enabled, true))
+
+                                <div class="col-md-3">
+
+                                    <label for="typescrap">
+                                        Tipo de Retacería
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="typescrap"
+                                                name="typescrap"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
+
+                                            @foreach($typescraps as $typescrap)
+                                                <option value="{{ $typescrap->id }}">
+                                                    {{ $typescrap->name }}
+                                                </option>
+                                            @endforeach
+
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalTypescrap"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            @endif
+
+                        </div>
+
+                        <div class="form-group row">
                             @if(in_array('genero', $enabled, true))
                                 <div class="col-md-3">
                                     <label for="genero">Genero </label>
@@ -229,17 +358,23 @@
                             </div>
                             <div class="col-md-4">
                                 <label>Variantes</label>
+                                @php
+                                    $variantsEnabled =
+                                        in_array('talla', $enabled, true)
+                                        &&
+                                        in_array('color', $enabled, true);
+                                @endphp
                                 <div class="form-group">
                                     <div class="icheck-primary">
                                         <input type="radio" id="sin_variantes" name="variantes" value="0" checked>
                                         <label for="sin_variantes">Sin Variantes</label>
                                     </div>
-
-                                    <div class="icheck-primary">
-                                        <input type="radio" id="con_variantes" name="variantes" value="1">
-                                        <label for="con_variantes">Con Variantes</label>
-                                    </div>
-
+                                    @if($variantsEnabled)
+                                        <div class="icheck-primary">
+                                            <input type="radio" id="con_variantes" name="variantes" value="1">
+                                            <label for="con_variantes">Con Variantes</label>
+                                        </div>
+                                    @endif
                                     {{--<div class="icheck-danger">
                                         <input type="checkbox" id="afecto_inventario" name="afecto_inventario" checked>
                                         <label for="afecto_inventario">¿Afecto a inventario?</label>
@@ -348,7 +483,7 @@
                                 </div>
                             @endif
 
-                            {{--@if(in_array('talla', $enabled, true))--}}
+                            @if(in_array('color', $enabled, true))
                                 <div class="col-md-5">
                                     <label for="color">Colores </label>
                                     <div class="input-group">
@@ -366,7 +501,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            {{--@endif--}}
+                            @endif
 
                             <div class="col-md-2">
                                 <label for="">&nbsp;</label><br>
@@ -738,6 +873,317 @@
         </div>
     </div>
 
+    <!-- Modal Crear MaterialType -->
+    <div class="modal fade" id="modalMaterialType" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateMaterialType" data-url="{{ url('/dashboard/materialtype/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+
+                        <h5 class="modal-title">
+                            Crear Tipo de Material
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-6">
+
+                                <label>
+                                    Tipo de Material
+                                    <span class="badge badge-danger">
+                                    (*)
+                                </span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                        placeholder="Ejm: Acero"
+                                >
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label>
+                                    Descripción
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="description"
+                                        onkeyup="mayus(this);"
+                                        placeholder="Ejm: Descripción"
+                                >
+
+                            </div>
+
+                        </div>
+
+                        <input
+                                type="hidden"
+                                name="subcategory_id"
+                                id="subcategory_id_hidden"
+                        >
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveMaterialType"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal Crear Subtype -->
+    <div class="modal fade" id="modalSubtype" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateSubtype" data-url="{{ url('/dashboard/subtype/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+
+                        <h5 class="modal-title">
+                            Crear Subtipo de Material
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-6">
+
+                                <label>
+                                    Subtipo
+                                    <span class="badge badge-danger">
+                                    (*)
+                                </span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                        placeholder="Ejm: Brillante"
+                                >
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label>
+                                    Descripción
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="description"
+                                        onkeyup="mayus(this);"
+                                        placeholder="Ejm: Descripción"
+                                >
+
+                            </div>
+
+                        </div>
+
+                        <input
+                                type="hidden"
+                                name="material_type_id"
+                                id="material_type_id_hidden"
+                        >
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveSubtype"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal Crear Typescrap -->
+    <div class="modal fade" id="modalTypescrap" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateTypescrap" data-url="{{ url('/dashboard/typescrap/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+
+                        <h5 class="modal-title">
+                            Crear Tipo de Retacería
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-4">
+
+                                <label>
+                                    Nombre
+                                    <span class="badge badge-danger">
+                                    (*)
+                                </span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                >
+
+                            </div>
+
+                            <div class="col-md-4">
+
+                                <label>
+                                    Ancho
+                                </label>
+
+                                <input
+                                        type="number"
+                                        class="form-control"
+                                        name="width"
+                                        value="0"
+                                        min="0"
+                                        step="0.01"
+                                >
+
+                            </div>
+
+                            <div class="col-md-4">
+
+                                <label>
+                                    Largo
+                                </label>
+
+                                <input
+                                        type="number"
+                                        class="form-control"
+                                        name="length"
+                                        value="0"
+                                        min="0"
+                                        step="0.01"
+                                >
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveTypescrap"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
     <template id="template-variante">
         <div class="row item-variante mb-2">
             <div class="col-md-1">
@@ -845,24 +1291,9 @@
                 placeholder: "Selecione una marca",
                 allowClear: true,
             });
-            $('#feature').select2({
-                placeholder: "Seleccione característica",
-                allowClear: true,
-            });
-            $('#type').select2({
-                placeholder: "Elija",
-                allowClear: true,
-            });
+
             $('#subtype').select2({
-                placeholder: "Elija",
-                allowClear: true,
-            });
-            $('#warrant').select2({
-                placeholder: "Elija",
-                allowClear: true,
-            });
-            $('#quality').select2({
-                placeholder: "Elija",
+                placeholder: "Seleccione un subtipo",
                 allowClear: true,
             });
             $('#unit_measure').select2({
@@ -889,6 +1320,11 @@
             $('#tipo_venta').select2({
                 placeholder: "Seleccione Tipo Venta",
                 allowClear: true,
+            });
+
+            $('#typescrap').select2({
+                placeholder: 'Seleccione tipo de retacería',
+                allowClear: true
             });
 
             $("input[data-bootstrap-switch]").each(function(){

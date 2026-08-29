@@ -70,9 +70,6 @@
             <input type="hidden" id="exampler_id" value="{{ $material->exampler_id }}">
         @endif
 
-        <input type="hidden" id="type_id" value="{{$material->material_type_id}}">
-        <input type="hidden" id="subtype_id" value="{{$material->subtype_id}}">
-
         <div class="row">
             <div class="col-md-12">
                 <div class="card card-success">
@@ -165,6 +162,183 @@
                                     </div>
 
                                 </div>
+                            @endif
+
+                        </div>
+
+                        <div class="form-group row">
+
+                            @if(in_array('material_type', $enabled, true))
+
+                                <div class="col-md-4">
+
+                                    <label for="material_type">
+                                        Tipo de Material
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="material_type"
+                                                name="material_type"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
+
+                                            @foreach($materialTypes as $materialType)
+
+                                                <option
+                                                        value="{{ $materialType->id }}"
+                                                        {{
+                                                            (int) $materialType->id ===
+                                                            (int) $material->material_type_id
+                                                                ? 'selected'
+                                                                : ''
+                                                        }}
+                                                >
+                                                    {{ $materialType->name }}
+                                                </option>
+
+                                            @endforeach
+
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    id="btn-newMaterialType"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalMaterialType"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            @endif
+
+
+                            @if(in_array('subtype', $enabled, true))
+
+                                <div class="col-md-4">
+
+                                    <label for="subtype">
+                                        Subtipo de Material
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="subtype"
+                                                name="subtype"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
+
+                                            @foreach($subtypes as $subtype)
+
+                                                <option
+                                                        value="{{ $subtype->id }}"
+                                                        {{
+                                                            (int) $subtype->id ===
+                                                            (int) $material->subtype_id
+                                                                ? 'selected'
+                                                                : ''
+                                                        }}
+                                                >
+                                                    {{ $subtype->name }}
+                                                </option>
+
+                                            @endforeach
+
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    id="btn-newSubtype"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalSubtype"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            @endif
+
+
+                            @if(in_array('typescrap', $enabled, true))
+
+                                <div class="col-md-4">
+
+                                    <label for="typescrap">
+                                        Tipo de Retacería
+                                    </label>
+
+                                    <div class="input-group">
+
+                                        <select
+                                                id="typescrap"
+                                                name="typescrap"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+
+                                            <option></option>
+
+                                            @foreach(
+                                                $typescraps
+                                                as $typescrap
+                                            )
+
+                                                <option
+                                                        value="{{ $typescrap->id }}"
+                                                        {{
+                                                            (int) $typescrap->id ===
+                                                            (int) $material->typescrap_id
+                                                                ? 'selected'
+                                                                : ''
+                                                        }}
+                                                >
+                                                    {{ $typescrap->name }}
+                                                </option>
+
+                                            @endforeach
+
+                                        </select>
+
+                                        <div class="input-group-append">
+
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-primary"
+                                                    data-toggle="modal"
+                                                    data-target="#modalTypescrap"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
                             @endif
 
                         </div>
@@ -505,7 +679,7 @@
                                 </div>
                             @endif
 
-                            {{--@if(in_array('talla', $enabled, true))--}}
+                            @if(in_array('color', $enabled, true))
                             <div class="col-md-5">
                                 <label for="color">Colores </label>
                                 <div class="input-group">
@@ -523,7 +697,7 @@
                                     </div>
                                 </div>
                             </div>
-                            {{--@endif--}}
+                            @endif
 
                             <div class="col-md-2">
                                 <label for="">&nbsp;</label><br>
@@ -1150,7 +1324,6 @@
     <script>
         const tieneVariantes = @json($tieneVariantes);
         const variantesEdit = @json($variantesEdit);
-        const warehousesActivos = @json($warehousesActivos);
     </script>
 
     <script src="{{ asset('js/material/edit.js') }}?v={{ time() }}"></script>

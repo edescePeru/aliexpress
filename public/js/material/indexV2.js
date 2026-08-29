@@ -5,7 +5,7 @@ $(document).ready(function () {
 
     //console.log($permissions);
 
-    $('.custom-control-input').change(function() {
+    $('.column-toggle').on('change', function () {
         updateData();
     });
 
@@ -1316,10 +1316,21 @@ function openModalPrecioPorcentaje() {
 
 // Función para obtener los nombres clave de los checkboxes activos
 function getActiveColumns() {
-    var activeColumns = [];
-    $('input[type="checkbox"]:checked').each(function() {
-        activeColumns.push($(this).data('column'));
+
+    let activeColumns = [];
+
+    $('.column-toggle:checked').each( function () {
+
+        let column =
+            $(this).data('column');
+
+        if (column) {
+            activeColumns.push(
+                column
+            );
+        }
     });
+
     return activeColumns;
 }
 
@@ -1819,6 +1830,9 @@ function renderDataTable(data, activeColumns) {
     clone.querySelector("[data-calidad]").innerHTML = data.calidad;*/
     clone.querySelector("[data-marca]").innerHTML = data.marca;
     clone.querySelector("[data-modelo]").innerHTML = data.modelo;
+    clone.querySelector("[data-tipo_material]").textContent = data.tipo_material || '';
+    clone.querySelector("[data-subtipo]").textContent = data.subtipo || '';
+    clone.querySelector("[data-retaceria]").textContent = data.retaceria || '';
     /*clone.querySelector("[data-retaceria]").innerHTML = data.retaceria;*/
 
     let url_image = document.location.origin + '/images/material/' + data.image;

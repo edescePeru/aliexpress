@@ -75,6 +75,13 @@ class TypescrapController extends Controller
         return response()->json([
             'message' =>
                 'Tipo de retacería guardado con éxito.',
+
+            'data' => [
+                'id' => $typeScrap->id,
+                'name' => $typeScrap->name,
+                'width' => $typeScrap->width,
+                'length' => $typeScrap->length,
+            ],
         ], 200);
     }
 

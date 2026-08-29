@@ -15,44 +15,151 @@ $(document).ready(function () {
 
     $selectExampler = $('#exampler');
 
-    $selectType = $('#type');
+    $selectType = $('#material_type');
 
     $selectSubtype = $('#subtype');
 
-    $selectCategory.change(function () {
-        $selectSubCategory.empty().trigger('change');
-        $('#feature-body').css("display","none");
-        $selectType.val('0');
-        $selectType.trigger('change');
-        $selectSubtype.val('0');
-        $selectSubtype.trigger('change');
-        $('#warrant').val('0');
-        $('#warrant').trigger('change');
-        $('#quality').val('0');
-        $('#quality').trigger('change');
-        var category =  $selectCategory.val();
-        $('#categoria_id_hidden').val(category);
-        if (!category) {
-            $btnNewSubCategoria.hide(); // Ocultar si no hay marca seleccionada
+    $selectCategory.on('change', function () {
+
+        let categoryId =
+            $(this).val();
+
+
+        /*
+         * Limpiar descendientes.
+         */
+
+        $selectSubCategory
+            .empty()
+            .append(
+                $('<option>', {
+                    value: '',
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+
+        $selectType
+            .empty()
+            .append(
+                $('<option>', {
+                    value: '',
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+
+        $selectSubtype
+            .empty()
+            .append(
+                $('<option>', {
+                    value: '',
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+
+        $('#categoria_id_hidden')
+            .val(
+                categoryId || ''
+            );
+
+
+        $('#btn-newMaterialType')
+            .hide();
+
+        $('#btn-newSubtype')
+            .hide();
+
+
+        if (!categoryId) {
+
+            $btnNewSubCategoria.hide();
+
             return;
         }
 
+
         $btnNewSubCategoria.show();
 
-        $.get( "/dashboard/get/subcategories/"+category, function( data ) {
-            $selectSubCategory.append($("<option>", {
-                value: "",
-                text: ""
-            }));
-            for ( var i=0; i<data.length; i++ )
-            {
-                $selectSubCategory.append($("<option>", {
-                    value: data[i].id,
-                    text: data[i].subcategory
-                }));
-            }
-        });
 
+        $.get(
+            '/dashboard/get/subcategories/' +
+            categoryId,
+
+            function (data) {
+
+                $.each(
+                    data,
+                    function (i, item) {
+
+                        $selectSubCategory.append(
+                            $('<option>', {
+                                value: item.id,
+                                text: item.subcategory
+                            })
+                        );
+                    }
+                );
+            }
+        );
+    });
+
+    $selectSubCategory.on('change', function () {
+
+        let subcategoryId =
+            $(this).val();
+
+        $selectType
+            .empty()
+            .append(
+                $('<option>', {
+                    value: '',
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+        $selectSubtype
+            .empty()
+            .append(
+                $('<option>', {
+                    value: '',
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+        $('#btn-newSubtype').hide();
+
+        if (!subcategoryId) {
+            $('#btn-newMaterialType').hide();
+            return;
+        }
+
+        $('#btn-newMaterialType').show();
+
+        $.get(
+            '/dashboard/get/types/' + subcategoryId,
+            function (data) {
+
+                $.each(data, function (i, item) {
+
+                    $selectType.append(
+                        $('<option>', {
+                            value: item.id,
+                            text:
+                                item.material_type ||
+                                item.type ||
+                                item.name
+                        })
+                    );
+                });
+            }
+        );
     });
 
     $selectBrand.change(function () {
@@ -116,28 +223,45 @@ $(document).ready(function () {
 
     });*/
 
-    $selectType.change(function () {
-        $selectSubtype.empty();
-        var type = $selectType.select2('data');
-        console.log(type);
-        if( type.length !== 0)
-        {
-            $.get( "/dashboard/get/subtypes/"+type[0].id, function( data ) {
-                $selectSubtype.append($("<option>", {
+    $selectType.on('change', function () {
+
+        let materialTypeId =
+            $(this).val();
+
+        $selectSubtype
+            .empty()
+            .append(
+                $('<option>', {
                     value: '',
-                    text: 'Ninguno'
-                }));
-                for ( var i=0; i<data.length; i++ )
-                {
-                    $selectSubtype.append($("<option>", {
-                        value: data[i].id,
-                        text: data[i].subtype
-                    }));
-                }
-            });
+                    text: ''
+                })
+            )
+            .trigger('change');
+
+        if (!materialTypeId) {
+            $('#btn-newSubtype').hide();
+            return;
         }
 
+        $('#btn-newSubtype').show();
 
+        $.get(
+            '/dashboard/get/subtypes/' + materialTypeId,
+            function (data) {
+
+                $.each(data, function (i, item) {
+
+                    $selectSubtype.append(
+                        $('<option>', {
+                            value: item.id,
+                            text:
+                                item.subtype ||
+                                item.name
+                        })
+                    );
+                });
+            }
+        );
     });
 
     $selectExampler.select2({
@@ -179,7 +303,7 @@ $(document).ready(function () {
         } else {
             $.alert({
                 title: 'Aviso',
-                content: 'Debe seleccionar una marca antes de agregar una subcategoría.',
+                content: 'Debe seleccionar una categoría antes de agregar una subcategoría.',
                 type: 'orange'
             });
         }
@@ -214,6 +338,100 @@ $(document).ready(function () {
     $(document).on('click', '[data-delete]', function () {
         $(this).closest('.item-variante').remove();
     });
+
+    $('#btn-newMaterialType').on('click', function () {
+
+        const subcategoryId =
+            $('#subcategory').val();
+
+        if (!subcategoryId) {
+
+            $.alert({
+                title: 'Aviso',
+                content:
+                    'Debe seleccionar una subcategoría antes de agregar un tipo de material.',
+                type: 'orange'
+            });
+
+            return false;
+        }
+
+        $('#subcategory_id_hidden')
+            .val(subcategoryId);
+    });
+
+    $('#btn-newSubtype').on('click', function () {
+
+        const materialTypeId =
+            $('#material_type').val();
+
+        if (!materialTypeId) {
+
+            $.alert({
+                title: 'Aviso',
+                content:
+                    'Debe seleccionar un tipo de material antes de agregar un subtipo.',
+                type: 'orange'
+            });
+
+            return false;
+        }
+
+        $('#material_type_id_hidden')
+            .val(materialTypeId);
+    });
+
+    $('#btn-saveMaterialType').on('click', saveMaterialType);
+
+    $('#btn-saveSubtype').on('click', saveSubtype);
+
+    $('#btn-saveTypescrap').on('click', saveTypescrap);
+
+    $('#modalMaterialType').on('show.bs.modal', function (event) {
+        const subcategoryId =
+            $('#subcategory').val();
+
+        if (!subcategoryId) {
+
+            event.preventDefault();
+
+            $.alert({
+                title: 'Aviso',
+                content:
+                    'Primero seleccione una subcategoría.',
+                type: 'orange'
+            });
+
+            return;
+        }
+
+        $('#subcategory_id_hidden')
+            .val(subcategoryId);
+    });
+
+    $('#modalSubtype').on('show.bs.modal', function (event) {
+
+        const materialTypeId = $('#material_type').val();
+
+        if (!materialTypeId) {
+
+            event.preventDefault();
+
+            $.alert({
+                title: 'Aviso',
+                content:
+                    'Primero seleccione un tipo de material.',
+                type: 'orange'
+            });
+
+            return;
+        }
+
+        $('#material_type_id_hidden')
+            .val(materialTypeId);
+    });
+
+
 });
 
 var $formCreate;
@@ -228,6 +446,263 @@ let $caracteres = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 let $longitud = 20;
 let $btnNewExampler = $('#btn-newExampler');
 let $btnNewSubCategoria = $('#btn-newSubCategoria');
+
+function saveMaterialType() {
+
+    let $form =
+        $('#formCreateMaterialType');
+
+    let url =
+        $form.data('url');
+
+    let data =
+        $form.serialize();
+
+
+    $.ajax({
+
+        url: url,
+
+        type: 'POST',
+
+        data: data,
+
+        success: function (response) {
+
+            if (
+                !response ||
+                !response.data
+            ) {
+                return;
+            }
+
+
+            $('#material_type')
+                .append(
+                    $('<option>', {
+                        value:
+                        response.data.id,
+
+                        text:
+                        response.data.name,
+
+                        selected:
+                            true
+                    })
+                )
+                .trigger('change');
+
+
+            $('#modalMaterialType')
+                .modal('hide');
+
+
+            $form[0].reset();
+
+
+            toastr.success(
+                response.message ||
+                'Tipo de material creado correctamente.'
+            );
+        },
+
+        error: function (xhr) {
+
+            showAjaxValidationErrors(
+                xhr,
+                'No se pudo crear el tipo de material.'
+            );
+        }
+    });
+}
+
+function saveSubtype() {
+
+    let $form =
+        $('#formCreateSubtype');
+
+    let url =
+        $form.data('url');
+
+    let data =
+        $form.serialize();
+
+
+    $.ajax({
+
+        url: url,
+
+        type: 'POST',
+
+        data: data,
+
+        success: function (response) {
+
+            if (
+                !response ||
+                !response.data
+            ) {
+                return;
+            }
+
+
+            $('#subtype')
+                .append(
+                    $('<option>', {
+                        value:
+                        response.data.id,
+
+                        text:
+                        response.data.name,
+
+                        selected:
+                            true
+                    })
+                )
+                .trigger('change');
+
+
+            $('#modalSubtype')
+                .modal('hide');
+
+
+            $form[0].reset();
+
+
+            toastr.success(
+                response.message ||
+                'Subtipo creado correctamente.'
+            );
+        },
+
+        error: function (xhr) {
+
+            showAjaxValidationErrors(
+                xhr,
+                'No se pudo crear el subtipo.'
+            );
+        }
+    });
+}
+
+function saveTypescrap() {
+
+    let $form =
+        $('#formCreateTypescrap');
+
+    let url =
+        $form.data('url');
+
+    let data =
+        $form.serialize();
+
+
+    $.ajax({
+
+        url: url,
+
+        type: 'POST',
+
+        data: data,
+
+        success: function (response) {
+
+            if (
+                !response ||
+                !response.data
+            ) {
+                return;
+            }
+
+
+            $('#typescrap')
+                .append(
+                    $('<option>', {
+                        value:
+                        response.data.id,
+
+                        text:
+                        response.data.name,
+
+                        selected:
+                            true
+                    })
+                )
+                .trigger('change');
+
+
+            $('#modalTypescrap')
+                .modal('hide');
+
+
+            $form[0].reset();
+
+
+            toastr.success(
+                response.message ||
+                'Tipo de retacería creado correctamente.'
+            );
+        },
+
+        error: function (xhr) {
+
+            showAjaxValidationErrors(
+                xhr,
+                'No se pudo crear el tipo de retacería.'
+            );
+        }
+    });
+}
+
+function showAjaxValidationErrors(xhr, fallbackMessage) {
+    let message = fallbackMessage;
+
+    if (xhr.responseJSON && xhr.responseJSON.errors) {
+
+        message = '';
+
+        $.each(
+            xhr.responseJSON.errors,
+            function (key, values) {
+
+                if (Array.isArray(values)) {
+
+                    values.forEach(
+                        function (value) {
+
+                            message +=
+                                '<div>• ' +
+                                value +
+                                '</div>';
+                        }
+                    );
+
+                } else {
+
+                    message +=
+                        '<div>• ' +
+                        values +
+                        '</div>';
+                }
+            }
+        );
+
+    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+        message =
+            xhr.responseJSON.message;
+    }
+
+    $.alert({
+        title:
+            'Aviso',
+
+        content:
+        message,
+
+        type:
+            'orange'
+    });
+}
 
 function generateVariants() {
     let tallas = getSelectedOptionsData('#talla');
@@ -1057,32 +1532,76 @@ function buildMultipleVariantsPayload(form) {
     return variantes;
 }
 
-function validateVariantes(tipo, variantes) {
-    if (tipo === '1') {
-        if (variantes.length === 0) {
-            toastr.warning('Debe ingresar la información del producto.');
-            return false;
-        }
-
-        if (!variantes[0].sku) {
-            toastr.warning('Debe ingresar el SKU.');
-            return false;
-        }
-
-        return true;
-    }
-
+function validateVariantes(
+    tipo,
+    variantes
+) {
     if (variantes.length === 0) {
-        toastr.warning('Debe generar al menos una variante.');
+
+        toastr.warning(
+            tipo === '1'
+                ? 'Debe generar al menos una variante.'
+                : 'Debe ingresar la información del producto.'
+        );
+
         return false;
     }
 
-    for (let i = 0; i < variantes.length; i++) {
+
+    if (
+        tipo === '0' &&
+        variantes.length !== 1
+    ) {
+
+        toastr.warning(
+            'Un producto sin variantes debe tener un solo StockItem.'
+        );
+
+        return false;
+    }
+
+
+    for (
+        let i = 0;
+        i < variantes.length;
+        i++
+    ) {
+
         if (!variantes[i].sku) {
-            toastr.warning('Todas las variantes deben tener SKU.');
+
+            toastr.warning(
+                tipo === '1'
+                    ? 'Todas las variantes deben tener SKU.'
+                    : 'Debe ingresar el SKU.'
+            );
+
             return false;
         }
+
+
+        if (tipo === '1') {
+
+            if (!variantes[i].talla_id) {
+
+                toastr.warning(
+                    'Todas las variantes deben tener talla.'
+                );
+
+                return false;
+            }
+
+
+            if (!variantes[i].color_id) {
+
+                toastr.warning(
+                    'Todas las variantes deben tener color.'
+                );
+
+                return false;
+            }
+        }
     }
+
 
     return true;
 }

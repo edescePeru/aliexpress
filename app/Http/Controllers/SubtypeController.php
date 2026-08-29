@@ -87,6 +87,13 @@ class SubtypeController extends Controller
         return response()->json([
             'message' =>
                 'SubTipo guardado con éxito.',
+
+            'data' => [
+                'id' => $subtype->id,
+                'name' => $subtype->name,
+                'description' => $subtype->description,
+                'material_type_id' => $subtype->material_type_id,
+            ],
         ], 200);
     }
 

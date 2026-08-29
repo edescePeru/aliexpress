@@ -194,6 +194,29 @@ class MaterialDetailSettingController extends Controller
             );
         }
 
+        if (
+            in_array(
+                'talla',
+                $enabled,
+                true
+            ) ||
+            in_array(
+                'color',
+                $enabled,
+                true
+            )
+        ) {
+
+            $this->ensureEnabled(
+                $enabled,
+                'talla'
+            );
+
+            $this->ensureEnabled(
+                $enabled,
+                'color'
+            );
+        }
 
         /*
          * Eliminamos posibles duplicados.

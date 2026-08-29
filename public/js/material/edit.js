@@ -468,7 +468,7 @@ function generateVariantsEdit() {
                 sku: sku,
                 barcode: '',
                 display_name: '',
-                inventory_levels: buildDefaultInventoryLevels()
+                inventory_levels: []
             };
 
             renderVariantRowEdit(item);
@@ -604,22 +604,6 @@ function getAbbr(text) {
     return words[0].substring(0, 3).toUpperCase();
     // Si son varias palabras, toma iniciales
     // return words.map(word => word.charAt(0).toUpperCase()).join('');
-}
-
-function buildDefaultInventoryLevels() {
-    return warehousesActivos.map(function(warehouse) {
-        return {
-            inventory_level_id: null,
-            warehouse_id: warehouse.id,
-            warehouse_name: warehouse.name,
-            qty_on_hand: 0,
-            qty_reserved: 0,
-            min_alert: 0,
-            max_alert: 0,
-            average_cost: 0,
-            last_cost: 0
-        };
-    });
 }
 
 function loadSingleVariantSection() {

@@ -88,6 +88,13 @@ class MaterialTypeController extends Controller
         return response()->json([
             'message' =>
                 'Tipo de material guardado con éxito.',
+
+            'data' => [
+                'id' => $materialType->id,
+                'name' => $materialType->name,
+                'description' => $materialType->description,
+                'subcategory_id' => $materialType->subcategory_id,
+            ],
         ], 200);
     }
 
