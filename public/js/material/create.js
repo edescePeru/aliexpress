@@ -783,8 +783,25 @@ function getAbbr(text, length = 3) {
 }
 
 function getSelectedText(selector) {
-    return $(selector).find('option:selected').text() || '';
+    const $select = $(selector);
+    const value = $select.val();
+
+    if (!value) {
+        return '';
+    }
+
+    return (
+        $select
+            .find('option:selected')
+            .text() || ''
+    )
+        .replace(/\s+/g, ' ')
+        .trim();
 }
+
+/*function getSelectedText(selector) {
+    return $(selector).find('option:selected').text() || '';
+}*/
 
 function getSelectedOptionsData(selector) {
     let items = [];

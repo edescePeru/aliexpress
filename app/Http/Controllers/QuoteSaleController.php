@@ -263,7 +263,7 @@ class QuoteSaleController extends Controller
             'stockItems' => function ($query) {
                 $query->where('is_active', true)
                     ->with([
-                        'variant:id,material_id,attribute_summary,quality_id,color_id',
+                        'variant:id,material_id,attribute_summary,talla_id,color_id',
                         'variant.talla:id,name,short_name',
                         'variant.color:id,name,short_name',
                         'unitMeasure:id,name',

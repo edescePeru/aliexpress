@@ -114,8 +114,22 @@
                                 <div class="col-md-3">
                                     <label for="exampler">Modelo </label>
                                     <div class="input-group">
-                                        <select id="exampler" name="exampler" class="form-control select2" style="width: 83%;">
+                                        <select
+                                                id="exampler"
+                                                name="exampler"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
+                                            <option></option>
 
+                                            @foreach($examplers as $exampler)
+                                                <option
+                                                        value="{{ $exampler->id }}"
+                                                        {{ (int) $exampler->id === (int) $material->exampler_id ? 'selected' : '' }}
+                                                >
+                                                    {{ $exampler->name }}
+                                                </option>
+                                            @endforeach
                                         </select>
                                         <div class="input-group-append">
                                             <button type="button" id="btn-newExampler" class="btn btn-primary" data-toggle="modal" data-target="#modalExampler" style="display: none;">
@@ -150,9 +164,22 @@
                                 <div class="col-md-3">
                                     <label for="subcategory">Subcategorías <span class="right badge badge-danger">(*)</span></label>
                                     <div class="input-group">
-                                        <select id="subcategory" name="subcategory" class="form-control select2" style="width: 83%;">
+                                        <select
+                                                id="subcategory"
+                                                name="subcategory"
+                                                class="form-control select2"
+                                                style="width: 83%;"
+                                        >
                                             <option></option>
 
+                                            @foreach($subcategories as $subcategory)
+                                                <option
+                                                        value="{{ $subcategory->id }}"
+                                                        {{ (int) $subcategory->id === (int) $material->subcategory_id ? 'selected' : '' }}
+                                                >
+                                                    {{ $subcategory->name }}
+                                                </option>
+                                            @endforeach
                                         </select>
                                         <div class="input-group-append">
                                             <button type="button" id="btn-newSubCategoria" class="btn btn-primary" data-toggle="modal" data-target="#modalSubCategoria" style="display: none;">
@@ -170,7 +197,7 @@
 
                             @if(in_array('material_type', $enabled, true))
 
-                                <div class="col-md-4">
+                                <div class="col-md-3">
 
                                     <label for="material_type">
                                         Tipo de Material
@@ -227,7 +254,7 @@
 
                             @if(in_array('subtype', $enabled, true))
 
-                                <div class="col-md-4">
+                                <div class="col-md-3">
 
                                     <label for="subtype">
                                         Subtipo de Material
@@ -284,7 +311,7 @@
 
                             @if(in_array('typescrap', $enabled, true))
 
-                                <div class="col-md-4">
+                                <div class="col-md-3">
 
                                     <label for="typescrap">
                                         Tipo de Retacería
@@ -1015,6 +1042,281 @@
         </div>
     </div>
 
+    <!-- Modal Crear MaterialType -->
+    <div class="modal fade" id="modalMaterialType" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateMaterialType" data-url="{{ url('/dashboard/materialtype/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            Crear Tipo de Material
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-6">
+                                <label>
+                                    Tipo de Material
+                                    <span class="badge badge-danger">(*)</span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                >
+                            </div>
+
+                            <div class="col-md-6">
+                                <label>
+                                    Descripción
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="description"
+                                        onkeyup="mayus(this);"
+                                >
+                            </div>
+
+                        </div>
+
+                        <input
+                                type="hidden"
+                                name="subcategory_id"
+                                id="subcategory_id_hidden"
+                        >
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveMaterialType"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal Crear MaterialType -->
+    <div class="modal fade" id="modalSubtype" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateSubtype" data-url="{{ url('/dashboard/subtype/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            Crear Subtipo de Material
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-6">
+                                <label>
+                                    Subtipo
+                                    <span class="badge badge-danger">(*)</span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                >
+                            </div>
+
+                            <div class="col-md-6">
+                                <label>Descripción</label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="description"
+                                        onkeyup="mayus(this);"
+                                >
+                            </div>
+
+                        </div>
+
+                        <input
+                                type="hidden"
+                                name="material_type_id"
+                                id="material_type_id_hidden"
+                        >
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveSubtype"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal Crear Typescrap -->
+    <div class="modal fade" id="modalTypescrap" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+
+            <form id="formCreateTypescrap" data-url="{{ url('/dashboard/typescrap/store') }}">
+                @csrf
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            Crear Tipo de Retacería
+                        </h5>
+
+                        <button
+                                type="button"
+                                class="close text-white"
+                                data-dismiss="modal"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="form-group row">
+
+                            <div class="col-md-4">
+                                <label>
+                                    Nombre
+                                    <span class="badge badge-danger">(*)</span>
+                                </label>
+
+                                <input
+                                        type="text"
+                                        class="form-control"
+                                        name="name"
+                                        onkeyup="mayus(this);"
+                                >
+                            </div>
+
+                            <div class="col-md-4">
+                                <label>Ancho</label>
+
+                                <input
+                                        type="number"
+                                        class="form-control"
+                                        name="width"
+                                        value="0"
+                                        min="0"
+                                        step="0.01"
+                                >
+                            </div>
+
+                            <div class="col-md-4">
+                                <label>Largo</label>
+
+                                <input
+                                        type="number"
+                                        class="form-control"
+                                        name="length"
+                                        value="0"
+                                        min="0"
+                                        step="0.01"
+                                >
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                                type="button"
+                                id="btn-saveTypescrap"
+                                class="btn btn-outline-success"
+                        >
+                            Guardar
+                        </button>
+
+                        <button
+                                type="reset"
+                                class="btn btn-outline-secondary"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
     {{--<template id="template-variante">
         <div class="row item-variante mb-2">
             <input type="hidden" data-variant_id>
@@ -1239,64 +1541,103 @@
         $(function () {
             //Initialize Select2 Elements
             $('#material_type').select2({
-                placeholder: "Selecione tipo de material",
+                placeholder:
+                    'Seleccione tipo de material',
+                allowClear:
+                    true
             });
-            $('#category').select2({
-                placeholder: "Selecione categoría",
-            });
-            $('#subcategory').select2({
-                placeholder: "Selecione subcategoría",
-            });
-            $('#brand').select2({
-                placeholder: "Selecione una marca",
-            });
-            $('#exampler').select2({
-                placeholder: "Selecione un modelo",
-            });
-            $('#priority').select2({
-                placeholder: "Selecione una prioridad",
-            });
-            $('#feature').select2({
-                placeholder: "Seleccione característica",
-            });
-            $('#type').select2({
-                placeholder: "Elija",
-            });
+
             $('#subtype').select2({
-                placeholder: "Elija",
+                placeholder:
+                    'Seleccione subtipo',
+                allowClear:
+                    true
             });
-            $('#warrant').select2({
-                placeholder: "Elija",
+
+            $('#typescrap').select2({
+                placeholder:
+                    'Seleccione tipo de retacería',
+                allowClear:
+                    true
             });
-            $('#quality').select2({
-                placeholder: "Elija",
+
+            $('#category').select2({
+                placeholder:
+                    'Seleccione categoría',
+                allowClear:
+                    true
             });
+
+            $('#subcategory').select2({
+                placeholder:
+                    'Seleccione subcategoría',
+                allowClear:
+                    true
+            });
+
+            $('#brand').select2({
+                placeholder:
+                    'Seleccione una marca',
+                allowClear:
+                    true
+            });
+
+            $('#exampler').select2({
+                placeholder:
+                    'Seleccione un modelo',
+                allowClear:
+                    true
+            });
+
             $('#unit_measure').select2({
-                placeholder: "Elija",
+                placeholder:
+                    'Seleccione una unidad',
+                allowClear:
+                    true
             });
+
             $('#perecible').select2({
-                placeholder: "Seleccione ",
-                allowClear: true,
+                placeholder:
+                    'Seleccione',
+                allowClear:
+                    true
             });
+
             $('#genero').select2({
-                placeholder: "Seleccione género",
-                allowClear: true,
+                placeholder:
+                    'Seleccione género',
+                allowClear:
+                    true
             });
+
             $('#talla').select2({
-                placeholder: "Seleccione talla",
-                allowClear: true,
+                placeholder:
+                    'Seleccione tallas',
+                allowClear:
+                    true
             });
+
             $('#color').select2({
-                placeholder: 'Seleccione colores',
-                allowClear: true
+                placeholder:
+                    'Seleccione colores',
+                allowClear:
+                    true
             });
+
             $('#tipo_venta').select2({
-                placeholder: "Seleccione Tipo Venta",
-                allowClear: true,
+                placeholder:
+                    'Seleccione Tipo Venta',
+                allowClear:
+                    true
             });
-            $("input[data-bootstrap-switch]").each(function(){
-                $(this).bootstrapSwitch();
-            });
+
+
+            $("input[data-bootstrap-switch]")
+                .each(function () {
+
+                    $(this)
+                        .bootstrapSwitch();
+                });
         })
     </script>
     <script>

@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Support\TenantContext;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -58,40 +59,102 @@ class Material extends Model
 
     public function getStockCurrentTotalAttribute()
     {
-        $stockItems = StockItem::where('material_id', $this->id)
-            ->where('is_active', true)
-            ->get(['id', 'variant_id']);
+        $companyId =
+            TenantContext::companyId();
+
+        $stockItems =
+            StockItem::query()
+                ->where(
+                    'material_id',
+                    $this->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->get([
+                    'id',
+                    'variant_id',
+                ]);
 
         if ($stockItems->isEmpty()) {
             return $this->stock_current;
         }
 
+        /*
+         * Si existen varios StockItems activos,
+         * significa que el Material maneja variantes
+         * o múltiples unidades vendibles.
+         *
+         * En ese caso el listado debe mostrar
+         * "Ver Inv." y no un único valor.
+         */
         if ($stockItems->count() !== 1) {
             return null;
         }
 
-        $stockItem = $stockItems->first();
+        $stockItem =
+            $stockItems->first();
 
+        /*
+         * Si el único StockItem pertenece a una Variant,
+         * tampoco mostramos un único stock agregado aquí.
+         */
         if ($stockItem->variant_id !== null) {
             return null;
         }
 
-        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
-            ->get(['id', 'qty_on_hand']);
+        /*
+         * IMPORTANTE:
+         * inventario exclusivamente de la Company actual.
+         */
+        $inventoryLevels =
+            InventoryLevel::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'stock_item_id',
+                    $stockItem->id
+                )
+                ->get([
+                    'id',
+                    'qty_on_hand',
+                ]);
 
-        if ($inventoryLevels->count() !== 1) {
-            return null;
+        if ($inventoryLevels->isEmpty()) {
+            return 0;
         }
 
-        return $inventoryLevels->first()->qty_on_hand;
-
+        /*
+         * Si la Company maneja más de una ubicación para este
+         * StockItem, sí tiene sentido mostrar el total físico.
+         */
+        return (float) $inventoryLevels->sum(
+            'qty_on_hand'
+        );
     }
 
     public function getStockMinTotalAttribute()
     {
-        $stockItems = StockItem::where('material_id', $this->id)
-            ->where('is_active', true)
-            ->get(['id', 'variant_id']);
+        $companyId =
+            TenantContext::companyId();
+
+        $stockItems =
+            StockItem::query()
+                ->where(
+                    'material_id',
+                    $this->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->get([
+                    'id',
+                    'variant_id',
+                ]);
 
         if ($stockItems->isEmpty()) {
             return $this->stock_min;
@@ -101,28 +164,56 @@ class Material extends Model
             return null;
         }
 
-        $stockItem = $stockItems->first();
+        $stockItem =
+            $stockItems->first();
 
         if ($stockItem->variant_id !== null) {
             return null;
         }
 
-        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
-            ->get(['id', 'min_alert']);
+        $inventoryLevels =
+            InventoryLevel::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'stock_item_id',
+                    $stockItem->id
+                )
+                ->get([
+                    'id',
+                    'min_alert',
+                ]);
 
-        if ($inventoryLevels->count() !== 1) {
-            return null;
+        if ($inventoryLevels->isEmpty()) {
+            return 0;
         }
 
-        return $inventoryLevels->first()->min_alert;
-
+        return (float) $inventoryLevels->sum(
+            'min_alert'
+        );
     }
 
     public function getStockMaxTotalAttribute()
     {
-        $stockItems = StockItem::where('material_id', $this->id)
-            ->where('is_active', true)
-            ->get(['id', 'variant_id']);
+        $companyId =
+            TenantContext::companyId();
+
+        $stockItems =
+            StockItem::query()
+                ->where(
+                    'material_id',
+                    $this->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->get([
+                    'id',
+                    'variant_id',
+                ]);
 
         if ($stockItems->isEmpty()) {
             return $this->stock_max;
@@ -132,21 +223,35 @@ class Material extends Model
             return null;
         }
 
-        $stockItem = $stockItems->first();
+        $stockItem =
+            $stockItems->first();
 
         if ($stockItem->variant_id !== null) {
             return null;
         }
 
-        $inventoryLevels = InventoryLevel::where('stock_item_id', $stockItem->id)
-            ->get(['id', 'max_alert']);
+        $inventoryLevels =
+            InventoryLevel::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'stock_item_id',
+                    $stockItem->id
+                )
+                ->get([
+                    'id',
+                    'max_alert',
+                ]);
 
-        if ($inventoryLevels->count() !== 1) {
-            return null;
+        if ($inventoryLevels->isEmpty()) {
+            return 0;
         }
 
-        return $inventoryLevels->first()->max_alert;
-
+        return (float) $inventoryLevels->sum(
+            'max_alert'
+        );
     }
 
     public function setNameProductAttribute($value)

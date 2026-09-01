@@ -239,7 +239,7 @@ class StoreWebController extends Controller
 
         if (!empty($sizeIds)) {
             $materialsQuery->whereHas('stockItems.variant', function ($q) use ($sizeIds) {
-                $q->whereIn('quality_id', $sizeIds)
+                $q->whereIn('talla_id', $sizeIds)
                     ->where('is_active', 1);
             });
         }
