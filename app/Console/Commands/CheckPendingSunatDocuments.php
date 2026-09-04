@@ -9,12 +9,15 @@ use App\CreditNote;
 use App\Http\Controllers\Traits\NubefactTrait;
 use App\InventoryLevel;
 use App\Item;
+use App\Location;
 use App\OutputDetail;
 use App\QuoteMaterialReservation;
 use App\QuoteStockLot;
 use App\Sale;
 use App\SalePartialPayment;
+use App\StockItem;
 use App\StockLot;
+use App\Warehouse;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -848,38 +851,176 @@ class CheckPendingSunatDocuments extends Command
 
     private function syncInventoryLevelFromLots(
         int $stockItemId,
-        $warehouseId,
-        $locationId
+        int $warehouseId,
+        int $locationId
     ): void
     {
-        $qtyOnHand = (float) StockLot::where('stock_item_id', $stockItemId)
-            ->where('warehouse_id', $warehouseId)
-            ->where('location_id', $locationId)
-            ->sum('qty_on_hand');
+        /*
+         * ============================================================
+         * RESOLVER COMPANY DESDE EL WAREHOUSE
+         * ============================================================
+         *
+         * Este es un proceso automático.
+         * NO depende de TenantContext/session.
+         */
 
-        $qtyReserved = (float) StockLot::where('stock_item_id', $stockItemId)
-            ->where('warehouse_id', $warehouseId)
-            ->where('location_id', $locationId)
-            ->sum('qty_reserved');
+        $warehouse =
+            Warehouse::withoutGlobalScopes()
+                ->where('id', $warehouseId)
+                ->first();
 
-        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
-            [
-                'stock_item_id' => $stockItemId,
-                'warehouse_id'  => $warehouseId,
-                'location_id'   => $locationId,
-            ],
-            [
-                'qty_on_hand'  => 0,
-                'qty_reserved' => 0,
-                'min_alert'    => 0,
-                'max_alert'    => 0,
-                'average_cost' => 0,
-                'last_cost'    => 0,
-            ]
-        );
+        if (!$warehouse) {
+            throw new \RuntimeException(
+                'No se encontró el almacén asociado al movimiento.'
+            );
+        }
 
-        $inventoryLevel->qty_on_hand  = $qtyOnHand;
-        $inventoryLevel->qty_reserved = $qtyReserved;
+        $companyId =
+            (int) $warehouse->company_id;
+
+        $tenantId =
+            (int) $warehouse->tenant_id;
+
+
+        /*
+         * ============================================================
+         * VALIDAR LOCATION
+         * ============================================================
+         */
+
+        $location =
+            Location::withoutGlobalScopes()
+                ->where('id', $locationId)
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('warehouse_id', $warehouseId)
+                ->first();
+
+        if (!$location) {
+            throw new \RuntimeException(
+                'La ubicación no corresponde al almacén y empresa del movimiento.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * VALIDAR STOCK ITEM
+         * ============================================================
+         *
+         * StockItem pertenece al Tenant, no a Company.
+         */
+
+        $stockItem =
+            StockItem::withoutGlobalScopes()
+                ->where('id', $stockItemId)
+                ->where('tenant_id', $tenantId)
+                ->first();
+
+        if (!$stockItem) {
+            throw new \RuntimeException(
+                'El StockItem no pertenece al mismo grupo empresarial del almacén.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * SUMAR LOTES DE ESA COMPANY
+         * ============================================================
+         */
+
+        $qtyOnHand =
+            (float) StockLot::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->sum('qty_on_hand');
+
+
+        $qtyReserved =
+            (float) StockLot::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->sum('qty_reserved');
+
+
+        /*
+         * ============================================================
+         * INVENTORY LEVEL
+         * ============================================================
+         */
+
+        $inventoryLevel =
+            InventoryLevel::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->lockForUpdate()
+                ->first();
+
+
+        if (!$inventoryLevel) {
+
+            /*
+             * Importante:
+             *
+             * Este flujo no tiene TenantContext,
+             * por lo que tenant_id debe colocarse explícitamente.
+             */
+
+            $inventoryLevel =
+                InventoryLevel::withoutGlobalScopes()
+                    ->create([
+                        'tenant_id' =>
+                            $tenantId,
+
+                        'company_id' =>
+                            $companyId,
+
+                        'stock_item_id' =>
+                            $stockItemId,
+
+                        'warehouse_id' =>
+                            $warehouseId,
+
+                        'location_id' =>
+                            $locationId,
+
+                        'qty_on_hand' =>
+                            0,
+
+                        'qty_reserved' =>
+                            0,
+
+                        'min_alert' =>
+                            0,
+
+                        'max_alert' =>
+                            0,
+
+                        'average_cost' =>
+                            0,
+
+                        'last_cost' =>
+                            0,
+                    ]);
+        }
+
+
+        $inventoryLevel->qty_on_hand =
+            $qtyOnHand;
+
+        $inventoryLevel->qty_reserved =
+            $qtyReserved;
+
         $inventoryLevel->save();
     }
 }

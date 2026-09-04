@@ -3407,7 +3407,7 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
 });
 
 Route::prefix('store-web/')->group(function () {
-    Route::get('inicio/', [StoreWebController::class, 'home'])
+    Route::get('inicio/', [EntryController::class, 'home'])
         ->name('store-web.home');
     Route::get('catalogo/', [StoreWebController::class, 'catalog'])
         ->name('store-web.catalog');

@@ -13,15 +13,24 @@ use App\Item;
 use App\QuoteStockLot;
 use App\StockLot;
 use Illuminate\Support\Facades\DB;
+use App\Support\TenantContext;
+use App\Warehouse;
+use App\Location;
 
 class QuoteStockReservationService
 {
     public function getAvailableStockByStockItem(int $stockItemId): float
     {
-        $lots = StockLot::where('stock_item_id', $stockItemId)->get();
+        $companyId = TenantContext::companyId();
+
+        $lots = StockLot::query()
+            ->where('company_id', $companyId)
+            ->where('stock_item_id', $stockItemId)
+            ->get();
 
         return (float) $lots->sum(function ($lot) {
-            return (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
+            return (float) $lot->qty_on_hand
+                - (float) $lot->qty_reserved;
         });
     }
 
@@ -39,9 +48,15 @@ class QuoteStockReservationService
             throw new \Exception('La cantidad a reservar debe ser mayor a 0.');
         }
 
-        $lots = StockLot::where('stock_item_id', $stockItemId)
+        $companyId = TenantContext::companyId();
+
+        $lots = StockLot::query()
+            ->where('company_id', $companyId)
+            ->where('stock_item_id', $stockItemId)
             ->whereRaw('(qty_on_hand - qty_reserved) > 0')
-            ->orderByRaw('CASE WHEN expiration_date IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderByRaw(
+                'CASE WHEN expiration_date IS NULL THEN 1 ELSE 0 END ASC'
+            )
             ->orderBy('expiration_date', 'asc')
             ->orderBy('id', 'asc')
             ->lockForUpdate()
@@ -135,6 +150,10 @@ class QuoteStockReservationService
          */
         $items = Item::query()
             ->whereIn('id', $itemIds)
+            ->where(
+                'company_id',
+                TenantContext::companyId()
+            )
             ->lockForUpdate()
             ->get();
 
@@ -175,7 +194,11 @@ class QuoteStockReservationService
         $itemsByLot = $items->groupBy('stock_lot_id');
 
         foreach ($itemsByLot as $stockLotId => $itemsOfLot) {
-            $lot = StockLot::where('id', $stockLotId)
+            $companyId = TenantContext::companyId();
+
+            $lot = StockLot::query()
+                ->where('company_id', $companyId)
+                ->where('id', $stockLotId)
                 ->where('stock_item_id', $stockItemId)
                 ->lockForUpdate()
                 ->first();
@@ -243,7 +266,12 @@ class QuoteStockReservationService
             /*
              * Los ítems físicos quedan reservados.
              */
-            Item::whereIn('id', $itemIdsOfLot)
+            Item::query()
+                ->where(
+                    'company_id',
+                    TenantContext::companyId()
+                )
+                ->whereIn('id', $itemIdsOfLot)
                 ->where('state_item', 'entered')
                 ->update([
                     'state_item' => 'reserved',
@@ -296,7 +324,12 @@ class QuoteStockReservationService
         $itemIds = $reservation->item_ids ?? [];
 
         if (!empty($itemIds) && is_array($itemIds)) {
-            Item::whereIn('id', $itemIds)
+            Item::query()
+                ->where(
+                    'company_id',
+                    TenantContext::companyId()
+                )
+                ->whereIn('id', $itemIds)
                 ->where('state_item', 'reserved')
                 ->lockForUpdate()
                 ->update([
@@ -304,11 +337,23 @@ class QuoteStockReservationService
                 ]);
         }
 
-        $lot = StockLot::where('id', $reservation->stock_lot_id)
+        $companyId = TenantContext::companyId();
+
+        $lot = StockLot::query()
+            ->where('company_id', $companyId)
+            ->where('id', $reservation->stock_lot_id)
+            ->where(
+                'stock_item_id',
+                $reservation->stock_item_id
+            )
             ->lockForUpdate()
             ->first();
 
-        if ($lot) {
+        if (!$lot) {
+            throw new \RuntimeException(
+                'No se encontró el lote de la reserva dentro de la empresa actual.'
+            );
+        } else {
             $lot->qty_reserved = max(
                 0,
                 (float) $lot->qty_reserved - (float) $reservation->quantity
@@ -339,31 +384,102 @@ class QuoteStockReservationService
 
     protected function syncInventoryLevelReserved(
         int $stockItemId,
-        $warehouseId,
-        $locationId
+        int $warehouseId,
+        int $locationId
     ): void {
-        $reserved = (float) StockLot::where('stock_item_id', $stockItemId)
+        $companyId = TenantContext::companyId();
+
+
+        /*
+         * ============================================================
+         * VALIDAR WAREHOUSE
+         * ============================================================
+         */
+
+        $warehouse = Warehouse::query()
+            ->where('id', $warehouseId)
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (!$warehouse) {
+            throw new \RuntimeException(
+                'El almacén de la reserva no pertenece a la empresa actual.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * VALIDAR LOCATION
+         * ============================================================
+         */
+
+        $location = Location::query()
+            ->where('id', $locationId)
+            ->where('company_id', $companyId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if (!$location) {
+            throw new \RuntimeException(
+                'La ubicación de la reserva no pertenece al almacén y empresa actuales.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * RESERVADO SOLO DE LA COMPANY ACTUAL
+         * ============================================================
+         */
+
+        $reserved = (float) StockLot::query()
+            ->where('company_id', $companyId)
+            ->where('stock_item_id', $stockItemId)
             ->where('warehouse_id', $warehouseId)
             ->where('location_id', $locationId)
             ->sum('qty_reserved');
 
-        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
-            [
+
+        /*
+         * ============================================================
+         * INVENTORY LEVEL
+         * ============================================================
+         */
+
+        $inventoryLevel = InventoryLevel::query()
+            ->where('company_id', $companyId)
+            ->where('stock_item_id', $stockItemId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('location_id', $locationId)
+            ->lockForUpdate()
+            ->first();
+
+
+        if (!$inventoryLevel) {
+            $inventoryLevel = InventoryLevel::create([
+                'company_id' => $companyId,
+
                 'stock_item_id' => $stockItemId,
+
                 'warehouse_id' => $warehouseId,
+
                 'location_id' => $locationId,
-            ],
-            [
+
                 'qty_on_hand' => 0,
                 'qty_reserved' => 0,
+
                 'min_alert' => 0,
                 'max_alert' => 0,
+
                 'average_cost' => 0,
                 'last_cost' => 0,
-            ]
-        );
+            ]);
+        }
+
 
         $inventoryLevel->qty_reserved = $reserved;
+
         $inventoryLevel->save();
     }
 }

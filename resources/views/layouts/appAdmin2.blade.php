@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
     <!-- Toastr -->
     <link rel="stylesheet" href="{{ asset('admin/plugins/toastr/toastr.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/jquery-confirm/jquery-confirm.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/plugins/jquerQuoteStockReservationServicey-confirm/jquery-confirm.min.css') }}">
 
     @yield('styles-plugins')
 

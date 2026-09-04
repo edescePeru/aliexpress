@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\CompanyStockItem;
 use App\DataGeneral;
 use App\DetailEntry;
 use App\Entry;
@@ -33,8 +34,10 @@ use App\StockItem;
 use App\StockLot;
 use App\Supplier;
 use App\SupplierCredit;
+use App\Support\TenantContext;
 use App\Typescrap;
 use App\User;
+use App\Warehouse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -1619,8 +1622,18 @@ class EntryController extends Controller
                 // Crear Item unitario
                 // =========================
                 if ($material->tipo_venta_id == 3) {
+
+                    if (!$stockLot) {
+                        throw new \RuntimeException(
+                            'No se pudo determinar el lote asociado al ítem.'
+                        );
+                    }
+
                     if (isset($material->typeScrap)) {
+
                         Item::create([
+                            'company_id' => $stockLot->company_id,
+
                             'detail_entry_id' => $detailEntry->id,
                             'stock_item_id'   => $detailEntry->stock_item_id,
                             'stock_lot_id'    => $stockLot ? $stockLot->id : null,
@@ -1641,6 +1654,8 @@ class EntryController extends Controller
                     }
                     else {
                         Item::create([
+                            'company_id' => $stockLot->company_id,
+
                             'detail_entry_id' => $detailEntry->id,
                             'stock_item_id'   => $detailEntry->stock_item_id,
                             'stock_lot_id'    => $stockLot ? $stockLot->id : null,
@@ -1773,18 +1788,196 @@ class EntryController extends Controller
         float $quantity,
         float $unitCost
     ) {
-        $lotCode = trim((string) $lotCode) !== '' ? trim((string) $lotCode) : null;
+        $tenantId =
+            TenantContext::tenantId();
+
+        $companyId =
+            TenantContext::companyId();
+
+
+        if (!$warehouseId) {
+            throw new \RuntimeException(
+                'No se encontró el almacén para registrar el lote.'
+            );
+        }
+
+        if (!$locationId) {
+            throw new \RuntimeException(
+                'No se encontró la ubicación para registrar el lote.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * STOCK ITEM
+         * ============================================================
+         *
+         * StockItem ya tiene TenantScope.
+         */
+        $stockItem =
+            StockItem::query()
+                ->where('id', $stockItemId)
+                ->first();
+
+        if (!$stockItem) {
+            throw new \RuntimeException(
+                'El producto seleccionado no pertenece al grupo empresarial actual.'
+            );
+        }
+
+
+        /*
+         * Además debe estar habilitado para la Company
+         * donde se está realizando la entrada.
+         */
+        $enabledForCompany =
+            CompanyStockItem::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'stock_item_id',
+                    $stockItemId
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->exists();
+
+        if (!$enabledForCompany) {
+            throw new \RuntimeException(
+                'El producto seleccionado no está habilitado para la empresa actual.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * WAREHOUSE
+         * ============================================================
+         */
+
+        $warehouse =
+            Warehouse::query()
+                ->where(
+                    'id',
+                    $warehouseId
+                )
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->first();
+
+        if (!$warehouse) {
+            throw new \RuntimeException(
+                'El almacén seleccionado no pertenece a la empresa actual.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * LOCATION
+         * ============================================================
+         */
+
+        $location =
+            Location::query()
+                ->where(
+                    'id',
+                    $locationId
+                )
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'warehouse_id',
+                    $warehouse->id
+                )
+                ->first();
+
+        if (!$location) {
+            throw new \RuntimeException(
+                'La ubicación seleccionada no pertenece al almacén y empresa actuales.'
+            );
+        }
+
+
+        /*
+         * Defensa adicional.
+         */
+        if (
+            (int) $warehouse->tenant_id !==
+            (int) $tenantId
+        ) {
+            throw new \RuntimeException(
+                'El almacén no pertenece al grupo empresarial actual.'
+            );
+        }
+
+        if (
+            (int) $location->tenant_id !==
+            (int) $tenantId
+        ) {
+            throw new \RuntimeException(
+                'La ubicación no pertenece al grupo empresarial actual.'
+            );
+        }
+
+
+        $lotCode =
+            trim((string) $lotCode);
+
+        $lotCode =
+            $lotCode !== ''
+                ? $lotCode
+                : null;
+
+
+        /*
+         * ============================================================
+         * STOCK LOT
+         * ============================================================
+         *
+         * tenant_id será asignado por BelongsToTenant.
+         * company_id sí debe ser explícito.
+         */
 
         return StockLot::create([
-            'stock_item_id'   => $stockItemId,
-            'location_id'     => $locationId,
-            'warehouse_id'    => $warehouseId,
-            'detail_entry_id' => $detailEntryId,
-            'lot_code'        => $lotCode,
-            'expiration_date' => $expirationDate,
-            'qty_on_hand'     => $quantity,
-            'qty_reserved'    => 0,
-            'unit_cost'       => $unitCost,
+            'company_id' =>
+                $companyId,
+
+            'stock_item_id' =>
+                $stockItemId,
+
+            'location_id' =>
+                $location->id,
+
+            'warehouse_id' =>
+                $warehouse->id,
+
+            'detail_entry_id' =>
+                $detailEntryId,
+
+            'lot_code' =>
+                $lotCode,
+
+            'expiration_date' =>
+                $expirationDate,
+
+            'qty_on_hand' =>
+                $quantity,
+
+            'qty_reserved' =>
+                0,
+
+            'unit_cost' =>
+                $unitCost,
         ]);
     }
 
@@ -1795,33 +1988,80 @@ class EntryController extends Controller
         float $quantity,
         float $unitCost
     ): void {
-        $inventoryLevel = InventoryLevel::firstOrNew([
-            'stock_item_id' => $stockItemId,
-            'warehouse_id'   => $warehouseId,
-            'location_id'   => $locationId,
-        ]);
+        $companyId =
+            TenantContext::companyId();
+
+
+        $inventoryLevel =
+            InventoryLevel::firstOrNew([
+                'company_id' =>
+                    $companyId,
+
+                'stock_item_id' =>
+                    $stockItemId,
+
+                'warehouse_id' =>
+                    $warehouseId,
+
+                'location_id' =>
+                    $locationId,
+            ]);
+
 
         if (!$inventoryLevel->exists) {
-            $inventoryLevel->qty_on_hand = 0;
-            $inventoryLevel->qty_reserved = 0;
-            $inventoryLevel->average_cost = 0;
-            $inventoryLevel->last_cost = 0;
-            $inventoryLevel->min_alert = 0;
-            $inventoryLevel->max_alert = 0;
+
+            $inventoryLevel->qty_on_hand =
+                0;
+
+            $inventoryLevel->qty_reserved =
+                0;
+
+            $inventoryLevel->average_cost =
+                0;
+
+            $inventoryLevel->last_cost =
+                0;
+
+            $inventoryLevel->min_alert =
+                0;
+
+            $inventoryLevel->max_alert =
+                0;
         }
 
-        $stockAnterior = (float) $inventoryLevel->qty_on_hand;
-        $costoAnterior = (float) $inventoryLevel->average_cost;
 
-        $inventoryLevel->qty_on_hand = $stockAnterior + $quantity;
-        $inventoryLevel->last_cost = $unitCost;
+        $stockAnterior =
+            (float) $inventoryLevel->qty_on_hand;
 
-        $totalQty = $stockAnterior + $quantity;
+        $costoAnterior =
+            (float) $inventoryLevel->average_cost;
+
+
+        $inventoryLevel->qty_on_hand =
+            $stockAnterior +
+            $quantity;
+
+        $inventoryLevel->last_cost =
+            $unitCost;
+
+
+        $totalQty =
+            $stockAnterior +
+            $quantity;
+
 
         if ($totalQty > 0) {
+
             $inventoryLevel->average_cost =
-                (($stockAnterior * $costoAnterior) + ($quantity * $unitCost)) / $totalQty;
+                (
+                    ($stockAnterior * $costoAnterior)
+                    +
+                    ($quantity * $unitCost)
+                )
+                /
+                $totalQty;
         }
+
 
         $inventoryLevel->save();
     }
@@ -1836,34 +2076,100 @@ class EntryController extends Controller
                 'finance' => false
             ]);
 
-            $item_selected = json_decode($request->get('item'));
+            $itemSelected = json_decode($request->get('item'));
+
+            if (
+                !is_array($itemSelected) ||
+                empty($itemSelected) ||
+                empty($itemSelected[0]->id)
+            ) {
+                throw new \RuntimeException(
+                    'No se recibió un ítem válido para generar el retazo.'
+                );
+            }
+
+            $companyId = TenantContext::companyId();
+
+            $itemOriginal = Item::query()
+                ->where('company_id', $companyId)
+                ->where('id', (int) $itemSelected[0]->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$itemOriginal) {
+                throw new \RuntimeException(
+                    'El ítem seleccionado no pertenece a la empresa actual.'
+                );
+            }
             //dd($item_selected[0]->detailEntry);
 
-            $detail_entry = DetailEntry::create([
-                'entry_id' => $entry->id,
-                'material_id' => $item_selected[0]->material_id,
+            $detailEntry = DetailEntry::create([
+                'entry_id' =>
+                    $entry->id,
+
+                'material_id' =>
+                    $itemOriginal->material_id,
+
+                'stock_item_id' =>
+                    $itemOriginal->stock_item_id,
             ]);
 
             // TODO: Crear el item
 
             $item = Item::create([
-                'detail_entry_id' => $detail_entry->id,
-                'material_id' => $item_selected[0]->material_id,
-                'code' => $item_selected[0]->code,
-                'length' => (float)  $item_selected[0]->length,
-                'width' => (float) $item_selected[0]->width,
-                'weight' => (float)  $item_selected[0]->weight,
-                'price' => (float)  $item_selected[0]->price,
-                'typescrap_id' => $item_selected[0]->typescrap_id,
-                'location_id' => $item_selected[0]->location_id,
-                'state' => $item_selected[0]->state,
-                'state_item' => 'scraped'
+                'company_id' =>
+                    $itemOriginal->company_id,
+
+                'detail_entry_id' =>
+                    $detailEntry->id,
+
+                'stock_item_id' =>
+                    $itemOriginal->stock_item_id,
+
+                'stock_lot_id' =>
+                    $itemOriginal->stock_lot_id,
+
+                'material_id' =>
+                    $itemOriginal->material_id,
+
+                'code' =>
+                    $itemOriginal->code,
+
+                'length' =>
+                    (float) ($itemSelected[0]->length ?? 0),
+
+                'width' =>
+                    (float) ($itemSelected[0]->width ?? 0),
+
+                'weight' =>
+                    (float) ($itemSelected[0]->weight ?? 0),
+
+                'price' =>
+                    (float) ($itemSelected[0]->price ?? 0),
+
+                'unit_cost' =>
+                    (float) $itemOriginal->unit_cost,
+
+                'typescrap_id' =>
+                    $itemSelected[0]->typescrap_id ?? null,
+
+                'warehouse_id' =>
+                    $itemOriginal->warehouse_id,
+
+                'location_id' =>
+                    $itemOriginal->location_id,
+
+                'state' =>
+                    $itemOriginal->state,
+
+                'state_item' =>
+                    'scraped',
             ]);
 
             // TODO: Eliminar el item anterior
-            $item_deleted = Item::find($item_selected[0]->id);
-            $item_deleted->percentage = 0;
-            $item_deleted->save();
+            //$item_deleted = Item::find($item_selected[0]->id);
+            $itemOriginal->percentage = 0;
+            $itemOriginal->save();
             //$item_deleted->delete();
 
             // TODO: Actualizar la cantidad en el material
@@ -2707,74 +3013,138 @@ class EntryController extends Controller
         return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
     }
 
-    protected function syncInventoryLevelFromLots(int $stockItemId, $warehouseId, $locationId): void
+    protected function syncInventoryLevelFromLots(
+        int $stockItemId,
+        int $warehouseId,
+        int $locationId
+    ): void
     {
-        $qtyOnHand = (float) StockLot::where('stock_item_id', $stockItemId)
-            ->where('warehouse_id', $warehouseId)
-            ->where('location_id', $locationId)
-            ->sum('qty_on_hand');
+        $companyId =
+            TenantContext::companyId();
 
-        $qtyReserved = (float) StockLot::where('stock_item_id', $stockItemId)
-            ->where('warehouse_id', $warehouseId)
-            ->where('location_id', $locationId)
-            ->sum('qty_reserved');
+        /*
+         * ============================================================
+         * VALIDAR WAREHOUSE
+         * ============================================================
+         */
 
-        $inventoryLevel = InventoryLevel::lockForUpdate()->firstOrCreate(
-            [
-                'stock_item_id' => $stockItemId,
-                'warehouse_id'  => $warehouseId,
-                'location_id'   => $locationId,
-            ],
-            [
-                'qty_on_hand'   => 0,
-                'qty_reserved'  => 0,
-                'min_alert'     => 0,
-                'max_alert'     => 0,
-                'average_cost'  => 0,
-                'last_cost'     => 0,
-            ]
-        );
+        $warehouse =
+            Warehouse::query()
+                ->where('id', $warehouseId)
+                ->where('company_id', $companyId)
+                ->first();
 
-        $inventoryLevel->qty_on_hand  = $qtyOnHand;
-        $inventoryLevel->qty_reserved = $qtyReserved;
+        if (!$warehouse) {
+            throw new \RuntimeException(
+                'El almacén no pertenece a la empresa actual.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * VALIDAR LOCATION
+         * ============================================================
+         */
+
+        $location =
+            Location::query()
+                ->where('id', $locationId)
+                ->where('company_id', $companyId)
+                ->where('warehouse_id', $warehouseId)
+                ->first();
+
+        if (!$location) {
+            throw new \RuntimeException(
+                'La ubicación no pertenece al almacén y empresa actuales.'
+            );
+        }
+
+
+        /*
+         * ============================================================
+         * SUMAR LOTES SOLO DE LA COMPANY ACTUAL
+         * ============================================================
+         */
+
+        $qtyOnHand =
+            (float) StockLot::query()
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->sum('qty_on_hand');
+
+
+        $qtyReserved =
+            (float) StockLot::query()
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->sum('qty_reserved');
+
+
+        /*
+         * ============================================================
+         * INVENTORY LEVEL DE LA COMPANY ACTUAL
+         * ============================================================
+         */
+
+        $inventoryLevel =
+            InventoryLevel::query()
+                ->where('company_id', $companyId)
+                ->where('stock_item_id', $stockItemId)
+                ->where('warehouse_id', $warehouseId)
+                ->where('location_id', $locationId)
+                ->lockForUpdate()
+                ->first();
+
+
+        if (!$inventoryLevel) {
+
+            $inventoryLevel =
+                InventoryLevel::create([
+                    'company_id' =>
+                        $companyId,
+
+                    'stock_item_id' =>
+                        $stockItemId,
+
+                    'warehouse_id' =>
+                        $warehouseId,
+
+                    'location_id' =>
+                        $locationId,
+
+                    'qty_on_hand' =>
+                        0,
+
+                    'qty_reserved' =>
+                        0,
+
+                    'min_alert' =>
+                        0,
+
+                    'max_alert' =>
+                        0,
+
+                    'average_cost' =>
+                        0,
+
+                    'last_cost' =>
+                        0,
+                ]);
+        }
+
+
+        $inventoryLevel->qty_on_hand =
+            $qtyOnHand;
+
+        $inventoryLevel->qty_reserved =
+            $qtyReserved;
+
         $inventoryLevel->save();
-    }
-
-    public function getJsonEntriesPurchase()
-    {
-        $begin = microtime(true);
-
-        $dateCurrent = Carbon::now('America/Lima');
-        $date4MonthAgo = $dateCurrent->subMonths(2);
-
-        $entries = Entry::with('supplier')
-            ->where('entry_type', 'Por compra')
-            ->where('finance', false)
-            ->where('created_at', '>=', $date4MonthAgo)
-            ->orderBy('created_at', 'desc')
-            ->get();
-        /*$entries = Entry::with('supplier')->with(['details' => function ($query) {
-                $query->with('material')->with(['items' => function ($query) {
-                    $query->where('state_item', 'entered')
-                        ->with('typescrap')
-                        ->with(['location' => function ($query) {
-                            $query->with(['area', 'warehouse', 'shelf', 'level', 'container']);
-                        }]);
-                }]);
-            }])
-            ->where('entry_type', 'Por compra')
-            ->where('finance', false)
-            ->orderBy('created_at', 'desc')
-            ->get();*/
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Obtener ingresos por compra ',
-            'time' => $end
-        ]);
-        //dd(datatables($entries)->toJson());
-        return datatables($entries)->toJson();
     }
 
     public function getJsonEntriesScrap()
@@ -3953,8 +4323,17 @@ class EntryController extends Controller
                 }
 
                 if ((int) $material->tipo_venta_id === 3) {
+
+                    if (!$stockLot) {
+                        throw new \RuntimeException(
+                            'No se pudo determinar el lote asociado al ítem.'
+                        );
+                    }
+
                     if (isset($material->typeScrap)) {
                         Item::create([
+                            'company_id' => $stockLot->company_id,
+
                             'detail_entry_id' => $detailEntry->id,
                             'stock_item_id'   => $detailEntry->stock_item_id,
                             'stock_lot_id'    => $stockLot ? $stockLot->id : null,
@@ -3967,13 +4346,15 @@ class EntryController extends Controller
                             'unit_cost'       => (float) $detailEntry->unit_price,
                             'percentage'      => 1,
                             'typescrap_id'    => $material->typeScrap->id,
-                            'warehouse_id'    => $warehouseId,
-                            'location_id'     => $locationId,
+                            'warehouse_id'    => $stockLot->warehouse_id,
+                            'location_id'     => $stockLot->location_id,
                             'state'           => $it->state ?? 'good',
                             'state_item'      => 'entered'
                         ]);
                     } else {
                         Item::create([
+                            'company_id' => $stockLot->company_id,
+
                             'detail_entry_id' => $detailEntry->id,
                             'stock_item_id'   => $detailEntry->stock_item_id,
                             'stock_lot_id'    => $stockLot ? $stockLot->id : null,
@@ -3985,8 +4366,8 @@ class EntryController extends Controller
                             'price'           => $priceForItem,
                             'unit_cost'       => (float) $detailEntry->unit_price,
                             'percentage'      => 1,
-                            'warehouse_id'    => $warehouseId,
-                            'location_id'     => $locationId,
+                            'warehouse_id'    => $stockLot->warehouse_id,
+                            'location_id'     => $stockLot->location_id,
                             'state'           => $it->state ?? 'good',
                             'state_item'      => 'entered'
                         ]);
@@ -4049,9 +4430,18 @@ class EntryController extends Controller
             foreach ($affectedStockItemIds as $stockItemId) {
                 $avg = (float) ($avgCosts[$stockItemId] ?? 0.0);
 
-                InventoryLevel::where('stock_item_id', $stockItemId)->update([
-                    'average_cost' => $avg
-                ]);
+                InventoryLevel::query()
+                    ->where(
+                        'company_id',
+                        TenantContext::companyId()
+                    )
+                    ->where(
+                        'stock_item_id',
+                        $stockItemId
+                    )
+                    ->update([
+                        'average_cost' => $avg,
+                    ]);
             }
 
             $end = microtime(true) - $begin;

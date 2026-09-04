@@ -3,28 +3,41 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToTenant;
 
 class Item extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+
         'detail_entry_id',
         'stock_item_id',
         'stock_lot_id',
         'material_id',
+
         'code',
+
         'length',
         'width',
         'weight',
+
         'price',
         'unit_cost',
         'percentage',
+
         'typescrap_id',
+
         'warehouse_id',
         'location_id',
+
         'state',
         'state_item',
+
         'type',
-        'usage'
+        'usage',
     ];
 
 
@@ -51,6 +64,11 @@ class Item extends Model
     public function outputDetail()
     {
         return $this->hasMany('App\OutputDetail', 'item_id','id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**
