@@ -2,12 +2,14 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Supplier extends Model
 {
     use SoftDeletes;
+    use BelongsToTenant;
 
     protected $fillable = [
         'business_name',
@@ -26,5 +28,13 @@ class Supplier extends Model
     public function accounts()
     {
         return $this->hasMany('App\SupplierAccount');
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(
+            Tenant::class,
+            'tenant_id'
+        );
     }
 }
