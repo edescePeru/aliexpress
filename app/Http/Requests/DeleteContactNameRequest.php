@@ -2,44 +2,70 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteContactNameRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
+
     public function rules()
     {
+        $tenantId =
+            TenantContext::tenantId();
+
+
         return [
-            'contactName_id' => 'required|exists:contact_names,id',
+
+            'contactName_id' => [
+                'required',
+
+                Rule::exists(
+                    'contact_names',
+                    'id'
+                )->where(function ($query) use ($tenantId) {
+
+                    $query
+                        ->where(
+                            'tenant_id',
+                            $tenantId
+                        )
+                        ->whereNull(
+                            'deleted_at'
+                        );
+                }),
+            ],
+
         ];
     }
+
 
     public function messages()
     {
         return [
-            'contactName_id.required' => 'El :attribute es obligatorio.',
-            'contactName_id.exists' => 'El :attribute no existe en la base de datos.'
+
+            'contactName_id.required' =>
+                'El :attribute es obligatorio.',
+
+            'contactName_id.exists' =>
+                'El :attribute no existe o no pertenece al grupo empresarial actual.',
+
         ];
     }
+
 
     public function attributes()
     {
         return [
-            'contactName_id' => 'id del contacto'
+
+            'contactName_id' =>
+                'id del contacto',
+
         ];
     }
 }

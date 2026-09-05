@@ -133,61 +133,148 @@ class DecolectaService
 
     public function buscarOCrearClientePorDocumento($numeroDocumento)
     {
-        $numeroDocumento = preg_replace('/\D/', '', $numeroDocumento);
+        $numeroDocumento = preg_replace(
+            '/\D/',
+            '',
+            $numeroDocumento
+        );
 
-        if (!preg_match('/^\d{8}$|^\d{11}$/', $numeroDocumento)) {
-            throw new \Exception('El documento debe ser un DNI de 8 dígitos o un RUC de 11 dígitos.');
+        if (!preg_match(
+            '/^\d{8}$|^\d{11}$/',
+            $numeroDocumento
+        )) {
+            throw new \Exception(
+                'El documento debe ser un DNI de 8 dígitos o un RUC de 11 dígitos.'
+            );
         }
 
-        $customer = Customer::where('RUC', $numeroDocumento)->first();
+
+        /*
+         * ============================================================
+         * BUSCAR EN EL TENANT ACTUAL
+         * ============================================================
+         *
+         * Customer tiene BelongsToTenant/TenantScope.
+         *
+         * Por tanto, nunca encontrará un Customer perteneciente
+         * a otro Tenant aunque tenga el mismo documento.
+         */
+        $customer = Customer::query()
+            ->where(
+                'RUC',
+                $numeroDocumento
+            )
+            ->first();
+
 
         if ($customer) {
             return [
-                'customer' => $customer,
-                'source' => 'database',
-                'created' => false,
+                'customer' =>
+                    $customer,
+
+                'source' =>
+                    'database',
+
+                'created' =>
+                    false,
             ];
         }
 
+
+        /*
+         * ============================================================
+         * CONSULTAR DOCUMENTO
+         * ============================================================
+         */
+
         if (strlen($numeroDocumento) === 8) {
-            $data = $this->consultarDni($numeroDocumento);
+
+            $data =
+                $this->consultarDni(
+                    $numeroDocumento
+                );
 
             $customer = Customer::create([
-                'business_name' => $data['nombre'],
-                'RUC'           => $data['numero_documento'],
-                'code'          => $this->generarCodigoCliente(),
-                'address'       => null,
-                'location'      => null,
-                'special'       => 0,
+                /*
+                 * tenant_id será asignado automáticamente
+                 * por BelongsToTenant.
+                 */
+                'business_name' =>
+                    $data['nombre'],
+
+                'RUC' =>
+                    $data['numero_documento'],
+
+                'address' =>
+                    null,
+
+                'location' =>
+                    null,
+
+                /*
+                 * DNI/RUC consultado en RENIEC/SUNAT:
+                 * cliente nacional.
+                 */
+                'special' =>
+                    false,
             ]);
 
         } else {
-            $data = $this->consultarRuc($numeroDocumento);
+
+            $data =
+                $this->consultarRuc(
+                    $numeroDocumento
+                );
 
             $customer = Customer::create([
-                'business_name' => $data['nombre'],
-                'RUC'           => $data['numero_documento'],
-                'code'          => $this->generarCodigoCliente(),
-                'address'       => $data['direccion'],
-                'location'      => $data['location'],
-                'special'       => 0,
+                'business_name' =>
+                    $data['nombre'],
+
+                'RUC' =>
+                    $data['numero_documento'],
+
+                'address' =>
+                    $data['direccion'],
+
+                'location' =>
+                    $data['location'],
+
+                'special' =>
+                    false,
             ]);
         }
 
+
+        /*
+         * ============================================================
+         * GENERAR CÓDIGO CON EL ID REAL
+         * ============================================================
+         *
+         * Evitamos calcularlo utilizando "último Customer + 1".
+         */
+
+        $customer->code =
+            'C-' .
+            str_pad(
+                $customer->id,
+                5,
+                '0',
+                STR_PAD_LEFT
+            );
+
+        $customer->save();
+
+
         return [
-            'customer' => $customer->fresh(),
-            'source' => 'api',
-            'created' => true,
+            'customer' =>
+                $customer->fresh(),
+
+            'source' =>
+                'api',
+
+            'created' =>
+                true,
         ];
-    }
-
-    private function generarCodigoCliente()
-    {
-        $lastCustomer = Customer::orderBy('id', 'desc')->first();
-
-        $nextNumber = $lastCustomer ? $lastCustomer->id + 1 : 1;
-
-        return 'C-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
     }
 
     public function consultarDocumentoEnDecolecta($numeroDocumento)
