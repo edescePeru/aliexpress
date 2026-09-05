@@ -2,69 +2,133 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateCustomerRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId = TenantContext::tenantId();
+
+        $customerId =
+            (int) $this->input('customer_id');
+
         return [
-            'customer_id' => 'required|exists:customers,id',
-            'business_name' => 'required|string|max:255',
-            'ruc' => 'required|string',
-            'address' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            
+            'customer_id' => [
+                'required',
+
+                Rule::exists('customers', 'id')
+                    ->where(function ($query) use ($tenantId) {
+                        $query
+                            ->where(
+                                'tenant_id',
+                                $tenantId
+                            )
+                            ->whereNull(
+                                'deleted_at'
+                            );
+                    }),
+            ],
+
+            'business_name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'ruc' => [
+                'required',
+                'string',
+
+                Rule::unique('customers', 'RUC')
+                    ->where(function ($query) use ($tenantId) {
+                        return $query->where(
+                            'tenant_id',
+                            $tenantId
+                        );
+                    })
+                    ->ignore($customerId),
+            ],
+
+            'address' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'location' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ];
     }
 
     public function messages()
     {
         return [
+            'customer_id.required' =>
+                'El :attribute es obligatorio.',
 
-            'customer_id.required' => 'El :attribute es obligatorio.',
-            'customer_id.exists' => 'El :attribute debe existir en la base de datos.',
+            'customer_id.exists' =>
+                'El :attribute no existe o no pertenece al grupo empresarial actual.',
 
-            'business_name.required' => 'La :attribute es obligatoria.',
-            'business_name.string' => 'La :attribute debe contener caracteres válidos.',
-            'business_name.max' => 'La :attribute debe contener máximo 255 caracteres.',
+            'business_name.required' =>
+                'La :attribute es obligatoria.',
 
-            'ruc.required' => 'El :attribute es obligatorio.',
-            'ruc.string' => 'El :attribute debe contener caracteres válidos.',            
-            //'ruc.digits' => 'El :attribute es demasiado largo.',
-            //'ruc.numeric' => 'El :attribute debe ser numerico.',
+            'business_name.string' =>
+                'La :attribute debe contener caracteres válidos.',
 
-            'address.string' => 'La :attribute debe contener caracteres válidos.',
-            'address.max' => 'La :attribute debe contener máximo 255 caracteres.',
+            'business_name.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
 
-            'location.string' => 'La :attribute debe contener caracteres válidos.',            
-            'location.max' => 'La :attribute debe contener máximo 255 caracteres.',
+            'ruc.required' =>
+                'El :attribute es obligatorio.',
+
+            'ruc.string' =>
+                'El :attribute debe contener caracteres válidos.',
+
+            'ruc.unique' =>
+                'Ya existe un cliente con este documento dentro del grupo empresarial actual.',
+
+            'address.string' =>
+                'La :attribute debe contener caracteres válidos.',
+
+            'address.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
+
+            'location.string' =>
+                'La :attribute debe contener caracteres válidos.',
+
+            'location.max' =>
+                'La :attribute debe contener máximo 255 caracteres.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'customer_id' => 'id del cliente',
-            'business_name' => 'Razón Soacial del cliente',
-            'ruc' => 'RUC del cliente',
-            'address' => 'dirección del cliente',
-            'location' => 'codUbicacioón del cliente',
+            'customer_id' =>
+                'id del cliente',
+
+            'business_name' =>
+                'Razón Social del cliente',
+
+            'ruc' =>
+                'documento del cliente',
+
+            'address' =>
+                'dirección del cliente',
+
+            'location' =>
+                'código de ubicación del cliente',
         ];
     }
 }

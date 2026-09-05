@@ -2,44 +2,56 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeleteCustomerRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
+        $tenantId = TenantContext::tenantId();
+
         return [
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => [
+                'required',
+
+                Rule::exists('customers', 'id')
+                    ->where(function ($query) use ($tenantId) {
+                        $query
+                            ->where(
+                                'tenant_id',
+                                $tenantId
+                            )
+                            ->whereNull(
+                                'deleted_at'
+                            );
+                    }),
+            ],
         ];
     }
 
     public function messages()
     {
         return [
-            'customer_id.required' => 'El :attribute es obligatorio.',
-            'customer_id.exists' => 'El :attribute no existe en la base de datos.'
+            'customer_id.required' =>
+                'El :attribute es obligatorio.',
+
+            'customer_id.exists' =>
+                'El :attribute no existe o no pertenece al grupo empresarial actual.',
         ];
     }
 
     public function attributes()
     {
         return [
-            'customer_id' => 'id del cliente'
+            'customer_id' =>
+                'id del cliente',
         ];
     }
 }

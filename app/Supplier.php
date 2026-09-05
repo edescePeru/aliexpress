@@ -27,7 +27,10 @@ class Supplier extends Model
 
     public function accounts()
     {
-        return $this->hasMany('App\SupplierAccount');
+        return $this->hasMany(
+            SupplierAccount::class,
+            'supplier_id'
+        );
     }
 
     public function tenant()

@@ -2,32 +2,52 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ContactName extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToTenant;
 
     protected $fillable = [
+        'tenant_id',
         'code',
         'name',
         'customer_id',
         'phone',
         'email',
-        'area'
+        'area',
     ];
+
+    protected $dates = [
+        'deleted_at',
+    ];
+
+
+    public function tenant()
+    {
+        return $this->belongsTo(
+            Tenant::class,
+            'tenant_id'
+        );
+    }
+
 
     public function customer()
     {
-        return $this->belongsTo('App\Customer')->withTrashed();
-
+        return $this->belongsTo(
+            Customer::class,
+            'customer_id'
+        )->withTrashed();
     }
+
 
     public function quotes()
     {
-        return $this->hasMany('App\Quote', 'contact_id');
+        return $this->hasMany(
+            Quote::class,
+            'contact_id'
+        );
     }
-
-    protected $dates = ['deleted_at'];
 }
