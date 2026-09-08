@@ -43,6 +43,102 @@ Route::middleware(['auth','check.user.enabled',])->group(function () {
 Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.context'])->group(function (){
     Route::prefix('dashboard')->group(function (){
 
+        Route::middleware('tenant.owner')
+            ->prefix('/configuracion')
+            ->group(function () {
+
+                /*
+                 * ============================================================
+                 * Companies
+                 * ============================================================
+                 */
+                Route::get(
+                    'empresas',
+                    'TenantCompanyController@index'
+                )->middleware('permission:list_company')
+                    ->name('tenantCompany.index');
+
+                Route::get(
+                    'empresas/crear',
+                    'TenantCompanyController@create'
+                )->middleware('permission:create_company')
+                    ->name('tenantCompany.create');
+
+                Route::post(
+                    'empresas',
+                    'TenantCompanyController@store'
+                )->middleware('permission:create_company')
+                    ->name('tenantCompany.store');
+
+                Route::get(
+                    'empresas/{id}/editar',
+                    'TenantCompanyController@edit'
+                )
+                    ->middleware('permission:edit_company')
+                    ->name('tenantCompany.edit');
+
+
+                Route::post(
+                    'empresas/{id}/actualizar',
+                    'TenantCompanyController@update'
+                )
+                    ->middleware('permission:edit_company')
+                    ->name('tenantCompany.update');
+
+                Route::post(
+                    'empresas/{id}/toggle-status',
+                    'TenantCompanyController@toggleStatus'
+                )
+                    ->middleware('permission:enable_company')
+                    ->name('tenantCompany.toggleStatus');
+
+                Route::get(
+                    'empresas/{companyId}/sucursales',
+                    'TenantBranchController@index'
+                )
+                    ->middleware('permission:list_branch')
+                    ->name('tenantBranch.index');
+                /*
+                  * ============================================================
+                  * BRANCHES
+                  * ============================================================
+                */
+
+                Route::get(
+                    'empresas/{companyId}/sucursales/crear',
+                    'TenantBranchController@create'
+                )->middleware('permission:create_branch')
+                    ->name('tenantBranch.create');
+
+                Route::post(
+                    'sucursales',
+                    'TenantBranchController@store'
+                )->middleware('permission:create_branch')
+                    ->name('tenantBranch.store');
+
+                Route::get(
+                    'sucursales/{id}/editar',
+                    'TenantBranchController@edit'
+                )
+                    ->middleware('permission:edit_branch')
+                    ->name('tenantBranch.edit');
+
+
+                Route::post(
+                    'sucursales/{id}/actualizar',
+                    'TenantBranchController@update'
+                )
+                    ->middleware('permission:edit_branch')
+                    ->name('tenantBranch.update');
+
+                Route::post(
+                    'sucursales/{id}/toggle-status',
+                    'TenantBranchController@toggleStatus'
+                )
+                    ->middleware('permission:enable_branch')
+                    ->name('tenantBranch.toggleStatus');
+            });
+
         /*Route::get(
             '/multitenancy/context-test',
             function () {

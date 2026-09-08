@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'tenant.context' => \App\Http\Middleware\InitializeTenantContext::class,
         'platform.admin' => \App\Http\Middleware\EnsurePlatformAdmin::class,
         'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
+        'tenant.owner' => \App\Http\Middleware\EnsureTenantOwner::class,
     ];
 }

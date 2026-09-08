@@ -106,4 +106,8 @@ return [
     'talla' => 'TALLAS',
 
     'companyStockItem' => 'CATÁLOGO POR EMPRESA',
+
+    'company' => 'EMPRESAS',
+
+    'branch' => 'SUCURSALES',
 ];

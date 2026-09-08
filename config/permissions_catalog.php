@@ -536,4 +536,16 @@ return [
     'destroy_talla' => 'Eliminar Tallas',
 
     'manage_companyStockItem' => 'Administrar productos comercializados por empresa',
+
+    'list_company' => 'Ver empresas del grupo empresarial',
+    'create_company' => 'Crear nuevas empresas en el grupo empresarial',
+    'edit_company' => 'Editar datos de las empresas',
+    'enable_company' => 'Activar o desactivar empresas',
+
+    'list_branch' => 'Ver sucursales de las empresas',
+    'create_branch' => 'Crear nuevas sucursales',
+    'edit_branch' => 'Editar datos de las sucursales',
+    'enable_branch' => 'Activar o desactivar sucursales',
+
+
 ];
