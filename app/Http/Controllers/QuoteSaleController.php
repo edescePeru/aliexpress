@@ -2524,11 +2524,35 @@ class QuoteSaleController extends Controller
             ->where('state_active', 'open')
 
             /*
-             * No mostrar cotizaciones que todavía tengan
-             * una venta activa asociada.
-             */
+             * ========================================================
+             * NO MOSTRAR COTIZACIONES CON UNA VENTA OPERATIVAMENTE ACTIVA
+             * ========================================================
+             *
+             * Una venta puede continuar con state_annulled = 0 mientras
+             * esperamos la confirmación definitiva de SUNAT.
+             *
+             * Sin embargo, si internal_reversal_status = reversed,
+             * la venta ya fue revertida operativamente:
+             * - stock devuelto
+             * - caja revertida
+             * - pagos parciales desactivados
+             *
+             * Por lo tanto, esa venta ya no debe impedir que una
+             * cotización en estado requote vuelva a aparecer.
+            */
             ->whereDoesntHave('sales', function ($q) {
-                $q->where('state_annulled', 0);
+
+                $q->where('state_annulled', 0)
+                    ->where(function ($saleQuery) {
+
+                        $saleQuery
+                            ->whereNull('internal_reversal_status')
+                            ->orWhere(
+                                'internal_reversal_status',
+                                '<>',
+                                'reversed'
+                            );
+                    });
             })
 
             /*

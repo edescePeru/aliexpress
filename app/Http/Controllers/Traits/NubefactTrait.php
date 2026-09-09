@@ -1360,59 +1360,168 @@ trait NubefactTrait
 
     private function persistNubefactAnnulmentResult(Sale $sale, array $result, string $motivo): void
     {
-        $accepted = (bool) ($result['aceptada_por_sunat'] ?? false);
+        $accepted = (bool) (
+            $result['aceptada_por_sunat']
+            ?? false
+        );
 
-        $description = $result['sunat_description'] ?? null;
-        $note = $result['sunat_note'] ?? null;
-        $soapError = $result['sunat_soap_error'] ?? null;
-        $responseCode = $result['sunat_responsecode'] ?? null;
+        $description =
+            $result['sunat_description']
+            ?? null;
 
-        $ticket = $result['sunat_ticket_numero']
+        $note =
+            $result['sunat_note']
+            ?? null;
+
+        $soapError =
+            $result['sunat_soap_error']
+            ?? null;
+
+        $responseCode =
+            $result['sunat_responsecode']
+            ?? null;
+
+        $consultaInconclusa = (bool) (
+            $result['_consulta_inconclusa']
+            ?? false
+        );
+
+        $ticket =
+            $result['sunat_ticket_numero']
             ?? $result['sunat_ticket']
             ?? null;
 
-        $key = $result['key'] ?? null;
+        $key =
+            $result['key']
+            ?? null;
 
-        $pdfUrl = $result['enlace_del_pdf'] ?? null;
-        $xmlUrl = $result['enlace_del_xml'] ?? null;
-        $cdrUrl = $result['enlace_del_cdr'] ?? null;
+        $pdfUrl =
+            $result['enlace_del_pdf']
+            ?? null;
 
-        $filename = 'ANULACION_ORD' . $sale->id;
+        $xmlUrl =
+            $result['enlace_del_xml']
+            ?? null;
 
-        $pdfFilename = $filename . '.pdf';
-        $xmlFilename = $filename . '.xml';
-        $cdrFilename = $filename . '.cdr';
+        $cdrUrl =
+            $result['enlace_del_cdr']
+            ?? null;
 
+        $filename =
+            'ANULACION_ORD' . $sale->id;
+
+        $pdfFilename =
+            $filename . '.pdf';
+
+        $xmlFilename =
+            $filename . '.xml';
+
+        $cdrFilename =
+            $filename . '.cdr';
+
+        /*
+         * ============================================================
+         * ASEGURAR DIRECTORIOS
+         * ============================================================
+         */
         foreach ([
                      'anulaciones/pdfs',
                      'anulaciones/xmls',
                      'anulaciones/cdrs',
                  ] as $folder) {
-            if (!file_exists(public_path("comprobantes/$folder"))) {
-                mkdir(public_path("comprobantes/$folder"), 0777, true);
+
+            if (
+            !file_exists(
+                public_path("comprobantes/$folder")
+            )
+            ) {
+                mkdir(
+                    public_path("comprobantes/$folder"),
+                    0777,
+                    true
+                );
             }
         }
 
+        /*
+         * ============================================================
+         * DESCARGAR ARCHIVOS DISPONIBLES
+         * ============================================================
+         */
         if (!empty($pdfUrl)) {
-            $pdfContent = Http::get($pdfUrl)->body();
-            file_put_contents(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename), $pdfContent);
+
+            $pdfContent =
+                Http::get($pdfUrl)->body();
+
+            file_put_contents(
+                public_path(
+                    'comprobantes/anulaciones/pdfs/'
+                    . $pdfFilename
+                ),
+                $pdfContent
+            );
         }
 
         if (!empty($xmlUrl)) {
-            $xmlContent = Http::get($xmlUrl)->body();
-            file_put_contents(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename), $xmlContent);
+
+            $xmlContent =
+                Http::get($xmlUrl)->body();
+
+            file_put_contents(
+                public_path(
+                    'comprobantes/anulaciones/xmls/'
+                    . $xmlFilename
+                ),
+                $xmlContent
+            );
         }
 
         if (!empty($cdrUrl)) {
-            $cdrContent = Http::get($cdrUrl)->body();
-            file_put_contents(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename), $cdrContent);
+
+            $cdrContent =
+                Http::get($cdrUrl)->body();
+
+            file_put_contents(
+                public_path(
+                    'comprobantes/anulaciones/cdrs/'
+                    . $cdrFilename
+                ),
+                $cdrContent
+            );
         }
 
-        $finalMessage = $soapError
-            ?: ($note ?: ($description ?: null));
+        /*
+         * ============================================================
+         * MENSAJE TÉCNICO REAL
+         * ============================================================
+         */
+        $finalMessage =
+            $soapError
+                ?: (
+            $note
+                ?: (
+            $description
+                ?: null
+            )
+            );
 
-        $sale->annulment_response = json_encode($result, JSON_UNESCAPED_UNICODE);
+        /*
+         * Guardamos siempre la respuesta completa.
+         */
+        $sale->annulment_response =
+            json_encode(
+                $result,
+                JSON_UNESCAPED_UNICODE
+            );
 
+        /*
+         * ============================================================
+         * CONSERVAR INFORMACIÓN EXISTENTE
+         * ============================================================
+         *
+         * Una consulta posterior vacía no debe borrar ticket,
+         * key o URLs obtenidas anteriormente.
+         */
         if (!empty($ticket)) {
             $sale->annulment_ticket = $ticket;
         }
@@ -1422,7 +1531,10 @@ trait NubefactTrait
         }
 
         $sale->annulment_reason = $motivo;
-        $sale->annulment_requested_at = $sale->annulment_requested_at ?: now();
+
+        $sale->annulment_requested_at =
+            $sale->annulment_requested_at
+                ?: now();
 
         if (!empty($pdfUrl)) {
             $sale->annulment_pdf_url = $pdfUrl;
@@ -1436,94 +1548,157 @@ trait NubefactTrait
             $sale->annulment_cdr_url = $cdrUrl;
         }
 
-        if (file_exists(public_path('comprobantes/anulaciones/pdfs/' . $pdfFilename))) {
-            $sale->annulment_pdf_path = $pdfFilename;
+        if (
+        file_exists(
+            public_path(
+                'comprobantes/anulaciones/pdfs/'
+                . $pdfFilename
+            )
+        )
+        ) {
+            $sale->annulment_pdf_path =
+                $pdfFilename;
         }
 
-        if (file_exists(public_path('comprobantes/anulaciones/xmls/' . $xmlFilename))) {
-            $sale->annulment_xml_path = $xmlFilename;
+        if (
+        file_exists(
+            public_path(
+                'comprobantes/anulaciones/xmls/'
+                . $xmlFilename
+            )
+        )
+        ) {
+            $sale->annulment_xml_path =
+                $xmlFilename;
         }
 
-        if (file_exists(public_path('comprobantes/anulaciones/cdrs/' . $cdrFilename))) {
-            $sale->annulment_cdr_path = $cdrFilename;
+        if (
+        file_exists(
+            public_path(
+                'comprobantes/anulaciones/cdrs/'
+                . $cdrFilename
+            )
+        )
+        ) {
+            $sale->annulment_cdr_path =
+                $cdrFilename;
         }
 
         if (!empty($responseCode)) {
-            $sale->annulment_sunat_responsecode = $responseCode;
+            $sale->annulment_sunat_responsecode =
+                $responseCode;
         }
 
+        /*
+         * ============================================================
+         * 1) ACEPTACIÓN CONFIRMADA POR SUNAT
+         * ============================================================
+         */
         if ($accepted) {
 
-            /*
-             * ============================================================
-             * ACEPTACIÓN CONFIRMADA POR SUNAT
-             * ============================================================
-             */
-            $sale->annulment_status = 'accepted';
-            $sale->annulment_accepted_at = now();
-            $sale->annulment_sunat_status = 'Aceptado';
+            $sale->annulment_status =
+                'accepted';
+
+            $sale->annulment_accepted_at =
+                now();
+
+            $sale->annulment_sunat_status =
+                'Aceptado';
 
             $sale->annulment_sunat_message =
-                $finalMessage ?: 'Anulación aceptada por SUNAT.';
+                $description
+                    ?: (
+                $note
+                    ?: 'Anulación aceptada por SUNAT.'
+                );
 
             $sale->annulment_error = null;
 
-        } elseif (!empty($soapError)) {
+            /*
+             * ============================================================
+             * 2) ERROR SOAP / CONSULTA TÉCNICAMENTE INCONCLUSA
+             * ============================================================
+             */
+        } elseif (
+            !empty($soapError) ||
+            $consultaInconclusa
+        ) {
+
+            /*
+             * IMPORTANTE:
+             *
+             * No consideramos este escenario como rechazo.
+             */
+            $sale->annulment_status =
+                'pending';
+
+            $sale->annulment_sunat_status =
+                'Pendiente';
+
+            /*
+             * Este es el mensaje que verá el usuario.
+             */
+            $sale->annulment_sunat_message =
+                'La anulación fue enviada correctamente. '
+                . 'SUNAT aún no ha terminado de procesarla. '
+                . 'Se volverá a consultar automáticamente en la próxima ejecución programada '
+                . 'o puede consultarla nuevamente más tarde.';
+
+            /*
+             * Aquí conservamos el mensaje técnico real.
+             *
+             * Ejemplo:
+             * Error [undefined method `>' for nil]
+             */
+            $sale->annulment_error =
+                $finalMessage
+                    ?: 'Consulta de anulación sin respuesta definitiva.';
 
             /*
              * ============================================================
-             * ERROR TÉCNICO / SOAP
+             * 3) RESPUESTA SUNAT CON CÓDIGO PERO SIN ACEPTACIÓN
              * ============================================================
              *
-             * Un error SOAP no significa que SUNAT haya rechazado
-             * la anulación.
-             *
-             * La solicitud puede seguir procesándose y debe volver
-             * a consultarse posteriormente.
+             * Por ahora seguimos siendo conservadores:
+             * no asumimos automáticamente rechazo.
              */
-            $sale->annulment_status = 'pending';
-            $sale->annulment_sunat_status = 'Pendiente';
-
-            $sale->annulment_sunat_message =
-                $soapError;
-
-            $sale->annulment_error =
-                $soapError;
-
         } elseif (!empty($responseCode)) {
 
-            /*
-             * ============================================================
-             * RESPUESTA SUNAT CON CÓDIGO
-             * ============================================================
-             *
-             * Por ahora NO asumimos que cualquier código significa rechazo.
-             * Mantendremos pendiente hasta determinar cuáles códigos
-             * representan realmente un rechazo definitivo.
-             */
-            $sale->annulment_status = 'pending';
-            $sale->annulment_sunat_status = 'Pendiente';
+            $sale->annulment_status =
+                'pending';
+
+            $sale->annulment_sunat_status =
+                'Pendiente';
 
             $sale->annulment_sunat_message =
                 $finalMessage
-                    ?: 'SUNAT devolvió el código ' . $responseCode . '. La anulación continuará pendiente de verificación.';
+                    ?: (
+                    'SUNAT devolvió el código '
+                    . $responseCode
+                    . '. La anulación continuará pendiente de verificación.'
+                );
 
             $sale->annulment_error =
                 $finalMessage;
 
-        } else {
-
             /*
              * ============================================================
-             * SIN RESPUESTA DEFINITIVA
+             * 4) SIN RESPUESTA DEFINITIVA
              * ============================================================
              */
-            $sale->annulment_status = 'pending';
-            $sale->annulment_sunat_status = 'Pendiente';
+        } else {
+
+            $sale->annulment_status =
+                'pending';
+
+            $sale->annulment_sunat_status =
+                'Pendiente';
 
             $sale->annulment_sunat_message =
-                $finalMessage
-                    ?: 'Anulación enviada a Nubefact. Pendiente de aceptación SUNAT.';
+                'La anulación fue enviada correctamente. '
+                . 'SUNAT aún no ha terminado de procesarla. '
+                . 'Se volverá a consultar automáticamente en la próxima ejecución programada '
+                . 'o puede consultarla nuevamente más tarde.';
 
             $sale->annulment_error = null;
         }
@@ -1560,60 +1735,244 @@ trait NubefactTrait
             throw new \Exception('Faltan credenciales Nubefact.');
         }
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Token token=' . $token,
-            'Content-Type'  => 'application/json',
-        ])->post($url, $data);
+        /*
+         * ============================================================
+         * CONSULTAR HASTA 2 VECES
+         * ============================================================
+         *
+         * Solo reintentamos ante problemas técnicos/transitorios:
+         *
+         * - respuesta vacía
+         * - sunat_soap_error
+         * - HTTP 429
+         * - HTTP 5xx
+         *
+         * Si SUNAT acepta en el primer intento, retornamos
+         * inmediatamente y NO realizamos una segunda petición.
+         */
+        $maxAttempts = 2;
 
-        $result = $response->json();
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
 
-        Log::info('NUBEFACT CONSULTA ANULACION', [
-            'sale_id' => $sale->id,
-            'request_data' => $data,
-            'http_status' => $response->status(),
-            'raw_body' => $response->body(),
-            'json_result' => $result,
-        ]);
+            $response = Http::withHeaders([
+                'Authorization' => 'Token token=' . $token,
+                'Content-Type'  => 'application/json',
+            ])->post($url, $data);
 
-        if (!$response->ok()) {
-            $msg = is_array($result) ? json_encode($result) : $response->body();
-            throw new \Exception('Error HTTP consultando anulación en Nubefact: ' . $msg);
-        }
+            $result = $response->json();
 
-        if (isset($result['errors'])) {
-            throw new \Exception(
-                is_array($result['errors'])
-                    ? json_encode($result['errors'], JSON_UNESCAPED_UNICODE)
-                    : $result['errors']
-            );
+            Log::info('NUBEFACT CONSULTA ANULACION', [
+                'sale_id' => $sale->id,
+                'attempt' => $attempt,
+                'request_data' => $data,
+                'http_status' => $response->status(),
+                'raw_body' => $response->body(),
+                'json_result' => $result,
+            ]);
+
+            /*
+             * ========================================================
+             * ERROR HTTP
+             * ========================================================
+             */
+            if (!$response->ok()) {
+
+                $statusCode = $response->status();
+
+                /*
+                 * 429 o errores 5xx pueden ser temporales.
+                 * Intentamos una vez más.
+                 */
+                $isTransientHttpError =
+                    $statusCode === 429 ||
+                    $statusCode >= 500;
+
+                if (
+                    $isTransientHttpError &&
+                    $attempt < $maxAttempts
+                ) {
+                    Log::warning(
+                        'NUBEFACT CONSULTA ANULACION - REINTENTO HTTP',
+                        [
+                            'sale_id' => $sale->id,
+                            'attempt' => $attempt,
+                            'http_status' => $statusCode,
+                        ]
+                    );
+
+                    sleep(2);
+
+                    continue;
+                }
+
+                $msg = is_array($result)
+                    ? json_encode(
+                        $result,
+                        JSON_UNESCAPED_UNICODE
+                    )
+                    : $response->body();
+
+                throw new \Exception(
+                    'Error HTTP consultando anulación en Nubefact: '
+                    . $msg
+                );
+            }
+
+            /*
+             * ========================================================
+             * ERROR EXPLÍCITO DE NUBEFACT
+             * ========================================================
+             *
+             * Un "errors" de la API normalmente representa un problema
+             * concreto de la petición, por lo que no hacemos reintento.
+             */
+            if (
+                is_array($result) &&
+                isset($result['errors'])
+            ) {
+                throw new \Exception(
+                    is_array($result['errors'])
+                        ? json_encode(
+                        $result['errors'],
+                        JSON_UNESCAPED_UNICODE
+                    )
+                        : $result['errors']
+                );
+            }
+
+            /*
+             * ========================================================
+             * RESPUESTA VACÍA / NO VÁLIDA
+             * ========================================================
+             */
+            if (!is_array($result) || empty($result)) {
+
+                if ($attempt < $maxAttempts) {
+
+                    Log::warning(
+                        'NUBEFACT CONSULTA ANULACION - RESPUESTA VACIA, REINTENTANDO',
+                        [
+                            'sale_id' => $sale->id,
+                            'attempt' => $attempt,
+                        ]
+                    );
+
+                    sleep(2);
+
+                    continue;
+                }
+
+                /*
+                 * Segundo intento también inconcluso.
+                 */
+                return [
+                    'aceptada_por_sunat' => false,
+                    'sunat_description' => null,
+                    'sunat_note' => null,
+                    'sunat_responsecode' => null,
+                    'sunat_soap_error' =>
+                        'Nubefact devolvió una respuesta vacía o no concluyente luego de dos intentos.',
+                    '_consulta_inconclusa' => true,
+                    '_attempts' => $attempt,
+                ];
+            }
+
+            /*
+             * ========================================================
+             * ACEPTACIÓN CONFIRMADA
+             * ========================================================
+             *
+             * Si el primer intento ya fue exitoso,
+             * retornamos aquí y NO hacemos otra consulta.
+             */
+            if (
+                (bool) (
+                    $result['aceptada_por_sunat']
+                    ?? false
+                ) === true
+            ) {
+
+                $result['_attempts'] = $attempt;
+
+                return $result;
+            }
+
+            /*
+             * ========================================================
+             * ERROR SOAP / ERROR TÉCNICO TEMPORAL
+             * ========================================================
+             *
+             * Este es exactamente el caso observado:
+             *
+             * Error [undefined method `>' for nil]
+             *
+             * NO significa rechazo SUNAT.
+             */
+            $soapError =
+                $result['sunat_soap_error']
+                ?? null;
+
+            if (!empty($soapError)) {
+
+                /*
+                 * Primer intento:
+                 * esperamos y volvemos a consultar una sola vez.
+                 */
+                if ($attempt < $maxAttempts) {
+
+                    Log::warning(
+                        'NUBEFACT CONSULTA ANULACION - SOAP ERROR, REINTENTANDO',
+                        [
+                            'sale_id' => $sale->id,
+                            'attempt' => $attempt,
+                            'soap_error' => $soapError,
+                        ]
+                    );
+
+                    sleep(2);
+
+                    continue;
+                }
+
+                /*
+                 * Segundo intento:
+                 * sigue sin existir respuesta definitiva.
+                 *
+                 * Conservamos el error técnico dentro del resultado,
+                 * pero lo marcaremos como consulta inconclusa.
+                 */
+                $result['_consulta_inconclusa'] = true;
+                $result['_attempts'] = $attempt;
+
+                return $result;
+            }
+
+            /*
+             * ========================================================
+             * RESPUESTA NORMAL PERO TODAVÍA PENDIENTE
+             * ========================================================
+             *
+             * No hay aceptación ni error técnico.
+             * No tiene sentido volver a consultar inmediatamente.
+             */
+            $result['_attempts'] = $attempt;
+
+            return $result;
         }
 
         /*
-         * ============================================================
-         * RESPUESTA VACÍA / INCONCLUSA
-         * ============================================================
-         *
-         * HTTP 200 no significa necesariamente que SUNAT haya
-         * respondido de forma definitiva.
-         *
-         * Nubefact puede devolver un arreglo vacío temporalmente.
-         * En ese caso devolvemos una respuesta normalizada para que
-         * persistNubefactAnnulmentResult() la mantenga como pending.
-        */
-        if (!is_array($result) || empty($result)) {
-            return [
-                'aceptada_por_sunat' => false,
-                'sunat_description' => null,
-                'sunat_note' => null,
-                'sunat_responsecode' => null,
-                'sunat_soap_error' =>
-                    'Nubefact devolvió una respuesta vacía o no concluyente al consultar la anulación. Se realizará una nueva consulta posteriormente.',
-                '_consulta_inconclusa' => true,
-            ];
-        }
-
-
-        return $result;
+         * Este return es solo defensivo.
+         */
+        return [
+            'aceptada_por_sunat' => false,
+            'sunat_description' => null,
+            'sunat_note' => null,
+            'sunat_responsecode' => null,
+            'sunat_soap_error' =>
+                'No se pudo determinar el estado de la anulación.',
+            '_consulta_inconclusa' => true,
+            '_attempts' => $maxAttempts,
+        ];
     }
 
     private function buildNubefactCreditNoteTotalData(Sale $sale, CreditNote $creditNote): array
