@@ -759,19 +759,19 @@
                         <table class="table">
                             <tr>
                                 <th style="width:50%">DESCUENTO (-): </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" data-descuento_real="{{ $quote->descuento }}" class="align-right">{{ round($quote->descuento, 2) }}</span></td>
+                                <td>{{ $currency}} <span id="descuento" data-descuento_real="{{ $quote->descuento }}" class="align-right">{{ round($quote->descuento, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">GRAVADA: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" data-gravada_real="{{ $quote->gravada }}" class="align-right">{{ round($quote->gravada, 2) }}</span></td>
+                                <td>{{ $currency}} <span id="gravada" data-gravada_real="{{ $quote->gravada }}" class="align-right">{{ round($quote->gravada, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">IGV {{ $igv }}%: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" data-igv_total_real="{{ $quote->igv_total }}" class="align-right">{{ round($quote->igv_total, 2) }}</span></td>
+                                <td>{{ $currency}} <span id="igv_total" data-igv_total_real="{{ $quote->igv_total }}" class="align-right">{{ round($quote->igv_total, 2) }}</span></td>
                             </tr>
                             <tr>
                                 <th style="width:50%">TOTAL: </th>
-                                <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" data-total_importe_real="{{ $quote->total_importe }}" class="align-right">{{ round($quote->total_importe, 2) }}</span></td>
+                                <td>{{ $currency}} <span id="total_importe" data-total_importe_real="{{ $quote->total_importe }}" class="align-right">{{ round($quote->total_importe, 2) }}</span></td>
                             </tr>
                         </table>
                     </div>

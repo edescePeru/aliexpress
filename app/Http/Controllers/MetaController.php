@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\DataGeneral;
+use App\Services\SettingService;
 use App\DateDimension;
 use App\Helpers\MetaCalendarHelper;
 use App\Meta;
@@ -18,22 +18,25 @@ class MetaController extends Controller
 {
     public function index(Request $request)
     {
-        // 1) Buscar o crear registro tipo_meta
-        $tipoMetaConfig = DataGeneral::firstOrCreate(
-            ['name' => 'tipo_meta'],      // condición
-            ['valueText' => null]         // valores por defecto si se crea
+        $tipoMeta = app(SettingService::class)
+            ->get('sales.goals.frequency');
+
+        $tipoValido = [
+            'semanal',
+            'quincenal',
+            'mensual',
+        ];
+
+        $canCreateMetas = in_array(
+            $tipoMeta,
+            $tipoValido,
+            true
         );
 
-        // valores permitidos
-        $tipoValido = ['semanal', 'quincenal', 'mensual'];
+        if (!$canCreateMetas) {
+            $tipoMeta = null;
+        }
 
-        // bandera para habilitar o deshabilitar "Crear meta"
-        $canCreateMetas = in_array($tipoMetaConfig->valueText, $tipoValido);
-
-        // valor actual (si es válido)
-        $tipoMeta = $canCreateMetas ? $tipoMetaConfig->valueText : null;
-
-        // 2) Listado de metas
         $metas = Meta::withCount('workers')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -41,8 +44,7 @@ class MetaController extends Controller
         return view('metas.index', compact(
             'metas',
             'tipoMeta',
-            'canCreateMetas',
-            'tipoMetaConfig'
+            'canCreateMetas'
         ));
     }
 
@@ -55,38 +57,41 @@ class MetaController extends Controller
             'tipo_meta' => 'required|in:semanal,quincenal,mensual',
         ]);
 
-        // upsert en DataGeneral
-        $registro = DataGeneral::firstOrNew(['name' => 'tipo_meta']);
-        $registro->valueText = $request->tipo_meta;
-        $registro->save();
+        app(SettingService::class)->set(
+            'sales.goals.frequency',
+            $request->tipo_meta
+        );
 
         return redirect()
             ->route('metas.index')
-            ->with('success', 'Tipo de meta configurado correctamente.');
+            ->with(
+                'success',
+                'Tipo de meta configurado correctamente.'
+            );
     }
 
     public function create()
     {
-        // Tipo de meta desde DataGeneral (ya creada en index)
-        $tipoMetaConfig = DataGeneral::firstOrCreate(
-            ['name' => 'tipo_meta'],
-            ['valueText' => null]
-        );
+        $tipoMeta = app(SettingService::class)
+            ->get('sales.goals.frequency');
 
-        $tipoValido = ['semanal', 'quincenal', 'mensual'];
-        if (!in_array($tipoMetaConfig->valueText, $tipoValido)) {
-            // Si no está configurado, no permitimos crear
+        $tipoValido = [
+            'semanal',
+            'quincenal',
+            'mensual',
+        ];
+
+        if (!in_array($tipoMeta, $tipoValido, true)) {
             return redirect()
                 ->route('metas.index')
-                ->with('error', 'Primero configure el tipo de meta en el listado de metas.');
+                ->with(
+                    'error',
+                    'Primero configure el tipo de meta en el listado de metas.'
+                );
         }
 
-        $tipoMeta = $tipoMetaConfig->valueText;
-
-        // Calendario (years, months, weeks) desde DateDimension
         $calendarData = CalendarioHelper::buildCalendarData();
 
-        // Trabajadores habilitados
         $workers = Worker::where('enable', true)
             ->orderBy('first_name')
             ->get();
@@ -101,10 +106,17 @@ class MetaController extends Controller
     public function store(Request $request)
     {
         // Tipo de meta desde configuración
-        $tipoMeta = DataGeneral::where('name', 'tipo_meta')->value('valueText');
+        $tipoMeta = app(SettingService::class)->get('sales.goals.frequency');
 
-        if (!in_array($tipoMeta, ['semanal', 'quincenal', 'mensual'])) {
-            return back()->with('error', 'Tipo de meta no configurado correctamente.');
+        if (!in_array(
+            $tipoMeta,
+            ['semanal', 'quincenal', 'mensual'],
+            true
+        )) {
+            return back()->with(
+                'error',
+                'Tipo de meta no configurado correctamente.'
+            );
         }
 
         $rules = [
@@ -196,13 +208,10 @@ class MetaController extends Controller
 
     public function edit(Meta $meta)
     {
-        // tipo_meta desde DataGeneral (solo para mostrar en título)
-        $tipoMetaConfig = DataGeneral::firstOrCreate(
-            ['name' => 'tipo_meta'],
-            ['valueText' => null]
-        );
+        $tipoMeta = app(SettingService::class)
+            ->get('sales.goals.frequency');
 
-        $tipoMeta = $tipoMetaConfig->valueText ?? $meta->tipo;
+        $tipoMeta = $tipoMeta ?: $meta->tipo;
 
         // Trabajadores actualmente asignados a esta meta
         $meta->load('workers');
@@ -340,20 +349,23 @@ class MetaController extends Controller
 
     public function ranking()
     {
-        // 1) Asegurar que exista la config tipo_meta
-        $tipoValido = ['semanal', 'quincenal', 'mensual'];
+        $tipoValido = [
+            'semanal',
+            'quincenal',
+            'mensual',
+        ];
 
-        $tipoMetaConfig = DataGeneral::firstOrCreate(
-            ['name' => 'tipo_meta'],
-            ['valueText' => null]
+        $tipoMeta = app(SettingService::class)
+            ->get('sales.goals.frequency');
+
+        $tipoMetaValida = in_array(
+            $tipoMeta,
+            $tipoValido,
+            true
         );
 
-        $tipoMeta       = null;
-        $tipoMetaValida = false;
-
-        if ($tipoMetaConfig && in_array($tipoMetaConfig->valueText, $tipoValido)) {
-            $tipoMeta       = $tipoMetaConfig->valueText;
-            $tipoMetaValida = true;
+        if (!$tipoMetaValida) {
+            $tipoMeta = null;
         }
 
         if (!$tipoMetaValida) {
@@ -377,7 +389,8 @@ class MetaController extends Controller
 
     public function getRankingData(Request $request)
     {
-        $tipoMeta = DataGeneral::where('name', 'tipo_meta')->value('valueText');
+        $tipoMeta = app(SettingService::class)
+            ->get('sales.goals.frequency');
 
         if (!in_array($tipoMeta, ['semanal', 'quincenal', 'mensual'])) {
             return response()->json([

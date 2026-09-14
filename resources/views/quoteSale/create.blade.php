@@ -529,19 +529,19 @@
                     <table class="table">
                         <tr>
                             <th style="width:50%">DESCUENTO (-): </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" data-descuento_real class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="descuento" data-descuento_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">GRAVADA: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" data-gravada_real class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="gravada" data-gravada_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">IGV {{ $igv }}%: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" data-igv_total_real class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="igv_total" data-igv_total_real class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">TOTAL: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" data-total_importe_real class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="total_importe" data-total_importe_real class="align-right">0.00</span></td>
                         </tr>
                     </table>
                 </div>

@@ -21,6 +21,7 @@ use App\OrderPurchase;
 use App\OrderPurchaseDetail;
 use App\PaymentDeadline;
 use App\Quote;
+use App\Services\SettingService;
 use App\Services\TipoCambioService;
 use App\Supplier;
 use App\SupplierCredit;
@@ -71,11 +72,10 @@ class EntryInventoryController extends Controller
         $precioCompra = 1;
         $precioVenta = 1;
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         //$tipoMoneda = ($request->has('currency_invoice')) ? 'USD':'PEN';
-        if ( $currency == 'usd' ) {
+        if ($currency === 'USD') {
             $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
             $precioCompra = (float) $tipoCambioSunat->precioCompra;
             $precioVenta = (float) $tipoCambioSunat->precioVenta;

@@ -45,6 +45,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Intervention\Image\Facades\Image;
 use Barryvdh\DomPDF\Facade as PDF;
+use App\Services\SettingService;
 
 class EntryController extends Controller
 {
@@ -1275,7 +1276,7 @@ class EntryController extends Controller
             $precioVenta = (float) $tipoCambioSunat->precioVenta;
         }
 
-        $flag = DataGeneral::where('name', 'type_current')->first();
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         if ($request->get('purchase_order') != '' || $request->get('purchase_order') != null) {
             $order_purchase1 = OrderPurchase::where('code', $request->get('purchase_order'))->first();
@@ -1592,7 +1593,7 @@ class EntryController extends Controller
                 // =========================
                 // Conservamos tu lógica de moneda/costo unitario por item
                 // =========================
-                if ($flag->valueText == 'usd') {
+                if ($currency === 'USD') {
                     if ($entry->currency_invoice === 'PEN') {
                         $detailEntry->unit_price = round((float) $it->price, 2);
                         $detailEntry->save();
@@ -1603,7 +1604,7 @@ class EntryController extends Controller
                         $priceForItem = round((float) $it->price, 2);
                     }
                 }
-                elseif ($flag->valueText == 'pen') {
+                elseif ($currency === 'PEN') {
                     if ($entry->currency_invoice === 'USD') {
                         $detailEntry->unit_price = round((float) $it->price, 2);
                         $detailEntry->save();
@@ -3684,7 +3685,7 @@ class EntryController extends Controller
     {
         $begin = microtime(true);
         //dump($request);
-        $flag = DataGeneral::where('name', 'type_current')->first();
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         DB::beginTransaction();
         try {
@@ -3806,7 +3807,7 @@ class EntryController extends Controller
                 $material = $detail_entry->material;
 
                 // ---- TU LÓGICA ORIGINAL (misma estructura) ----
-                if ($flag->valueText == 'usd') {
+                if ($currency === 'USD') {
 
                     if ($entry->currency_invoice === 'PEN') {
 
@@ -3902,7 +3903,7 @@ class EntryController extends Controller
                         }
                     }
 
-                } elseif ($flag->valueText == 'pen') {
+                } elseif ($currency === 'PEN') {
 
                     if ($entry->currency_invoice === 'USD') {
 
@@ -4103,7 +4104,7 @@ class EntryController extends Controller
     public function addDetailOfEntry(Request $request, $id_entry)
     {
         $begin = microtime(true);
-        $flag = DataGeneral::where('name', 'type_current')->first();
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         DB::beginTransaction();
         try {
@@ -4310,11 +4311,11 @@ class EntryController extends Controller
                     $totalByDetailEntryId[$detailEntry->id] = 0;
                 }
 
-                if ($flag->valueText == 'usd') {
+                if ($currency === 'USD') {
                     $detailEntry->unit_price = round((float)$it->price, 2);
                     $detailEntry->save();
                     $priceForItem = round((float)$it->price, 2);
-                } elseif ($flag->valueText == 'pen') {
+                } elseif ($currency === 'PEN') {
                     $detailEntry->unit_price = round((float)$it->price, 2);
                     $detailEntry->save();
                     $priceForItem = round((float)$it->price, 2);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataGeneral;
 use App\InventoryMovement;
 use App\Material;
+use App\Services\SettingService;
 use App\StockItem;
 use Illuminate\Http\Request;
 
@@ -59,11 +60,11 @@ class InventoryMovementController extends Controller
 
         $rows = [];
 
-        $flag = DataGeneral::where('name', 'type_current')->first();
-        $currency = $flag->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
+
         $simboloMoneda = "S/. ";
 
-        if ( $currency == 'usd' )
+        if ($currency === 'USD')
         {
             $simboloMoneda = "$ ";
         }
@@ -161,9 +162,9 @@ class InventoryMovementController extends Controller
         $costoPromedio = 0.0;
         $rows = [];
 
-        $flag = DataGeneral::where('name', 'type_current')->first();
-        $currency = $flag ? $flag->valueText : 'pen';
-        $simboloMoneda = $currency == 'usd' ? '$ ' : 'S/. ';
+        $currency = app(SettingService::class)->get('finance.base_currency');
+
+        $simboloMoneda = $currency === 'USD' ? '$ ' : 'S/. ';
 
         foreach ($movements as $m) {
             $cantidad = (float) $m->quantity;

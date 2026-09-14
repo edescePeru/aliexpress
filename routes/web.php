@@ -185,6 +185,82 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 );
             }
         );*/
+
+        Route::get(
+            '/test/setting/pagos-parciales',
+            function (\App\Services\SettingService $settings) {
+
+                return [
+                    'tenant_id' =>
+                        \App\Support\TenantContext::tenantId(),
+
+                    'company_id' =>
+                        \App\Support\TenantContext::companyId(),
+
+                    'value' =>
+                        $settings->get(
+                            'sales.allow_partial_payments'
+                        ),
+                ];
+            }
+        );
+
+        Route::get(
+            '/test/setting/pagos-parciales/activar',
+            function (\App\Services\SettingService $settings) {
+
+                $settings->set(
+                    'sales.allow_partial_payments',
+                    true
+                );
+
+                return [
+                    'value' =>
+                        $settings->get(
+                            'sales.allow_partial_payments'
+                        ),
+                ];
+            }
+        );
+
+        Route::get(
+            '/test/setting/base-currency',
+            function (\App\Services\SettingService $settings) {
+
+                return [
+                    'tenant_id' =>
+                        \App\Support\TenantContext::tenantId(),
+
+                    'company_id' =>
+                        \App\Support\TenantContext::companyId(),
+
+                    'value' =>
+                        $settings->get(
+                            'finance.base_currency'
+                        ),
+                ];
+            }
+        );
+
+        Route::get(
+            '/test/setting/base-currency/usd',
+            function (\App\Services\SettingService $settings) {
+
+                $settings->set(
+                    'finance.base_currency',
+                    'USD'
+                );
+
+                return [
+                    'value' =>
+                        $settings->get(
+                            'finance.base_currency'
+                        ),
+                ];
+            }
+        );
+
+
         Route::get(
             '/context/branches',
             'TenantContextController@branches'

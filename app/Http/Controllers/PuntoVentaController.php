@@ -29,6 +29,7 @@ use App\QuoteMaterialReservation;
 use App\QuoteStockLot;
 use App\SalePartialPayment;
 use App\Services\InventoryCostService;
+use App\Services\SettingService;
 use App\StockItem;
 use App\StockLot;
 use App\Support\TenantContext;
@@ -72,17 +73,11 @@ class PuntoVentaController extends Controller
         $categories = Category::all();
         $tipoPagos  = TipoPago::all();
 
-        // Si no existe, se crea con valueText = 'no'
-        $cfg = DataGeneral::firstOrCreate(
-            ['name' => 'punto_venta_worker'],
-            ['valueText' => 'no']
-        );
+        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
 
-        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
-        $pagos_parciales = $data_pagos_parciales->valueText;
+        $pagos_parciales = $allowPartialPayments ? 's': 'n';
 
-        // True solo si está configurado en "si"
-        $askWorker = strtolower($cfg->valueText) === 'si';
+        $askWorker = app(SettingService::class)->get('pos.require_worker');
 
         // Lista de trabajadores habilitados
         $workers = Worker::where('enable', true)
@@ -108,14 +103,7 @@ class PuntoVentaController extends Controller
         $categories = Category::all();
         $tipoPagos  = TipoPago::all();
 
-        // Si no existe, se crea con valueText = 'no'
-        $cfg = DataGeneral::firstOrCreate(
-            ['name' => 'punto_venta_worker'],
-            ['valueText' => 'no']
-        );
-
-        // True solo si está configurado en "si"
-        $askWorker = strtolower($cfg->valueText) === 'si';
+        $askWorker = app(SettingService::class)->get('pos.require_worker');
 
         // Lista de trabajadores habilitados
         $workers = Worker::where('enable', true)
@@ -126,8 +114,9 @@ class PuntoVentaController extends Controller
         $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
         $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
 
-        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
-        $pagos_parciales = $data_pagos_parciales->valueText;
+        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
+
+        $pagos_parciales = $allowPartialPayments ? 's': 'n';
 
         return view('puntoVenta.indexV2', compact(
             'categories',
@@ -2859,10 +2848,23 @@ class PuntoVentaController extends Controller
 
     public function manageNotifications(Material $material)
     {
-        $dataGeneralTypeNotificationPopUp = DataGeneral::where('name', 'send_notification_store_pop_up')->first();
-        $dataGeneralTypeNotificationCampana = DataGeneral::where('name', 'send_notification_store_campana')->first();
-        $dataGeneralTypeNotificationTelegram = DataGeneral::where('name', 'send_notification_store_email')->first();
-        $dataGeneralTypeNotificationEmail = DataGeneral::where('name', 'send_notification_store_telegram')->first();
+        $settings = app(SettingService::class);
+
+        $notifyPopup = $settings->get(
+            'inventory.stock_notifications.popup'
+        );
+
+        $notifyBell = $settings->get(
+            'inventory.stock_notifications.bell'
+        );
+
+        $notifyEmail = $settings->get(
+            'inventory.stock_notifications.email'
+        );
+
+        $notifyTelegram = $settings->get(
+            'inventory.stock_notifications.telegram'
+        );
 
         // Texto base
         $content = 'El producto '.$material->full_name.' está por agotarse.';
@@ -2872,7 +2874,7 @@ class PuntoVentaController extends Controller
         // Obtener usuarios con roles específicos (excepto el actual)
         $users = User::role(['admin', 'principal', 'owner'])->where('id', '!=', Auth::id())->get();
 
-        if ($dataGeneralTypeNotificationCampana && $dataGeneralTypeNotificationCampana->valueText === 's')
+        if ($notifyBell)
         {
             $notification = Notification::create([
                 'content' => $content,
@@ -2895,7 +2897,7 @@ class PuntoVentaController extends Controller
             }
         }
 
-        if ($dataGeneralTypeNotificationPopUp && $dataGeneralTypeNotificationPopUp->valueText === 's')
+        if ($notifyPopup)
         {
             $notification = Notification::create([
                 'content' => $content,
@@ -2918,7 +2920,7 @@ class PuntoVentaController extends Controller
             }
         }
 
-        if ($dataGeneralTypeNotificationEmail && $dataGeneralTypeNotificationEmail->valueText === 's')
+        if ($notifyEmail)
         {
             foreach ($users as $user) {
                 Mail::to($user->email)->queue(new StockLowNotificationMail($nameMaterial));
@@ -2926,7 +2928,7 @@ class PuntoVentaController extends Controller
         }
 
         // Si deseas dejar el código preparado para Telegram:
-        if ($dataGeneralTypeNotificationTelegram && $dataGeneralTypeNotificationTelegram->valueText === 's')
+        if ($notifyTelegram)
         {
             $telegram = new TelegramController();
 

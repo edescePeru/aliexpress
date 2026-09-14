@@ -44,6 +44,7 @@ use App\ResumenQuote;
 use App\Sale;
 use App\SaleDetail;
 use App\Services\InventoryCostService;
+use App\Services\SettingService;
 use App\StockItem;
 use App\StockLot;
 use App\Support\TenantContext;
@@ -481,8 +482,7 @@ class QuoteSaleController extends Controller
 
         $array = [];
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $dataIgv = PorcentageQuote::where('name', 'igv')->first();
         $igv = $dataIgv->value;
@@ -494,7 +494,6 @@ class QuoteSaleController extends Controller
             'action' => 'Crear cotizacion VISTA',
             'time' => $end
         ]);
-
 
         return view('quoteSale.create', compact('currency', 'customers', 'unitMeasures', 'consumables', 'electrics', 'workforces', 'codeQuote', 'permissions', 'paymentDeadlines', 'utility', 'rent', 'letter', 'array', 'igv'));
     }
@@ -1222,8 +1221,7 @@ class QuoteSaleController extends Controller
         $begin = microtime(true);
         $validated = $request->validated();
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         DB::beginTransaction();
 
@@ -3267,8 +3265,7 @@ class QuoteSaleController extends Controller
 
         $images = [];
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $dataIgv = PorcentageQuote::where('name', 'igv')->first();
         $igv = $dataIgv->value;
@@ -5552,8 +5549,7 @@ class QuoteSaleController extends Controller
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $dataIgv = PorcentageQuote::where('name', 'igv')->first();
         $igv = $dataIgv->value;
@@ -5586,8 +5582,9 @@ class QuoteSaleController extends Controller
         /*dump($cashBoxes);
         dd();*/
 
-        $data_pagos_parciales = DataGeneral::where('name', 'pagos_parciales')->first();
-        $pagos_parciales = $data_pagos_parciales->valueText;
+        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
+
+        $pagos_parciales = $allowPartialPayments ? 's': 'n';
 
         return view('quoteSale.registrarComprobante', compact(
             'typeComprobante',
@@ -7046,8 +7043,7 @@ class QuoteSaleController extends Controller
 
         $worker = Worker::where('user_id', Auth::id())->firstOrFail();
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency ? $dataCurrency->valueText : 'pen';
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $negocioAceptaPagosParciales = $request->input('negocio_acepta_pagos_parciales', 'n');
         $pagosParcialesVenta = $request->input('pagos_parciales_venta', 'n');
@@ -7174,7 +7170,7 @@ class QuoteSaleController extends Controller
                 'serie'     => $this->generateRandomString(),
                 'worker_id' => $worker->id,
                 'caja'      => $worker->id,
-                'currency'  => ($currency === 'usd') ? 'USD' : 'PEN',
+                'currency'  => $currency,
 
                 'op_exonerada'     => 0,
                 'op_inafecta'      => 0,
@@ -8044,10 +8040,23 @@ class QuoteSaleController extends Controller
 
     public function manageNotifications(Material $material)
     {
-        $dataGeneralTypeNotificationPopUp = DataGeneral::where('name', 'send_notification_store_pop_up')->first();
-        $dataGeneralTypeNotificationCampana = DataGeneral::where('name', 'send_notification_store_campana')->first();
-        $dataGeneralTypeNotificationTelegram = DataGeneral::where('name', 'send_notification_store_email')->first();
-        $dataGeneralTypeNotificationEmail = DataGeneral::where('name', 'send_notification_store_telegram')->first();
+        $settings = app(SettingService::class);
+
+        $notifyPopup = $settings->get(
+            'inventory.stock_notifications.popup'
+        );
+
+        $notifyBell = $settings->get(
+            'inventory.stock_notifications.bell'
+        );
+
+        $notifyEmail = $settings->get(
+            'inventory.stock_notifications.email'
+        );
+
+        $notifyTelegram = $settings->get(
+            'inventory.stock_notifications.telegram'
+        );
 
         // Texto base
         $content = 'El producto '.$material->full_name.' está por agotarse.';
@@ -8057,7 +8066,7 @@ class QuoteSaleController extends Controller
         // Obtener usuarios con roles específicos (excepto el actual)
         $users = User::role(['admin', 'principal', 'logistic'])->where('id', '!=', Auth::id())->get();
 
-        if ($dataGeneralTypeNotificationCampana && $dataGeneralTypeNotificationCampana->valueText === 's')
+        if ($notifyBell)
         {
             $notification = Notification::create([
                 'content' => $content,
@@ -8080,7 +8089,7 @@ class QuoteSaleController extends Controller
             }
         }
 
-        if ($dataGeneralTypeNotificationPopUp && $dataGeneralTypeNotificationPopUp->valueText === 's')
+        if ($notifyPopup)
         {
             $notification = Notification::create([
                 'content' => $content,
@@ -8103,7 +8112,7 @@ class QuoteSaleController extends Controller
             }
         }
 
-        if ($dataGeneralTypeNotificationEmail && $dataGeneralTypeNotificationEmail->valueText === 's')
+        if ($notifyEmail)
         {
             foreach ($users as $user) {
                 Mail::to($user->email)->queue(new StockLowNotificationMail($nameMaterial));
@@ -8111,7 +8120,7 @@ class QuoteSaleController extends Controller
         }
 
         // Si deseas dejar el código preparado para Telegram:
-        if ($dataGeneralTypeNotificationTelegram && $dataGeneralTypeNotificationTelegram->valueText === 's')
+        if ($notifyTelegram)
         {
             $telegram = new TelegramController();
 
@@ -8574,7 +8583,7 @@ class QuoteSaleController extends Controller
             }
         }
 
-        $itemsById = \App\Item::whereIn('id', array_values(array_unique($allItemIds)))
+        $itemsById = Item::whereIn('id', array_values(array_unique($allItemIds)))
             ->get(['id', 'code'])
             ->keyBy('id');
 
@@ -8596,8 +8605,7 @@ class QuoteSaleController extends Controller
 
         $images = [];
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $dataIgv = PorcentageQuote::where('name', 'igv')->first();
         $igv = $dataIgv->value;

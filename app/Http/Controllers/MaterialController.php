@@ -50,6 +50,7 @@ use Intervention\Image\Facades\Image;
 use App\Support\TenantContext;
 use App\CompanyStockItem;
 use App\Services\Inventory\DefaultInventoryLocationResolver;
+use App\Services\SettingService;
 
 class MaterialController extends Controller
 {
@@ -3286,13 +3287,14 @@ class MaterialController extends Controller
             }
         }
 
-        $flagAlertas = DataGeneral::where('name', 'show_alert_stock_minimos')->first();
-        $alerta = $flagAlertas->valueText;
-        $hayAlertas = [];
-        if ($alerta == 's')
-        {
+        $showStockAlerts = app(SettingService::class)->get('inventory.minimum_stock.show_alerts');
+
+        $hayAlertas = false;
+
+        if ($showStockAlerts) {
             $hayAlertas = $rows->contains(function ($r) {
-                return $r->estado === 'desabastecido' || $r->estado === 'por_desabastecer';
+                return $r->estado === 'desabastecido'
+                    || $r->estado === 'por_desabastecer';
             });
         }
 

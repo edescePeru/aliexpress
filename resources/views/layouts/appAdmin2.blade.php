@@ -19,11 +19,29 @@
     <!-- Toastr -->
     <link rel="stylesheet" href="{{ asset('admin/plugins/toastr/toastr.min.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/jquery-confirm/jquery-confirm.min.css') }}">
-
+    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-switch/css/bootstrap3/bootstrap-switch.min.css') }}">
     @yield('styles-plugins')
 
     <!-- Theme style -->
     <link rel="stylesheet" href="{{ asset('admin/dist/css/adminlte.min.css') }}">
+
+    @php
+        $ventiEnabled = config('venti-ui.enabled', false);
+
+        $ventiRoutes = config('venti-ui.routes', []);
+
+        $currentRoute = optional(request()->route())->getName();
+
+        $useVentiUi =
+            $ventiEnabled === true
+            && $currentRoute
+            && is_array($ventiRoutes)
+            && in_array($currentRoute, $ventiRoutes, true);
+    @endphp
+
+    @if($useVentiUi)
+        <link rel="stylesheet" href="{{ asset('admin/dist/css/venti.min.css') }}">
+    @endif
 
     <style>
         .dropdown-item.active, .dropdown-item:active{

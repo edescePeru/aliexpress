@@ -7,6 +7,7 @@ use App\DateDimension;
 use App\PaySlip;
 use App\Projection;
 use App\ProjectionDetail;
+use App\Services\SettingService;
 use App\Services\TipoCambioService;
 use App\SueldoMensual;
 use App\User;
@@ -121,8 +122,7 @@ class PersonalPaymentController extends Controller
         unset($element);
         //dump($semanas);
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         foreach ($semanas as &$element) {
             $firstDayWeek = $element['firstDayWeek'];
@@ -130,12 +130,12 @@ class PersonalPaymentController extends Controller
             //dd($tiposCambios);
             // Obtener la tasa de cambio para el día correspondiente utilizando tu función getExchange()
 
-            if ( $currency == 'usd' )
+            if ($currency === 'USD')
             {
                 $rate = $this->getExchange($firstDayWeek, $tiposCambios);
                 $element['cambioCompra'] = (isset($rate)) ? (float)$rate->precioCompra:1;
                 $element['cambioVenta'] = (isset($rate)) ? (float)$rate->precioVenta:1;
-            } elseif ( $currency == 'pen' ) {
+            } elseif ($currency === 'PEN') {
                 $element['cambioCompra'] = 1;
                 $element['cambioVenta'] = 1;
             }

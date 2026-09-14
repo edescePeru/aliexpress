@@ -13,6 +13,7 @@ use App\Http\Controllers\Traits\NubefactTrait;
 use App\Http\Requests\StoreFreeSaleRequest;
 use App\Sale;
 use App\SaleDetail;
+use App\Services\SettingService;
 use App\Worker;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -91,20 +92,19 @@ class FreeSaleController extends Controller
             ->orderBy('business_name')
             ->get();
 
-        $dataPagosParciales = DataGeneral::query()
-            ->where('name', 'pagos_parciales')
-            ->first();
+        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
 
-        $pagosParciales = $dataPagosParciales
-            ? strtolower(trim($dataPagosParciales->valueText))
-            : 'n';
+        $pagos_parciales =
+            $allowPartialPayments
+                ? 's'
+                : 'n';
 
         return view('puntoVenta.freeSale.create', compact(
             'cashBoxes',
             'subtypes',
             'subtypesConfig',
             'customers',
-            'pagosParciales'
+            'pagos_parciales'
         ));
     }
 

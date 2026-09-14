@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataGeneral;
 use App\Material;
 use App\PromotionLimit;
+use App\Services\SettingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -117,8 +118,7 @@ class PromotionLimitController extends Controller
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         return view('promotionLimit.create', compact('currency', 'permissions'));
     }
@@ -146,8 +146,7 @@ class PromotionLimitController extends Controller
     {
         $promotion = PromotionLimit::with('material')->findOrFail($id);
 
-        $dataCurrency = DataGeneral::where('name', 'type_current')->first();
-        $currency = $dataCurrency->valueText;
+        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();

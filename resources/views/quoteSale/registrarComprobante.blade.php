@@ -94,7 +94,7 @@
                             </div>
                             <div class="col-md-1">
                                 <label for="moneda">Moneda </label>
-                                <input type="text" id="moneda" name="moneda" value="{{ ($currency == 'pen') ? 'SOLES':'DOLARES' }}" class="form-control form-control-sm" readonly>
+                                <input type="text" id="moneda" name="moneda" value="{{ ($currency === 'PEN') ? 'SOLES':'DOLARES' }}" class="form-control form-control-sm" readonly>
                             </div>
                             <div class="col-md-2">
                                 <label for="fechaDocumento">Fecha <span class="right badge badge-danger">(*)</span></label>
@@ -545,19 +545,19 @@
                     <table class="table">
                         <tr>
                             <th style="width:50%">DESCUENTO (-): </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="descuento" class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="descuento" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">GRAVADA: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="gravada" class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="gravada" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">IGV {{ $igv }}%: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="igv_total" class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="igv_total" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">TOTAL: </th>
-                            <td>{{ ($currency == 'pen') ?'PEN' : 'USD' }} <span id="total_importe" class="align-right">0.00</span></td>
+                            <td>{{ $currency}} <span id="total_importe" class="align-right">0.00</span></td>
                         </tr>
                     </table>
                 </div>

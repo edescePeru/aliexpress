@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\ContactName;
 use App\Customer;
-use App\DataGeneral;
 use App\DateDimension;
 use App\Entry;
 use App\Helpers\MetaCalendarHelper;
@@ -17,6 +16,7 @@ use App\Supplier;
 use App\Warehouse;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Services\SettingService;
 
 class HomeController extends Controller
 {
@@ -90,7 +90,7 @@ class HomeController extends Controller
         $rankingPeriodText     = null;
 
         // leer tipo_meta
-        $tipoMeta = DataGeneral::where('name', 'tipo_meta')->value('valueText');
+        $tipoMeta = app(SettingService::class)->get('sales.goals.frequency');
         $tiposValidos = ['semanal', 'quincenal', 'mensual'];
 
         if (in_array($tipoMeta, $tiposValidos)) {

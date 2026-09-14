@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\BelongsToTenant;
+use App\Services\SettingService;
 
 class Item extends Model
 {
@@ -72,13 +73,16 @@ class Item extends Model
     }
 
     /**
-     * Moneda base de inventario (usd/pen) desde DataGeneral.
+     * Moneda base de inventario de la Company del Item.
      */
     protected function getBaseCurrency(): string
     {
-        $record = DataGeneral::where('name', 'type_current')->first();
-        // Normalizamos a mayúsculas para comparar fácil
-        return strtoupper($record->valueText ?? 'PEN'); // PEN por defecto
+        if (!$this->company_id) {
+            return 'PEN';
+        }
+
+        return app(SettingService::class)
+            ->getForCompany('finance.base_currency', (int) $this->company_id);
     }
 
     /**
@@ -99,7 +103,7 @@ class Item extends Model
         $entry = $detailEntry->entry;
         $price = (float) $this->price;
 
-        // Moneda base desde DataGeneral (USD o PEN)
+        // Moneda base configurada para la Company del Item.
         $baseCurrency = $this->getBaseCurrency(); // 'USD' o 'PEN'
 
         // Moneda de la factura de compra
