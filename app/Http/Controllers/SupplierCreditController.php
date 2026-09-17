@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Intervention\Image\Facades\Image;
+use App\Services\SettingService;
 
 class SupplierCreditController extends Controller
 {
@@ -296,7 +297,7 @@ class SupplierCreditController extends Controller
 
     public function getInvoicesPending()
     {
-        $diasMinTOExpire = DataGeneral::where('name', 'daysToExpireMin')->first();
+        $expirationWarningDays = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
 
         $credits = SupplierCredit::with('supplier')
             ->with('purchase')
@@ -318,7 +319,7 @@ class SupplierCreditController extends Controller
                 $credit->days_to_expiration = $dias_to_expire;
                 $credit->save();
 
-                if ( $dias_to_expire < $diasMinTOExpire->valueNumber && $dias_to_expire >= 0 )
+                if ($dias_to_expire < $expirationWarningDays && $dias_to_expire >= 0)
                 {
                     $credit->state_credit = 'by_expire';
                     $credit->save();
@@ -628,10 +629,11 @@ class SupplierCreditController extends Controller
 
     public function getInvoiceForExpire()
     {
-        $diasMinTOExpire = DataGeneral::where('name', 'daysToExpireMin')->first();
+        $expirationWarningDays = app(
+            SettingService::class)->get('supplier_credit.expiration_warning_days');
 
         // TODO: Esto mostrará las facturas por vencer
-        $supplier_credits = SupplierCredit::where('days_to_expiration', '<', $diasMinTOExpire->valueNumber)
+        $supplier_credits = SupplierCredit::where('days_to_expiration', '<', $expirationWarningDays)
             ->where('days_to_expiration', '>=', 0)
             ->get();
 

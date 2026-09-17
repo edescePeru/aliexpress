@@ -380,6 +380,28 @@
                             </a>
 
                         </li>
+
+                        @can('list_percentageWorker')
+                            <li class="nav-item @yield('openPercentageWorker')">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-list-alt nav-icon"></i>
+                                    <p>
+                                        Parametros Laborales
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    @can('list_percentageWorker')
+                                        <li class="nav-item">
+                                            <a href="{{ route('platformPercentageWorker.index') }}" class="nav-link @yield('activeListPercentageWorker')">
+                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
+                                                <p>Listar parámetros</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                </ul>
+                            </li>
+                        @endcan
                     @endif
 
                     @can('enable_puntoVenta')
@@ -743,6 +765,52 @@
 
                     </li>
                     @endcan
+
+                    @canany(['list_company','list_branch','list_companyBankAccount','list_companySetting'])
+                        <li class="nav-header">
+                            CONFIGURACIÓN EMPRESA
+                        </li>
+                    @endcanany
+                    @can('list_company')
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_company'))
+                        <li class="nav-item">
+                            <a
+                                    href="{{ route('tenantCompany.index') }}"
+                                    class="nav-link {{ request()->routeIs('tenantCompany.*') ? 'active' : '' }}"
+                            >
+                                <i class="nav-icon fas fa-building"></i>
+                                <p>Empresas</p>
+                            </a>
+                        </li>
+                        @endif
+                    @endcan
+
+                    @can('list_companyBankAccount')
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_companyBankAccount'))
+                        <li class="nav-item">
+                            <a
+                                    href="{{ route('companyBankAccount.index') }}"
+                                    class="nav-link {{ request()->routeIs('companyBankAccount.*') ? 'active' : '' }}"
+                            >
+                                <i class="nav-icon fas fa-university"></i>
+                                <p>Cuentas bancarias</p>
+                            </a>
+                        </li>
+                        @endif
+                    @endcan
+
+                    @can('list_companySetting')
+                        <li class="nav-item">
+                            <a href="{{ route('companySetting.index') }}" class="nav-link {{ request()->routeIs('companySetting.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-cogs"></i>
+
+                                <p>
+                                    Configuraciones
+                                </p>
+                            </a>
+                        </li>
+                    @endcan
+
                     @canany(['list_customer', 'list_contactName', 'list_supplier'])
                     <li class="nav-header">MANTENEDORES</li>
                     @endcanany
@@ -2495,35 +2563,7 @@
                                     </ul>
                                 </li>
                             @endcan
-                            @can('list_percentageWorker')
-                                <li class="nav-item has-treeview @yield('openPercentageWorker')">
-                                    <a href="#" class="nav-link">
-                                        <i class="far fa-circle nav-icon text-success"></i>
-                                        <p>
-                                            Porcentajes
-                                            <i class="right fas fa-angle-left"></i>
-                                        </p>
-                                    </a>
-                                    <ul class="nav nav-treeview">
-                                        @can('list_percentageWorker')
-                                        <li class="nav-item">
-                                            <a href="{{ route('percentageWorker.index') }}" class="nav-link @yield('activeListPercentageWorker')">
-                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
-                                                <p>Listar porcentajes</p>
-                                            </a>
-                                        </li>
-                                        @endcan
-                                        @can('create_percentageWorker')
-                                        <li class="nav-item">
-                                            <a href="{{ route('percentageWorker.create') }}" class="nav-link @yield('activeCreatePercentageWorker')">
-                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
-                                                <p>Crear Porcentaje</p>
-                                            </a>
-                                        </li>
-                                        @endcan
-                                    </ul>
-                                </li>
-                            @endcan
+
                         </ul>
                     </li>
 

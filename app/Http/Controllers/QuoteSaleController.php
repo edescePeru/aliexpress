@@ -7,6 +7,7 @@ use App\CashBox;
 use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
+use App\CompanyBankAccount;
 use App\Customer;
 use App\DataGeneral;
 use App\Equipment;
@@ -8411,70 +8412,43 @@ class QuoteSaleController extends Controller
 
         $montoEnLetras = numeroALetras($quote->total_importe+$total_workforce, $monedaTexto);
 
-        $dataNombreEmpresa = DataGeneral::where('name', 'empresa')->first();
-        $nombreEmpresa = $dataNombreEmpresa->valueText;
-        $dataDireccionEmpresa = DataGeneral::where('name', 'address')->first();
-        $direccionEmpresa = $dataDireccionEmpresa->valueText;
-        $dataTelefonoEmpresa = DataGeneral::where('name', 'telefono')->first();
-        $telefonoEmpresa = $dataTelefonoEmpresa->valueText;
-        $dataEmailEmpresa = DataGeneral::where('name', 'email')->first();
-        $emailEmpresa = $dataEmailEmpresa->valueText;
-        $dataWebEmpresa = DataGeneral::where('name', 'web')->first();
-        $webEmpresa = $dataWebEmpresa->valueText;
-        $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
-        $rucEmpresa = $dataRucEmpresa->valueText;
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $company = TenantContext::company();
 
-        $dataVersiculoEmpresa = DataGeneral::where('name', 'versiculo')->first();
-        $versiculoEmpresa = $dataVersiculoEmpresa->valueText;
-        $dataCitaBiblicaEmpresa = DataGeneral::where('name', 'cita_biblica')->first();
-        $citaBiblicaEmpresa = $dataCitaBiblicaEmpresa->valueText;
+        $nombreEmpresa = $company->business_name;
+        $direccionEmpresa = $company->address;
+        $telefonoEmpresa = $company->phone;
+        $emailEmpresa = $company->email;
+        $rucEmpresa = $company->ruc;
 
-        // Cuenta1
-        $dataTitleCuenta1Empresa = DataGeneral::where('name', 'title_cuenta_1')->first();
-        $titleCuenta1Empresa = $dataTitleCuenta1Empresa->valueText;
-        $dataNroCuenta1Empresa = DataGeneral::where('name', 'nro_cuenta_1')->first();
-        $nroCuenta1Empresa = $dataNroCuenta1Empresa->valueText;
-        $dataCciCuenta1Empresa = DataGeneral::where('name', 'cci_cuenta_1')->first();
-        $cciCuenta1Empresa = $dataCciCuenta1Empresa->valueText;
-        $dataImgCuenta1Empresa = DataGeneral::where('name', 'img_cuenta_1')->first();
-        $imgCuenta1Empresa = $dataImgCuenta1Empresa->valueText;
-        $dataOwnerCuenta1Empresa = DataGeneral::where('name', 'owner_cuenta_1')->first();
-        $ownerCuenta1Empresa = $dataOwnerCuenta1Empresa->valueText;
+        $settings = app(SettingService::class);
 
-        // Cuenta2
-        $dataTitleCuenta2Empresa = DataGeneral::where('name', 'title_cuenta_2')->first();
-        $titleCuenta2Empresa = $dataTitleCuenta2Empresa->valueText;
-        $dataNroCuenta2Empresa = DataGeneral::where('name', 'nro_cuenta_2')->first();
-        $nroCuenta2Empresa = $dataNroCuenta2Empresa->valueText;
-        $dataCciCuenta2Empresa = DataGeneral::where('name', 'cci_cuenta_2')->first();
-        $cciCuenta2Empresa = $dataCciCuenta2Empresa->valueText;
-        $dataImgCuenta2Empresa = DataGeneral::where('name', 'img_cuenta_2')->first();
-        $imgCuenta2Empresa = $dataImgCuenta2Empresa->valueText;
-        $dataOwnerCuenta2Empresa = DataGeneral::where('name', 'owner_cuenta_2')->first();
-        $ownerCuenta2Empresa = $dataOwnerCuenta2Empresa->valueText;
+        $webEmpresa = $settings->get('company.profile.website');
 
-        $tieneCuentas = false;
-        if ( $nroCuenta2Empresa != "" || $nroCuenta1Empresa != "" )
-        {
-            $tieneCuentas = true;
-        }
+        $logotipoEmpresa = $settings->get('company.branding.logo');
+
+        $versiculoEmpresa = $settings->get('company.branding.quote_text');
+
+        $citaBiblicaEmpresa = $settings->get('company.branding.quote_reference');
+
+        $companyBankAccounts = CompanyBankAccount::query()
+            ->with('bank')
+            ->where(
+                'company_id',
+                TenantContext::companyId()
+            )
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get();
+
+        $tieneCuentas = $companyBankAccounts->isNotEmpty();
 
         $view = view('exports.quoteSaleCustomerV2', compact(
             'logotipoEmpresa',
             'versiculoEmpresa',
             'citaBiblicaEmpresa',
-            'titleCuenta1Empresa',
-            'nroCuenta1Empresa',
-            'cciCuenta1Empresa',
-            'imgCuenta1Empresa',
-            'ownerCuenta1Empresa',
-            'titleCuenta2Empresa',
-            'nroCuenta2Empresa',
-            'cciCuenta2Empresa',
-            'imgCuenta2Empresa',
-            'ownerCuenta2Empresa',
+            'companyBankAccounts',
             'tieneCuentas',
             'rucEmpresa','webEmpresa','emailEmpresa','telefonoEmpresa','direccionEmpresa','nombreEmpresa', 'quote', 'images', 'igv', 'montoEnLetras', 'quoteItemCodesByConsumable'));
 

@@ -21,6 +21,7 @@ use App\Output;
 use App\OutputDetail;
 use App\PaymentDeadline;
 use App\Quote;
+use App\Services\SettingService;
 use App\Services\TipoCambioService;
 use App\Supplier;
 use App\SupplierAccount;
@@ -31,6 +32,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade as PDF;
+use App\Support\TenantContext;
 
 class OrderPurchaseController extends Controller
 {
@@ -2935,20 +2937,19 @@ class OrderPurchaseController extends Controller
             ->where('supplier_id', $purchase_order->supplier_id)
             ->get();
 
-        $dataNombreEmpresa = DataGeneral::where('name', 'empresa')->first();
-        $nombreEmpresa = $dataNombreEmpresa->valueText;
-        $dataDireccionEmpresa = DataGeneral::where('name', 'address')->first();
-        $direccionEmpresa = $dataDireccionEmpresa->valueText;
-        $dataTelefonoEmpresa = DataGeneral::where('name', 'telefono')->first();
-        $telefonoEmpresa = $dataTelefonoEmpresa->valueText;
-        $dataEmailEmpresa = DataGeneral::where('name', 'email')->first();
-        $emailEmpresa = $dataEmailEmpresa->valueText;
-        $dataWebEmpresa = DataGeneral::where('name', 'web')->first();
-        $webEmpresa = $dataWebEmpresa->valueText;
-        $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
-        $rucEmpresa = $dataRucEmpresa->valueText;
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $company = TenantContext::company();
+
+        $nombreEmpresa = $company->business_name;
+        $direccionEmpresa = $company->address;
+        $telefonoEmpresa = $company->phone;
+        $emailEmpresa = $company->email;
+        $rucEmpresa = $company->ruc;
+
+        $settings = app(SettingService::class);
+
+        $webEmpresa = $settings->get('company.profile.website');
+
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
         $view = view('exports.entryPurchaseV2', compact(
             'purchase_order',
@@ -2992,20 +2993,19 @@ class OrderPurchaseController extends Controller
         $accounts = SupplierAccount::with('bank')
             ->where('supplier_id', $purchase_order->supplier_id)->get();
 
-        $dataNombreEmpresa = DataGeneral::where('name', 'empresa')->first();
-        $nombreEmpresa = $dataNombreEmpresa->valueText;
-        $dataDireccionEmpresa = DataGeneral::where('name', 'address')->first();
-        $direccionEmpresa = $dataDireccionEmpresa->valueText;
-        $dataTelefonoEmpresa = DataGeneral::where('name', 'telefono')->first();
-        $telefonoEmpresa = $dataTelefonoEmpresa->valueText;
-        $dataEmailEmpresa = DataGeneral::where('name', 'email')->first();
-        $emailEmpresa = $dataEmailEmpresa->valueText;
-        $dataWebEmpresa = DataGeneral::where('name', 'web')->first();
-        $webEmpresa = $dataWebEmpresa->valueText;
-        $dataRucEmpresa = DataGeneral::where('name', 'ruc')->first();
-        $rucEmpresa = $dataRucEmpresa->valueText;
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $company = TenantContext::company();
+
+        $nombreEmpresa = $company->business_name;
+        $direccionEmpresa = $company->address;
+        $telefonoEmpresa = $company->phone;
+        $emailEmpresa = $company->email;
+        $rucEmpresa = $company->ruc;
+
+        $settings = app(SettingService::class);
+
+        $webEmpresa = $settings->get('company.profile.website');
+
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
         $view = view('exports.entryPurchaseV2', compact(
             'purchase_order',

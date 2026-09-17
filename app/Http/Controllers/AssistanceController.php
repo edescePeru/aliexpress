@@ -14,7 +14,6 @@ use App\Holiday;
 use App\License;
 use App\MedicalRest;
 use App\PaySlip;
-use App\PercentageWorker;
 use App\Permit;
 use App\PermitHour;
 use App\Regime;
@@ -31,6 +30,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use App\Services\SettingService;
 
 class AssistanceController extends Controller
 {
@@ -1076,8 +1076,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -1531,8 +1530,7 @@ class AssistanceController extends Controller
                         ->get();
 
                     //dump($licenses);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -1964,8 +1962,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -2353,8 +2350,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -2869,8 +2865,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -3390,8 +3385,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -3889,8 +3883,7 @@ class AssistanceController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);

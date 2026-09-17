@@ -14,12 +14,16 @@ class PercentageWorkerController extends Controller
 {
     public function index()
     {
-        $porcentages = PercentageWorker::all();
-        //$permissions = Permission::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $porcentages = PercentageWorker::query()
+            ->whereIn('name', [
+                'assign_family',
+                'essalud',
+                'rmv',
+            ])
+            ->orderBy('id')
+            ->get();
 
-        return view('percentageWorker.index', compact('porcentages', 'permissions'));
+        return view('percentageWorker.index', compact('porcentages'));
     }
 
 
@@ -45,31 +49,28 @@ class PercentageWorkerController extends Controller
     }
 
 
-    public function update(UpdatePercentageWorkerRequest $request)
-    {
-        $validated = $request->validated();
+    public function update(
+        UpdatePercentageWorkerRequest $request,
+        $id
+    ) {
+        $percentageWorker = PercentageWorker::query()
+            ->whereIn('name', [
+                'assign_family',
+                'essalud',
+                'rmv',
+            ])
+            ->where('id', $id)
+            ->firstOrFail();
 
-        DB::beginTransaction();
-        try {
+        $percentageWorker->value = $request->get('value');
+        $percentageWorker->save();
 
-            $percentageWorker = PercentageWorker::find($request->get('percentage_id'));
-
-            if ( !in_array( $percentageWorker->name,  ['assign_family', 'essalud', 'rmv'] ))
-            {
-                $percentageWorker->name = $request->get('name');
-            }
-
-            $percentageWorker->value = $request->get('value');
-            $percentageWorker->save();
-
-            DB::commit();
-
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['message' => 'Porcentajes de recursos humanos modificado con éxito.','url'=>route('percentageWorker.index')], 200);
+        return redirect()
+            ->route('platformPercentageWorker.index')
+            ->with(
+                'success',
+                'Parámetro laboral actualizado correctamente.'
+            );
     }
 
 
@@ -102,8 +103,17 @@ class PercentageWorkerController extends Controller
 
     public function edit($id)
     {
-        $percentageWorker = PercentageWorker::find($id);
-        return view('percentageWorker.edit', compact('percentageWorker'));
+        $percentageWorker = PercentageWorker::query()
+            ->whereIn('name', [
+                'assign_family',
+                'essalud',
+                'rmv',
+            ])
+            ->where('id', $id)
+            ->firstOrFail();
+
+        return view('percentageWorker.edit', compact('percentageWorker')
+        );
     }
 
 

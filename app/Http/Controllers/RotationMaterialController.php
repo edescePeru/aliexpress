@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\SettingService;
 
 class RotationMaterialController extends Controller
 {
@@ -24,16 +25,13 @@ class RotationMaterialController extends Controller
 
             $date = Carbon::now("America/Lima");
 
-            $start_rotation_baja_bd = DataGeneral::where('name', 'start_rotation_baja')->first();
-            $start_rotation_baja = $start_rotation_baja_bd->valueNumber;
-            $end_rotation_baja_bd = DataGeneral::where('name', 'end_rotation_baja')->first();
-            $end_rotation_baja = $end_rotation_baja_bd->valueNumber;
-            $start_rotation_media_bd = DataGeneral::where('name', 'start_rotation_media')->first();
-            $start_rotation_media = $start_rotation_media_bd->valueNumber;
-            $end_rotation_media_bd = DataGeneral::where('name', 'end_rotation_media')->first();
-            $end_rotation_media = $end_rotation_media_bd->valueNumber;
-            $start_rotation_alta_bd = DataGeneral::where('name', 'start_rotation_alta')->first();
-            $start_rotation_alta = $start_rotation_alta_bd->valueNumber;
+            $settings = app(SettingService::class);
+
+            $start_rotation_baja = $settings->get('inventory.rotation.low_start');
+            $end_rotation_baja = $settings->get('inventory.rotation.low_end');
+            $start_rotation_media = $settings->get('inventory.rotation.medium_start');
+            $end_rotation_media = $settings->get('inventory.rotation.medium_end');
+            $start_rotation_alta = $settings->get('inventory.rotation.high_start');
 
             // TODO: Actualizacion de rotacion de materiales
             $lastRotation = RotationMaterial::latest()->first();
@@ -252,16 +250,13 @@ class RotationMaterialController extends Controller
 
             $date = Carbon::now("America/Lima");
 
-            $start_rotation_baja_bd = DataGeneral::where('name', 'start_rotation_baja')->first();
-            $start_rotation_baja = $start_rotation_baja_bd->valueNumber;
-            $end_rotation_baja_bd = DataGeneral::where('name', 'end_rotation_baja')->first();
-            $end_rotation_baja = $end_rotation_baja_bd->valueNumber;
-            $start_rotation_media_bd = DataGeneral::where('name', 'start_rotation_media')->first();
-            $start_rotation_media = $start_rotation_media_bd->valueNumber;
-            $end_rotation_media_bd = DataGeneral::where('name', 'end_rotation_media')->first();
-            $end_rotation_media = $end_rotation_media_bd->valueNumber;
-            $start_rotation_alta_bd = DataGeneral::where('name', 'start_rotation_alta')->first();
-            $start_rotation_alta = $start_rotation_alta_bd->valueNumber;
+            $settings = app(SettingService::class);
+
+            $start_rotation_baja = $settings->get('inventory.rotation.low_start');
+            $end_rotation_baja = $settings->get('inventory.rotation.low_end');
+            $start_rotation_media = $settings->get('inventory.rotation.medium_start');
+            $end_rotation_media = $settings->get('inventory.rotation.medium_end');
+            $start_rotation_alta = $settings->get('inventory.rotation.high_start');
 
             // TODO: Actualizacion de rotacion de materiales
             $lastRotation = RotationMaterial::latest()->first();

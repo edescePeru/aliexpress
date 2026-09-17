@@ -54,6 +54,7 @@ use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade as PDF;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use App\CompanyBankAccount;
 
 class PuntoVentaController extends Controller
 {
@@ -2986,99 +2987,50 @@ class PuntoVentaController extends Controller
             }
         }
 
-        $dataName = DataGeneral::where('name', 'empresa')->first();
-        $dataRuc = DataGeneral::where('name', 'ruc')->first();
-        $dataAddress = DataGeneral::where('name', 'address')->first();
+        $company = TenantContext::company();
 
-        $nameEmpresa = $dataName->valueText;
-        $ruc = $dataRuc->valueText;
-        $address = $dataAddress->valueText;
+        $nameEmpresa = $company->business_name;
+        $ruc = $company->ruc;
+        $address = $company->address;
 
-        // Cuenta1
-        $dataTitleCuenta1Empresa = DataGeneral::where('name', 'title_cuenta_1')->first();
-        $titleCuenta1Empresa = $dataTitleCuenta1Empresa->valueText;
-        $dataNroCuenta1Empresa = DataGeneral::where('name', 'nro_cuenta_1')->first();
-        $nroCuenta1Empresa = $dataNroCuenta1Empresa->valueText;
-        $dataCciCuenta1Empresa = DataGeneral::where('name', 'cci_cuenta_1')->first();
-        $cciCuenta1Empresa = $dataCciCuenta1Empresa->valueText;
-        $dataImgCuenta1Empresa = DataGeneral::where('name', 'img_cuenta_1')->first();
-        $imgCuenta1Empresa = $dataImgCuenta1Empresa->valueText;
-        $dataOwnerCuenta1Empresa = DataGeneral::where('name', 'owner_cuenta_1')->first();
-        $ownerCuenta1Empresa = $dataOwnerCuenta1Empresa->valueText;
+        $companyBankAccounts =
+            CompanyBankAccount::query()
+                ->with('bank')
+                ->where(
+                    'company_id',
+                    TenantContext::companyId()
+                )
+                ->where('is_active', true)
+                ->orderByDesc('is_default')
+                ->orderBy('position')
+                ->orderBy('id')
+                ->get();
 
-        // Cuenta2
-        $dataTitleCuenta2Empresa = DataGeneral::where('name', 'title_cuenta_2')->first();
-        $titleCuenta2Empresa = $dataTitleCuenta2Empresa->valueText;
-        $dataNroCuenta2Empresa = DataGeneral::where('name', 'nro_cuenta_2')->first();
-        $nroCuenta2Empresa = $dataNroCuenta2Empresa->valueText;
-        $dataCciCuenta2Empresa = DataGeneral::where('name', 'cci_cuenta_2')->first();
-        $cciCuenta2Empresa = $dataCciCuenta2Empresa->valueText;
-        $dataImgCuenta2Empresa = DataGeneral::where('name', 'img_cuenta_2')->first();
-        $imgCuenta2Empresa = $dataImgCuenta2Empresa->valueText;
-        $dataOwnerCuenta2Empresa = DataGeneral::where('name', 'owner_cuenta_2')->first();
-        $ownerCuenta2Empresa = $dataOwnerCuenta2Empresa->valueText;
+        $settings = app(SettingService::class);
 
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
-        $dataLogotipoBNEmpresa = DataGeneral::where('name', 'logotipo_bn')->first();
-        $logotipoBNEmpresa = $dataLogotipoBNEmpresa->valueText;
+        $logotipoBNEmpresa = $settings->get('company.branding.logo_monochrome');
 
-        $tieneCuentas = false;
-        if ( $nroCuenta2Empresa != "" || $nroCuenta1Empresa != "" )
-        {
-            $tieneCuentas = true;
-        }
+        $tieneCuentas = $companyBankAccounts->isNotEmpty();
 
-
-        /*$view = view('exports.salePdf', compact('titleCuenta1Empresa',
-            'nroCuenta1Empresa',
-            'cciCuenta1Empresa',
-            'imgCuenta1Empresa',
-            'ownerCuenta1Empresa',
-            'titleCuenta2Empresa',
-            'nroCuenta2Empresa',
-            'cciCuenta2Empresa',
-            'imgCuenta2Empresa',
-            'ownerCuenta2Empresa',
-            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address'));*/
-
-        //$pdf = PDF::loadHTML($view);
-        // Configurar el tamaño de la página a un tamaño personalizado para el ticket
-        //$customPaper = array(0, 0, 226.77, 650); // Ancho y alto en puntos (1 pulgada = 72 puntos)
-        //$customPaper = array(0, 0, 250, 650);
-        //$pdf->setPaper($customPaper);
-        /*$customPaper = array(0, 0, 226.8, 900); // Ancho fijo, altura suficientemente grande para el contenido
-        $pdf->setPaper($customPaper, 'portrait');
-        $pdf->setOptions([
-            'default_font_size' => 12,
-            'default_font' => 'Arial',
-            'isHtml5ParserEnabled' => true,
-            'isPhpEnabled' => true,
-            'default_margin' => [
-                'top'    => 0,
-                'right'  => 0,
-                'bottom' => 0,
-                'left'   => 0,
-            ],
-        ]);*/
-
-        $pdf = Pdf::loadView('exports.salePdf2', compact('titleCuenta1Empresa',
-            'nroCuenta1Empresa',
-            'logotipoEmpresa',
-            'logotipoBNEmpresa',
-            'cciCuenta1Empresa',
-            'imgCuenta1Empresa',
-            'ownerCuenta1Empresa',
-            'titleCuenta2Empresa',
-            'nroCuenta2Empresa',
-            'cciCuenta2Empresa',
-            'imgCuenta2Empresa',
-            'ownerCuenta2Empresa',
-            'tieneCuentas','sale', 'nameEmpresa', 'ruc', 'address',
-            'paymentLabel'   // ✅ nuevo
-        ))->setPaper([0, 0, 226.8, 900], 'portrait');
-
+        $pdf = Pdf::loadView(
+            'exports.salePdf2',
+            compact(
+                'companyBankAccounts',
+                'tieneCuentas',
+                'sale',
+                'nameEmpresa',
+                'ruc',
+                'address',
+                'logotipoEmpresa',
+                'logotipoBNEmpresa',
+                'paymentLabel'
+            )
+        )->setPaper(
+            [0, 0, 226.8, 900],
+            'portrait'
+        );
 
         $length = 5;
         $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);

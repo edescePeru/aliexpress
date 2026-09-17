@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Category;
 use App\Color;
-use App\DataGeneral;
 use App\InventoryLevel;
 use App\Material;
 use App\PriceList;
 use App\PriceListItem;
+use App\Services\SettingService;
 use App\Talla;
 use Illuminate\Http\Request;
 
@@ -16,15 +16,18 @@ class StoreWebController extends Controller
 {
     public function home()
     {
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $settings = app(SettingService::class);
+
+        $logotipoEmpresa = $settings->get('company.branding.logo');
+
         return view('shop.home', compact('logotipoEmpresa'));
     }
 
     public function tienda()
     {
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $settings = app(SettingService::class);
+
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)
@@ -39,19 +42,20 @@ class StoreWebController extends Controller
 
         $maxPrice = ceil($maxPrice ?? 0);
 
-        $dataWhatsappEmpresa = DataGeneral::where('name', 'whatsapp')->first();
-        $whatsappEmpresa = $dataWhatsappEmpresa->valueText;
-        $whatsappEmpresa = preg_replace('/\D/', '', $whatsappEmpresa);
+        $whatsappEmpresa = $settings->get('company.profile.whatsapp');
+
+        $whatsappEmpresa = preg_replace('/\D/','',$whatsappEmpresa ?? '');
         //return view('shop.catalogNoPrice', compact('logotipoEmpresa', 'maxPrice'));
         return view('shop.catalogNoPrice', compact('logotipoEmpresa', 'maxPrice', 'whatsappEmpresa'));
     }
 
     public function catalog(Request $request)
     {
+        $settings = app(SettingService::class);
+
         $search = trim((string) $request->input('search', ''));
 
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)
@@ -72,32 +76,35 @@ class StoreWebController extends Controller
 
         $maxPrice = ceil($maxPrice ?? 0);
 
-        $dataWhatsappEmpresa = DataGeneral::where('name', 'whatsapp')->first();
-        $whatsappEmpresa = $dataWhatsappEmpresa->valueText;
-        $whatsappEmpresa = preg_replace('/\D/', '', $whatsappEmpresa);
+        $whatsappEmpresa = $settings->get('company.profile.whatsapp');
+        $whatsappEmpresa = preg_replace('/\D/','',$whatsappEmpresa ?? '');
 
-        $dataShowPricesCatalogEmpresa = DataGeneral::where('name', 'show_prices_catalog')->first();
-        $showPricesCatalogEmpresa = $dataShowPricesCatalogEmpresa->valueText;
+        $showPricesCatalogEmpresa = $settings->get('catalog.show_prices');
 
-        $dataShowPresentations = DataGeneral::where('name', 'show_presentations')->first();
-        $showPresentationsEmpresa = $dataShowPresentations->valueText;
+        $showPresentationsEmpresa = $settings->get('catalog.show_presentations');
 
-        $dataDescriptionFooterEmpresa = DataGeneral::where('name', 'description_footer')->first();
-        $descriptionFooterEmpresa = $dataDescriptionFooterEmpresa->valueText;
+        $descriptionFooterEmpresa = $settings->get('catalog.footer_description');
 
-        $socialNames = [
-            'facebook',
-            'twitter',
-            'youtube',
-            'instagram',
-            'pinterest',
-            'tiktok',
+        $socialNetworksEmpresa = [
+            'facebook' => $settings->get(
+                'company.social.facebook'
+            ),
+            'twitter' => $settings->get(
+                'company.social.twitter'
+            ),
+            'youtube' => $settings->get(
+                'company.social.youtube'
+            ),
+            'instagram' => $settings->get(
+                'company.social.instagram'
+            ),
+            'pinterest' => $settings->get(
+                'company.social.pinterest'
+            ),
+            'tiktok' => $settings->get(
+                'company.social.tiktok'
+            ),
         ];
-
-        $socialNetworksEmpresa = DataGeneral::whereIn('name', $socialNames)
-            ->get()
-            ->pluck('valueText', 'name')
-            ->toArray();
 
         return view('shop.catalog', compact(
             'logotipoEmpresa',
@@ -472,34 +479,39 @@ class StoreWebController extends Controller
 
     public function showProduct(Material $material)
     {
-        $dataLogotipoEmpresa = DataGeneral::where('name', 'logotipo')->first();
-        $logotipoEmpresa = $dataLogotipoEmpresa->valueText;
+        $settings = app(SettingService::class);
 
-        $dataWhatsappEmpresa = DataGeneral::where('name', 'whatsapp')->first();
-        $whatsappEmpresa = $dataWhatsappEmpresa->valueText;
-        $whatsappEmpresa = preg_replace('/\D/', '', $whatsappEmpresa);
+        $logotipoEmpresa = $settings->get('company.branding.logo');
 
-        $dataShowPricesCatalogEmpresa = DataGeneral::where('name', 'show_prices_catalog')->first();
-        $showPricesCatalogEmpresa = $dataShowPricesCatalogEmpresa->valueText;
-        $dataShowPresentations = DataGeneral::where('name', 'show_presentations')->first();
-        $showPresentationsEmpresa = $dataShowPresentations->valueText;
+        $whatsappEmpresa = $settings->get('company.profile.whatsapp');
+        $whatsappEmpresa = preg_replace('/\D/','',$whatsappEmpresa ?? '');
 
-        $dataDescriptionFooterEmpresa = DataGeneral::where('name', 'description_footer')->first();
-        $descriptionFooterEmpresa = $dataDescriptionFooterEmpresa->valueText;
+        $showPricesCatalogEmpresa = $settings->get('catalog.show_prices');
 
-        $socialNames = [
-            'facebook',
-            'twitter',
-            'youtube',
-            'instagram',
-            'pinterest',
-            'tiktok',
+        $showPresentationsEmpresa = $settings->get('catalog.show_presentations');
+
+        $descriptionFooterEmpresa = $settings->get('catalog.footer_description');
+
+        $socialNetworksEmpresa = [
+            'facebook' => $settings->get(
+                'company.social.facebook'
+            ),
+            'twitter' => $settings->get(
+                'company.social.twitter'
+            ),
+            'youtube' => $settings->get(
+                'company.social.youtube'
+            ),
+            'instagram' => $settings->get(
+                'company.social.instagram'
+            ),
+            'pinterest' => $settings->get(
+                'company.social.pinterest'
+            ),
+            'tiktok' => $settings->get(
+                'company.social.tiktok'
+            ),
         ];
-
-        $socialNetworksEmpresa = DataGeneral::whereIn('name', $socialNames)
-            ->get()
-            ->pluck('valueText', 'name')
-            ->toArray();
 
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)

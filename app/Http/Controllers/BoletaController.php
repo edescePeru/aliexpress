@@ -25,11 +25,11 @@ use App\Vacation;
 use App\Worker;
 use App\WorkingDay;
 use Carbon\Carbon;
-use http\Env\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade as PDF;
 use Illuminate\Support\Facades\DB;
+use App\Services\SettingService;
 
 class BoletaController extends Controller
 {
@@ -367,6 +367,8 @@ class BoletaController extends Controller
 
     public function generateBoletaWorker()
     {
+        $settings = app(SettingService::class);
+
         $type = $_GET['type'];
         $year = $_GET['year'];
         $month = $_GET['month'];
@@ -375,7 +377,9 @@ class BoletaController extends Controller
 
         $worker = Worker::find($worker_id);
 
-        $daysOfWeek = 7;
+        $daysOfWeek = (int) $settings->get(
+            'payroll.days_per_week'
+        );
 
         if ( $type == 1 )
         {
@@ -486,9 +490,9 @@ class BoletaController extends Controller
 
             // Ingresos
             $pagoXDia = ($worker->daily_salary == null) ? 0 : $worker->daily_salary;
-            $horasXDia = 8;
-            $diasMes = 30;
-            $horasSemanales = 48;
+            $horasXDia = (float) $settings->get('payroll.hours_per_day');
+            $diasMes = (int) $settings->get('payroll.days_per_month');
+            $horasSemanales = (float) $settings->get('payroll.hours_per_week');
             $pagoXHora = round($worker->daily_salary/$horasXDia,2);
             $diasTrabajados = round(($h_ord + $h_esp)/$horasXDia, 2);
             //dd($diasTrabajados);
@@ -616,7 +620,7 @@ class BoletaController extends Controller
             $tipoTrabajador = 'Empleado';
             $regimenPensionario = ($worker->pension_system == null) ? '':$worker->pension_system->description;
             $CUSPP = '';
-            $horasXDia = 8;
+            $horasXDia = (float) $settings->get('payroll.hours_per_day');
             $numberDays = cal_days_in_month(CAL_GREGORIAN, $month, $year);
             $diasLaborados = round(($h_ord + $h_esp)/$horasXDia, 2); // Dias Trabajados
             $diasNoLaborados = $numberDays - $diasLaborados;
@@ -645,7 +649,7 @@ class BoletaController extends Controller
             $primaDeSeguroAFP = 50.02; // Preguntar
 
             $pagoXDia = $worker->daily_salary;
-            $horasSemanales = 48;
+            $horasSemanales = (float) $settings->get('payroll.hours_per_week');
             $assign_family = PercentageWorker::where('name', 'assign_family')->first();
             $rmv = PercentageWorker::where('name', 'rmv')->first();
             $horasOrdinarias = round(($h_ord + $h_esp), 2);
@@ -914,8 +918,7 @@ class BoletaController extends Controller
             ->get();
 
         $hoursVacation = 0;
-        $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-        $time_break = (float)$timeBreak->value;
+        $time_break = (float) app(SettingService::class)->get('hr.break_hours');
         foreach ( $dates as $date )
         {
             $fecha = Carbon::create($date->year, $date->month, $date->day);
@@ -1008,8 +1011,7 @@ class BoletaController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($permit_hour);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);
@@ -1531,8 +1533,7 @@ class BoletaController extends Controller
                         ->where('worker_id', $worker->id)
                         ->get();
                     //dump($licenses);
-                    $timeBreak = PercentageWorker::where('name', 'time_break')->first();
-                    $time_break = (float)$timeBreak->value;
+                    $time_break = (float) app(SettingService::class)->get('hr.break_hours');
                     //dump($time_break);
                     $workingDay = WorkingDay::find($assistance_detail->working_day_id);
                     //dump($workingDay);

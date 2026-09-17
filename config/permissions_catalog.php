@@ -547,5 +547,11 @@ return [
     'edit_branch' => 'Editar datos de las sucursales',
     'enable_branch' => 'Activar o desactivar sucursales',
 
+    'list_companyBankAccount' => 'Ver cuentas bancarias de la empresa',
+    'create_companyBankAccount' => 'Crear cuentas bancarias de la empresa',
+    'edit_companyBankAccount' => 'Editar cuentas bancarias de la empresa',
+    'enable_companyBankAccount' => 'Activar o desactivar cuentas bancarias de la empresa',
 
+    'list_companySetting' => 'Ver configuraciones de la empresa',
+    'edit_companySetting' => 'Modificar configuraciones de la empresa',
 ];

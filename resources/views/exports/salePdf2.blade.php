@@ -169,48 +169,65 @@
     <p class="bold right">Pago con: S/. {{ number_format($sale->importe_total+$sale->vuelto, 2) }}</p>
     <p class="bold right">Vuelto: S/. {{ number_format($sale->vuelto, 2) }}</p>
 
-    <div class="line"></div>
-    <table style="width:100%; border-collapse:collapse;">
-        <colgroup>
-            <col style="width:50%;">
-            <col style="width:50%;">
-        </colgroup>
-        <tr>
-            <!-- COLUMNA 1 -->
-            <td style="vertical-align:top; padding-right:10px;">
-                <p style="font-size:12px; font-weight:bold; margin:0 0 4px 0;">
-                    {{ $titleCuenta1Empresa }}
-                </p>
+    @if($tieneCuentas)
+        <div class="line"></div>
 
-                <p style="margin:0;">
-                    <b>Nro.:</b> {{ $nroCuenta1Empresa }}
-                </p>
+        <table style="width:100%; border-collapse:collapse;">
+            <colgroup>
+                <col style="width:50%;">
+                <col style="width:50%;">
+            </colgroup>
 
-                @if(!empty($cciCuenta1Empresa))
-                    <p style="margin:0;">
-                        <b>CCI:</b> {{ $cciCuenta1Empresa }}
-                    </p>
-                @endif
-            </td>
+            @foreach($companyBankAccounts->chunk(2) as $accountRow)
+                <tr>
+                    @foreach($accountRow as $account)
+                        <td style="vertical-align:top; padding:0 10px 8px 0;">
+                            <p style="font-size:12px; font-weight:bold; margin:0 0 4px 0;">
+                                {{ $account->title }}
+                            </p>
 
-            <!-- COLUMNA 2 -->
-            <td style="vertical-align:top; padding-left:10px;">
-                <p style="font-size:12px; font-weight:bold; margin:0 0 4px 0;">
-                    {{ $titleCuenta2Empresa }}
-                </p>
+                            @if($account->bank)
+                                <p style="margin:0;">
+                                    <b>Banco:</b>
+                                    {{ $account->bank->name }}
+                                </p>
+                            @endif
 
-                <p style="margin:0;">
-                    <b>Nro.:</b> {{ $nroCuenta2Empresa }}
-                </p>
+                            <p style="margin:0;">
+                                <b>Nro.:</b>
+                                {{ $account->account_number }}
+                            </p>
 
-                @if(!empty($cciCuenta2Empresa))
-                    <p style="margin:0;">
-                        <b>CCI:</b> {{ $cciCuenta2Empresa }}
-                    </p>
-                @endif
-            </td>
-        </tr>
-    </table>
+                            @if(!empty($account->cci))
+                                <p style="margin:0;">
+                                    <b>CCI:</b>
+                                    {{ $account->cci }}
+                                </p>
+                            @endif
+
+                            @if(!empty($account->currency))
+                                <p style="margin:0;">
+                                    <b>Moneda:</b>
+                                    {{ $account->currency }}
+                                </p>
+                            @endif
+
+                            @if(!empty($account->account_holder))
+                                <p style="margin:0;">
+                                    <b>Titular:</b>
+                                    {{ $account->account_holder }}
+                                </p>
+                            @endif
+                        </td>
+                    @endforeach
+
+                    @if($accountRow->count() === 1)
+                        <td></td>
+                    @endif
+                </tr>
+            @endforeach
+        </table>
+    @endif
 
     <div class="line2"></div>
 

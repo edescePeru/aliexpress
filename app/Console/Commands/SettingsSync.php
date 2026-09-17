@@ -160,7 +160,8 @@ class SettingsSync extends Command
                             : null,
 
                     'options_json' =>
-                        $item['options']
+                        $item['options_json']
+                        ?? $item['options']
                         ?? null,
 
                     'description' =>

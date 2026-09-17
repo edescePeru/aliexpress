@@ -17,6 +17,7 @@ use App\Warehouse;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Services\SettingService;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
@@ -42,6 +43,12 @@ class HomeController extends Controller
 
     public function dashboard()
     {
+        $user = Auth::user();
+
+        if ($user && $user->isPlatformAdmin()) {
+            return redirect()->route('platform.dashboard');
+        }
+
         $customerCount = Customer::count();
         $contactNameCount = ContactName::count();
         $supplierCount = Supplier::count();

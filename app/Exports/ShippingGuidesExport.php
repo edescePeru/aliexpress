@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\DataGeneral;
+use App\Company;
 use App\IdentityDocumentType;
 use App\ShippingGuide;
 use Illuminate\Support\Collection;
@@ -27,14 +27,16 @@ class ShippingGuidesExport implements FromCollection, WithHeadings, WithMapping
     private $emisorRuc = '';
     private $emisorDenominacion = '';
 
-    public function __construct($from, $to)
-    {
+    public function __construct($from, $to, Company $company) {
         $this->from = $from;
-        $this->to   = $to;
+        $this->to = $to;
 
-        // Emisor desde DataGeneral
-        $this->emisorDenominacion = (string) DataGeneral::where('name', 'empresa')->value('valueText');
-        $this->emisorRuc          = (string) DataGeneral::where('name', 'ruc')->value('valueText');
+        // Emisor desde la Company explícita del export.
+        $this->emisorDenominacion =
+            (string) $company->business_name;
+
+        $this->emisorRuc =
+            (string) $company->ruc;
 
         // Motivos (code => name)
         $this->reasonMap = DB::table('transfer_reasons')
@@ -42,7 +44,10 @@ class ShippingGuidesExport implements FromCollection, WithHeadings, WithMapping
             ->toArray();
 
         // Tipos de doc (code => name)
-        $this->docTypeMap = IdentityDocumentType::where('is_active', 1)
+        $this->docTypeMap = IdentityDocumentType::where(
+            'is_active',
+            1
+        )
             ->pluck('name', 'code')
             ->toArray();
     }

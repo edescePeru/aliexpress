@@ -197,7 +197,7 @@
                                 </div>
                             </div>
                         </div>
-                        @if( $showPricesCatalogEmpresa == "s" )
+                        @if($showPricesCatalogEmpresa)
                         <div class="sidebar__filter">
                             <div class="section-title">
                                 <h4>Filtrar por precio</h4>

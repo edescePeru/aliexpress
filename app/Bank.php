@@ -16,4 +16,12 @@ class Bank extends Model
     {
         return $this->hasMany('App\FinanceWork');
     }
+
+    public function companyBankAccounts()
+    {
+        return $this->hasMany(
+            CompanyBankAccount::class,
+            'bank_id'
+        );
+    }
 }

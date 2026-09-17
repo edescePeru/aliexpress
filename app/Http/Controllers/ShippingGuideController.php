@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ShippingGuidesExport;
+use App\Support\TenantContext;
 
 class ShippingGuideController extends Controller
 {
@@ -890,7 +891,7 @@ class ShippingGuideController extends Controller
 
         $filename = "GRE-{$from}-{$to}.xlsx";
 
-        return Excel::download(new ShippingGuidesExport($from, $to), $filename);
+        return Excel::download(new ShippingGuidesExport($from, $to, TenantContext::company()), $filename);
     }
 
     public function consultNubefact($id)

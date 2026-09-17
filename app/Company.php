@@ -97,4 +97,12 @@ class Company extends Model
             'company_id'
         );
     }
+
+    public function bankAccounts()
+    {
+        return $this->hasMany(
+            CompanyBankAccount::class,
+            'company_id'
+        );
+    }
 }

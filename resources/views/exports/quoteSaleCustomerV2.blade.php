@@ -357,77 +357,95 @@
     </div>
 </div>
 
-@if ( $tieneCuentas )
-<div style="margin-top:8px;">
-    <strong >CUENTAS BANCARIAS:</strong>
-    <table class="bank-wrap" style="margin-top:8px;">
-        <colgroup>
-            <col style="width:30%;">
-            <col style="width:70%;">
-        </colgroup>
+@if($tieneCuentas)
+    <div style="margin-top:8px;">
+        <strong>CUENTAS BANCARIAS:</strong>
 
-        <tr>
-            <!-- COLUMNA 30% -->
-            <td>
-                <table class="bank-card">
-                    <colgroup>
-                        <col style="width:52px;">
-                        <col>
-                    </colgroup>
-                    <tr>
-                        <td class="logo-cell">
-                            <img src="{{ public_path('images/logo/'.$imgCuenta1Empresa) }}">
+        @php
+            $accountChunks = $companyBankAccounts->chunk(2);
+        @endphp
+
+        <table class="bank-wrap" style="margin-top:8px; width:100%;">
+            <colgroup>
+                <col style="width:50%;">
+                <col style="width:50%;">
+            </colgroup>
+
+            @foreach($accountChunks as $chunk)
+                <tr>
+                    @foreach($chunk as $account)
+                        @php
+                            $logoPath = null;
+
+                            if ($account->bank && !empty($account->bank->image)) {
+                                $logoPath = public_path('images/logo/' . $account->bank->image);
+                            } elseif (!empty($account->image)) {
+                                // fallback legacy, por si aún existe algún dato cargado aquí
+                                $logoPath = public_path('images/logo/' . $account->image);
+                            }
+                        @endphp
+
+                        <td style="vertical-align:top; padding:4px 6px 4px 0;">
+                            <table class="bank-card" style="width:100%;">
+                                <colgroup>
+                                    <col style="width:52px;">
+                                    <col>
+                                </colgroup>
+                                <tr>
+                                    <td class="logo-cell">
+                                        @if($logoPath && file_exists($logoPath))
+                                            <img src="{{ $logoPath }}" alt="Banco">
+                                        @endif
+                                    </td>
+
+                                    <td class="info-cell">
+                                        <p class="bank-title">
+                                            {{ $account->title }}
+                                        </p>
+
+                                        <p class="bank-line">
+                                            <strong>Nro.:</strong> {{ $account->account_number }}
+                                        </p>
+
+                                        @if(!empty($account->cci))
+                                            <p class="bank-line">
+                                                <strong>CCI:</strong> {{ $account->cci }}
+                                            </p>
+                                        @endif
+
+                                        @if(!empty($account->currency))
+                                            <p class="bank-line">
+                                                <strong>Moneda:</strong> {{ strtoupper($account->currency) }}
+                                            </p>
+                                        @endif
+
+                                        @if(!empty($account->account_holder))
+                                            <p class="bank-owner">
+                                                {{ $account->account_holder }}
+                                            </p>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
-                        <td class="info-cell">
-                            <p class="bank-title">{{ $titleCuenta1Empresa }}</p>
-                            <p class="bank-line"><strong>Nro.:</strong> {{ $nroCuenta1Empresa }}</p>
+                    @endforeach
 
-                            @if(!empty($cciCuenta1Empresa))
-                                <p class="bank-line"><strong>CCI:</strong> {{ $cciCuenta1Empresa }}</p>
-                            @endif
+                    @if($chunk->count() === 1)
+                        <td></td>
+                    @endif
+                </tr>
+            @endforeach
 
-                            <p class="bank-owner">{{ $ownerCuenta1Empresa }}</p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-
-            <!-- COLUMNA 70% -->
-            <td>
-                <table class="bank-card">
-                    <colgroup>
-                        <col style="width:52px;">
-                        <col>
-                    </colgroup>
-                    <tr>
-                        <td class="logo-cell">
-                            <img src="{{ public_path('images/logo/'.$imgCuenta2Empresa) }}">
-                        </td>
-                        <td class="info-cell">
-                            <p class="bank-title">{{ $titleCuenta2Empresa }}</p>
-                            <p class="bank-line"><strong>Nro.:</strong> {{ $nroCuenta2Empresa }}</p>
-
-                            @if(!empty($cciCuenta2Empresa))
-                                <p class="bank-line"><strong>CCI:</strong> {{ $cciCuenta2Empresa }}</p>
-                            @endif
-
-                            <p class="bank-owner">{{ $ownerCuenta2Empresa }}</p>
-
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-
-        <tr>
-            <td colspan="1"></td>
-            <td class="verse-cell">
-                {{ $versiculoEmpresa }}<br>
-                <strong>{{ $citaBiblicaEmpresa }}</strong>
-            </td>
-        </tr>
-    </table>
-</div>
+            @if(!empty($versiculoEmpresa) || !empty($citaBiblicaEmpresa))
+                <tr>
+                    <td colspan="2" class="verse-cell">
+                        {{ $versiculoEmpresa ?? '' }}<br>
+                        <strong>{{ $citaBiblicaEmpresa ?? '' }}</strong>
+                    </td>
+                </tr>
+            @endif
+        </table>
+    </div>
 @endif
 
 {{--<div style="margin-top:8px;">

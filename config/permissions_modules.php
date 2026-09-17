@@ -110,4 +110,7 @@ return [
     'company' => 'EMPRESAS',
 
     'branch' => 'SUCURSALES',
+
+    'companyBankAccount' => 'CUENTAS BANCARIAS DE LA EMPRESA',
+    'companySetting' => 'CONFIGURACIONES DE LA EMPRESA',
 ];

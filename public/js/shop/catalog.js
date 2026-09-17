@@ -254,7 +254,7 @@ function renderProducts(products) {
         let whatsappUrl = `${window.APP_SHOP.URLS.WHATSAPP}?text=${whatsappText}`;
 
         let canShowPrices = window.APP_SHOP.URLS.CAN_SHOW_PRICES;
-        if (canShowPrices == "s")
+        if (canShowPrices)
         {
             html += `
                 <div class="col-lg-4 col-md-6">

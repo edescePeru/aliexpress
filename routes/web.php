@@ -137,6 +137,74 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 )
                     ->middleware('permission:enable_branch')
                     ->name('tenantBranch.toggleStatus');
+
+                /*
+                  * ============================================================
+                  * CUENTAS BANCARIAS DE EMPRESAS
+                  * ============================================================
+                */
+
+                Route::get(
+                    'cuentas-bancarias',
+                    'CompanyBankAccountController@index'
+                )
+                    ->middleware('permission:list_companyBankAccount')
+                    ->name('companyBankAccount.index');
+
+                Route::get(
+                    'cuentas-bancarias/crear',
+                    'CompanyBankAccountController@create'
+                )
+                    ->middleware('permission:create_companyBankAccount')
+                    ->name('companyBankAccount.create');
+
+                Route::post(
+                    'cuentas-bancarias',
+                    'CompanyBankAccountController@store'
+                )
+                    ->middleware('permission:create_companyBankAccount')
+                    ->name('companyBankAccount.store');
+
+                Route::get(
+                    'cuentas-bancarias/{id}/editar',
+                    'CompanyBankAccountController@edit'
+                )
+                    ->middleware('permission:edit_companyBankAccount')
+                    ->name('companyBankAccount.edit');
+
+                Route::put(
+                    'cuentas-bancarias/{id}',
+                    'CompanyBankAccountController@update'
+                )
+                    ->middleware('permission:edit_companyBankAccount')
+                    ->name('companyBankAccount.update');
+
+                Route::post(
+                    'cuentas-bancarias/{id}/estado',
+                    'CompanyBankAccountController@toggleStatus'
+                )
+                    ->middleware('permission:enable_companyBankAccount')
+                    ->name('companyBankAccount.toggleStatus');
+
+                /*
+                  * ============================================================
+                  * CONFIGURACIONES DE EMPRESAS
+                  * ============================================================
+                */
+
+                Route::get(
+                    'configuraciones/empresa',
+                    'CompanySettingController@index'
+                )
+                    ->middleware('permission:list_companySetting')
+                    ->name('companySetting.index');
+
+                Route::post(
+                    'configuraciones/empresa/update',
+                    'CompanySettingController@update'
+                )
+                    ->middleware('permission:edit_companySetting')
+                    ->name('companySetting.update');
             });
 
         /*Route::get(
@@ -1815,28 +1883,6 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:edit_worker');
 
         //Route::get('/probar/cadenas', 'WorkerController@pruebaCadenas');
-
-        //PORCENTAGE QUOTES
-        Route::get('/all/percentages/workers', 'PercentageWorkerController@getPercentageWorkers')
-            ->middleware('permission:list_percentageWorker');
-        Route::get('porcentajes/recursos/humanos', 'PercentageWorkerController@index')
-            ->name('percentageWorker.index')
-            ->middleware('permission:list_percentageWorker');
-        Route::get('crear/porcentaje/recursos/humanos', 'PercentageWorkerController@create')
-            ->name('percentageWorker.create')
-            ->middleware('permission:create_percentageWorker');
-        Route::post('percentage/worker/store', 'PercentageWorkerController@store')
-            ->name('percentageWorker.store')
-            ->middleware('permission:create_percentageWorker');
-        Route::get('/editar/porcentaje/recursos/humanos/{id}', 'PercentageWorkerController@edit')
-            ->name('percentageWorker.edit')
-            ->middleware('permission:update_percentageWorker');
-        Route::post('percentage/worker/update', 'PercentageWorkerController@update')
-            ->name('percentageWorker.update')
-            ->middleware('permission:update_percentageWorker');
-        Route::post('percentage/worker/destroy', 'PercentageWorkerController@destroy')
-            ->name('percentageWorker.destroy')
-            ->middleware('permission:destroy_percentageWorker');
 
         // CRUD Contratos
         Route::get('/all/contracts', 'ContractController@getAllContracts')
@@ -3576,10 +3622,14 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::post('tenants/{tenantId}/roles','TenantRoleController@store')->name('tenantRole.store');
         Route::post('tenants/{tenantId}/roles/{roleId}/update','TenantRoleController@update')->name('tenantRole.update');
         Route::post('tenants/{tenantId}/roles/{roleId}/toggle-status','TenantRoleController@toggleStatus')->name('tenantRole.toggleStatus');
+
+        Route::get('parametros-laborales','PercentageWorkerController@index')->name('platformPercentageWorker.index');
+        Route::get('parametros-laborales/{id}/editar','PercentageWorkerController@edit')->name('platformPercentageWorker.edit');
+        Route::post('parametros-laborales/{id}/update','PercentageWorkerController@update')->name('platformPercentageWorker.update');
 });
 
 Route::prefix('store-web/')->group(function () {
-    Route::get('inicio/', [EntryController::class, 'home'])
+    Route::get('inicio/', [StoreWebController::class, 'home'])
         ->name('store-web.home');
     Route::get('catalogo/', [StoreWebController::class, 'catalog'])
         ->name('store-web.catalog');
