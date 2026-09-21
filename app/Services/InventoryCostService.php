@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\InventoryMovement;
+use App\Support\TenantContext;
 use Carbon\Carbon;
 
 class InventoryCostService
@@ -92,15 +93,50 @@ class InventoryCostService
         return (float) ($result[$materialId] ?? 0.0);
     }
 
-    public function getAverageCostsByStockItem(array $stockItemIds): array
+    public function getAverageCostsByStockItem(
+        array $stockItemIds,
+        $upToDate = null
+    ): array
     {
-        $stockItemIds = array_values(array_unique(array_map('intval', $stockItemIds)));
+        $stockItemIds = array_values(
+            array_unique(
+                array_map(
+                    'intval',
+                    $stockItemIds
+                )
+            )
+        );
 
         if (empty($stockItemIds)) {
             return [];
         }
 
-        $movements = InventoryMovement::whereIn('stock_item_id', $stockItemIds)
+        $companyId =
+            TenantContext::companyId();
+
+        $query = InventoryMovement::query()
+            ->where(
+                'company_id',
+                $companyId
+            )
+            ->whereIn(
+                'stock_item_id',
+                $stockItemIds
+            );
+
+        if ($upToDate) {
+            $date = $upToDate instanceof Carbon
+                ? $upToDate
+                : Carbon::parse($upToDate);
+
+            $query->where(
+                'movement_date',
+                '<=',
+                $date->copy()->endOfDay()
+            );
+        }
+
+        $movements = $query
             ->orderBy('stock_item_id')
             ->orderBy('movement_date')
             ->orderBy('movement_id')
@@ -117,31 +153,45 @@ class InventoryCostService
         }
 
         foreach ($movements as $m) {
-            $sid = (int) $m->stock_item_id;
+            $sid =
+                (int) $m->stock_item_id;
 
             if (!array_key_exists($sid, $avg)) {
                 continue;
             }
 
-            $qty = (float) $m->quantity;
+            $qty =
+                (float) $m->quantity;
 
             if ($qty <= 0) {
                 continue;
             }
 
             if ($m->movement_type === 'IN') {
-                $uc = (float) $m->unit_cost;
-                $imp = $qty * $uc;
+                $uc =
+                    (float) $m->unit_cost;
+
+                $imp =
+                    $qty * $uc;
 
                 $saldoQty[$sid] += $qty;
                 $saldoImp[$sid] += $imp;
 
-                $avg[$sid] = $saldoQty[$sid] > 0
-                    ? $saldoImp[$sid] / $saldoQty[$sid]
-                    : 0.0;
+                $avg[$sid] =
+                    $saldoQty[$sid] > 0
+                        ? $saldoImp[$sid] /
+                        $saldoQty[$sid]
+                        : 0.0;
+
             } else {
-                $uc = (float) ($m->unit_cost ?? $avg[$sid]);
-                $imp = $qty * $uc;
+                $uc =
+                    (float) (
+                        $m->unit_cost
+                        ?? $avg[$sid]
+                    );
+
+                $imp =
+                    $qty * $uc;
 
                 $saldoQty[$sid] -= $qty;
                 $saldoImp[$sid] -= $imp;

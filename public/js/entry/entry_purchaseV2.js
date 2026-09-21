@@ -28,7 +28,10 @@ $(document).ready(function () {
 
         }
     });
-    $.ajax({
+
+    cargarLocations();
+
+    /*$.ajax({
         url: "/dashboard/get/locations",
         type: 'GET',
         dataType: 'json',
@@ -40,7 +43,7 @@ $(document).ready(function () {
             }
 
         }
-    });
+    });*/
 
     $('#btn-add').on('click', function () {
 
@@ -83,18 +86,18 @@ $(document).ready(function () {
         }
     });
 
-    $('#almacen').typeahead('destroy');
+    /*$('#almacen').typeahead('destroy');
     $('#almacen').typeahead({
             hint: true,
-            highlight: true, /* Enable substring highlighting */
-            minLength: 1 /* Specify minimum characters required for showing suggestions */
+            highlight: true, /!* Enable substring highlighting *!/
+            minLength: 1 /!* Specify minimum characters required for showing suggestions *!/
         },
         {
             limit: 12,
             source: substringMatcher($locations)
         });
     //var l = $locations[0];
-    $("#almacen").typeahead('val',$locations[0]).trigger('change');
+    $("#almacen").typeahead('val',$locations[0]).trigger('change');*/
 
     let materialSearchUrl = $('#material_search').data('url');
 
@@ -444,6 +447,105 @@ $(document).ready(function () {
         $registroPendienteVariante = null;
     });
 });
+
+function cargarLocations() {
+
+    $.ajax({
+        url: "/dashboard/get/locations",
+        type: 'GET',
+        dataType: 'json',
+
+        success: function (json) {
+
+            $locations = [];
+            $locationsComplete = [];
+
+            json.forEach(function (item) {
+                $locations.push(
+                    item.location
+                );
+
+                $locationsComplete.push(
+                    item
+                );
+            });
+
+            inicializarLocationTypeahead();
+
+            seleccionarLocationDefault();
+        },
+
+        error: function () {
+            $locations = [];
+            $locationsComplete = [];
+
+            toastr.error(
+                'No se pudieron cargar las ubicaciones de la empresa actual.',
+                'Error'
+            );
+        }
+    });
+}
+
+function inicializarLocationTypeahead() {
+
+    const $almacen =
+        $('#almacen');
+
+    try {
+        $almacen.typeahead(
+            'destroy'
+        );
+    } catch (e) {
+        // No estaba inicializado.
+    }
+
+    $almacen.typeahead(
+        {
+            hint: true,
+            highlight: true,
+            minLength: 0
+        },
+        {
+            limit: 20,
+            source: substringMatcher(
+                $locations
+            )
+        }
+    );
+}
+
+function seleccionarLocationDefault() {
+
+    if (
+        !$locationsComplete ||
+        $locationsComplete.length === 0
+    ) {
+        $('#almacen').typeahead(
+            'val',
+            ''
+        );
+
+        return;
+    }
+
+    const defaultLocation =
+        $locationsComplete.find(
+            function (item) {
+                return item.is_default === true
+                    || item.is_default === 1
+                    || item.is_default === '1';
+            }
+        )
+        || $locationsComplete[0];
+
+    $('#almacen')
+        .typeahead(
+            'val',
+            defaultLocation.location
+        )
+        .trigger('change');
+}
 
 function agregarMaterialSimpleConCodigosManuales(data, codigos) {
 
@@ -904,9 +1006,7 @@ function prepararFormularioParaMaterialSimple(material) {
     $('#almacen').prop('readonly', false);
     $('#almacen').prop('disabled', false);
 
-    if (typeof $locations !== 'undefined' && $locations.length > 0) {
-        $("#almacen").typeahead('val', $locations[0]).trigger('change');
-    }
+    seleccionarLocationDefault();
 }
 
 function prepararFormularioParaMaterialConVariantes(material) {
@@ -930,9 +1030,7 @@ function prepararFormularioParaMaterialConVariantes(material) {
     $('#almacen').prop('readonly', false);
     $('#almacen').prop('disabled', false);
 
-    if (typeof $locations !== 'undefined' && $locations.length > 0) {
-        $("#almacen").typeahead('val', $locations[0]).trigger('change');
-    }
+    seleccionarLocationDefault();
 
     toastr.info('Este material tiene variantes. Presione agregar para ingresar cantidades por variante.', 'Material con variantes');
 }

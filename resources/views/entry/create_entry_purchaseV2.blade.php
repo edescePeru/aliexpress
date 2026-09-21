@@ -59,7 +59,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('entry.purchase.index') }}"><i class="fa fa-archive"></i> Entradas por compra</a>
+            <a href="{{ route('entry.purchase.indexV2') }}"><i class="fa fa-archive"></i> Entradas por compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nueva entrada</li>
     </ol>
@@ -222,7 +222,9 @@
                             </div>
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="quantity">Almacen </label>
+                                    <label for="almacen">
+                                        Ubicación de ingreso
+                                    </label>
                                     <input type="text" id="almacen" name="almacen" data-locationGroup class="form-control locationGroup" />
 
                                 </div>

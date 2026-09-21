@@ -3,9 +3,12 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToTenant;
 
 class DetailEntry extends Model
 {
+    use BelongsToTenant;
+
     protected $appends = ['sub_total', 'taxes', 'total', 'unit', 'material_description', 'material_code'];
 
     protected $fillable = [
@@ -21,37 +24,42 @@ class DetailEntry extends Model
         'material_name',
         'material_unit',
         'total_detail',
-        'date_vence'
+        'date_vence',
+
+        'tenant_id',
+        'company_id',
     ];
 
     protected $dates = ['date_vence'];
 
     public function getMaterialCodeAttribute()
     {
-        $codeMaterial = "";
-
-        if ( is_null($this->stock_item_id ) )
-        {
-            $nameMaterial = is_null($this->material) ? "N/N" : $this->material->code;
-        } else {
-            $stockItem = StockItem::find($this->stock_item_id);
-            $nameMaterial = $stockItem->sku;
+        if (is_null($this->stock_item_id)) {
+            return is_null($this->material)
+                ? 'N/N'
+                : $this->material->code;
         }
-        return $nameMaterial;
+
+        $stockItem = StockItem::find($this->stock_item_id);
+
+        return $stockItem
+            ? $stockItem->sku
+            : 'N/N';
     }
 
     public function getMaterialDescriptionAttribute()
     {
-        $nameMaterial = "";
-
-        if ( is_null($this->stock_item_id ) )
-        {
-            $nameMaterial = is_null($this->material) ? $this->material_name : $this->material->full_name;
-        } else {
-            $stockItem = StockItem::find($this->stock_item_id);
-            $nameMaterial = $stockItem->display_name;
+        if (is_null($this->stock_item_id)) {
+            return is_null($this->material)
+                ? $this->material_name
+                : $this->material->full_name;
         }
-        return $nameMaterial;
+
+        $stockItem = StockItem::find($this->stock_item_id);
+
+        return $stockItem
+            ? $stockItem->display_name
+            : ($this->material_name ?? 'N/N');
     }
 
 
@@ -119,5 +127,13 @@ class DetailEntry extends Model
     public function stockItem()
     {
         return $this->belongsTo('App\StockItem', 'stock_item_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(
+            Company::class,
+            'company_id'
+        );
     }
 }

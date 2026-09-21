@@ -6,6 +6,7 @@ use App\DataGeneral;
 use App\Item;
 use App\Location;
 use App\Material;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -58,26 +59,68 @@ class LocationController extends Controller
 
     public function getJsonLocations()
     {
-        $data = DataGeneral::where('name', 'idWarehouseTienda')->first();
-        $excludedWarehouseId = $data->valueNumber;
-        $array = [];
-        $locations = Location::with(['area', 'warehouse', 'shelf', 'level', 'container', 'position'])
-            ->whereHas('warehouse', function ($query) use ($excludedWarehouseId) {
-                $query->where('id', '!=', $excludedWarehouseId);
-            })
-            ->where('default', true)
+        $companyId = TenantContext::companyId();
+
+        $locations = Location::query()
+            ->with([
+                'area',
+                'warehouse',
+                'shelf',
+                'level',
+                'container',
+                'position',
+            ])
+            ->where(
+                'company_id',
+                $companyId
+            )
+            ->whereHas(
+                'warehouse',
+                function ($query) use ($companyId) {
+                    $query->where(
+                        'company_id',
+                        $companyId
+                    );
+                }
+            )
             ->get();
 
+        $array = [];
+
         foreach ($locations as $location) {
-            //$l = 'AR:' . $location->area->name . '|AL:' . $location->warehouse->name . '|AN:' . $location->shelf->name . '|NIV:' . $location->level->name . '|CON:' . $location->container->name . '|POS:' . $location->position->name;
-            $l = $location->description;
             $array[] = [
                 'id' => $location->id,
-                'location' => $l
+
+                'location' =>
+                    $location->description,
+
+                'warehouse_id' =>
+                    $location->warehouse_id,
+
+                'warehouse' =>
+                    $location->warehouse
+                        ? $location->warehouse->name
+                        : '',
+
+                'is_default' =>
+                    $location->warehouse
+                        ? (bool) $location->warehouse->is_default
+                        : false,
             ];
         }
 
-        return $array;
+        usort(
+            $array,
+            function ($a, $b) {
+                return (int) $b['is_default']
+                    <=> (int) $a['is_default'];
+            }
+        );
+
+        return response()->json(
+            $array,
+            200
+        );
     }
 
     public function getItemsLocation($id)

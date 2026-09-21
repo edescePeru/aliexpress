@@ -5088,74 +5088,234 @@ class MaterialController extends Controller
     public function getJsonMaterialsForEntry(Request $request)
     {
         $search = trim($request->get('search', ''));
+        $companyId = TenantContext::companyId();
 
-        $materials = Material::with([
-            'unitMeasure',
-            'typeScrap',
-            'stockItems' => function ($q) {
-                $q->where('is_active', 1)
-                    ->with('inventoryLevels');
-            }
-        ])
+        $materials = Material::query()
+            ->with([
+                'unitMeasure',
+                'typeScrap',
+
+                'stockItems' => function ($q) use ($companyId) {
+                    $q->where('is_active', 1)
+                        ->whereHas(
+                            'companyStockItems',
+                            function ($companyQuery) use ($companyId) {
+                                $companyQuery
+                                    ->where(
+                                        'company_id',
+                                        $companyId
+                                    )
+                                    ->where(
+                                        'is_active',
+                                        true
+                                    );
+                            }
+                        )
+                        ->with([
+                            'inventoryLevels' => function ($inventoryQuery) use ($companyId) {
+                                $inventoryQuery->where(
+                                    'company_id',
+                                    $companyId
+                                );
+                            }
+                        ]);
+                }
+            ])
+
             ->where('enable_status', 1)
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $query->where('full_name', 'LIKE', "%{$search}%")
-                        ->orWhereHas('stockItems', function ($stockQuery) use ($search) {
-                            $stockQuery->where('is_active', 1)
-                                ->where(function ($sq) use ($search) {
-                                    $sq->where('sku', 'LIKE', "%{$search}%")
-                                        ->orWhere('barcode', 'LIKE', "%{$search}%")
-                                        ->orWhere('display_name', 'LIKE', "%{$search}%");
-                                });
-                        });
-                });
-            })
+
+            /*
+             * El Material debe tener por lo menos un StockItem
+             * habilitado para la Company actual.
+             */
+            ->whereHas(
+                'stockItems',
+                function ($q) use ($companyId) {
+                    $q->where('is_active', 1)
+                        ->whereHas(
+                            'companyStockItems',
+                            function ($companyQuery) use ($companyId) {
+                                $companyQuery
+                                    ->where(
+                                        'company_id',
+                                        $companyId
+                                    )
+                                    ->where(
+                                        'is_active',
+                                        true
+                                    );
+                            }
+                        );
+                }
+            )
+
+            ->when(
+                $search !== '',
+                function ($q) use ($search, $companyId) {
+
+                    $q->where(function ($query) use ($search, $companyId) {
+
+                        $query->where(
+                            'full_name',
+                            'LIKE',
+                            "%{$search}%"
+                        )
+
+                            ->orWhereHas(
+                                'stockItems',
+                                function ($stockQuery) use ($search, $companyId) {
+
+                                    $stockQuery
+                                        ->where('is_active', 1)
+
+                                        ->whereHas(
+                                            'companyStockItems',
+                                            function ($companyQuery) use ($companyId) {
+                                                $companyQuery
+                                                    ->where(
+                                                        'company_id',
+                                                        $companyId
+                                                    )
+                                                    ->where(
+                                                        'is_active',
+                                                        true
+                                                    );
+                                            }
+                                        )
+
+                                        ->where(
+                                            function ($sq) use ($search) {
+                                                $sq->where(
+                                                    'sku',
+                                                    'LIKE',
+                                                    "%{$search}%"
+                                                )
+                                                    ->orWhere(
+                                                        'barcode',
+                                                        'LIKE',
+                                                        "%{$search}%"
+                                                    )
+                                                    ->orWhere(
+                                                        'display_name',
+                                                        'LIKE',
+                                                        "%{$search}%"
+                                                    );
+                                            }
+                                        );
+                                }
+                            );
+                    });
+                }
+            )
+
             ->limit(30)
             ->get();
 
         $array = [];
 
         foreach ($materials as $material) {
+
+            /*
+             * Estos ya vienen filtrados:
+             * - activos
+             * - habilitados para Company
+             */
             $stockItems = $material->stockItems;
 
-            $activeStockItemsCount = $stockItems->count();
+            $activeStockItemsCount =
+                $stockItems->count();
 
-            $stockCurrent = $stockItems->sum(function ($stockItem) {
-                return $stockItem->inventoryLevels->sum('qty_on_hand');
-            });
+            $stockCurrent =
+                $stockItems->sum(
+                    function ($stockItem) {
+                        return $stockItem
+                            ->inventoryLevels
+                            ->sum('qty_on_hand');
+                    }
+                );
 
             $simpleStockItem = null;
 
+            /*
+             * Material simple:
+             * solo debería tener un StockItem.
+             */
             if ($activeStockItemsCount === 1) {
-                $simpleStockItem = $stockItems->first();
+                $simpleStockItem =
+                    $stockItems->first();
             }
 
-            $hasVariants = $stockItems->whereNotNull('variant_id')->count() > 0;
+            $hasVariants =
+                $stockItems
+                    ->whereNotNull('variant_id')
+                    ->count() > 0;
 
             $array[] = [
-                'id' => $material->id,
-                'material_id' => $material->id,
+                'id' =>
+                    $material->id,
 
-                'material' => $material->full_name,
-                'unit' => optional($material->unitMeasure)->name ?? '',
+                'material_id' =>
+                    $material->id,
+
+                'material' =>
+                    $material->full_name,
+
+                'unit' =>
+                    optional(
+                        $material->unitMeasure
+                    )->name ?? '',
 
                 'price' => 0,
-                'typescrap' => $material->typescrap_id,
-                'full_typescrap' => $material->typeScrap,
-                'stock_current' => $stockCurrent,
-                'category' => $material->category_id,
-                'enable_status' => $material->enable_status,
-                'tipo_venta_id' => $material->tipo_venta_id,
-                'perecible' => $material->perecible ?? 'n',
 
-                'has_variants' => $hasVariants,
-                'stock_items_count' => $activeStockItemsCount,
+                'typescrap' =>
+                    $material->typescrap_id,
 
-                'stock_item_id' => optional($simpleStockItem)->id,
-                'stock_item_sku' => optional($simpleStockItem)->sku,
-                'stock_item_barcode' => optional($simpleStockItem)->barcode,
-                'stock_item_display_name' => optional($simpleStockItem)->display_name,
+                'full_typescrap' =>
+                    $material->typeScrap,
+
+                /*
+                 * Stock SOLO de la Company actual.
+                 */
+                'stock_current' =>
+                    $stockCurrent,
+
+                'category' =>
+                    $material->category_id,
+
+                'enable_status' =>
+                    $material->enable_status,
+
+                'tipo_venta_id' =>
+                    $material->tipo_venta_id,
+
+                'perecible' =>
+                    $material->perecible ?? 'n',
+
+                'has_variants' =>
+                    $hasVariants,
+
+                'stock_items_count' =>
+                    $activeStockItemsCount,
+
+                'stock_item_id' =>
+                    optional(
+                        $simpleStockItem
+                    )->id,
+
+                'stock_item_sku' =>
+                    optional(
+                        $simpleStockItem
+                    )->sku,
+
+                'stock_item_barcode' =>
+                    optional(
+                        $simpleStockItem
+                    )->barcode,
+
+                'stock_item_display_name' =>
+                    optional(
+                        $simpleStockItem
+                    )->display_name,
             ];
         }
 

@@ -10,8 +10,10 @@ class InventoryMovement extends Model
     public $timestamps = false;
 
     protected $casts = [
+        'tenant_id' => 'integer',
+        'company_id' => 'integer',
         'movement_date' => 'datetime',
-        'quantity'      => 'float',
-        'unit_cost'     => 'float',
+        'quantity' => 'float',
+        'unit_cost' => 'float',
     ];
 }

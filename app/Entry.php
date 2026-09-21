@@ -4,10 +4,11 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\BelongsToTenant;
 
 class Entry extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToTenant;
 
     protected $appends = ['sub_total', 'taxes', 'total'];
 
@@ -29,7 +30,9 @@ class Entry extends Model
         'type_order',
         'category_invoice_id',
         'state_paid',
-        'state_annulled'
+        'state_annulled',
+        'tenant_id',
+        'company_id',
     ];
 
     public function getSubTotalAttribute()
@@ -108,4 +111,12 @@ class Entry extends Model
     }
 
     protected $dates = ['deleted_at', 'date_entry'];
+
+    public function company()
+    {
+        return $this->belongsTo(
+            Company::class,
+            'company_id'
+        );
+    }
 }
