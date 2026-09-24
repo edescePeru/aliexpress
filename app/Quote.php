@@ -4,12 +4,18 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\BelongsToTenant;
 
 class Quote extends Model
 {
+    use BelongsToTenant;
+
     protected $appends = ['time_delivery','have_details', 'subtotal_utility', 'subtotal_letter', 'subtotal_rent', 'subtotal_rent_pdf', 'subtotal_utility_edit', 'subtotal_letter_edit', 'subtotal_rent_edit', 'total_quote', 'total_equipments'/*, 'total_services'*/];
 
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+
         'code',
         'description_quote',
         'description',
@@ -247,7 +253,6 @@ class Quote extends Model
         return number_format($subtotal2, 2);
     }
 
-
     public function getSubtotalRentAttribute()
     {
         if ( $this->total_soles != 0 )
@@ -320,10 +325,6 @@ class Quote extends Model
         return $this->hasMany('App\Output', 'execution_order', 'order_execution');
     }
 
-    /*public function sales()
-    {
-        return $this->hasMany('App\Sale');
-    }*/
     public function sales()
     {
         return $this->hasMany(Sale::class, 'quote_id');
@@ -347,6 +348,14 @@ class Quote extends Model
         return $this->hasOne(
             Quote::class,
             'renewed_from_quote_id'
+        );
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(
+            Company::class,
+            'company_id'
         );
     }
 }

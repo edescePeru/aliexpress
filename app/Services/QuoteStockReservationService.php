@@ -389,7 +389,6 @@ class QuoteStockReservationService
     ): void {
         $companyId = TenantContext::companyId();
 
-
         /*
          * ============================================================
          * VALIDAR WAREHOUSE
@@ -406,7 +405,6 @@ class QuoteStockReservationService
                 'El almacén de la reserva no pertenece a la empresa actual.'
             );
         }
-
 
         /*
          * ============================================================
@@ -426,20 +424,30 @@ class QuoteStockReservationService
             );
         }
 
-
         /*
          * ============================================================
-         * RESERVADO SOLO DE LA COMPANY ACTUAL
+         * SINCRONIZAR DESDE STOCK LOTS DE LA COMPANY ACTUAL
          * ============================================================
          */
 
-        $reserved = (float) StockLot::query()
+        $lotTotals = StockLot::query()
             ->where('company_id', $companyId)
             ->where('stock_item_id', $stockItemId)
             ->where('warehouse_id', $warehouseId)
             ->where('location_id', $locationId)
-            ->sum('qty_reserved');
+            ->selectRaw('
+            COALESCE(SUM(qty_on_hand), 0) AS qty_on_hand,
+            COALESCE(SUM(qty_reserved), 0) AS qty_reserved
+        ')
+            ->first();
 
+        $qtyOnHand = (float) (
+            $lotTotals->qty_on_hand ?? 0
+        );
+
+        $qtyReserved = (float) (
+            $lotTotals->qty_reserved ?? 0
+        );
 
         /*
          * ============================================================
@@ -455,19 +463,15 @@ class QuoteStockReservationService
             ->lockForUpdate()
             ->first();
 
-
         if (!$inventoryLevel) {
             $inventoryLevel = InventoryLevel::create([
                 'company_id' => $companyId,
-
                 'stock_item_id' => $stockItemId,
-
                 'warehouse_id' => $warehouseId,
-
                 'location_id' => $locationId,
 
-                'qty_on_hand' => 0,
-                'qty_reserved' => 0,
+                'qty_on_hand' => $qtyOnHand,
+                'qty_reserved' => $qtyReserved,
 
                 'min_alert' => 0,
                 'max_alert' => 0,
@@ -475,10 +479,15 @@ class QuoteStockReservationService
                 'average_cost' => 0,
                 'last_cost' => 0,
             ]);
+
+            return;
         }
 
+        $inventoryLevel->qty_on_hand =
+            $qtyOnHand;
 
-        $inventoryLevel->qty_reserved = $reserved;
+        $inventoryLevel->qty_reserved =
+            $qtyReserved;
 
         $inventoryLevel->save();
     }

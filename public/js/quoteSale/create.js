@@ -1,249 +1,1004 @@
-let $materials=[];
-let $materialsTypeahead=[];
-let $consumables=[];
-let $electrics=[];
-let $items=[];
-let $equipments=[];
-let $equipmentStatus=false;
-let $total=0;
-let $totalUtility=0;
-let $subtotal=0;
-let $subtotal2=0;
-let $subtotal3=0;
+let $consumables = [];
+let $equipments = [];
+
 var $permissions;
 var $igv;
 
+var $formCreate;
+var $selectCustomer;
+var $selectContact;
+
+var $modalConsumableQty;
+var $currentConsumableRender = null;
+var $currentConsumable = null;
+
+var $modalSelectItemeableItems;
+
+
+/*
+|--------------------------------------------------------------------------
+| INICIALIZACIÓN
+|--------------------------------------------------------------------------
+*/
+
 $(document).ready(function () {
-    $permissions = JSON.parse($('#permissions').val());
-    $igv = $('#igv').val();
-    $.ajax({
-        url: "/dashboard/get/quote/sale/materials/totals",
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            for (var i=0; i<json.length; i++)
-            {
-                $consumables.push(json[i]);
-            }
-        }
-    });
 
-    $('.materialTypeahead').typeahead({
-            hint: true,
-            highlight: true, /* Enable substring highlighting */
-            minLength: 1 /* Specify minimum characters required for showing suggestions */
-        },
-        {
-            limit: 12,
-            source: substringMatcher($materialsTypeahead)
-        });
+    $permissions = JSON.parse(
+        $('#permissions').val() || '[]'
+    );
 
-    $(document).on('click', '[data-confirm]', confirmEquipment);
-
-    $(document).on('click', '[data-addConsumable]', addConsumable);
+    $igv = parseFloat(
+        $('#igv').val() || 18
+    );
 
     $formCreate = $('#formCreate');
-    $("#btn-submit").on("click", storeQuote);
-
-    $('.consumable_search').select2({
-        placeholder: 'Selecciona un producto',
-        ajax: {
-            url: '/dashboard/get/quote/sale/materials',
-            dataType: 'json',
-            type: 'GET',
-            processResults(data) {
-                //console.log(data);
-                return {
-                    results: $.map(data, function (item) {
-                        //console.log(item.full_description);
-                        return {
-                            text: item.display_name,
-                            id: item.id,
-                        }
-                    })
-                }
-            }
-        }
-    });
-
-    $(document).on('click', '[data-deleteConsumable]', deleteConsumable);
-
-    $(document).on('click', '[data-saveEquipment]', saveEquipment);
-
-    $(document).on('input', '[data-consumableQuantity]', function() {
-        var card = $(this).parent().parent().parent().parent().parent().parent().parent().parent();
-        card.removeClass('card-success');
-        card.addClass('card-gray-dark');
-    });
-
-    $(document).on('input', '[data-detailequipment]', function() {
-        var card = $(this).parent().parent().parent().parent();
-        card.removeClass('card-success');
-        card.addClass('card-gray-dark');
-    });
-
-    $(document).on("summernote.change", ".textarea_edit",function (e) {   // callback as jquery custom event
-        var card = $(this).parent().parent().parent().parent();
-        card.removeClass('card-success');
-        card.addClass('card-gray-dark');
-    });
 
     $selectCustomer = $('#customer_id');
     $selectContact = $('#contact_id');
 
-    $selectCustomer.change(function () {
-        $selectContact.empty();
-        var customer =  $selectCustomer.val();
-        $.get( "/dashboard/get/contact/"+customer, function( data ) {
-            $selectContact.append($("<option>", {
-                value: '',
-                text: 'Seleccione contacto'
-            }));
-            for ( var i=0; i<data.length; i++ )
-            {
-                $selectContact.append($("<option>", {
-                    value: data[i].id,
-                    text: data[i].contact
-                }));
-            }
-        });
+    $modalConsumableQty = $('#modalQuantityConsumable');
+    $modalSelectItemeableItems = $('#modalSelectItemeableItems');
 
-    });
 
-    // Abrir modal al dar click en +
-    $("#btn-add-customer").on("click", function() {
-        $("#formCreateCustomer")[0].reset(); // limpiar formulario
-        $("#modalCustomer").modal("show");
-    });
+    /*
+    |--------------------------------------------------------------------------
+    | Cargar información completa de productos
+    |--------------------------------------------------------------------------
+    |
+    | Este endpoint devuelve la información comercial que necesitamos
+    | cuando el usuario selecciona un StockItem:
+    |
+    | - id = StockItem
+    | - material_id
+    | - display_name
+    | - full_description
+    | - list_price
+    | - stock_available
+    | - tipo_venta_id
+    | - unit_measure
+    |
+    */
 
-    // Enviar formulario por AJAX
-    $("#btn-submit-customer").on("click", function(e) {
-        e.preventDefault();
+    $.ajax({
+        url: '/dashboard/get/quote/sale/materials/totals',
+        type: 'GET',
+        dataType: 'json',
 
-        let form = $("#formCreateCustomer");
-        let url = form.data("url");
-        let formData = form.serialize();
+        success: function (json) {
 
-        $.ajax({
-            type: "POST",
-            url: url,
-            data: formData,
-            success: function(response) {
-                toastr.success(response.message);
+            $consumables = [];
 
-                // Cerrar modal
-                $("#modalCustomer").modal("hide");
-
-                // Obtener el cliente nuevo
-                let customer = response.customer;
-
-                // Crear nueva opción
-                let newOption = new Option(customer.business_name, customer.id, true, true);
-
-                // Agregar al select2 y seleccionarlo
-                $('#customer_id').append(newOption).trigger('change');
-
-                // Limpiar el formulario
-                $("#formCreateCustomer")[0].reset();
-
-            },
-            error: function(xhr) {
-                let errors = xhr.responseJSON?.message || "Error al guardar";
-                toastr.error(errors);
-            }
-        });
-    });
-
-    $('#btn-notAddConsumable').on('click', function () {
-        $modalConsumableQty.modal('hide');
-    });
-
-    /*$('#btn-add_consumable_modal').on('click', function () {
-
-        if (!$currentConsumable || !$currentConsumableRender) {
-            toastr.error('No hay consumible seleccionado', 'Error');
-            return;
-        }
-
-        let added = false;
-
-        // 1) Presentaciones con packs > 0 => 1 fila por presentación
-        $('[data-pres-row]').each(function () {
-            let packs = parseInt($(this).find('[data-pres-packs]').val() || 0);
-            if (packs > 0) {
-                added = true;
-
-                let presId = parseInt($(this).attr('data-pres-id'));
-                let unitsPerPack = parseInt($(this).attr('data-pres-qty'));
-                let presPrice = parseFloat($(this).attr('data-pres-price')); // precio del pack
-                let presLabel = $(this).attr('data-pres-label');
-
-                let unitsEquivalent = packs * unitsPerPack;
-
-                // En UI queremos packs y precio pack
-                let qtyToShow = packs;        // ✅ cantidad visible
-                let pricePack = presPrice;    // ✅ precio por pack
-
-                renderTemplateConsumable(
-                    $currentConsumableRender,
-                    $currentConsumable,
-                    qtyToShow,     // 👈 cantidad visible = packs
-                    pricePack,     // 👈 P/U visible = precio pack
-                    0,
-                    true,
-                    {
-                        id: presId,
-                        text: presLabel,
-                        packs: packs,
-                        unitsPerPack: unitsPerPack,
-                        unitsEquivalent: unitsEquivalent,
-                        pricePack: pricePack
-                    }
-                );
-            }
-        });
-
-        // 2) Si no hay presentación seleccionada => usar unidad
-        if (!added) {
-            let qty = parseFloat($('#c_quantity_total').val() || 0);
-            if (qty <= 0) {
-                toastr.error('Ingresa cantidad o selecciona una presentación', 'Error');
+            if (!Array.isArray(json)) {
                 return;
             }
 
-            let unitPrice = parseFloat($currentConsumable.list_price);
+            json.forEach(function (item) {
+                $consumables.push(item);
+            });
+        },
 
-            renderTemplateConsumable(
-                $currentConsumableRender,
-                $currentConsumable,
-                qty,
-                unitPrice,
-                0,
-                true,
-                null
+        error: function () {
+            toastr.error(
+                'No se pudo cargar la información de los productos.',
+                'Error'
             );
         }
+    });
 
-        $modalConsumableQty.modal('hide');
-    });*/
-    $('#btn-add_consumable_modal').on('click', function () {
 
-        if (!$currentConsumable || !$currentConsumableRender) {
-            toastr.error('No hay consumible seleccionado', 'Error');
-            return;
+    /*
+    |--------------------------------------------------------------------------
+    | Buscador Select2 de productos
+    |--------------------------------------------------------------------------
+    */
+
+    $('.consumable_search').select2({
+        placeholder: 'Selecciona un producto',
+        width: '100%',
+
+        ajax: {
+            url: '/dashboard/get/quote/sale/materials',
+            dataType: 'json',
+            type: 'GET',
+
+            processResults: function (data) {
+
+                return {
+                    results: $.map(
+                        data || [],
+                        function (item) {
+
+                            return {
+                                text: item.display_name,
+                                id: item.id
+                            };
+                        }
+                    )
+                };
+            }
         }
+    });
 
-        let linesToAdd = [];
-        let hasPresentation = false;
 
-        /*
-         * ==========================================================
-         * 1. Revisar presentaciones seleccionadas.
-         *    Cada presentación genera una futura fila independiente.
-         * ==========================================================
-         */
-        $('[data-pres-row]').each(function () {
-            let packs = parseInt($(this).find('[data-pres-packs]').val() || 0);
+    /*
+    |--------------------------------------------------------------------------
+    | Eventos principales
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'click',
+        '[data-confirm]',
+        confirmEquipment
+    );
+
+    $(document).on(
+        'click',
+        '[data-saveEquipment]',
+        saveEquipment
+    );
+
+    $(document).on(
+        'click',
+        '[data-addConsumable]',
+        addConsumable
+    );
+
+    $(document).on(
+        'click',
+        '[data-deleteConsumable]',
+        deleteConsumable
+    );
+
+    $(document).on(
+        'click',
+        '[data-addService]',
+        addService
+    );
+
+    $('#btn-submit').on(
+        'click',
+        storeQuote
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cambios en productos
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'input',
+        '[data-consumableQuantity]',
+        function () {
+
+            calculateTotalC(this);
+
+            markEquipDirty(this);
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cambios en detalle del Equipment
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'input',
+        '[data-detailequipment]',
+        function () {
+            markEquipDirty(this);
+        }
+    );
+
+    $(document).on(
+        'summernote.change',
+        '.textarea_edit',
+        function () {
+            markEquipDirty(this);
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Servicios
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'input',
+        '[data-serviceQuantity]',
+        function () {
+
+            const row = $(this)
+                .closest('[data-serviceRow]');
+
+            calculateServiceRow(row);
+
+            markEquipDirty(this);
+        }
+    );
+
+    $(document).on(
+        'input',
+        '[data-servicePU]',
+        function () {
+
+            const row = $(this)
+                .closest('[data-serviceRow]');
+
+            calculateServiceRow(row);
+
+            markEquipDirty(this);
+        }
+    );
+
+    $(document).on(
+        'change',
+        '[data-serviceBillable]',
+        function () {
+            markEquipDirty(this);
+        }
+    );
+
+    $(document).on(
+        'click',
+        '[data-deleteService]',
+        function () {
+
+            markEquipDirty(this);
+
+            $(this)
+                .closest('[data-serviceRow]')
+                .remove();
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cliente / contactos
+    |--------------------------------------------------------------------------
+    */
+
+    $selectCustomer.on(
+        'change',
+        function () {
+
+            $selectContact.empty();
+
+            const customerId =
+                $selectCustomer.val();
+
+            $selectContact.append(
+                $('<option>', {
+                    value: '',
+                    text: 'Seleccione contacto'
+                })
+            );
+
+            if (!customerId) {
+                return;
+            }
+
+            $.get(
+                '/dashboard/get/contact/' + customerId,
+                function (data) {
+
+                    (data || []).forEach(
+                        function (contact) {
+
+                            $selectContact.append(
+                                $('<option>', {
+                                    value: contact.id,
+                                    text: contact.contact
+                                })
+                            );
+                        }
+                    );
+                }
+            );
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modal crear cliente
+    |--------------------------------------------------------------------------
+    */
+
+    $('#btn-add-customer').on(
+        'click',
+        function () {
+
+            const form =
+                $('#formCreateCustomer')[0];
+
+            if (form) {
+                form.reset();
+            }
+
+            $('#modalCustomer')
+                .modal('show');
+        }
+    );
+
+    $('#btn-submit-customer').on(
+        'click',
+        function (e) {
+
+            e.preventDefault();
+
+            const $form =
+                $('#formCreateCustomer');
+
+            const url =
+                $form.data('url');
+
+            const formData =
+                $form.serialize();
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: formData,
+
+                success: function (response) {
+
+                    toastr.success(
+                        response.message
+                    );
+
+                    $('#modalCustomer')
+                        .modal('hide');
+
+                    const customer =
+                        response.customer;
+
+                    if (customer) {
+
+                        const newOption =
+                            new Option(
+                                customer.business_name,
+                                customer.id,
+                                true,
+                                true
+                            );
+
+                        $('#customer_id')
+                            .append(newOption)
+                            .trigger('change');
+                    }
+
+                    const form =
+                        $('#formCreateCustomer')[0];
+
+                    if (form) {
+                        form.reset();
+                    }
+                },
+
+                error: function (xhr) {
+
+                    const message =
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                            ? xhr.responseJSON.message
+                            : 'Error al guardar el cliente.';
+
+                    toastr.error(
+                        message,
+                        'Error'
+                    );
+                }
+            });
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modal cantidad / presentación
+    |--------------------------------------------------------------------------
+    */
+
+    $('#btn-notAddConsumable').on(
+        'click',
+        function () {
+
+            $modalConsumableQty
+                .modal('hide');
+        }
+    );
+
+    $('#btn-add_consumable_modal').on(
+        'click',
+        addConsumableFromModal
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Descuento global
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'change',
+        'input[name="discount_type"]',
+        function () {
+
+            const type =
+                $(this).val();
+
+            $('#discountSection')
+                .attr(
+                    'data-discount_type',
+                    type
+                );
+
+            if (type === 'percent') {
+
+                $('#discount_value_hint')
+                    .text(
+                        'Ingrese porcentaje (0 a 100).'
+                    );
+
+            } else {
+
+                $('#discount_value_hint')
+                    .text(
+                        'Ingrese monto.'
+                    );
+            }
+        }
+    );
+
+    $(document).on(
+        'change',
+        'input[name="discount_input_mode"]',
+        function () {
+
+            const mode =
+                $(this).val();
+
+            $('#discountSection')
+                .attr(
+                    'data-discount_input_mode',
+                    mode
+                );
+        }
+    );
+
+    $(document).on(
+        'input',
+        '#discount_value',
+        function () {
+
+            let value =
+                parseFloat(
+                    $(this).val() || 0
+                );
+
+            if (
+                isNaN(value) ||
+                value < 0
+            ) {
+                value = 0;
+            }
+
+            $('#discountSection')
+                .attr(
+                    'data-discount_value',
+                    value.toFixed(2)
+                );
+        }
+    );
+
+    $('#btn-clear-discount').on(
+        'click',
+        function () {
+
+            $('#discount_type_amount')
+                .prop('checked', true)
+                .trigger('change');
+
+            $('#discount_mode_without')
+                .prop('checked', true)
+                .trigger('change');
+
+            $('#discount_value')
+                .val(0)
+                .trigger('input');
+        }
+    );
+
+    $(document).on(
+        'change input',
+        '#discountSection input, #discount_value',
+        function () {
+
+            $('[data-equip]').each(
+                function () {
+                    markEquipDirty($(this));
+                }
+            );
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modal itemeables
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on(
+        'change',
+        '.itemeable-item-checkbox',
+        function () {
+
+            const requiredCount =
+                parseInt(
+                    $('#btn-confirm-itemeable-items')
+                        .data('required-count')
+                    || 0
+                );
+
+            updateItemeableItemsCounter(
+                requiredCount
+            );
+        }
+    );
+
+    $('#btn-confirm-itemeable-items').on(
+        'click',
+        confirmItemeableItems
+    );
+
+    $('#btn-cancel-itemeable-items').on(
+        'click',
+        function () {
+
+            window.$currentItemeableDraft =
+                null;
+
+            $modalSelectItemeableItems
+                .modal('hide');
+
+            $modalConsumableQty
+                .modal('show');
+        }
+    );
+
+    $(document).on(
+        'keydown',
+        '#itemeable-item-search',
+        function (e) {
+
+            if (e.key === 'Enter') {
+
+                e.preventDefault();
+
+                selectItemByScannedCode();
+            }
+        }
+    );
+
+    $(document).on(
+        'change',
+        '#itemeable-item-search',
+        function () {
+
+            selectItemByScannedCode();
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Al cerrar modal cantidad
+    |--------------------------------------------------------------------------
+    */
+
+    $('#modalQuantityConsumable').on(
+        'hidden.bs.modal',
+        function () {
+
+            if (
+                document.activeElement &&
+                document.activeElement.blur
+            ) {
+                document.activeElement.blur();
+            }
+        }
+    );
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| AGREGAR PRODUCTO
+|--------------------------------------------------------------------------
+*/
+
+function addConsumable() {
+
+    const $button =
+        $(this);
+
+    const consumableID =
+        parseInt(
+            $button
+                .closest('.row')
+                .find('[data-consumable]')
+                .val()
+            || 0
+        );
+
+    if (!consumableID) {
+
+        toastr.error(
+            'Debe seleccionar un producto.',
+            'Error'
+        );
+
+        return;
+    }
+
+    const $render =
+        $button
+            .closest('.card-body')
+            .find('[data-bodyConsumable]')
+            .first();
+
+    const consumable =
+        $consumables.find(
+            function (item) {
+                return parseInt(item.id) === consumableID;
+            }
+        );
+
+    if (!consumable) {
+
+        toastr.error(
+            'No se encontró la información del producto.',
+            'Error'
+        );
+
+        return;
+    }
+
+    const consumablePrice =
+        parseFloat(
+            consumable.list_price || 0
+        );
+
+    /*
+     * Permitimos precio 0, pero avisamos al usuario.
+     */
+    if (consumablePrice <= 0) {
+
+        $.confirm({
+            icon: 'fas fa-exclamation-triangle',
+            theme: 'modern',
+            closeIcon: true,
+            animation: 'zoom',
+            type: 'orange',
+            title: 'Precio en cero',
+            content:
+                'El precio de este producto es 0. ¿Desea continuar?',
+
+            buttons: {
+
+                confirm: {
+                    text: 'SÍ, CONTINUAR',
+                    btnClass: 'btn-orange',
+
+                    action: function () {
+
+                        clearConsumableSearch();
+
+                        showModalQuantityConsumable(
+                            $render,
+                            consumable
+                        );
+                    }
+                },
+
+                cancel: {
+                    text: 'CANCELAR'
+                }
+            }
+        });
+
+        return;
+    }
+
+    clearConsumableSearch();
+
+    showModalQuantityConsumable(
+        $render,
+        consumable
+    );
+}
+
+
+function clearConsumableSearch() {
+
+    $('.consumable_search')
+        .val(null)
+        .trigger('change');
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| MODAL CANTIDAD / PRESENTACIONES
+|--------------------------------------------------------------------------
+*/
+
+function showModalQuantityConsumable(
+    render,
+    consumable
+) {
+
+    $currentConsumableRender =
+        render;
+
+    $currentConsumable =
+        consumable;
+
+    $('#c_quantity_is_itemeable')
+        .val(
+            parseInt(
+                consumable.tipo_venta_id || 0
+            ) === 3
+                ? 1
+                : 0
+        );
+
+    $('#c_quantity_productId')
+        .val(consumable.id);
+
+    $('#c_quantity_total')
+        .val(0);
+
+    $('#c_quantity_stock_show')
+        .val(
+            consumable.stock_available || 0
+        );
+
+    $('#c_presentationsArea')
+        .html(
+            '<div class="text-muted">' +
+            'Cargando presentaciones...' +
+            '</div>'
+        );
+
+    fetchPresentations(
+        consumable.material_id
+    )
+        .then(function (presentations) {
+
+            const actives =
+                (presentations || []).filter(
+                    function (item) {
+
+                        return (
+                            item.active === true ||
+                            item.active === 1 ||
+                            item.active === '1'
+                        );
+                    }
+                );
+
+            renderPresentationsInModalConsumable(
+                actives
+            );
+
+            $modalConsumableQty
+                .modal('show');
+        })
+        .catch(function () {
+
+            $('#c_presentationsArea')
+                .html(
+                    '<div class="text-danger">' +
+                    'No se pudieron cargar las presentaciones.' +
+                    '</div>'
+                );
+
+            $modalConsumableQty
+                .modal('show');
+        });
+}
+
+
+function fetchPresentations(
+    materialId
+) {
+
+    return $.ajax({
+        url:
+            '/dashboard/materials-presentations/material/' +
+            materialId +
+            '/presentations',
+
+        method: 'GET',
+        dataType: 'json'
+
+    }).then(function (response) {
+
+        return response.presentations || [];
+    });
+}
+
+
+function renderPresentationsInModalConsumable(
+    presentations
+) {
+
+    if (
+        !presentations ||
+        presentations.length === 0
+    ) {
+
+        $('#c_presentationsArea')
+            .html(
+                '<div class="text-muted">' +
+                'Este producto no tiene presentaciones configuradas.' +
+                '</div>'
+            );
+
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+
+            <table class="table table-sm table-bordered mb-0">
+
+                <thead>
+                    <tr>
+                        <th style="width:45%;">
+                            Presentación
+                        </th>
+
+                        <th style="width:25%;">
+                            Precio
+                        </th>
+
+                        <th style="width:30%;">
+                            Paquetes
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+    `;
+
+    presentations.forEach(
+        function (presentation) {
+
+            const quantity =
+                parseInt(
+                    presentation.quantity || 0
+                );
+
+            const price =
+                parseFloat(
+                    presentation.price || 0
+                );
+
+            const label =
+                presentation.label &&
+                presentation.label.trim()
+                    ? presentation.label
+                    : quantity + ' und';
+
+            html += `
+                <tr
+                    data-pres-row
+                    data-pres-id="${presentation.id}"
+                    data-pres-qty="${quantity}"
+                    data-pres-price="${price}"
+                    data-pres-label="${label}"
+                >
+
+                    <td>
+
+                        <strong>
+                            ${label}
+                        </strong>
+
+                        <div
+                            class="text-muted"
+                            style="font-size:12px;"
+                        >
+                            Equivale a ${quantity} unidades
+                        </div>
+
+                    </td>
+
+                    <td>
+                        S/. ${price.toFixed(2)}
+                    </td>
+
+                    <td>
+
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            class="form-control form-control-sm"
+                            value="0"
+                            data-pres-packs
+                        >
+
+                    </td>
+
+                </tr>
+            `;
+        }
+    );
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    $('#c_presentationsArea')
+        .html(html);
+}
+
+
+function addConsumableFromModal() {
+
+    if (
+        !$currentConsumable ||
+        !$currentConsumableRender
+    ) {
+
+        toastr.error(
+            'No hay producto seleccionado.',
+            'Error'
+        );
+
+        return;
+    }
+
+    let linesToAdd = [];
+
+    let hasPresentation =
+        false;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Presentaciones
+    |--------------------------------------------------------------------------
+    */
+
+    $('[data-pres-row]').each(
+        function () {
+
+            const $row =
+                $(this);
+
+            const packs =
+                parseInt(
+                    $row
+                        .find('[data-pres-packs]')
+                        .val()
+                    || 0
+                );
 
             if (packs <= 0) {
                 return;
@@ -251,126 +1006,206 @@ $(document).ready(function () {
 
             hasPresentation = true;
 
-            let presId = parseInt($(this).attr('data-pres-id'));
-            let unitsPerPack = parseInt($(this).attr('data-pres-qty'));
-            let presPrice = parseFloat($(this).attr('data-pres-price'));
-            let presLabel = $(this).attr('data-pres-label');
+            const presentationId =
+                parseInt(
+                    $row.attr(
+                        'data-pres-id'
+                    )
+                );
 
-            let unitsEquivalent = packs * unitsPerPack;
+            const unitsPerPack =
+                parseInt(
+                    $row.attr(
+                        'data-pres-qty'
+                    )
+                    || 0
+                );
+
+            const presentationPrice =
+                parseFloat(
+                    $row.attr(
+                        'data-pres-price'
+                    )
+                    || 0
+                );
+
+            const presentationLabel =
+                $row.attr(
+                    'data-pres-label'
+                )
+                || '';
+
+            const unitsEquivalent =
+                packs *
+                unitsPerPack;
 
             linesToAdd.push({
-                quantity_to_show: packs,
-                price: presPrice,
+                quantity_to_show:
+                packs,
+
+                price:
+                presentationPrice,
+
                 presentation: {
-                    id: presId,
-                    text: presLabel,
-                    packs: packs,
-                    unitsPerPack: unitsPerPack,
-                    unitsEquivalent: unitsEquivalent,
-                    pricePack: presPrice
+                    id:
+                    presentationId,
+
+                    text:
+                    presentationLabel,
+
+                    packs:
+                    packs,
+
+                    unitsPerPack:
+                    unitsPerPack,
+
+                    unitsEquivalent:
+                    unitsEquivalent,
+
+                    pricePack:
+                    presentationPrice
                 },
 
-                /*
-                 * Para itemeables esta será la cantidad real de
-                 * ítems físicos que deberá seleccionar el usuario.
-                 */
-                total_units_required: unitsEquivalent
-            });
-        });
-
-        /*
-         * ==========================================================
-         * 2. Si no se eligieron presentaciones, trabajar por unidad.
-         * ==========================================================
-         */
-        if (!hasPresentation) {
-            let qty = parseFloat($('#c_quantity_total').val() || 0);
-
-            if (qty <= 0) {
-                toastr.error('Ingresa cantidad o selecciona una presentación', 'Error');
-                return;
-            }
-
-            let unitPrice = parseFloat($currentConsumable.list_price) || 0;
-
-            linesToAdd.push({
-                quantity_to_show: qty,
-                price: unitPrice,
-                presentation: null,
-                total_units_required: qty
+                total_units_required:
+                unitsEquivalent
             });
         }
+    );
 
-        /*
-         * ==========================================================
-         * 3. Validar si el producto es itemeable.
-         *    tipo_venta_id = 3
-         * ==========================================================
-         */
-        let isItemeable = parseInt($currentConsumable.tipo_venta_id || 0) === 3;
 
-        /*
-         * ==========================================================
-         * 4. Flujo especial para productos itemeables.
-         *
-         * Aún NO renderizamos las filas.
-         * Guardamos toda la selección temporalmente y luego
-         * abriremos el selector de ítems físicos.
-         * ==========================================================
-         */
-        if (isItemeable) {
-            let totalUnitsRequired = linesToAdd.reduce(function (total, line) {
-                return total + parseFloat(line.total_units_required || 0);
-            }, 0);
+    /*
+    |--------------------------------------------------------------------------
+    | Venta por unidad
+    |--------------------------------------------------------------------------
+    */
 
-            /*
-             * Un item físico no puede venderse parcialmente.
-             * Por eso no permitimos 1.5, 2.25, etc.
-             */
-            if (!Number.isInteger(totalUnitsRequired)) {
-                toastr.error(
-                    'Los productos itemeables solo pueden venderse en unidades enteras.',
-                    'Cantidad inválida'
-                );
-                return;
-            }
+    if (!hasPresentation) {
 
-            if (totalUnitsRequired <= 0) {
-                toastr.error('Debe seleccionar al menos un ítem.', 'Error');
-                return;
-            }
+        const qty =
+            parseFloat(
+                $('#c_quantity_total').val()
+                || 0
+            );
 
-            /*
-             * Estas variables globales las utilizaremos en el siguiente paso
-             * cuando creemos el modal selector de ítems.
-             */
-            window.$currentItemeableDraft = {
-                consumable: $currentConsumable,
-                render: $currentConsumableRender,
-                lines: linesToAdd,
-                total_units_required: totalUnitsRequired
-            };
+        if (qty <= 0) {
 
-            /*
-             * Ocultamos el modal de cantidad antes de abrir
-             * el modal de selección de ítems.
-             *
-             * Esta función la construiremos en el siguiente paso.
-             */
-            $modalConsumableQty.modal('hide');
-
-            openItemeableItemsSelector(window.$currentItemeableDraft);
+            toastr.error(
+                'Ingrese una cantidad o seleccione una presentación.',
+                'Error'
+            );
 
             return;
         }
 
-        /*
-         * ==========================================================
-         * 5. Flujo normal:
-         *    Renderizar inmediatamente cada fila.
-         * ==========================================================
-         */
-        linesToAdd.forEach(function (line) {
+        const unitPrice =
+            parseFloat(
+                $currentConsumable.list_price
+                || 0
+            );
+
+        linesToAdd.push({
+            quantity_to_show:
+            qty,
+
+            price:
+            unitPrice,
+
+            presentation:
+                null,
+
+            total_units_required:
+            qty
+        });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Producto itemeable
+    |--------------------------------------------------------------------------
+    */
+
+    const isItemeable =
+        parseInt(
+            $currentConsumable.tipo_venta_id
+            || 0
+        ) === 3;
+
+    if (isItemeable) {
+
+        const totalUnitsRequired =
+            linesToAdd.reduce(
+                function (total, line) {
+
+                    return total +
+                        parseFloat(
+                            line.total_units_required
+                            || 0
+                        );
+                },
+                0
+            );
+
+        if (
+            !Number.isInteger(
+                totalUnitsRequired
+            )
+        ) {
+
+            toastr.error(
+                'Los productos itemeables solo pueden venderse en unidades enteras.',
+                'Cantidad inválida'
+            );
+
+            return;
+        }
+
+        if (
+            totalUnitsRequired <= 0
+        ) {
+
+            toastr.error(
+                'Debe seleccionar al menos un ítem.',
+                'Error'
+            );
+
+            return;
+        }
+
+        window.$currentItemeableDraft = {
+            consumable:
+            $currentConsumable,
+
+            render:
+            $currentConsumableRender,
+
+            lines:
+            linesToAdd,
+
+            total_units_required:
+            totalUnitsRequired
+        };
+
+        $modalConsumableQty
+            .modal('hide');
+
+        openItemeableItemsSelector(
+            window.$currentItemeableDraft
+        );
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Producto normal
+    |--------------------------------------------------------------------------
+    */
+
+    linesToAdd.forEach(
+        function (line) {
+
             renderTemplateConsumable(
                 $currentConsumableRender,
                 $currentConsumable,
@@ -380,135 +1215,390 @@ $(document).ready(function () {
                 true,
                 line.presentation
             );
-        });
-
-        $modalConsumableQty.modal('hide');
-    });
-
-    // Cuando cambia cantidad
-    $(document).on('input', '[data-serviceQuantity]', function () {
-        const row = $(this).closest('[data-serviceRow]');
-        calculateServiceRow(row);
-        markEquipDirty(this);
-    });
-
-    // Cuando cambia P/U
-    $(document).on('input', '[data-servicePU]', function () {
-        const row = $(this).closest('[data-serviceRow]');
-        calculateServiceRow(row);
-        markEquipDirty(this);
-    });
-
-    $(document).on('click', '[data-addService]', addService);
-
-    $(document).on('click', '[data-deleteService]', function () {
-        markEquipDirty(this);
-        $(this).closest('[data-serviceRow]').remove();
-    });
-
-    // Cuando cambia Tipo (monto/percent)
-    $(document).on('change', 'input[name="discount_type"]', function () {
-        const type = $(this).val(); // amount | percent
-        $('#discountSection').attr('data-discount_type', type);
-
-        if (type === 'percent') {
-            $('#discount_value').attr('step', '0.01');
-            $('#discount_value_hint').text('Ingrese porcentaje (0 a 100).');
-        } else {
-            $('#discount_value').attr('step', '0.01');
-            $('#discount_value_hint').text('Ingrese monto en soles.');
         }
-    });
+    );
 
-    // Cuando cambia Modo (con/sin igv)
-    $(document).on('change', 'input[name="discount_input_mode"]', function () {
-        const mode = $(this).val(); // with_igv | without_igv
-        $('#discountSection').attr('data-discount_input_mode', mode);
-    });
+    $modalConsumableQty
+        .modal('hide');
+}
 
-    // Cuando cambia valor
-    $(document).on('input', '#discount_value', function () {
-        let val = parseFloat($(this).val() || 0);
-        if (isNaN(val) || val < 0) val = 0;
-        $('#discountSection').attr('data-discount_value', val.toFixed(2));
-    });
 
-    // Limpiar
-    $('#btn-clear-discount').on('click', function () {
-        $('#discount_type_amount').prop('checked', true).trigger('change');
-        $('#discount_mode_without').prop('checked', true).trigger('change');
-        $('#discount_value').val(0).trigger('input');
-    });
+/*
+|--------------------------------------------------------------------------
+| PRODUCTOS ITEMEABLES
+|--------------------------------------------------------------------------
+*/
 
-    $(document).on('change', '[data-serviceBillable]', function () {
-        markEquipDirty(this);
-    });
+function openItemeableItemsSelector(
+    draft
+) {
 
-    $(document).on('change input', '#discountSection input, #discount_value', function () {
-        // Si tu descuento no está dentro del card, busca un card “activo”
-        // O marca todos los cards si aplica globalmente:
-        $('[data-equip]').each(function(){ markEquipDirty($(this)); });
-    });
+    if (
+        !draft ||
+        !draft.consumable
+    ) {
 
-    $('#modalQuantityConsumable').on('hidden.bs.modal', function () {
-        // ✅ asegurar que nada dentro conserve foco
-        document.activeElement && document.activeElement.blur && document.activeElement.blur();
-
-        // poner foco en algo fuera
-        $('#material_search').focus();
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Limita la cantidad de ítems seleccionables
-    |--------------------------------------------------------------------------
-    */
-    $(document).on('change', '.itemeable-item-checkbox', function () {
-        let requiredCount = parseInt(
-            $('#btn-confirm-itemeable-items').data('required-count') || 0
+        toastr.error(
+            'No se pudo preparar la selección de ítems.',
+            'Error'
         );
 
-        updateItemeableItemsCounter(requiredCount);
-    });
+        return;
+    }
 
-    $(document).on('click', '#btn-confirm-itemeable-items', function () {
-        let draft = window.$currentItemeableDraft;
+    const consumable =
+        draft.consumable;
 
-        if (!draft) {
-            toastr.error('No se encontró la información temporal del producto.', 'Error');
-            return;
-        }
+    /*
+     * El ID recibido corresponde al StockItem.
+     */
+    const stockItemId =
+        parseInt(
+            consumable.id || 0
+        );
 
-        let requiredCount = parseInt(draft.total_units_required || 0);
+    if (!stockItemId) {
 
-        let selectedItems = [];
+        toastr.error(
+            'No se pudo identificar el StockItem del producto.',
+            'Error'
+        );
 
-        $('.itemeable-item-checkbox:checked').each(function () {
-            selectedItems.push({
-                id: parseInt($(this).data('item-id')),
-                code: $(this).data('item-code')
-            });
+        return;
+    }
+
+    const requiredCount =
+        parseInt(
+            draft.total_units_required
+            || 0
+        );
+
+    if (
+        requiredCount <= 0
+    ) {
+
+        toastr.error(
+            'La cantidad de ítems requerida no es válida.',
+            'Error'
+        );
+
+        return;
+    }
+
+    $('#itemeable-product-name')
+        .text(
+            consumable.display_name ||
+            consumable.full_description ||
+            ''
+        );
+
+    $('#itemeable-required-count')
+        .text(requiredCount);
+
+    $('#itemeable-selected-count')
+        .text(0);
+
+    $('#itemeable-selected-required-count')
+        .text(requiredCount);
+
+    $('#itemeable-items-loading')
+        .show();
+
+    $('#itemeable-items-empty')
+        .hide();
+
+    $('#itemeable-items-error')
+        .hide();
+
+    $('#itemeable-items-table-container')
+        .hide();
+
+    $('#itemeable-items-table-body')
+        .empty();
+
+    $('#itemeable-item-search')
+        .val('');
+
+    $('#btn-confirm-itemeable-items')
+        .prop(
+            'disabled',
+            true
+        )
+        .data(
+            'required-count',
+            requiredCount
+        );
+
+    $modalSelectItemeableItems
+        .modal({
+            backdrop: 'static',
+            keyboard: false
         });
 
-        if (selectedItems.length !== requiredCount) {
-            toastr.error(
-                'Debe seleccionar exactamente ' + requiredCount + ' ítems.',
-                'Selección incompleta'
+    $modalSelectItemeableItems
+        .modal('show');
+
+    const url =
+        window.APP_QUOTE
+            .URLS
+            .AVAILABLE_ITEMS
+            .replace(
+                ':stockItemId',
+                stockItemId
             );
-            return;
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+
+        success: function (
+            response
+        ) {
+
+            $('#itemeable-items-loading')
+                .hide();
+
+            if (
+                !response ||
+                !response.success
+            ) {
+
+                $('#itemeable-items-error')
+                    .show();
+
+                return;
+            }
+
+            const items =
+                response.items || [];
+
+            if (
+                items.length === 0
+            ) {
+
+                $('#itemeable-items-empty')
+                    .show();
+
+                return;
+            }
+
+            renderItemeableItems(
+                items,
+                requiredCount
+            );
+
+            $('#itemeable-items-table-container')
+                .show();
+
+            $('#itemeable-item-search')
+                .focus();
+        },
+
+        error: function () {
+
+            $('#itemeable-items-loading')
+                .hide();
+
+            $('#itemeable-items-error')
+                .show();
         }
+    });
+}
 
-        let currentPosition = 0;
 
-        draft.lines.forEach(function (line) {
-            let lineUnitsRequired = parseInt(line.total_units_required || 0);
+function renderItemeableItems(
+    items,
+    requiredCount
+) {
 
-            let itemsForThisLine = selectedItems.slice(
-                currentPosition,
-                currentPosition + lineUnitsRequired
+    let html = '';
+
+    items.forEach(
+        function (item) {
+
+            const itemCode =
+                item.code ||
+                (
+                    'Ítem #' +
+                    item.id
+                );
+
+            const lotText =
+                item.stock_lot_code ||
+                item.lot_code ||
+                item.stock_lot_id ||
+                '-';
+
+            const locationText =
+                item.warehouse_name ||
+                item.location ||
+                '-';
+
+            html += `
+                <tr
+                    data-item-row
+                    data-item-id="${item.id}"
+                    data-item-code="${escapeHtml(itemCode)}"
+                >
+
+                    <td class="text-center">
+
+                        <input
+                            type="checkbox"
+                            class="itemeable-item-checkbox"
+                            value="${item.id}"
+                            data-item-id="${item.id}"
+                            data-item-code="${escapeHtml(itemCode)}"
+                        >
+
+                    </td>
+
+                    <td>
+                        ${escapeHtml(itemCode)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(String(lotText))}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(String(locationText))}
+                    </td>
+
+                </tr>
+            `;
+        }
+    );
+
+    $('#itemeable-items-table-body')
+        .html(html);
+
+    updateItemeableItemsCounter(
+        requiredCount
+    );
+}
+
+
+function updateItemeableItemsCounter(
+    requiredCount
+) {
+
+    const selectedCount =
+        $('.itemeable-item-checkbox:checked')
+            .length;
+
+    $('#itemeable-selected-count')
+        .text(selectedCount);
+
+    const $checkboxes =
+        $('.itemeable-item-checkbox');
+
+    if (
+        selectedCount >=
+        requiredCount
+    ) {
+
+        $checkboxes
+            .not(':checked')
+            .prop(
+                'disabled',
+                true
             );
 
-            currentPosition += lineUnitsRequired;
+    } else {
+
+        $checkboxes
+            .prop(
+                'disabled',
+                false
+            );
+    }
+
+    $('#btn-confirm-itemeable-items')
+        .prop(
+            'disabled',
+            selectedCount !==
+            requiredCount
+        );
+}
+
+
+function confirmItemeableItems() {
+
+    const draft =
+        window.$currentItemeableDraft;
+
+    if (!draft) {
+
+        toastr.error(
+            'No se encontró la información temporal del producto.',
+            'Error'
+        );
+
+        return;
+    }
+
+    const requiredCount =
+        parseInt(
+            draft.total_units_required
+            || 0
+        );
+
+    let selectedItems = [];
+
+    $('.itemeable-item-checkbox:checked')
+        .each(
+            function () {
+
+                selectedItems.push({
+                    id:
+                        parseInt(
+                            $(this)
+                                .data('item-id')
+                        ),
+
+                    code:
+                        $(this)
+                            .data('item-code')
+                });
+            }
+        );
+
+    if (
+        selectedItems.length !==
+        requiredCount
+    ) {
+
+        toastr.error(
+            'Debe seleccionar exactamente ' +
+            requiredCount +
+            ' ítems.',
+            'Selección incompleta'
+        );
+
+        return;
+    }
+
+    let currentPosition = 0;
+
+    draft.lines.forEach(
+        function (line) {
+
+            const lineUnitsRequired =
+                parseInt(
+                    line.total_units_required
+                    || 0
+                );
+
+            const itemsForThisLine =
+                selectedItems.slice(
+                    currentPosition,
+                    currentPosition +
+                    lineUnitsRequired
+                );
+
+            currentPosition +=
+                lineUnitsRequired;
 
             renderTemplateConsumable(
                 draft.render,
@@ -520,2789 +1610,2693 @@ $(document).ready(function () {
                 line.presentation,
                 itemsForThisLine
             );
-        });
-
-        $modalSelectItemeableItems.modal('hide');
-
-        markEquipDirty(draft.render);
-
-        toastr.success(
-            'Se agregaron ' + selectedItems.length + ' ítems a la cotización.',
-            'Producto agregado'
-        );
-
-        window.$currentItemeableDraft = null;
-    });
-
-    $(document).on('click', '#btn-cancel-itemeable-items', function () {
-        window.$currentItemeableDraft = null;
-
-        $modalSelectItemeableItems.modal('hide');
-
-        /*
-         * Volvemos al modal anterior para que pueda corregir
-         * cantidad o presentación sin tener que seleccionar el producto otra vez.
-         */
-        $modalConsumableQty.modal('show');
-    });
-
-    $(document).on('keydown', '#itemeable-item-search', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            selectItemByScannedCode();
         }
-    });
+    );
 
-    $(document).on('change', '#itemeable-item-search', function () {
-        selectItemByScannedCode();
-    });
-});
+    $modalSelectItemeableItems
+        .modal('hide');
 
-var $formCreate;
-var $modalAddMaterial;
-var $material;
-var $renderMaterial;
-var $selectCustomer;
-var $selectContact;
-var $descuento = 0;
+    markEquipDirty(
+        draft.render
+    );
 
-var $modalConsumableQty = $('#modalQuantityConsumable');
-var $currentConsumableRender = null; // contenedor DOM donde se append la fila
-var $currentConsumable = null;       // objeto del material seleccionado ($consumables)
+    toastr.success(
+        'Se agregaron ' +
+        selectedItems.length +
+        ' ítems a la cotización.',
+        'Producto agregado'
+    );
 
-let $modalSelectItemeableItems = $('#modalSelectItemeableItems');
-
-var substringMatcher = function(strs) {
-    return function findMatches(q, cb) {
-        var matches, substringRegex;
-
-        // an array that will be populated with substring matches
-        matches = [];
-
-        // regex used to determine if a string contains the substring `q`
-        substrRegex = new RegExp(q, 'i');
-
-        // iterate through the pool of strings and for any string that
-        // contains the substring `q`, add it to the `matches` array
-        $.each(strs, function(i, str) {
-            if (substrRegex.test(str)) {
-                matches.push(str);
-            }
-        });
-
-        cb(matches);
-    };
-};
-
-/*
-|--------------------------------------------------------------------------
-| Abre el selector de ítems físicos para un producto itemeable
-|--------------------------------------------------------------------------
-*/
-function openItemeableItemsSelector(draft) {
-    if (!draft || !draft.consumable) {
-        toastr.error('No se pudo preparar la selección de ítems.', 'Error');
-        return;
-    }
-
-    let consumable = draft.consumable;
-
-    console.log(consumable);
-    /*
-     * En tu flujo actual, consumable.id corresponde al StockItem seleccionado.
-     * Si en tu estructura el ID del stock item tiene otro nombre,
-     * aquí sería donde se debería cambiar.
-     */
-    let stockItemId = consumable.id;
-
-    if (!stockItemId) {
-        toastr.error('No se pudo identificar el stock item del producto.', 'Error');
-        return;
-    }
-
-    let requiredCount = parseInt(draft.total_units_required || 0);
-
-    if (requiredCount <= 0) {
-        toastr.error('La cantidad de ítems requeridos no es válida.', 'Error');
-        return;
-    }
-
-    $('#itemeable-product-name').text(consumable.display_name || consumable.description || '');
-    $('#itemeable-required-count').text(requiredCount);
-    $('#itemeable-selected-count').text(0);
-    $('#itemeable-selected-required-count').text(requiredCount);
-
-    $('#itemeable-items-loading').show();
-    $('#itemeable-items-empty').hide();
-    $('#itemeable-items-error').hide();
-    $('#itemeable-items-table-container').hide();
-    $('#itemeable-items-table-body').empty();
-
-    $('#btn-confirm-itemeable-items')
-        .prop('disabled', true)
-        .data('required-count', requiredCount);
-
-    $modalSelectItemeableItems.modal({
-        backdrop: 'static',
-        keyboard: false
-    });
-
-    $modalSelectItemeableItems.modal('show');
-
-    let url = window.APP_QUOTE.URLS.AVAILABLE_ITEMS
-        .replace(':stockItemId', stockItemId);
-
-    $.ajax({
-        url: url,
-        method: 'GET',
-        success: function (response) {
-            $('#itemeable-items-loading').hide();
-
-            if (!response.success) {
-                $('#itemeable-items-error').show();
-                return;
-            }
-
-            let items = response.items || [];
-
-            if (!items.length) {
-                $('#itemeable-items-empty').show();
-                return;
-            }
-
-            renderItemeableItems(items, requiredCount);
-
-            $('#itemeable-items-table-container').show();
-
-            $('#itemeable-item-search')
-                .val('')
-                .focus();
-        },
-        error: function () {
-            $('#itemeable-items-loading').hide();
-            $('#itemeable-items-error').show();
-        }
-    });
+    window.$currentItemeableDraft =
+        null;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Renderiza los checkbox de los ítems disponibles
-|--------------------------------------------------------------------------
-*/
-function renderItemeableItems(items, requiredCount) {
-    let html = '';
-
-    items.forEach(function (item) {
-        let itemCode = item.code || ('Ítem #' + item.id);
-
-        const lotText = item.stock_lot_code
-            || item.lot_code
-            || item.stock_lot_id
-            || '-';
-
-        const locationText = item.warehouse_name
-            || item.location
-            || '-';
-
-        html += `
-            <tr data-item-row data-item-id="${item.id}" data-item-code="${itemCode}">
-                <td class="text-center">
-                    <input
-                        type="checkbox"
-                        class="itemeable-item-checkbox"
-                        value="${item.id}"
-                        data-item-id="${item.id}"
-                        data-item-code="${itemCode}"
-                            >
-                </td>
-    
-                <td>${itemCode}</td>
-    
-                <td>${lotText}</td>
-                <td>${locationText}</td>
-            </tr>
-                `;
-    });
-
-    $('#itemeable-items-table-body').html(html);
-    updateItemeableItemsCounter(requiredCount);
-}
 
 function selectItemByScannedCode() {
-    let code = ($('#itemeable-item-search').val() || '').trim();
+
+    const code =
+        (
+            $('#itemeable-item-search')
+                .val()
+            || ''
+        )
+            .trim();
 
     if (!code) {
         return;
     }
 
-    let normalizedCode = code.toLowerCase();
+    const normalizedCode =
+        code.toLowerCase();
 
-    let $row = $('[data-item-row]').filter(function () {
-        let itemCode = String($(this).attr('data-item-code') || '')
-            .trim()
-            .toLowerCase();
+    const $row =
+        $('[data-item-row]')
+            .filter(
+                function () {
 
-        return itemCode === normalizedCode;
-    }).first();
+                    const itemCode =
+                        String(
+                            $(this)
+                                .attr(
+                                    'data-item-code'
+                                )
+                            || ''
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    return (
+                        itemCode ===
+                        normalizedCode
+                    );
+                }
+            )
+            .first();
 
     if (!$row.length) {
-        toastr.warning('No se encontró un ítem disponible con ese código.', 'Ítem no encontrado');
+
+        toastr.warning(
+            'No se encontró un ítem disponible con ese código.',
+            'Ítem no encontrado'
+        );
+
         return;
     }
 
-    let $checkbox = $row.find('.itemeable-item-checkbox');
+    const $checkbox =
+        $row.find(
+            '.itemeable-item-checkbox'
+        );
 
-    if ($checkbox.prop('disabled') && !$checkbox.is(':checked')) {
+    if (
+        $checkbox.prop('disabled') &&
+        !$checkbox.is(':checked')
+    ) {
+
         toastr.warning(
             'Ya alcanzó la cantidad máxima de ítems permitidos.',
             'Límite alcanzado'
         );
+
         return;
     }
 
-    if (!$checkbox.is(':checked')) {
-        $checkbox.prop('checked', true).trigger('change');
+    if (
+        !$checkbox.is(':checked')
+    ) {
+
+        $checkbox
+            .prop(
+                'checked',
+                true
+            )
+            .trigger('change');
     }
 
-    /*
-     * Mover al inicio para que los ítems seleccionados
-     * queden visibles aunque existan cientos de registros.
-     */
-    $('#itemeable-items-table-body').prepend($row);
+    $('#itemeable-items-table-body')
+        .prepend($row);
 
-    /*
-     * Resalta brevemente la fila encontrada.
-     */
-    $row.addClass('table-success');
+    $row.addClass(
+        'table-success'
+    );
 
-    setTimeout(function () {
-        $row.removeClass('table-success');
-    }, 1200);
+    setTimeout(
+        function () {
+
+            $row.removeClass(
+                'table-success'
+            );
+        },
+        1200
+    );
 
     $('#itemeable-item-search')
         .val('')
         .focus();
 }
 
+
 /*
 |--------------------------------------------------------------------------
-| Actualiza contador y bloquea selección adicional
+| RENDER DE PRODUCTOS
 |--------------------------------------------------------------------------
 */
-function updateItemeableItemsCounter(requiredCount) {
-    let selectedCount = $('.itemeable-item-checkbox:checked').length;
-
-    $('#itemeable-selected-count').text(selectedCount);
-
-    let $checkboxes = $('.itemeable-item-checkbox');
-
-    /*
-     * Si ya llegó al máximo, bloqueamos los demás checkbox.
-     */
-    if (selectedCount >= requiredCount) {
-        $checkboxes.not(':checked').prop('disabled', true);
-    } else {
-        $checkboxes.prop('disabled', false);
-    }
-
-    $('#btn-confirm-itemeable-items')
-        .prop('disabled', selectedCount !== requiredCount);
-}
-
-function fetchPresentations(materialId) {
-    return $.ajax({
-        url: `/dashboard/materials-presentations/material/${materialId}/presentations`,
-        method: 'GET',
-        dataType: 'json'
-    }).then(function(res) {
-        // devolvemos SOLO el arreglo
-        return res.presentations || [];
-    });
-}
-
-function renderPresentationsInModalConsumable(presentations) {
-    if (!presentations || presentations.length === 0) {
-        $('#c_presentationsArea').html('<div class="text-muted">Este producto no tiene presentaciones configuradas.</div>');
-        return;
-    }
-
-    let html = `
-    <div class="table-responsive">
-      <table class="table table-sm table-bordered mb-0">
-        <thead>
-          <tr>
-            <th style="width: 45%;">Presentación</th>
-            <th style="width: 25%;">Precio</th>
-            <th style="width: 30%;">Paquetes</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-    presentations.forEach(p => {
-        const label = (p.label && p.label.trim()) ? p.label : `${p.quantity} und`;
-
-        html += `
-      <tr data-pres-row
-          data-pres-id="${p.id}"
-          data-pres-qty="${p.quantity}"
-          data-pres-price="${p.price}"
-          data-pres-label="${label}">
-        <td>
-          <strong>${label}</strong>
-          <div class="text-muted" style="font-size:12px;">Equivale a ${p.quantity} unidades</div>
-        </td>
-        <td>S/. ${parseFloat(p.price).toFixed(2)}</td>
-        <td>
-          <input type="number" min="0" step="1"
-                 class="form-control form-control-sm"
-                 value="0" data-pres-packs>
-        </td>
-      </tr>
-    `;
-    });
-
-    html += `</tbody></table></div>`;
-    $('#c_presentationsArea').html(html);
-}
-
-function showModalQuantityConsumable(render, consumable) {
-    $currentConsumableRender = render;
-    $currentConsumable = consumable;
-
-    $('#c_quantity_is_itemeable').val(
-        parseInt(consumable.tipo_venta_id) === 3 ? 1 : 0
-    );
-
-    $('#c_quantity_productId').val(consumable.id);
-    $('#c_quantity_total').val(0);
-    $('#c_quantity_stock_show').val(consumable.stock_available);
-    $('#c_presentationsArea').html('<div class="text-muted">Cargando presentaciones...</div>');
-
-    fetchPresentations(consumable.material_id)
-        .then(function(presentations) {
-            // solo activas (por si acaso)
-            let actives = presentations.filter(x => x.active === true || x.active === 1 || x.active === "1");
-
-            renderPresentationsInModalConsumable(actives);
-            $modalConsumableQty.modal('show');
-        })
-        .catch(function() {
-            $('#c_presentationsArea').html('<div class="text-danger">No se pudo cargar presentaciones.</div>');
-            $modalConsumableQty.modal('show');
-        });
-}
-
-function calculateServiceRow(row) {
-    const $row = $(row);
-
-    let qty = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
-    if (isNaN(qty) || qty < 0) qty = 0;
-
-    let pu = parseFloat($row.find('[data-servicePU]').val() || 0); // con IGV
-    if (isNaN(pu) || pu < 0) pu = 0;
-
-    const igvPct = (typeof $igv !== 'undefined' && $igv !== null) ? parseFloat($igv) : 18;
-    const igvFactor = 1 + (igvPct / 100);
-
-    // V/U (sin IGV)
-    const vu = (igvFactor > 0) ? (pu / igvFactor) : 0;
-
-    // Importe (con IGV)
-    const importe = qty * pu;
-
-    $row.find('[data-serviceVU]').val(vu.toFixed(2));
-    $row.find('[data-serviceImporte]').val(importe.toFixed(2));
-}
-
-function addService() {
-    const $card = $(this).closest('.card-body');
-    const desc = $card.find('#material_search').val().trim();
-    const unitId = $card.find('.unitMeasure').val();
-    const unitText = $card.find('.unitMeasure option:selected').text().trim();
-    const qty = parseFloat($card.find('#quantity').val() || 0);
-
-    if (!desc) {
-        toastr.error('Debe ingresar una descripción', 'Error');
-        return;
-    }
-    if (!unitId) {
-        toastr.error('Debe seleccionar una unidad', 'Error');
-        return;
-    }
-    if (!qty || qty <= 0) {
-        toastr.error('Debe ingresar una cantidad', 'Error');
-        return;
-    }
-
-    // Precio (con IGV)
-    let pu = 0;
-    const $priceInput = $card.find('#price');
-    if ($priceInput.length) {
-        pu = parseFloat($priceInput.val() || 0);
-        if (!pu || pu <= 0) {
-            toastr.error('Debe ingresar un precio válido', 'Error');
-            return;
-        }
-    } else {
-        // si no puede ver precios, igual lo dejamos en 0, y se ocultan campos por @cannot
-        pu = 0;
-    }
-
-    // render
-    const $render = $card.find('[data-bodyService]');
-    const clone = activateTemplate('#template-service');
-
-    // Set values
-    clone.querySelector('[data-serviceDescription]').value = desc;
-    clone.querySelector('[data-serviceId]').value = ''; // nuevo, aún no existe en BD
-    clone.querySelector('[data-serviceUnit]').value = unitText;
-    clone.querySelector('[data-serviceQuantity]').value = qty.toFixed(2);
-    clone.querySelector('[data-servicePU]').value = pu.toFixed(2);
-
-    $render.append(clone);
-
-    // recalcular para setear V/U e Importe
-    const $lastRow = $render.find('[data-serviceRow]').last();
-
-    const uid = 'billable_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-    $lastRow.find('[data-billable-id]').attr('id', uid);
-    $lastRow.find('[data-billable-label]').attr('for', uid);
-    $lastRow.find('[data-serviceBillable]').prop('checked', true);
-    calculateServiceRow($lastRow);
-
-    // limpiar inputs superiores
-    $card.find('#material_search').val('');
-    $card.find('#quantity').val(0);
-    if ($priceInput.length) $priceInput.val(0);
-    $card.find('.unitMeasure').val(null).trigger('change');
-}
-
-/*function saveEquipment() {
-    var button = $(this);
-
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'orange',
-        title: 'Guardar cambios',
-        content: '¿Está seguro de guardar los cambios en los productos?',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function () {
-
-                    // ===========================
-                    // 0) Identificar equipo existente
-                    // ===========================
-                    var equipmentId = parseInt(button.data('saveequipment'));
-
-                    // Eliminamos el registro previo del mismo equipo
-                    $equipments = $equipments.filter(equipment => equipment.id !== equipmentId);
-
-                    var quantity = 1;
-
-                    // ===========================
-                    // 1) Datos generales del equipo
-                    // ===========================
-                    var utility = button.parent().parent().next().children().children().val();
-                    var rent    = button.parent().parent().next().children().children().next().val();
-                    var letter  = button.parent().parent().next().children().children().next().next().val();
-                    var detail  = button.parent().parent().next().children().children().next().next().next().children().next().val();
-
-                    // ===========================
-                    // 2) CONSUMABLES (productos)
-                    // ===========================
-                    var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
-
-                    var consumablesDescription = [];
-                    var consumablesIds = [];
-                    var consumablesUnit = [];
-
-                    var consumablesQuantity = []; // visible
-                    var consumablesValor = [];
-                    var consumablesValorReal = [];
-                    var consumablesPrice = [];
-                    var consumablesPriceReal = [];
-                    var consumablesImporte = [];
-
-                    var consumablesDiscount = []; // compatibilidad
-                    var consumablesTypePromos = [];
-
-                    var consumablesPresentationId = [];
-                    var consumablesUnitsPerPack = [];
-                    var consumablesUnitsEquivalent = [];
-
-                    var descuentoPromos = 0;
-
-                    consumables.each(function(){
-                        $(this).find('[data-consumableDescription]').each(function(){
-                            consumablesDescription.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumableId]').each(function(){
-                            consumablesIds.push($(this).attr('data-consumableid'));
-                        });
-
-                        $(this).find('[data-descuento]').each(function(){
-                            const d = parseFloat($(this).attr('data-descuento') || 0);
-                            consumablesDiscount.push(d);
-                            descuentoPromos += d;
-                        });
-
-                        $(this).find('[data-type_promotion]').each(function(){
-                            consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                        });
-
-                        $(this).find('[data-consumableUnit]').each(function(){
-                            consumablesUnit.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumableQuantity]').each(function(){
-                            consumablesQuantity.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumableValor]').each(function(){
-                            consumablesValor.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumable_valor_real]').each(function(){
-                            consumablesValorReal.push($(this).attr('data-consumable_valor_real'));
-                        });
-
-                        $(this).find('[data-consumablePrice]').each(function(){
-                            consumablesPrice.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumable_price_real]').each(function(){
-                            consumablesPriceReal.push($(this).attr('data-consumable_price_real'));
-                        });
-
-                        $(this).find('[data-consumableImporte]').each(function(){
-                            consumablesImporte.push($(this).val());
-                        });
-
-                        $(this).find('[data-presentation_id]').each(function(){
-                            consumablesPresentationId.push($(this).attr('data-presentation_id') || null);
-                        });
-
-                        $(this).find('[data-units_per_pack]').each(function(){
-                            consumablesUnitsPerPack.push($(this).attr('data-units_per_pack') || null);
-                        });
-
-                        $(this).find('[data-units_equivalent]').each(function(){
-                            consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent') || null);
-                        });
-                    });
-
-                    // Armamos array final de consumables (incluye reales)
-                    var consumablesArray = [];
-                    for (let i = 0; i < consumablesDescription.length; i++) {
-                        consumablesArray.push({
-                            id: consumablesIds[i],
-                            description: consumablesDescription[i],
-                            unit: consumablesUnit[i],
-
-                            // ✅ quantity = packs si hay presentación, unidades si no hay presentación
-                            quantity: consumablesQuantity[i],
-
-                            // solo para inventario
-                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
-
-                            valor: consumablesValor[i],
-                            valorReal: consumablesValorReal[i],
-                            price: consumablesPrice[i],
-                            priceReal: consumablesPriceReal[i],
-                            importe: consumablesImporte[i],
-
-                            discount: consumablesDiscount[i],
-                            type_promo: consumablesTypePromos[i],
-                            presentation_id: consumablesPresentationId[i] || null,
-                            units_per_pack: consumablesUnitsPerPack[i] || null
-                        });
-                    }
-
-                    // ===========================
-                    // 3) SERVICIOS ADICIONALES
-                    // ===========================
-                    var card = button.closest('.card');
-                    var servicesContainer = card.find('[data-bodyService]');
-
-                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
-                    if (servicesContainer.length > 0) {
-                        servicesRead = readServicesFromDom(servicesContainer);
-                    }
-
-                    var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all; // ✅ con IGV
-                    var servicesSumBillable = servicesRead.sum_billable;
-                    // ===========================
-                    // 4) Totales (misma lógica que confirmEquipment)
-                    // ===========================
-                    const igvPct = parseFloat($igv) || 18;
-                    const factor = getFactor(igvPct);
-
-                    let subtotalConsumablesWithIgvReal = 0;
-
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        const qty = Number(consumablesArray[i].quantity) || 0;
-                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
-
-                        const lineWithIgvReal = round10(qty * priceReal);
-                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
-                    }
-
-                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
-                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
-
-                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
-                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
-
-                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
-
-                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
-                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
-
-                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-                    if (baseFinalReal < 0) baseFinalReal = 0;
-
-                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
-                    const discountBaseReal = round10(discountWithIgvReal / factor);
-
-                    // ===========================
-                    // 5) UI (2 decimales) + data reales
-                    // ===========================
-                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
-                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
-                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
-                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
-
-                    $('#descuento').attr('data-descuento_real', discountBaseReal);
-                    $('#gravada').attr('data-gravada_real', baseFinalReal);
-                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
-                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
-
-                    // ===========================
-                    // 6) Guardar en memoria ($equipments)
-                    // ===========================
-                    button.attr('data-saveEquipment', equipmentId);
-                    button.next().attr('data-deleteEquipment', equipmentId);
-
-                    const discountGlobalMeta = {
-                        subtotal_with_igv: subtotalWithIgvReal,
-                        discount_with_igv: discountWithIgvReal,
-                        discount_base: discountBaseReal,
-                        igv_pct: igvPct,
-                        factor: factor
-                    };
-
-                    $equipments.push({
-                        id: equipmentId,
-                        quantity: quantity,
-                        utility: utility,
-                        rent: rent,
-                        letter: letter,
-
-                        total: totalFinalWithIgvReal, // ✅ real con IGV
-
-                        description: "",
-                        detail: detail,
-
-                        materials: [],
-                        consumables: consumablesArray,
-                        electrics: [],
-                        workforces: servicesArray,
-
-                        discount_global: {
-                            base: discountBaseReal,
-                            meta: discountGlobalMeta
-                        },
-
-                        tornos: [],
-                        dias: []
-                    });
-
-                    // UI
-                    markEquipClean(card);
-                    $items = [];
-                    $.alert("Productos guardados!");
-                }
-            },
-            cancel: {
-                text: 'CANCELAR',
-                action: function () {
-                    $.alert("Modificación cancelada.");
-                }
-            }
-        }
-    });
-}*/
-function saveEquipment() {
-    var $btn = $(this);
-
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'orange',
-        title: 'Guardar cambios',
-        content: '¿Está seguro de guardar los cambios en los productos?',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function () {
-
-                    // ===========================
-                    // 0) Anclar al CARD del equipo
-                    // ===========================
-                    var $card = $btn.closest('[data-equip]');
-
-                    // ===========================
-                    // 1) Identificar equipo existente
-                    // ===========================
-                    var equipmentId = parseInt($btn.data('saveequipment'));
-
-                    // Eliminamos el registro previo del mismo equipo
-                    $equipments = $equipments.filter(function (equipment) {
-                        return equipment.id !== equipmentId;
-                    });
-
-                    var quantity = 1;
-
-                    // ===========================
-                    // 2) Datos generales del equipo
-                    // ===========================
-                    var utility = $card.find('[data-utilityEquipment]').val() || 0;
-                    var rent = $card.find('[data-rentEquipment]').val() || 0;
-                    var letter = $card.find('[data-letterEquipment]').first().val() || 0;
-                    var detail = $card.find('[data-detailequipment]').val() || "";
-
-                    const igvPct = parseFloat(
-                        $card.find('#igv').val() ||
-                        (typeof $igv !== 'undefined' ? $igv : 18)
-                    ) || 18;
-
-                    const factor = getFactor(igvPct);
-
-                    // ===========================
-                    // 3) CONSUMABLES
-                    // ===========================
-                    var $consContainer = $card.find('[data-bodyConsumable]').first();
-
-                    var consumablesArray = [];
-                    var descuentoPromos = 0;
-                    var itemeableValidationError = false;
-
-                    $consContainer.find('[data-consumableRow]').each(function () {
-                        var $row = $(this);
-
-                        var discount = parseFloat(
-                            $row.find('[data-descuento]').attr('data-descuento') || 0
-                        );
-
-                        descuentoPromos += discount;
-
-                        var qty = $row.find('[data-consumableQuantity]').val();
-
-                        var unitsEq = $row.find('[data-units_equivalent]')
-                            .attr('data-units_equivalent') || qty;
-
-                        /*
-                         * Datos adicionales de productos itemeables
-                         */
-                        var $consumableIdElement = $row.find('[data-consumableid]').first();
-
-                        var isItemeable = parseInt(
-                            $consumableIdElement.attr('data-is_itemeable') || 0
-                        ) === 1;
-
-                        var selectedItemIdsRaw = $consumableIdElement.attr(
-                            'data-selected_item_ids'
-                        ) || '[]';
-
-                        var selectedItemIds = [];
-
-                        try {
-                            selectedItemIds = JSON.parse(selectedItemIdsRaw);
-
-                            if (!Array.isArray(selectedItemIds)) {
-                                selectedItemIds = [];
-                            }
-
-                            selectedItemIds = selectedItemIds
-                                .map(function (itemId) {
-                                    return parseInt(itemId);
-                                })
-                                .filter(function (itemId) {
-                                    return itemId > 0;
-                                });
-                        } catch (error) {
-                            selectedItemIds = [];
-                        }
-
-                        /*
-                         * Para itemeables, los IDs seleccionados deben
-                         * coincidir con las unidades reales de inventario.
-                         */
-                        if (isItemeable) {
-                            var unitsEquivalent = parseFloat(unitsEq || 0);
-
-                            if (
-                                selectedItemIds.length === 0 ||
-                                selectedItemIds.length !== unitsEquivalent
-                            ) {
-                                toastr.error(
-                                    'La cantidad de ítems seleccionados no coincide con el producto: ' +
-                                    ($row.find('[data-consumableDescription]').val() || ''),
-                                    'Validación de ítems'
-                                );
-
-                                itemeableValidationError = true;
-                                return false;
-                            }
-                        }
-
-                        consumablesArray.push({
-                            id: $consumableIdElement.attr('data-consumableid'),
-
-                            description: $row.find('[data-consumableDescription]').val() || '',
-                            unit: $row.find('[data-consumableUnit]').val() || '',
-
-                            // Cantidad visible: packs o unidades.
-                            quantity: qty,
-
-                            // Cantidad real consumida desde inventario.
-                            units_equivalent: unitsEq,
-
-                            valor: $row.find('[data-consumableValor]').val() || 0,
-
-                            valorReal: $row.find('[data-consumableValor]')
-                                    .attr('data-consumable_valor_real')
-                                ?? $row.find('[data-consumableValor]').val()
-                                ?? 0,
-
-                            price: $row.find('[data-consumablePrice]').val() || 0,
-
-                            priceReal: $row.find('[data-consumablePrice]')
-                                    .attr('data-consumable_price_real')
-                                ?? $row.find('[data-consumablePrice]').val()
-                                ?? 0,
-
-                            importe: $row.find('[data-consumableImporte]').val() || 0,
-
-                            discount: discount,
-
-                            type_promo: $row.find('[data-type_promotion]')
-                                .attr('data-type_promotion') || null,
-
-                            presentation_id: $row.find('[data-presentation_id]')
-                                .attr('data-presentation_id') || null,
-
-                            units_per_pack: $row.find('[data-units_per_pack]')
-                                .attr('data-units_per_pack') || null,
-
-                            // Nuevos datos itemeables
-                            is_itemeable: isItemeable,
-                            selected_item_ids: selectedItemIds
-                        });
-                    });
-
-                    if (itemeableValidationError) {
-                        return false;
-                    }
-
-                    // ===========================
-                    // 4) SERVICIOS ADICIONALES
-                    // ===========================
-                    var servicesContainer = $card.find('[data-bodyService]').first();
-
-                    var servicesRead = {
-                        array: [],
-                        sum_all: 0,
-                        sum_billable: 0
-                    };
-
-                    if (servicesContainer.length > 0) {
-                        servicesRead = readServicesFromDom(servicesContainer);
-                    }
-
-                    var servicesArray = servicesRead.array;
-                    var servicesSumBillable = servicesRead.sum_billable;
-
-                    // ===========================
-                    // 5) Totales
-                    // ===========================
-                    let subtotalConsumablesWithIgvReal = 0;
-
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        const qty = Number(consumablesArray[i].quantity) || 0;
-
-                        const priceReal = Number(
-                            consumablesArray[i].priceReal ??
-                            consumablesArray[i].price
-                        ) || 0;
-
-                        const lineWithIgvReal = round10(qty * priceReal);
-
-                        subtotalConsumablesWithIgvReal = round10(
-                            subtotalConsumablesWithIgvReal + lineWithIgvReal
-                        );
-                    }
-
-                    subtotalConsumablesWithIgvReal = round10(
-                        subtotalConsumablesWithIgvReal -
-                        (Number(descuentoPromos) || 0)
-                    );
-
-                    if (subtotalConsumablesWithIgvReal < 0) {
-                        subtotalConsumablesWithIgvReal = 0;
-                    }
-
-                    const servicesWithIgvReal = round10(
-                        Number(servicesSumBillable) || 0
-                    );
-
-                    const subtotalWithIgvReal = round10(
-                        subtotalConsumablesWithIgvReal + servicesWithIgvReal
-                    );
-
-                    const discountWithIgvReal = round10(
-                        computeDiscountWithIgv(subtotalWithIgvReal, igvPct)
-                    );
-
-                    let totalFinalWithIgvReal = round10(
-                        subtotalWithIgvReal - discountWithIgvReal
-                    );
-
-                    if (totalFinalWithIgvReal < 0) {
-                        totalFinalWithIgvReal = 0;
-                    }
-
-                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-
-                    if (baseFinalReal < 0) {
-                        baseFinalReal = 0;
-                    }
-
-                    const igvFinalReal = round10(
-                        totalFinalWithIgvReal - baseFinalReal
-                    );
-
-                    const discountBaseReal = round10(
-                        discountWithIgvReal / factor
-                    );
-
-                    // ===========================
-                    // 6) UI
-                    // ===========================
-                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
-                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
-                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
-                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
-
-                    $('#descuento').attr('data-descuento_real', discountBaseReal);
-                    $('#gravada').attr('data-gravada_real', baseFinalReal);
-                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
-                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
-
-                    // ===========================
-                    // 7) Guardar en $equipments
-                    // ===========================
-                    $btn.attr('data-saveEquipment', equipmentId);
-
-                    $card.find('[data-deleteEquipment]')
-                        .attr('data-deleteEquipment', equipmentId);
-
-                    const discountGlobalMeta = {
-                        subtotal_with_igv: subtotalWithIgvReal,
-                        discount_with_igv: discountWithIgvReal,
-                        discount_base: discountBaseReal,
-                        igv_pct: igvPct,
-                        factor: factor
-                    };
-
-                    $equipments.push({
-                        id: equipmentId,
-                        quantity: quantity,
-                        utility: utility,
-                        rent: rent,
-                        letter: letter,
-                        total: totalFinalWithIgvReal,
-                        description: "",
-                        detail: detail,
-                        materials: [],
-                        consumables: consumablesArray,
-                        electrics: [],
-                        workforces: servicesArray,
-                        discount_global: {
-                            base: discountBaseReal,
-                            meta: discountGlobalMeta
-                        },
-                        tornos: [],
-                        dias: []
-                    });
-
-                    markEquipClean($card);
-
-                    $items = [];
-
-                    console.log('Equipments actualizados:', $equipments);
-
-                    $.alert("Productos guardados!");
-                }
-            },
-            cancel: {
-                text: 'CANCELAR',
-                action: function () {
-                    $.alert("Modificación cancelada.");
-                }
-            }
-        }
-    });
-}
-
-function computeDiscountWithIgv(subtotalWithIgv, igvPct) {
-    const $d = $('#discountSection');
-    const type = ($d.attr('data-discount_type') || 'amount'); // amount | percent
-    const mode = ($d.attr('data-discount_input_mode') || 'without_igv'); // with_igv | without_igv
-    const value = parseFloat($d.attr('data-discount_value') || 0);
-
-    if (!value || value <= 0) return 0;
-
-    const factor = 1 + (igvPct / 100);
-
-    let discountWithIgv = 0;
-
-    if (type === 'amount') {
-        discountWithIgv = (mode === 'with_igv') ? value : moneyRound(value * factor);
-    } else {
-        const pct = value / 100;
-        discountWithIgv = (mode === 'with_igv')
-            ? moneyRound(subtotalWithIgv * pct)
-            : moneyRound((subtotalWithIgv / factor) * pct * factor);
-    }
-
-    // No pasar el subtotal
-    if (discountWithIgv > subtotalWithIgv) discountWithIgv = subtotalWithIgv;
-
-    return moneyRound(discountWithIgv);
-}
-
-function deleteConsumable() {
-    //console.log($(this).parent().parent().parent());
-    /*var card = $(this).parent().parent().parent().parent().parent().parent().parent();
-    card.removeClass('card-success');
-    card.addClass('card-gray-dark');
-    $(this).parent().parent().remove();*/
-    markEquipDirty(this);
-    $(this).closest('[data-consumableRow]').remove();
-}
-
-function addConsumable() {
-
-    let button = $(this);
-
-    var consumableID = button.parent().parent().find('[data-consumable]').val();
-
-    if (!consumableID) {
-        toastr.error('Debe seleccionar un producto', 'Error');
-        return;
-    }
-
-    // tu render original
-    var render = button.parent().parent().next().next();
-
-    var consumable = $consumables.find(mat => mat.id === parseInt(consumableID));
-
-    if (!consumable) {
-        toastr.error('Producto no encontrado', 'Error');
-        return;
-    }
-
-    console.log(consumable);
-    let consumablePrice = parseFloat(consumable.list_price) || 0;
-
-    // 👇 VALIDACIÓN NUEVA
-    if (consumablePrice <= 0) {
-
-        $.confirm({
-            icon: 'fas fa-exclamation-triangle',
-            theme: 'modern',
-            closeIcon: true,
-            animation: 'zoom',
-            type: 'orange',
-            title: 'Precio en cero',
-            content: 'El precio de este producto es 0. ¿Procedemos con la venta?',
-            buttons: {
-                confirm: {
-                    text: 'SÍ, CONTINUAR',
-                    btnClass: 'btn-orange',
-                    action: function () {
-
-                        // limpiar UI
-                        button.parent().parent().find('[data-cantidad]').val(0);
-                        $(".consumable_search").empty().trigger('change');
-
-                        // abrir modal
-                        showModalQuantityConsumable(render, consumable);
-                    }
-                },
-                cancel: {
-                    text: 'CANCELAR'
-                }
-            }
-        });
-
-        return;
-    }
-
-    // limpiar UI
-    button.parent().parent().find('[data-cantidad]').val(0);
-    $(".consumable_search").empty().trigger('change');
-
-    // abrir modal
-    showModalQuantityConsumable(render, consumable);
-}
-
-function checkMaterialPromotions(materialId, cantidad, consumable, cantidadOriginal, render) {
-    $.ajax({
-        url: '/dashboard/check-promotions',
-        method: 'POST',
-        data: {
-            material_id: materialId,
-            quantity: cantidad,
-            _token: $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function (response) {
-            if (response.success && response.promotions.length > 0) {
-                showPromotionModal(response.promotions, consumable, cantidadOriginal, render);
-            } else {
-                toastr.info("No hay promociones aplicables.");
-                renderTemplateConsumable(render, consumable, cantidadOriginal, 0, "ninguno")
-            }
-        },
-        error: function () {
-            toastr.error("Error al verificar promociones.");
-        }
-    });
-}
-
-function showPromotionModal(promotions, consumable, cantidad, render) {
-    let content = '';
-
-    promotions.forEach((promo, index) => {
-        let btn = `<button class="btn btn-primary btn-sm select-promo" 
-                        data-index="${index}" 
-                        data-type="${promo.type}">
-                        Seleccionar
-                   </button>`;
-
-        if (promo.type === 'seasonal') {
-            content += `<div class="mb-2 border p-2 rounded">
-                            <strong>Descuento por Categoría:</strong> ${promo.discount}% hasta el ${promo.valid_until}
-                            <br>${btn}
-                        </div>`;
-        }
-        else if (promo.type === 'quantity_discount') {
-            content += `<div class="mb-2 border p-2 rounded">
-                            <strong>Descuento por Cantidad:</strong> ${promo.percentage}%
-                            <br>${btn}
-                        </div>`;
-        }
-        else if (promo.type === 'limit') {
-            content += `<div class="mb-2 border p-2 rounded">
-                            <strong>Promoción Límite:</strong> ${promo.price_type === 'fixed' ? 'Precio fijo' : 'Descuento'} 
-                            ${promo.percentage || promo.promo_price}
-                            <br>${btn}
-                        </div>`;
-        }
-
-
-    });
-
-    // ➕ Agregar botón de "sin promoción"
-    content += `<div class="mb-2 border p-2 rounded text-center">
-                <button class="btn btn-secondary btn-sm select-promo" 
-                        data-index="-1" 
-                        data-type="none">
-                        No aplicar promoción
-                </button>
-            </div>`;
-
-    $("#promotion-content").html(content);
-    $("#promotionModal").modal('show');
-
-    // Evento de selección de promoción
-    $(".select-promo").off().on("click", function () {
-        let index = $(this).data("index");
-        let type = $(this).data("type");
-        let promo = promotions[index];
-
-        if (type === 'none') {
-            // 👉 El usuario eligió no aplicar ninguna promoción
-            let precioNormal = parseFloat(consumable.list_price);
-            renderTemplateConsumableWithFixedPrice(render, consumable, cantidad, precioNormal, 'ninguno');
-
-            $("#promotionModal").modal('hide');
-            return; // cortar aquí
-        }
-
-        if (type === 'quantity_discount') {
-            getDiscountMaterial(consumable.id, parseFloat(cantidad).toFixed(2)).then(function(discount) {
-                let valueDiscount = discount != -1 ? discount.valueDiscount : 0;
-                $descuento += valueDiscount;
-                renderTemplateConsumable(render, consumable, cantidad, valueDiscount, "quantity_discount");
-            });
-        }
-        else if (type === 'seasonal') {
-            let precioBase = parseFloat(consumable.list_price);
-            let descuento = promo.discount;
-            let precioFinal = precioBase - (precioBase * (descuento / 100));
-            renderTemplateConsumable(render, consumable, cantidad, precioFinal, "seasonal", true);
-        }
-        else if (type === 'limit') {
-            let limite = promo.remaining_quantity;
-            let precioNormal = consumable.list_price;
-
-            if (promo.price_type === 'fixed') {
-                if (cantidad > limite) {
-                    // Parte con precio promo
-                    renderTemplateConsumableWithFixedPrice(render, consumable, limite, promo.promo_price, "limit");
-                    // Parte sin promo
-                    renderTemplateConsumableWithFixedPrice(render, consumable, cantidad - limite, precioNormal, 'ninguno');
-                } else {
-                    renderTemplateConsumableWithFixedPrice(render, consumable, cantidad, promo.promo_price, "limit");
-                }
-            }
-            else if (promo.price_type === 'percentage') {
-                let precioConDescuento = precioNormal - (precioNormal * promo.percentage / 100);
-
-                if (cantidad > limite) {
-                    renderTemplateConsumableWithFixedPrice(render, consumable, limite, precioConDescuento, "limit");
-                    renderTemplateConsumableWithFixedPrice(render, consumable, cantidad - limite, precioNormal, 'ninguno');
-                } else {
-                    renderTemplateConsumableWithFixedPrice(render, consumable, cantidad, precioConDescuento, "limit");
-                }
-            }
-        }
-
-        $("#promotionModal").modal('hide');
-    });
-}
-
-function renderTemplateConsumableWithFixedPrice(render, consumable, quantity, fixedPrice, type_promo) {
-    var card = render.closest('[data-equip]');
-    card.removeClass('card-success').addClass('card-gray-dark');
-
-    let precioBase = parseFloat(fixedPrice);
-    let valorUnitario = precioBase / ((100 + parseFloat($igv)) / 100);
-    let importeTotal = precioBase * parseFloat(quantity);
-
-    var clone = activateTemplate('#template-consumable');
-    clone.querySelector("[data-consumableDescription]").setAttribute('value', consumable.full_description);
-    clone.querySelector("[data-consumableId]").setAttribute('data-consumableId', consumable.id);
-    clone.querySelector("[data-descuento]").setAttribute('data-descuento', "0.00");
-    clone.querySelector("[data-type_promotion]").setAttribute('data-type_promotion', type_promo);
-    clone.querySelector("[data-consumableUnit]").setAttribute('value', consumable.unit_measure.description);
-    clone.querySelector("[data-consumableQuantity]").setAttribute('value', (parseFloat(quantity)).toFixed(2));
-
-    clone.querySelector("[data-consumableValor]").setAttribute('value', (parseFloat(valorUnitario).toFixed(2)));
-    clone.querySelector("[data-consumablePrice]").setAttribute('value', (parseFloat(precioBase).toFixed(2)));
-    clone.querySelector("[data-consumableImporte]").setAttribute('value', (parseFloat(importeTotal).toFixed(2)));
-
-    render.append(clone);
-}
-
-function renderTemplateConsumableOrigin(render, consumable, quantity, discountOrPrice, type_promo, isPrice = false, pres = null) {
-
-    console.log(consumable);
-    var clone = activateTemplate('#template-consumable');
-
-    let qtyVisible = parseFloat(quantity);
-
-    // Caso presentación: P/U es precio del pack y cantidad son packs
-    if (pres) {
-        const pricePack = parseFloat(pres.pricePack);
-        const packs = parseInt(pres.packs);
-        const unitsEquivalent = parseInt(pres.unitsEquivalent);
-
-        // visibles
-        clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-        clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
-        clone.querySelector("[data-consumableQuantity]").value = packs.toFixed(2); // ✅ muestra packs
-        clone.querySelector("[data-consumablePrice]").value = pricePack.toFixed(2); // ✅ precio pack
-        $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', pricePack.toFixed(10));
-
-        // V/U (valor unitario) si lo quieres mostrar como valor unitario del pack sin IGV:
-        let valorUnitario = pricePack / ((100 + parseFloat($igv)) / 100);
-        clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
-        $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', valorUnitario.toFixed(10));
-
-        // importe = packs * pricePack
-        let importeTotal = pricePack * packs;
-        clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
-
-        // data attrs para confirm/save
-        $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.id);
-        $(clone).find('[data-descuento]').attr('data-descuento', "0.00");
-        $(clone).find('[data-type_promotion]').attr('data-type_promotion', type_promo);
-
-        // presentación (vis + hidden)
-        clone.querySelector("[data-presentation_text]").value = pres.text;
-
-        $(clone).find('[data-presentation_id]').attr('data-presentation_id', pres.id);
-        $(clone).find('[data-packs]').attr('data-packs', packs);
-        $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', pres.unitsPerPack);
-        $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', unitsEquivalent);
-        markEquipDirty(render);
-        render.append(clone);
-        return;
-    }
-
-    // Caso unidad normal (sin presentación)
-    let precioUnitario = isPrice ? parseFloat(discountOrPrice) : parseFloat(consumable.list_price);
-    let valorUnitario = precioUnitario / ((100 + parseFloat($igv)) / 100);
-    let importeTotal  = precioUnitario * qtyVisible;
-
-    clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
-    clone.querySelector("[data-consumableQuantity]").value = qtyVisible.toFixed(2);
-    clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
-    $(clone).find('[data-consumableValor]').attr('data-consumable_valor_real', valorUnitario.toFixed(10));
-
-    clone.querySelector("[data-consumablePrice]").value = precioUnitario.toFixed(2);
-    $(clone).find('[data-consumablePrice]').attr('data-consumable_price_real', precioUnitario.toFixed(10));
-
-    clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
-
-    $(clone).find('[data-consumableId]').attr('data-consumableid', consumable.id);
-    $(clone).find('[data-descuento]').attr('data-descuento', isPrice ? "0.00" : parseFloat(discountOrPrice).toFixed(2));
-    $(clone).find('[data-type_promotion]').attr('data-type_promotion', type_promo);
-
-    clone.querySelector("[data-presentation_text]").value = "Unidad";
-    $(clone).find('[data-presentation_id]').attr('data-presentation_id', "");
-    $(clone).find('[data-packs]').attr('data-packs', "");
-    $(clone).find('[data-units_per_pack]').attr('data-units_per_pack', "");
-    $(clone).find('[data-units_equivalent]').attr('data-units_equivalent', qtyVisible);
-
-    console.log(render);
-    markEquipDirty(render);
-    render.append(clone);
-}
 
 function renderTemplateConsumable(
     render,
     consumable,
     quantity,
     discountOrPrice,
-    type_promo,
-    isPrice = false,
-    pres = null,
-    selectedItems = []
+    typePromo,
+    isPrice,
+    presentation,
+    selectedItems
 ) {
-    console.log(consumable);
 
-    var clone = activateTemplate('#template-consumable');
+    isPrice =
+        typeof isPrice === 'undefined'
+            ? false
+            : isPrice;
 
-    let qtyVisible = parseFloat(quantity);
-    let isItemeable = parseInt(consumable.tipo_venta_id || 0) === 3;
+    presentation =
+        presentation || null;
 
-    /*
-     |--------------------------------------------------------------------------
-     | Información de ítems seleccionados
-     |--------------------------------------------------------------------------
-     | Se guarda dentro de la fila temporal para luego incluirla cuando
-     | se arme el array equipments al guardar la cotización.
-     */
-    let selectedItemIds = Array.isArray(selectedItems)
-        ? selectedItems.map(function (item) {
-            return parseInt(item.id);
-        }).filter(Boolean)
-        : [];
+    selectedItems =
+        selectedItems || [];
 
-    let selectedItemsText = Array.isArray(selectedItems)
-        ? selectedItems.map(function (item) {
-            return item.code || ('Ítem #' + item.id);
-        }).join(', ')
-        : '';
-
-    /*
-     |--------------------------------------------------------------------------
-     | Función interna para guardar información itemeable en la fila
-     |--------------------------------------------------------------------------
-     */
-    function applyItemeableData() {
-        let $consumableIdElement = $(clone).find('[data-consumableId]');
-        let $descriptionElement = $(clone).find('[data-consumableDescription]');
-
-        $consumableIdElement.attr(
-            'data-is_itemeable',
-            isItemeable ? '1' : '0'
+    const clone =
+        activateTemplate(
+            '#template-consumable'
         );
 
-        $consumableIdElement.attr(
-            'data-selected_item_ids',
-            JSON.stringify(selectedItemIds)
+    const $clone =
+        $(clone);
+
+    const qtyVisible =
+        parseFloat(
+            quantity || 0
         );
 
-        $consumableIdElement.attr(
-            'data-selected_items_text',
-            selectedItemsText
+    const isItemeable =
+        parseInt(
+            consumable.tipo_venta_id
+            || 0
+        ) === 3;
+
+    const selectedItemIds =
+        Array.isArray(selectedItems)
+            ? selectedItems
+                .map(
+                    function (item) {
+
+                        return parseInt(
+                            item.id
+                        );
+                    }
+                )
+                .filter(
+                    function (id) {
+                        return id > 0;
+                    }
+                )
+            : [];
+
+    const selectedItemsText =
+        Array.isArray(selectedItems)
+            ? selectedItems
+                .map(
+                    function (item) {
+
+                        return (
+                            item.code ||
+                            (
+                                'Ítem #' +
+                                item.id
+                            )
+                        );
+                    }
+                )
+                .join(', ')
+            : '';
+
+    const $description =
+        $clone.find(
+            '[data-consumableDescription]'
         );
 
-        /*
-         * Tooltip nativo al pasar el mouse sobre la descripción.
-         * Funciona aunque el campo sea input readonly.
-         */
-        if (isItemeable && selectedItemsText !== '') {
-            $descriptionElement.attr(
-                'title',
-                'Ítems seleccionados: ' + selectedItemsText
-            );
+    const $id =
+        $clone.find(
+            '[data-consumableId]'
+        );
 
-            $descriptionElement.attr(
-                'data-toggle',
-                'tooltip'
-            );
+    const $unit =
+        $clone.find(
+            '[data-consumableUnit]'
+        );
 
-            $descriptionElement.attr(
-                'data-placement',
-                'top'
-            );
-        } else {
-            $descriptionElement.removeAttr('title');
-            $descriptionElement.removeAttr('data-toggle');
-            $descriptionElement.removeAttr('data-placement');
-        }
-    }
+    const $quantity =
+        $clone.find(
+            '[data-consumableQuantity]'
+        );
 
-    /*
-     |--------------------------------------------------------------------------
-     | Caso presentación
-     |--------------------------------------------------------------------------
-     */
-    if (pres) {
-        const pricePack = parseFloat(pres.pricePack);
-        const packs = parseInt(pres.packs);
-        const unitsEquivalent = parseInt(pres.unitsEquivalent);
+    const $valor =
+        $clone.find(
+            '[data-consumableValor]'
+        );
 
-        clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-        clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
-        clone.querySelector("[data-consumableQuantity]").value = packs.toFixed(2);
-        clone.querySelector("[data-consumablePrice]").value = pricePack.toFixed(2);
+    const $price =
+        $clone.find(
+            '[data-consumablePrice]'
+        );
 
-        $(clone)
-            .find('[data-consumablePrice]')
-            .attr('data-consumable_price_real', pricePack.toFixed(10));
+    const $importe =
+        $clone.find(
+            '[data-consumableImporte]'
+        );
 
-        let valorUnitario = pricePack / ((100 + parseFloat($igv)) / 100);
+    const $presentationText =
+        $clone.find(
+            '[data-presentation_text]'
+        );
 
-        clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
-
-        $(clone)
-            .find('[data-consumableValor]')
-            .attr('data-consumable_valor_real', valorUnitario.toFixed(10));
-
-        let importeTotal = pricePack * packs;
-
-        clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
-
-        $(clone)
-            .find('[data-consumableId]')
-            .attr('data-consumableid', consumable.id);
-
-        $(clone)
-            .find('[data-descuento]')
-            .attr('data-descuento', '0.00');
-
-        $(clone)
-            .find('[data-type_promotion]')
-            .attr('data-type_promotion', type_promo);
-
-        clone.querySelector("[data-presentation_text]").value = pres.text;
-
-        $(clone)
-            .find('[data-presentation_id]')
-            .attr('data-presentation_id', pres.id);
-
-        $(clone)
-            .find('[data-packs]')
-            .attr('data-packs', packs);
-
-        $(clone)
-            .find('[data-units_per_pack]')
-            .attr('data-units_per_pack', pres.unitsPerPack);
-
-        $(clone)
-            .find('[data-units_equivalent]')
-            .attr('data-units_equivalent', unitsEquivalent);
-
-        applyItemeableData();
-
-        markEquipDirty(render);
-        render.append(clone);
-
-        return;
-    }
 
     /*
-     |--------------------------------------------------------------------------
-     | Caso unidad normal
-     |--------------------------------------------------------------------------
-     */
-    let precioUnitario = isPrice
-        ? parseFloat(discountOrPrice)
-        : parseFloat(consumable.list_price);
+    |--------------------------------------------------------------------------
+    | Datos comunes
+    |--------------------------------------------------------------------------
+    */
 
-    let valorUnitario = precioUnitario / ((100 + parseFloat($igv)) / 100);
-    let importeTotal = precioUnitario * qtyVisible;
+    $description.val(
+        consumable.full_description ||
+        consumable.display_name ||
+        ''
+    );
 
-    clone.querySelector("[data-consumableDescription]").value = consumable.full_description;
-    clone.querySelector("[data-consumableUnit]").value = consumable.unit_measure.name;
-    clone.querySelector("[data-consumableQuantity]").value = qtyVisible.toFixed(2);
-    clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
-    clone.querySelector("[data-consumablePrice]").value = precioUnitario.toFixed(2);
-    clone.querySelector("[data-consumableImporte]").value = importeTotal.toFixed(2);
+    $id.attr(
+        'data-consumableid',
+        consumable.id
+    );
 
-    $(clone)
-        .find('[data-consumableValor]')
-        .attr('data-consumable_valor_real', valorUnitario.toFixed(10));
+    $id.attr(
+        'data-is_itemeable',
+        isItemeable
+            ? '1'
+            : '0'
+    );
 
-    $(clone)
-        .find('[data-consumablePrice]')
-        .attr('data-consumable_price_real', precioUnitario.toFixed(10));
+    $id.attr(
+        'data-selected_item_ids',
+        JSON.stringify(
+            selectedItemIds
+        )
+    );
 
-    $(clone)
-        .find('[data-consumableId]')
-        .attr('data-consumableid', consumable.id);
+    $id.attr(
+        'data-selected_items_text',
+        selectedItemsText
+    );
 
-    $(clone)
+    $clone
         .find('[data-descuento]')
         .attr(
             'data-descuento',
-            isPrice ? '0.00' : parseFloat(discountOrPrice).toFixed(2)
+            isPrice
+                ? '0.00'
+                : (
+                    parseFloat(
+                        discountOrPrice || 0
+                    )
+                ).toFixed(2)
         );
 
-    $(clone)
+    $clone
         .find('[data-type_promotion]')
-        .attr('data-type_promotion', type_promo);
+        .attr(
+            'data-type_promotion',
+            typePromo || null
+        );
 
-    clone.querySelector("[data-presentation_text]").value = 'Unidad';
+    const unitName =
+        consumable.unit_measure
+            ? (
+                consumable.unit_measure.name ||
+                consumable.unit_measure.description ||
+                ''
+            )
+            : '';
 
-    $(clone)
-        .find('[data-presentation_id]')
-        .attr('data-presentation_id', '');
+    $unit.val(
+        unitName
+    );
 
-    $(clone)
-        .find('[data-packs]')
-        .attr('data-packs', '');
 
-    $(clone)
-        .find('[data-units_per_pack]')
-        .attr('data-units_per_pack', '');
+    /*
+    |--------------------------------------------------------------------------
+    | Presentación
+    |--------------------------------------------------------------------------
+    */
 
-    $(clone)
-        .find('[data-units_equivalent]')
-        .attr('data-units_equivalent', qtyVisible);
+    if (presentation) {
 
-    applyItemeableData();
+        const packs =
+            parseInt(
+                presentation.packs
+                || qtyVisible
+                || 0
+            );
 
-    console.log(render);
+        const unitsPerPack =
+            parseInt(
+                presentation.unitsPerPack
+                || 0
+            );
 
-    markEquipDirty(render);
-    render.append(clone);
-}
+        const unitsEquivalent =
+            parseInt(
+                presentation.unitsEquivalent
+                || (
+                    packs *
+                    unitsPerPack
+                )
+                || 0
+            );
 
-function getDiscountMaterial(product_id, quantity) {
-    return $.get('/dashboard/get/discount/product/' + product_id, {
-        quantity: quantity
-    }).then(function(data) {
-        console.log(data.data[0].haveDiscount);
-        if (data.data[0].haveDiscount == true) {
-            console.log(data);
-            return data.data[0];
-        } else {
-            return -1;
-        }
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-    });
-}
+        const pricePack =
+            parseFloat(
+                presentation.pricePack
+                || discountOrPrice
+                || 0
+            );
 
-//Función auxiliar 1: calcular descuento global (SIN IGV)
-function computeGlobalDiscountBase(subtotalWithIgv, igvPct) {
-    const $d = $('#discountSection');
-    if ($d.length === 0) {
-        return { base: 0, debug: 'no_section' };
-    }
+        const valorUnitario =
+            pricePack /
+            getFactor($igv);
 
-    const type = ($d.attr('data-discount_type') || 'amount');          // amount | percent
-    const mode = ($d.attr('data-discount_input_mode') || 'without_igv'); // with_igv | without_igv
-    const value = parseFloat($d.attr('data-discount_value') || 0);
+        const importe =
+            pricePack *
+            packs;
 
-    if (!value || value <= 0) return { base: 0, debug: 'value_zero' };
+        $quantity.val(
+            packs.toFixed(2)
+        );
 
-    const factor = 1 + (igvPct / 100);
+        $price.val(
+            pricePack.toFixed(2)
+        );
 
-    // Base sin IGV del subtotal (si todo es gravado)
-    //const baseSubtotal = subtotalWithIgv / factor;
-    const baseSubtotal = divTrunc2(subtotalWithIgv, factor);
+        $price.attr(
+            'data-consumable_price_real',
+            pricePack.toFixed(10)
+        );
 
-    let discountBase = 0;
+        $valor.val(
+            valorUnitario.toFixed(2)
+        );
 
-    if (type === 'amount') {
-        // Monto: puede venir sin IGV o con IGV
-        //discountBase = (mode === 'with_igv') ? (value / factor) : value;
-        discountBase = (mode === 'with_igv') ? divTrunc2(value, factor) : value;
+        $valor.attr(
+            'data-consumable_valor_real',
+            valorUnitario.toFixed(10)
+        );
+
+        $importe.val(
+            importe.toFixed(2)
+        );
+
+        $presentationText.val(
+            presentation.text || ''
+        );
+
+        $clone
+            .find('[data-presentation_id]')
+            .attr(
+                'data-presentation_id',
+                presentation.id
+            );
+
+        $clone
+            .find('[data-units_per_pack]')
+            .attr(
+                'data-units_per_pack',
+                unitsPerPack
+            );
+
+        $clone
+            .find('[data-units_equivalent]')
+            .attr(
+                'data-units_equivalent',
+                unitsEquivalent
+            );
+
     } else {
-        // Porcentaje: puede venir calculado sobre base o sobre total
-        const pct = value / 100;
-        if (mode === 'with_igv') {
-            //discountBase = (subtotalWithIgv * pct) / factor;
-            discountBase = divTrunc2(subtotalWithIgv * pct, factor);
-        } else {
-            discountBase = baseSubtotal * pct;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Unidad normal
+        |--------------------------------------------------------------------------
+        */
+
+        const unitPrice =
+            isPrice
+                ? parseFloat(
+                discountOrPrice || 0
+                )
+                : parseFloat(
+                consumable.list_price || 0
+                );
+
+        const valorUnitario =
+            unitPrice /
+            getFactor($igv);
+
+        const importe =
+            unitPrice *
+            qtyVisible;
+
+        $quantity.val(
+            qtyVisible.toFixed(2)
+        );
+
+        $price.val(
+            unitPrice.toFixed(2)
+        );
+
+        $price.attr(
+            'data-consumable_price_real',
+            unitPrice.toFixed(10)
+        );
+
+        $valor.val(
+            valorUnitario.toFixed(2)
+        );
+
+        $valor.attr(
+            'data-consumable_valor_real',
+            valorUnitario.toFixed(10)
+        );
+
+        $importe.val(
+            importe.toFixed(2)
+        );
+
+        $presentationText.val(
+            'Unidad'
+        );
+
+        $clone
+            .find('[data-presentation_id]')
+            .attr(
+                'data-presentation_id',
+                ''
+            );
+
+        $clone
+            .find('[data-units_per_pack]')
+            .attr(
+                'data-units_per_pack',
+                ''
+            );
+
+        $clone
+            .find('[data-units_equivalent]')
+            .attr(
+                'data-units_equivalent',
+                qtyVisible
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tooltip para itemeables
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        isItemeable &&
+        selectedItemsText !== ''
+    ) {
+
+        $description.attr(
+            'title',
+            'Ítems seleccionados: ' +
+            selectedItemsText
+        );
+
+        $description.attr(
+            'data-toggle',
+            'tooltip'
+        );
+
+        $description.attr(
+            'data-placement',
+            'top'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Renderizar
+    |--------------------------------------------------------------------------
+    */
+
+    render.append(clone);
+
+    markEquipDirty(
+        render
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ELIMINAR PRODUCTO
+|--------------------------------------------------------------------------
+*/
+
+function deleteConsumable() {
+
+    markEquipDirty(this);
+
+    $(this)
+        .closest('[data-consumableRow]')
+        .remove();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CAMBIO DE CANTIDAD DE PRODUCTO
+|--------------------------------------------------------------------------
+*/
+
+function calculateTotalC(
+    input
+) {
+
+    const row =
+        input.closest(
+            '[data-consumableRow]'
+        );
+
+    if (!row) {
+        return;
+    }
+
+    let qty =
+        parseFloat(
+            input.value || 0
+        );
+
+    if (
+        isNaN(qty) ||
+        qty < 0
+    ) {
+        qty = 0;
+    }
+
+    const priceElement =
+        row.querySelector(
+            '[data-consumablePrice]'
+        );
+
+    const valorElement =
+        row.querySelector(
+            '[data-consumableValor]'
+        );
+
+    const importeElement =
+        row.querySelector(
+            '[data-consumableImporte]'
+        );
+
+    const unitsPerPackElement =
+        row.querySelector(
+            '[data-units_per_pack]'
+        );
+
+    const unitsEquivalentElement =
+        row.querySelector(
+            '[data-units_equivalent]'
+        );
+
+    if (
+        !priceElement ||
+        !valorElement ||
+        !importeElement
+    ) {
+        return;
+    }
+
+    const unitsPerPack =
+        unitsPerPackElement
+            ? parseFloat(
+            unitsPerPackElement
+                .getAttribute(
+                    'data-units_per_pack'
+                )
+            || 0
+            )
+            : 0;
+
+
+    /*
+     * Las presentaciones solo pueden usar
+     * una cantidad entera de paquetes.
+     */
+    if (
+        unitsPerPack > 0
+    ) {
+
+        qty =
+            Math.floor(qty);
+
+        if (qty < 0) {
+            qty = 0;
+        }
+
+        input.value =
+            qty;
+
+        if (
+            unitsEquivalentElement
+        ) {
+
+            unitsEquivalentElement
+                .setAttribute(
+                    'data-units_equivalent',
+                    qty *
+                    unitsPerPack
+                );
+        }
+
+    } else {
+
+        if (
+            unitsEquivalentElement
+        ) {
+
+            unitsEquivalentElement
+                .setAttribute(
+                    'data-units_equivalent',
+                    qty
+                );
         }
     }
 
-    // No permitir descuento mayor a la base
-    if (discountBase > baseSubtotal) discountBase = baseSubtotal;
+    const price =
+        parseFloat(
+            priceElement.value
+            || 0
+        );
 
-    //return { base: round2(discountBase), debug: { type, mode, value } };
-    return { base: moneyTrunc(discountBase), debug: { type, mode, value } };
+    const valorUnitario =
+        price /
+        getFactor($igv);
+
+    const importe =
+        qty *
+        price;
+
+    importeElement.value =
+        importe.toFixed(2);
+
+    valorElement.value =
+        valorUnitario.toFixed(2);
+
+    $(valorElement)
+        .attr(
+            'data-consumable_valor_real',
+            valorUnitario.toFixed(10)
+        );
+
+    markEquipDirty(
+        input
+    );
 }
 
-//Función auxiliar 2: obtener servicios adicionales del DOM
-function readServicesFromDom(container) {
-    const services = container.find('[data-serviceRow]');
 
-    const arr = [];
+/*
+|--------------------------------------------------------------------------
+| SERVICIOS ADICIONALES
+|--------------------------------------------------------------------------
+*/
+
+function addService() {
+
+    const $card =
+        $(this)
+            .closest('.card-body');
+
+    const description =
+        (
+            $card
+                .find('#material_search')
+                .val()
+            || ''
+        )
+            .trim();
+
+    const unitId =
+        $card
+            .find('.unitMeasure')
+            .val();
+
+    const unitText =
+        (
+            $card
+                .find(
+                    '.unitMeasure option:selected'
+                )
+                .text()
+            || ''
+        )
+            .trim();
+
+    const quantity =
+        parseFloat(
+            $card
+                .find('#quantity')
+                .val()
+            || 0
+        );
+
+    if (!description) {
+
+        toastr.error(
+            'Debe ingresar una descripción.',
+            'Error'
+        );
+
+        return;
+    }
+
+    if (!unitId) {
+
+        toastr.error(
+            'Debe seleccionar una unidad.',
+            'Error'
+        );
+
+        return;
+    }
+
+    if (
+        !quantity ||
+        quantity <= 0
+    ) {
+
+        toastr.error(
+            'Debe ingresar una cantidad válida.',
+            'Error'
+        );
+
+        return;
+    }
+
+    let price = 0;
+
+    const $priceInput =
+        $card.find('#price');
+
+    if (
+        $priceInput.length
+    ) {
+
+        price =
+            parseFloat(
+                $priceInput.val()
+                || 0
+            );
+
+        if (
+            !price ||
+            price <= 0
+        ) {
+
+            toastr.error(
+                'Debe ingresar un precio válido.',
+                'Error'
+            );
+
+            return;
+        }
+    }
+
+    const $render =
+        $card.find(
+            '[data-bodyService]'
+        );
+
+    const clone =
+        activateTemplate(
+            '#template-service'
+        );
+
+    clone
+        .querySelector(
+            '[data-serviceDescription]'
+        )
+        .value =
+        description;
+
+    clone
+        .querySelector(
+            '[data-serviceId]'
+        )
+        .value =
+        '';
+
+    clone
+        .querySelector(
+            '[data-serviceUnit]'
+        )
+        .value =
+        unitText;
+
+    clone
+        .querySelector(
+            '[data-serviceQuantity]'
+        )
+        .value =
+        quantity.toFixed(2);
+
+    clone
+        .querySelector(
+            '[data-servicePU]'
+        )
+        .value =
+        price.toFixed(2);
+
+    $render.append(
+        clone
+    );
+
+    const $lastRow =
+        $render
+            .find(
+                '[data-serviceRow]'
+            )
+            .last();
+
+    const uniqueId =
+        'billable_' +
+        Date.now() +
+        '_' +
+        Math.floor(
+            Math.random() *
+            1000
+        );
+
+    $lastRow
+        .find(
+            '[data-billable-id]'
+        )
+        .attr(
+            'id',
+            uniqueId
+        );
+
+    $lastRow
+        .find(
+            '[data-billable-label]'
+        )
+        .attr(
+            'for',
+            uniqueId
+        );
+
+    $lastRow
+        .find(
+            '[data-serviceBillable]'
+        )
+        .prop(
+            'checked',
+            true
+        );
+
+    calculateServiceRow(
+        $lastRow
+    );
+
+    $card
+        .find('#material_search')
+        .val('');
+
+    $card
+        .find('#quantity')
+        .val(0);
+
+    if (
+        $priceInput.length
+    ) {
+        $priceInput.val(0);
+    }
+
+    $card
+        .find('.unitMeasure')
+        .val(null)
+        .trigger('change');
+
+    markEquipDirty(
+        $card
+            .closest('[data-equip]')
+    );
+}
+
+
+function calculateServiceRow(
+    row
+) {
+
+    const $row =
+        $(row);
+
+    let quantity =
+        parseFloat(
+            $row
+                .find(
+                    '[data-serviceQuantity]'
+                )
+                .val()
+            || 0
+        );
+
+    let price =
+        parseFloat(
+            $row
+                .find(
+                    '[data-servicePU]'
+                )
+                .val()
+            || 0
+        );
+
+    if (
+        isNaN(quantity) ||
+        quantity < 0
+    ) {
+        quantity = 0;
+    }
+
+    if (
+        isNaN(price) ||
+        price < 0
+    ) {
+        price = 0;
+    }
+
+    const factor =
+        getFactor($igv);
+
+    const valorUnitario =
+        factor > 0
+            ? price / factor
+            : 0;
+
+    const importe =
+        quantity *
+        price;
+
+    $row
+        .find(
+            '[data-serviceVU]'
+        )
+        .val(
+            valorUnitario.toFixed(2)
+        );
+
+    $row
+        .find(
+            '[data-serviceImporte]'
+        )
+        .val(
+            importe.toFixed(2)
+        );
+}
+
+
+function readServicesFromDom(
+    container
+) {
+
+    const $services =
+        container.find(
+            '[data-serviceRow]'
+        );
+
+    const array = [];
+
     let sumAll = 0;
     let sumBillable = 0;
 
-    services.each(function() {
-        const $row = $(this);
+    $services.each(
+        function () {
 
-        const desc = ($row.find('[data-serviceDescription]').val() || '').trim();
-        if (!desc) return;
+            const $row =
+                $(this);
 
-        const unit = ($row.find('[data-serviceUnit]').val() || '').trim();
-        const qty  = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
-        const vu   = parseFloat($row.find('[data-serviceVU]').val() || 0); // sin IGV
-        const pu   = parseFloat($row.find('[data-servicePU]').val() || 0); // con IGV
-        const imp  = parseFloat($row.find('[data-serviceImporte]').val() || 0);
+            const description =
+                (
+                    $row
+                        .find(
+                            '[data-serviceDescription]'
+                        )
+                        .val()
+                    || ''
+                )
+                    .trim();
 
-        const billable = $row.find('[data-serviceBillable]').is(':checked') ? 1 : 0;
+            if (!description) {
+                return;
+            }
 
-        arr.push({
-            description: desc,
-            unit: unit,
-            quantity: qty,
-            valor: vu,
-            price: pu,
-            importe: imp,
-            billable: billable
-        });
+            const unit =
+                (
+                    $row
+                        .find(
+                            '[data-serviceUnit]'
+                        )
+                        .val()
+                    || ''
+                )
+                    .trim();
 
-        // ✅ Cotización: suma todo
-        sumAll += round2(imp);
+            const quantity =
+                parseFloat(
+                    $row
+                        .find(
+                            '[data-serviceQuantity]'
+                        )
+                        .val()
+                    || 0
+                );
 
-        // ✅ Facturación (más adelante): suma solo facturables
-        if (billable === 1) {
-            sumBillable += round2(imp);
+            const valor =
+                parseFloat(
+                    $row
+                        .find(
+                            '[data-serviceVU]'
+                        )
+                        .val()
+                    || 0
+                );
+
+            const price =
+                parseFloat(
+                    $row
+                        .find(
+                            '[data-servicePU]'
+                        )
+                        .val()
+                    || 0
+                );
+
+            const importe =
+                parseFloat(
+                    $row
+                        .find(
+                            '[data-serviceImporte]'
+                        )
+                        .val()
+                    || 0
+                );
+
+            const billable =
+                $row
+                    .find(
+                        '[data-serviceBillable]'
+                    )
+                    .is(':checked')
+                    ? 1
+                    : 0;
+
+            array.push({
+                description:
+                description,
+
+                unit:
+                unit,
+
+                quantity:
+                quantity,
+
+                valor:
+                valor,
+
+                price:
+                price,
+
+                importe:
+                importe,
+
+                billable:
+                billable
+            });
+
+            sumAll =
+                round10(
+                    sumAll +
+                    importe
+                );
+
+            if (
+                billable === 1
+            ) {
+
+                sumBillable =
+                    round10(
+                        sumBillable +
+                        importe
+                    );
+            }
         }
-    });
+    );
 
     return {
-        array: arr,
-        sum_all: round2(sumAll),
-        sum_billable: round2(sumBillable)
+        array:
+        array,
+
+        sum_all:
+            round10(
+                sumAll
+            ),
+
+        sum_billable:
+            round10(
+                sumBillable
+            )
     };
 }
 
-const round10 = (n) => Math.round((Number(n) || 0) * 1e10) / 1e10;
-const moneyRound = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
-// factor IGV: 1.18 (o el que toque)
-const getFactor = (igvPct) => 1 + ((Number(igvPct) || 0) / 100);
+/*
+|--------------------------------------------------------------------------
+| LEER PRODUCTOS DEL DOM
+|--------------------------------------------------------------------------
+*/
 
-/*function confirmEquipment() {
-    var button = $(this);
+function readConsumablesFromDom(
+    $card
+) {
 
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'green',
-        title: 'Confirmar Productos',
-        content: 'Debe confirmar para almacenar los productos en memoria',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function () {
+    const $container =
+        $card
+            .find(
+                '[data-bodyConsumable]'
+            )
+            .first();
 
-                    // ===========================
-                    // UI: bloquear botón confirmar
-                    // ===========================
-                    button.hide();
-                    button.next().show();        // botón guardar
-                    button.next().next().show(); // botón eliminar
+    const consumables = [];
 
-                    var quantity = 1;
+    let promotionDiscount = 0;
 
-                    // ===========================
-                    // 0) Datos generales del equipo
-                    // ===========================
-                    var utility = button.parent().parent().next().children().children().val();
-                    var rent    = button.parent().parent().next().children().children().next().val();
-                    var letter  = button.parent().parent().next().children().children().next().next().val();
-                    var detail  = button.parent().parent().next().children().children().next().next().next().children().next().val();
+    let hasValidationError =
+        false;
 
-                    // ===========================
-                    // 1) CONSUMABLES (productos)
-                    // ===========================
-                    var consumables = button.parent().parent().next().children().next().children().next().children().next().next();
+    $container
+        .find(
+            '[data-consumableRow]'
+        )
+        .each(
+            function () {
 
-                    var consumablesDescription = [];
-                    var consumablesIds = [];
-                    var consumablesUnit = [];
+                const $row =
+                    $(this);
 
-                    var consumablesQuantity = []; // visible: packs o unidades
-                    var consumablesValor = [];
-                    var consumablesValorReal = [];
-                    var consumablesPrice = [];    // P/U con IGV (pack o unitario)
-                    var consumablesPriceReal = [];
-                    var consumablesImporte = [];
+                const $id =
+                    $row
+                        .find(
+                            '[data-consumableId]'
+                        )
+                        .first();
 
-                    var consumablesDiscount = []; // compatibilidad (promos por item)
-                    var consumablesTypePromos = [];
+                const stockItemId =
+                    parseInt(
+                        $id.attr(
+                            'data-consumableid'
+                        )
+                        || 0
+                    );
 
-                    var consumablesPresentationId = [];
-                    var consumablesUnitsPerPack = [];
-                    var consumablesUnitsEquivalent = [];
+                if (!stockItemId) {
 
-                    var descuentoPromos = 0;
+                    toastr.error(
+                        'Se encontró un producto sin StockItem válido.',
+                        'Error'
+                    );
 
-                    consumables.each(function(){
-                        $(this).find('[data-consumableDescription]').each(function(){
-                            consumablesDescription.push($(this).val());
-                        });
+                    hasValidationError =
+                        true;
 
-                        $(this).find('[data-consumableId]').each(function(){
-                            consumablesIds.push($(this).attr('data-consumableid'));
-                        });
-
-                        $(this).find('[data-descuento]').each(function(){
-                            const d = parseFloat($(this).attr('data-descuento') || 0);
-                            consumablesDiscount.push(d);
-                            descuentoPromos += d;
-                        });
-
-                        $(this).find('[data-type_promotion]').each(function(){
-                            consumablesTypePromos.push($(this).attr('data-type_promotion'));
-                        });
-
-                        $(this).find('[data-consumableUnit]').each(function(){
-                            consumablesUnit.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumableQuantity]').each(function(){
-                            consumablesQuantity.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumableValor]').each(function(){
-                            consumablesValor.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumable_valor_real]').each(function(){
-                            consumablesValorReal.push($(this).attr('data-consumable_valor_real'));
-                        });
-
-                        $(this).find('[data-consumablePrice]').each(function(){
-                            consumablesPrice.push($(this).val());
-                        });
-
-                        $(this).find('[data-consumable_price_real]').each(function(){
-                            consumablesPriceReal.push($(this).attr('data-consumable_price_real'));
-                        });
-
-                        $(this).find('[data-consumableImporte]').each(function(){
-                            consumablesImporte.push($(this).val());
-                        });
-
-                        $(this).find('[data-presentation_id]').each(function(){
-                            consumablesPresentationId.push($(this).attr('data-presentation_id') || null);
-                        });
-
-                        $(this).find('[data-units_per_pack]').each(function(){
-                            consumablesUnitsPerPack.push($(this).attr('data-units_per_pack') || null);
-                        });
-
-                        $(this).find('[data-units_equivalent]').each(function(){
-                            consumablesUnitsEquivalent.push($(this).attr('data-units_equivalent') || null);
-                        });
-                    });
-
-                    var consumablesArray = [];
-                    for (let i = 0; i < consumablesDescription.length; i++) {
-                        consumablesArray.push({
-                            id: consumablesIds[i],
-                            description: consumablesDescription[i],
-                            unit: consumablesUnit[i],
-
-                            // ✅ quantity = packs si hay presentación, unidades si no hay presentación
-                            quantity: consumablesQuantity[i],
-
-                            // solo para inventario (NO para SUNAT)
-                            units_equivalent: consumablesUnitsEquivalent[i] || consumablesQuantity[i],
-
-                            valor: consumablesValor[i],
-                            valorReal: consumablesValorReal[i], // ✅ por pack o por unidad según corresponda
-                            price: consumablesPrice[i],
-                            priceReal: consumablesPriceReal[i], // ✅ por pack o por unidad según corresponda
-                            importe: consumablesImporte[i],
-
-                            discount: consumablesDiscount[i],
-                            type_promo: consumablesTypePromos[i],
-                            presentation_id: consumablesPresentationId[i] || null,
-                            units_per_pack: consumablesUnitsPerPack[i] || null
-                        });
-                    }
-
-                    // ===========================
-                    // 2) SERVICIOS ADICIONALES
-                    // ===========================
-                    var card = button.closest('.card');
-                    var servicesContainer = card.find('[data-bodyService]');
-
-                    var servicesRead = { array: [], sum_all: 0, sum_billable: 0 };
-                    if (servicesContainer.length > 0) {
-                        servicesRead = readServicesFromDom(servicesContainer);
-                    }
-
-                    var servicesArray = servicesRead.array;
-                    var servicesSumAll = servicesRead.sum_all;
-                    var servicesSumBillable = servicesRead.sum_billable;
-
-                    const igvPct = parseFloat($igv) || 18;
-                    const factor = getFactor(igvPct);
-
-                    // ===========================
-                    // 3) SUBTOTAL con IGV (antes de descuento global)
-                    // ===========================
-                    // ✅ Para SUNAT: usar quantity (packs/unidades) * priceReal (pack/unidad)
-                    let subtotalConsumablesWithIgvReal = 0;
-
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        const qty = Number(consumablesArray[i].quantity) || 0;
-                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
-
-                        const lineWithIgvReal = round10(qty * priceReal);
-                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + lineWithIgvReal);
-                    }
-
-                    // promos (si existen)
-                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
-                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
-
-                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
-                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
-
-                    // ===========================
-                    // 4) DESCUENTO GLOBAL (tu función devuelve con IGV)
-                    // ===========================
-                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
-
-                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
-                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
-
-                    // ===========================
-                    // 5) BASE, IGV (SIN TRUNCAR)
-                    // ===========================
-                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-                    if (baseFinalReal < 0) baseFinalReal = 0;
-
-                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
-                    const discountBaseReal = round10(discountWithIgvReal / factor);
-
-                    // ===========================
-                    // 6) UI (2 decimales) + data reales
-                    // ===========================
-                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
-                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
-                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
-                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
-
-                    $('#descuento').attr('data-descuento_real', discountBaseReal);
-                    $('#gravada').attr('data-gravada_real', baseFinalReal);
-                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
-                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
-
-                    // ===========================
-                    // 7) Guardar en memoria ($equipments)
-                    // ===========================
-                    button.next().attr('data-saveEquipment', $equipments.length);
-
-                    const discountGlobalMeta = {
-                        subtotal_with_igv: subtotalWithIgvReal,
-                        discount_with_igv: discountWithIgvReal,
-                        discount_base: discountBaseReal,
-                        igv_pct: igvPct,
-                        factor: factor
-                    };
-
-                    $equipments.push({
-                        id: $equipments.length,
-                        quantity: quantity,
-                        utility: utility,
-                        rent: rent,
-                        letter: letter,
-                        total: totalFinalWithIgvReal,
-                        description: "",
-                        detail: detail,
-                        materials: [],
-                        consumables: consumablesArray,
-                        electrics: [],
-                        workforces: servicesArray,
-                        discount_global: {
-                            base: discountBaseReal,
-                            meta: discountGlobalMeta
-                        },
-                        tornos: [],
-                        dias: []
-                    });
-
-                    // UI
-                    card.removeClass('card-gray-dark').addClass('card-success');
-
-                    $items = [];
-                    $.alert("Productos confirmados!");
+                    return false;
                 }
-            },
-            cancel: {
-                text: 'CANCELAR',
-                action: function () {
-                    $equipmentStatus = false;
-                    $.alert("Confirmación cancelada.");
-                }
-            }
-        }
-    });
-}*/
-function confirmEquipment() {
-    var $btn = $(this);
 
-    $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'green',
-        title: 'Confirmar Productos',
-        content: 'Debe confirmar para almacenar los productos en memoria',
-        buttons: {
-            confirm: {
-                text: 'CONFIRMAR',
-                action: function () {
+                const quantity =
+                    parseFloat(
+                        $row
+                            .find(
+                                '[data-consumableQuantity]'
+                            )
+                            .val()
+                        || 0
+                    );
 
-                    // ===========================
-                    // 0) Anclar al CARD del equipo
-                    // ===========================
-                    var $card = $btn.closest('[data-equip]');
+                const unitsEquivalent =
+                    parseFloat(
+                        $row
+                            .find(
+                                '[data-units_equivalent]'
+                            )
+                            .attr(
+                                'data-units_equivalent'
+                            )
+                        || quantity
+                        || 0
+                    );
 
-                    // ===========================
-                    // UI: bloquear/mostrar botones
-                    // ===========================
-                    $card.find('[data-confirm]').hide();
-                    $card.find('[data-saveEquipment]').show();
-                    $card.find('[data-deleteEquipment]').show();
+                const discount =
+                    parseFloat(
+                        $row
+                            .find(
+                                '[data-descuento]'
+                            )
+                            .attr(
+                                'data-descuento'
+                            )
+                        || 0
+                    );
 
-                    var quantity = 1;
+                promotionDiscount +=
+                    discount;
 
-                    // ===========================
-                    // 1) Datos generales del equipo
-                    // ===========================
-                    var utility = $card.find('[data-utilityEquipment]').val() || 0;
-                    var rent = $card.find('[data-rentEquipment]').val() || 0;
-                    var letter = $card.find('[data-letterEquipment]').first().val() || 0;
-                    var detail = $card.find('[data-detailequipment]').val() || "";
+                const isItemeable =
+                    parseInt(
+                        $id.attr(
+                            'data-is_itemeable'
+                        )
+                        || 0
+                    ) === 1;
 
-                    var igvPct = parseFloat(
-                        $card.find('#igv').val() ||
-                        (typeof $igv !== 'undefined' ? $igv : 18)
-                    ) || 18;
+                let selectedItemIds =
+                    [];
 
-                    var factor = getFactor(igvPct);
+                const rawSelectedItems =
+                    $id.attr(
+                        'data-selected_item_ids'
+                    )
+                    || '[]';
 
-                    // ===========================
-                    // 2) CONSUMABLES
-                    // ===========================
-                    var $consContainer = $card.find('[data-bodyConsumable]').first();
+                try {
 
-                    var consumablesArray = [];
-                    var descuentoPromos = 0;
-
-                    $consContainer.find('[data-consumableRow]').each(function () {
-                        var $row = $(this);
-
-                        var discount = parseFloat(
-                            $row.find('[data-descuento]').attr('data-descuento') || 0
+                    selectedItemIds =
+                        JSON.parse(
+                            rawSelectedItems
                         );
 
-                        descuentoPromos += discount;
+                    if (
+                        !Array.isArray(
+                            selectedItemIds
+                        )
+                    ) {
+                        selectedItemIds = [];
+                    }
 
-                        var qty = $row.find('[data-consumableQuantity]').val();
+                    selectedItemIds =
+                        selectedItemIds
+                            .map(
+                                function (
+                                    itemId
+                                ) {
 
-                        var unitsEq = $row.find('[data-units_equivalent]')
-                            .attr('data-units_equivalent') || qty;
+                                    return parseInt(
+                                        itemId
+                                    );
+                                }
+                            )
+                            .filter(
+                                function (
+                                    itemId
+                                ) {
 
-                        /*
-                         * =====================================================
-                         * DATOS DE ÍTEMS ITEMEABLES
-                         * =====================================================
-                         */
-                        var $consumableIdElement = $row.find('[data-consumableid]').first();
-
-                        var isItemeable = parseInt(
-                            $consumableIdElement.attr('data-is_itemeable') || 0
-                        ) === 1;
-
-                        var selectedItemIdsRaw = $consumableIdElement.attr(
-                            'data-selected_item_ids'
-                        ) || '[]';
-
-                        var selectedItemIds = [];
-
-                        try {
-                            selectedItemIds = JSON.parse(selectedItemIdsRaw);
-
-                            if (!Array.isArray(selectedItemIds)) {
-                                selectedItemIds = [];
-                            }
-
-                            selectedItemIds = selectedItemIds
-                                .map(function (itemId) {
-                                    return parseInt(itemId);
-                                })
-                                .filter(function (itemId) {
-                                    return itemId > 0;
-                                });
-                        } catch (error) {
-                            selectedItemIds = [];
-                        }
-
-                        /*
-                         * Seguridad adicional:
-                         * si el producto es itemeable, debe tener IDs de ítems.
-                         */
-                        if (isItemeable && selectedItemIds.length === 0) {
-                            toastr.error(
-                                'El producto "' +
-                                ($row.find('[data-consumableDescription]').val() || '') +
-                                '" requiere ítems seleccionados.',
-                                'Ítems pendientes'
+                                    return (
+                                        itemId > 0
+                                    );
+                                }
                             );
 
-                            throw new Error('Producto itemeable sin ítems seleccionados.');
-                        }
+                } catch (error) {
 
-                        consumablesArray.push({
-                            id: $consumableIdElement.attr('data-consumableid'),
+                    selectedItemIds = [];
+                }
 
-                            description: $row.find('[data-consumableDescription]').val() || '',
-                            unit: $row.find('[data-consumableUnit]').val() || '',
+                if (isItemeable) {
 
-                            // Cantidad visible: unidades o packs
-                            quantity: qty,
+                    if (
+                        !Number.isInteger(
+                            unitsEquivalent
+                        )
+                    ) {
 
-                            // Cantidad real de unidades para inventario
-                            units_equivalent: unitsEq,
+                        toastr.error(
+                            'El producto "' +
+                            (
+                                $row
+                                    .find(
+                                        '[data-consumableDescription]'
+                                    )
+                                    .val()
+                                || ''
+                            ) +
+                            '" debe utilizar una cantidad entera.',
+                            'Cantidad inválida'
+                        );
 
-                            valor: $row.find('[data-consumableValor]').val() || 0,
+                        hasValidationError =
+                            true;
 
-                            valorReal: $row.find('[data-consumableValor]')
-                                    .attr('data-consumable_valor_real')
-                                ?? $row.find('[data-consumableValor]').val()
-                                ?? 0,
+                        return false;
+                    }
 
-                            price: $row.find('[data-consumablePrice]').val() || 0,
+                    if (
+                        selectedItemIds.length !==
+                        unitsEquivalent
+                    ) {
 
-                            priceReal: $row.find('[data-consumablePrice]')
-                                    .attr('data-consumable_price_real')
-                                ?? $row.find('[data-consumablePrice]').val()
-                                ?? 0,
+                        toastr.error(
+                            'La cantidad de ítems seleccionados no coincide con el producto: ' +
+                            (
+                                $row
+                                    .find(
+                                        '[data-consumableDescription]'
+                                    )
+                                    .val()
+                                || ''
+                            ),
+                            'Validación de ítems'
+                        );
 
-                            importe: $row.find('[data-consumableImporte]').val() || 0,
+                        hasValidationError =
+                            true;
 
-                            discount: discount,
+                        return false;
+                    }
+                }
 
-                            type_promo: $row.find('[data-type_promotion]')
-                                .attr('data-type_promotion') || null,
+                consumables.push({
+                    id:
+                    stockItemId,
 
-                            presentation_id: $row.find('[data-presentation_id]')
-                                .attr('data-presentation_id') || null,
+                    description:
+                        $row
+                            .find(
+                                '[data-consumableDescription]'
+                            )
+                            .val()
+                        || '',
 
-                            units_per_pack: $row.find('[data-units_per_pack]')
-                                .attr('data-units_per_pack') || null,
-
-                            /*
-                             * Nuevos datos para productos itemeables
-                             */
-                            is_itemeable: isItemeable,
-                            selected_item_ids: selectedItemIds
-                        });
-                    });
+                    unit:
+                        $row
+                            .find(
+                                '[data-consumableUnit]'
+                            )
+                            .val()
+                        || '',
 
                     /*
-                     * Validación final:
-                     * para itemeables, unidades equivalentes debe ser igual
-                     * a la cantidad de ítems físicos seleccionados.
+                     * Cantidad visible:
+                     * - unidades
+                     * - o cantidad de packs
                      */
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        let consumable = consumablesArray[i];
+                    quantity:
+                    quantity,
 
-                        if (!consumable.is_itemeable) {
-                            continue;
-                        }
+                    /*
+                     * Cantidad que realmente
+                     * afecta inventario.
+                     */
+                    units_equivalent:
+                    unitsEquivalent,
 
-                        let unitsEquivalent = parseFloat(
-                            consumable.units_equivalent || 0
+                    valor:
+                        $row
+                            .find(
+                                '[data-consumableValor]'
+                            )
+                            .val()
+                        || 0,
+
+                    valorReal:
+                        $row
+                            .find(
+                                '[data-consumableValor]'
+                            )
+                            .attr(
+                                'data-consumable_valor_real'
+                            )
+                        ??
+                        $row
+                            .find(
+                                '[data-consumableValor]'
+                            )
+                            .val()
+                        ??
+                        0,
+
+                    price:
+                        $row
+                            .find(
+                                '[data-consumablePrice]'
+                            )
+                            .val()
+                        || 0,
+
+                    priceReal:
+                        $row
+                            .find(
+                                '[data-consumablePrice]'
+                            )
+                            .attr(
+                                'data-consumable_price_real'
+                            )
+                        ??
+                        $row
+                            .find(
+                                '[data-consumablePrice]'
+                            )
+                            .val()
+                        ??
+                        0,
+
+                    importe:
+                        $row
+                            .find(
+                                '[data-consumableImporte]'
+                            )
+                            .val()
+                        || 0,
+
+                    discount:
+                    discount,
+
+                    type_promo:
+                        $row
+                            .find(
+                                '[data-type_promotion]'
+                            )
+                            .attr(
+                                'data-type_promotion'
+                            )
+                        || null,
+
+                    presentation_id:
+                        $row
+                            .find(
+                                '[data-presentation_id]'
+                            )
+                            .attr(
+                                'data-presentation_id'
+                            )
+                        || null,
+
+                    units_per_pack:
+                        $row
+                            .find(
+                                '[data-units_per_pack]'
+                            )
+                            .attr(
+                                'data-units_per_pack'
+                            )
+                        || null,
+
+                    is_itemeable:
+                    isItemeable,
+
+                    selected_item_ids:
+                    selectedItemIds
+                });
+            }
+        );
+
+    return {
+        error:
+        hasValidationError,
+
+        consumables:
+        consumables,
+
+        promotion_discount:
+        promotionDiscount
+    };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CALCULAR COTIZACIÓN
+|--------------------------------------------------------------------------
+*/
+
+function calculateQuoteTotals(
+    consumables,
+    servicesBillableTotal,
+    promotionDiscount
+) {
+
+    const igvPct =
+        parseFloat(
+            $igv || 18
+        );
+
+    const factor =
+        getFactor(
+            igvPct
+        );
+
+    let productsWithIgv =
+        0;
+
+    consumables.forEach(
+        function (item) {
+
+            const quantity =
+                Number(
+                    item.quantity || 0
+                );
+
+            const price =
+                Number(
+                    item.priceReal
+                    ??
+                    item.price
+                    ??
+                    0
+                );
+
+            const lineTotal =
+                round10(
+                    quantity *
+                    price
+                );
+
+            productsWithIgv =
+                round10(
+                    productsWithIgv +
+                    lineTotal
+                );
+        }
+    );
+
+    productsWithIgv =
+        round10(
+            productsWithIgv -
+            (
+                Number(
+                    promotionDiscount
+                )
+                || 0
+            )
+        );
+
+    if (
+        productsWithIgv < 0
+    ) {
+        productsWithIgv = 0;
+    }
+
+    const servicesWithIgv =
+        round10(
+            Number(
+                servicesBillableTotal
+            )
+            || 0
+        );
+
+    const subtotalWithIgv =
+        round10(
+            productsWithIgv +
+            servicesWithIgv
+        );
+
+    const discountWithIgv =
+        round10(
+            computeDiscountWithIgv(
+                subtotalWithIgv,
+                igvPct
+            )
+        );
+
+    let totalWithIgv =
+        round10(
+            subtotalWithIgv -
+            discountWithIgv
+        );
+
+    if (
+        totalWithIgv < 0
+    ) {
+        totalWithIgv = 0;
+    }
+
+    let base =
+        round10(
+            totalWithIgv /
+            factor
+        );
+
+    if (base < 0) {
+        base = 0;
+    }
+
+    const igv =
+        round10(
+            totalWithIgv -
+            base
+        );
+
+    const discountBase =
+        round10(
+            discountWithIgv /
+            factor
+        );
+
+    return {
+        subtotal_with_igv:
+        subtotalWithIgv,
+
+        discount_with_igv:
+        discountWithIgv,
+
+        discount_base:
+        discountBase,
+
+        base:
+        base,
+
+        igv:
+        igv,
+
+        total:
+        totalWithIgv,
+
+        igv_pct:
+        igvPct,
+
+        factor:
+        factor
+    };
+}
+
+
+function computeDiscountWithIgv(
+    subtotalWithIgv,
+    igvPct
+) {
+
+    const $discount =
+        $('#discountSection');
+
+    const type =
+        $discount.attr(
+            'data-discount_type'
+        )
+        || 'amount';
+
+    const mode =
+        $discount.attr(
+            'data-discount_input_mode'
+        )
+        || 'without_igv';
+
+    const value =
+        parseFloat(
+            $discount.attr(
+                'data-discount_value'
+            )
+            || 0
+        );
+
+    if (
+        !value ||
+        value <= 0
+    ) {
+        return 0;
+    }
+
+    const factor =
+        getFactor(
+            igvPct
+        );
+
+    let discountWithIgv =
+        0;
+
+    if (
+        type === 'amount'
+    ) {
+
+        discountWithIgv =
+            mode === 'with_igv'
+                ? value
+                : value * factor;
+
+    } else {
+
+        const percentage =
+            value / 100;
+
+        if (
+            mode === 'with_igv'
+        ) {
+
+            discountWithIgv =
+                subtotalWithIgv *
+                percentage;
+
+        } else {
+
+            const base =
+                subtotalWithIgv /
+                factor;
+
+            discountWithIgv =
+                (
+                    base *
+                    percentage
+                ) *
+                factor;
+        }
+    }
+
+    discountWithIgv =
+        round10(
+            discountWithIgv
+        );
+
+    if (
+        discountWithIgv >
+        subtotalWithIgv
+    ) {
+
+        discountWithIgv =
+            subtotalWithIgv;
+    }
+
+    return (
+        discountWithIgv
+    );
+}
+
+
+function updateQuoteSummary(
+    totals
+) {
+
+    $('#descuento')
+        .html(
+            moneyRound(
+                totals.discount_base
+            ).toFixed(2)
+        )
+        .attr(
+            'data-descuento_real',
+            totals.discount_base
+        );
+
+    $('#gravada')
+        .html(
+            moneyRound(
+                totals.base
+            ).toFixed(2)
+        )
+        .attr(
+            'data-gravada_real',
+            totals.base
+        );
+
+    $('#igv_total')
+        .html(
+            moneyRound(
+                totals.igv
+            ).toFixed(2)
+        )
+        .attr(
+            'data-igv_total_real',
+            totals.igv
+        );
+
+    $('#total_importe')
+        .html(
+            moneyRound(
+                totals.total
+            ).toFixed(2)
+        )
+        .attr(
+            'data-total_importe_real',
+            totals.total
+        );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CONFIRMAR EQUIPMENT
+|--------------------------------------------------------------------------
+*/
+
+function confirmEquipment() {
+
+    const $button =
+        $(this);
+
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'green',
+        title: 'Confirmar productos',
+        content:
+            'Debe confirmar para almacenar los productos en memoria.',
+
+        buttons: {
+
+            confirm: {
+                text: 'CONFIRMAR',
+
+                action: function () {
+
+                    const $card =
+                        $button.closest(
+                            '[data-equip]'
                         );
 
-                        if (unitsEquivalent !== consumable.selected_item_ids.length) {
-                            toastr.error(
-                                'La cantidad de ítems seleccionados no coincide con la cantidad del producto: ' +
-                                consumable.description,
-                                'Validación de ítems'
-                            );
-
-                            return false;
-                        }
-                    }
-
-                    // ===========================
-                    // 3) SERVICIOS ADICIONALES
-                    // ===========================
-                    var servicesContainer = $card.find('[data-bodyService]').first();
-
-                    var servicesRead = {
-                        array: [],
-                        sum_all: 0,
-                        sum_billable: 0
-                    };
-
-                    if (servicesContainer.length > 0) {
-                        servicesRead = readServicesFromDom(servicesContainer);
-                    }
-
-                    var servicesArray = servicesRead.array;
-                    var servicesSumBillable = servicesRead.sum_billable;
-
-                    // ===========================
-                    // 4) SUBTOTAL CON IGV
-                    // ===========================
-                    let subtotalConsumablesWithIgvReal = 0;
-
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        const qty = Number(consumablesArray[i].quantity) || 0;
-
-                        const priceReal = Number(
-                            consumablesArray[i].priceReal ??
-                            consumablesArray[i].price
-                        ) || 0;
-
-                        const lineWithIgvReal = round10(qty * priceReal);
-
-                        subtotalConsumablesWithIgvReal = round10(
-                            subtotalConsumablesWithIgvReal + lineWithIgvReal
+                    const result =
+                        buildEquipmentFromCard(
+                            $card
                         );
+
+                    if (!result) {
+                        return false;
                     }
 
-                    subtotalConsumablesWithIgvReal = round10(
-                        subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0)
+                    /*
+                     * La pantalla actual maneja
+                     * exactamente un Equipment.
+                     */
+                    $equipments = [
+                        result
+                    ];
+
+                    $card
+                        .find(
+                            '[data-confirm]'
+                        )
+                        .hide();
+
+                    $card
+                        .find(
+                            '[data-saveEquipment]'
+                        )
+                        .attr(
+                            'data-saveEquipment',
+                            0
+                        )
+                        .show();
+
+                    markEquipClean(
+                        $card
                     );
 
-                    if (subtotalConsumablesWithIgvReal < 0) {
-                        subtotalConsumablesWithIgvReal = 0;
-                    }
-
-                    const servicesWithIgvReal = round10(
-                        Number(servicesSumBillable) || 0
+                    $.alert(
+                        'Productos confirmados!'
                     );
-
-                    const subtotalWithIgvReal = round10(
-                        subtotalConsumablesWithIgvReal + servicesWithIgvReal
-                    );
-
-                    // ===========================
-                    // 5) DESCUENTO GLOBAL
-                    // ===========================
-                    const discountWithIgvReal = round10(
-                        computeDiscountWithIgv(subtotalWithIgvReal, igvPct)
-                    );
-
-                    let totalFinalWithIgvReal = round10(
-                        subtotalWithIgvReal - discountWithIgvReal
-                    );
-
-                    if (totalFinalWithIgvReal < 0) {
-                        totalFinalWithIgvReal = 0;
-                    }
-
-                    // ===========================
-                    // 6) BASE E IGV
-                    // ===========================
-                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-
-                    if (baseFinalReal < 0) {
-                        baseFinalReal = 0;
-                    }
-
-                    const igvFinalReal = round10(
-                        totalFinalWithIgvReal - baseFinalReal
-                    );
-
-                    const discountBaseReal = round10(
-                        discountWithIgvReal / factor
-                    );
-
-                    // ===========================
-                    // 7) Actualizar totales visuales
-                    // ===========================
-                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
-                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
-                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
-                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
-
-                    $('#descuento').attr('data-descuento_real', discountBaseReal);
-                    $('#gravada').attr('data-gravada_real', baseFinalReal);
-                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
-                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
-
-                    // ===========================
-                    // 8) Guardar en $equipments
-                    // ===========================
-                    $card.find('[data-saveEquipment]')
-                        .attr('data-saveEquipment', $equipments.length);
-
-                    const discountGlobalMeta = {
-                        subtotal_with_igv: subtotalWithIgvReal,
-                        discount_with_igv: discountWithIgvReal,
-                        discount_base: discountBaseReal,
-                        igv_pct: igvPct,
-                        factor: factor
-                    };
-
-                    $equipments.push({
-                        id: $equipments.length,
-                        quantity: quantity,
-                        utility: utility,
-                        rent: rent,
-                        letter: letter,
-                        total: totalFinalWithIgvReal,
-                        description: "",
-                        detail: detail,
-                        materials: [],
-                        consumables: consumablesArray,
-                        electrics: [],
-                        workforces: servicesArray,
-                        discount_global: {
-                            base: discountBaseReal,
-                            meta: discountGlobalMeta
-                        },
-                        tornos: [],
-                        dias: []
-                    });
-
-                    $card.removeClass('card-gray-dark').addClass('card-success');
-
-                    $items = [];
-
-                    console.log('Equipments actualizados:', $equipments);
-
-                    $.alert("Productos confirmados!");
                 }
             },
+
             cancel: {
                 text: 'CANCELAR',
+
                 action: function () {
-                    $equipmentStatus = false;
-                    $.alert("Confirmación cancelada.");
+
+                    $.alert(
+                        'Confirmación cancelada.'
+                    );
                 }
             }
         }
     });
 }
 
-// Redondeo clásico a 2 decimales (solo para mostrar o cierre final)
-/*function moneyRound(n) {
-    return Math.round((n + Number.EPSILON) * 100) / 100;
-}*/
 
-// ✅ TRUNCAR a 2 decimales (lo que te evita el +0.01)
-function moneyTrunc(n) {
-    n = Number(n) || 0;
-    return (n >= 0)
-        ? Math.floor(n * 100) / 100
-        : Math.ceil(n * 100) / 100; // por si hubiera negativos
-}
-
-// Dividir y truncar a 2 decimales (para convertir con IGV -> sin IGV)
-function divTrunc2(a, b) {
-    if (!b) return 0;
-    return moneyTrunc((Number(a) || 0) / (Number(b) || 1));
-}
-
-// Función para redondear a 2 decimales
-function round2(num) {
-    return Math.round((num + Number.EPSILON) * 100) / 100;
-}
-
-function mayus(e) {
-    e.value = e.value.toUpperCase();
-}
-
-function getEquipCardFromElement(el) {
-    // Busca el card más cercano que representa el equipo
-    return $(el).closest('[data-equip]');
-}
-
-function markEquipDirty(elOrCard) {
-    const $card = (elOrCard instanceof jQuery) ? elOrCard : getEquipCardFromElement(elOrCard);
-
-    if ($card.length === 0) return;
-
-    // Si ya está "dirty" no hace nada
-    if ($card.attr('data-dirty') === '1') return;
-
-    $card.attr('data-dirty', '1');
-
-    // Cambia color: success -> dark
-    $card.removeClass('card-success').addClass('card-gray-dark');
-
-    // (Opcional) si quieres mostrar un badge "Pendiente"
-    // $card.find('[data-pending-badge]').removeClass('d-none');
-}
-
-function markEquipClean(elOrCard) {
-    const $card = (elOrCard instanceof jQuery) ? elOrCard : getEquipCardFromElement(elOrCard);
-
-    if ($card.length === 0) return;
-
-    $card.attr('data-dirty', '0');
-
-    // dark -> success
-    $card.removeClass('card-gray-dark').addClass('card-success');
-
-    // (Opcional) ocultar badge
-    // $card.find('[data-pending-badge]').addClass('d-none');
-}
-
-function calculateMargen(e) {
-    var margen = e.value;
-
-    var letter = $('#letter').val() ;
-    var rent = $('#taxes').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-
-    $('#subtotal2').html('USD '+$subtotal);
-    $('#subtotal3').html('USD '+$subtotal2);
-    $('#total').html('USD '+$subtotal3);
-
-}
-
-function calculateLetter(e) {
-    var letter = e.value;
-
-    var margen = $('#utility').val() ;
-    var rent = $('#taxes').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-    $('#subtotal3').html('USD '+$subtotal2);
-    $('#total').html('USD '+$subtotal3);
-
-}
-
-function calculateRent(e) {
-    var rent = e.value;
-
-    var margen = $('#utility').val();
-    var letter = $('#letter').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-
-    $('#total').html('USD '+$subtotal3);
-
-}
-
-function calculateMargen2(margen) {
-    var letter = $('#letter').val() ;
-    var rent = $('#taxes').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-
-    $('#subtotal2').html('USD '+$subtotal);
-    $('#subtotal3').html('USD '+$subtotal2);
-    $('#total').html('USD '+$subtotal3);
-
-}
-
-function calculateLetter2(letter) {
-    var margen = $('#utility').val() ;
-    var rent = $('#taxes').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-    $('#subtotal3').html('USD '+$subtotal2);
-    $('#total').html('USD '+$subtotal3);
-
-}
-
-function calculateRent2(rent) {
-    var margen = $('#utility').val();
-    var letter = $('#letter').val() ;
-
-    $subtotal = ($total * ((parseFloat(margen)/100)+1)).toFixed(2);
-    $subtotal2 = ($subtotal * ((parseFloat(letter)/100)+1)).toFixed(2);
-    $subtotal3 = ($subtotal2 * ((parseFloat(rent)/100)+1)).toFixed(0);
-
-    $('#total').html('USD '+$subtotal3);
-}
-
-function calculateTotalC(input) {
-    const row = input.closest('.row');
-    if (!row) return;
-
-    // cantidad visible (packs o unidades)
-    let qty = parseFloat(input.value || 0);
-    if (isNaN(qty) || qty < 0) qty = 0;
-
-    // IGV dinámico (usa tu $igv si ya existe)
-    const igvPct = (typeof $igv !== 'undefined' && $igv !== null) ? parseFloat($igv) : 18;
-    const igvFactor = 1 + (igvPct / 100);
-
-    const elPrice = row.querySelector('[data-consumablePrice]');   // P/U con IGV
-    const elValor = row.querySelector('[data-consumableValor]');   // V/U sin IGV
-    const elImporte = row.querySelector('[data-consumableImporte]');
-
-    if (!elPrice || !elValor || !elImporte) return;
-
-    const pricePU = parseFloat(elPrice.value || 0); // P/U con IGV
-    const importe = qty * pricePU;
-
-    elImporte.value = importe.toFixed(2);
-    elValor.value = (pricePU / igvFactor).toFixed(2);
-
-    // ✅ Si es presentación: actualiza units_equivalent (packs * units_per_pack)
-    const unitsPerPackAttrEl = row.querySelector('[data-units_per_pack]');
-    const unitsEqAttrEl = row.querySelector('[data-units_equivalent]');
-
-    const unitsPerPack = unitsPerPackAttrEl ? parseFloat(unitsPerPackAttrEl.getAttribute('data-units_per_pack') || 0) : 0;
-
-    // Si existe units_per_pack > 0, lo tratamos como presentación
-    if (unitsPerPack > 0 && unitsEqAttrEl) {
-        const unitsEquivalent = qty * unitsPerPack;
-        unitsEqAttrEl.setAttribute('data-units_equivalent', unitsEquivalent);
-        qty = Math.floor(qty);
-        input.value = qty;
-    }
-
-    // (opcional) si tu total general se recalcula aquí, llama tu función:
-    // recalcTotalsQuote();
-    markEquipDirty(input);
-}
-
-function calculateTotalE(e) {
-    var cantidad = e.value;
-    var precio = e.parentElement.parentElement.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value;
-    // CON IGV
-    e.parentElement.parentElement.nextElementSibling.nextElementSibling.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(precio)).toFixed(2);
-    // SIN IGV
-    e.parentElement.parentElement.nextElementSibling.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value = ((parseFloat(cantidad)*parseFloat(precio))/1.18).toFixed(2);
-
-}
-
-function calculateTotal(e) {
-    var cantidad = e.value;
-    var precio = e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value;
-    e.parentElement.parentElement.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(precio)).toFixed(2);
-
-}
-
-function calculateTotal2(e) {
-    var precio = e.value;
-    var cantidad = e.parentElement.parentElement.previousElementSibling.firstElementChild.firstElementChild.value;
-    e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(precio)).toFixed(2);
-
-}
-
-function calculateTotalQuatity(e) {
-    var cantidad = e.value;
-    var hour = e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value;
-    var price = e.parentElement.parentElement.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value;
-
-    e.parentElement.parentElement.nextElementSibling.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(hour)*parseFloat(price)).toFixed(2);
-
-}
-
-function calculateTotalHour(e) {
-    var cantidad = e.parentElement.parentElement.previousElementSibling.firstElementChild.firstElementChild.value;
-    var hour = e.value;
-    var price = e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value;
-    e.parentElement.parentElement.nextElementSibling.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(hour)*parseFloat(price)).toFixed(2);
-
-}
-
-function calculateTotalPrice(e) {
-    var cantidad = e.parentElement.parentElement.previousElementSibling.previousElementSibling.firstElementChild.firstElementChild.value;
-    var hour = e.parentElement.parentElement.previousElementSibling.firstElementChild.firstElementChild.value;
-    var price = e.value;
-    console.log(cantidad);
-    console.log(hour);
-    console.log(price);
-    e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value = (parseFloat(cantidad)*parseFloat(hour)*parseFloat(price)).toFixed(2);
-    console.log(e.parentElement.parentElement.nextElementSibling.firstElementChild.firstElementChild.value);
-}
-
-function deleteItem() {
-    //console.log($(this).parent().parent().parent());
-    var card = $(this).parent().parent().parent().parent().parent().parent().parent();
-    card.removeClass('card-success');
-    card.addClass('card-gray-dark');
-
-    $(this).parent().parent().remove();
-    var itemId = $(this).data('delete');
-    //$items = $items.filter(item => item.id !== itemId);
-}
-
-function editedActive() {
-    var flag = false;
-    $(document).find('[data-equip]').each(function(){
-        console.log($(this));
-        if ($(this).hasClass('card-gray-dark'))
-        {
-            flag = true;
+/*
+|--------------------------------------------------------------------------
+| GUARDAR CAMBIOS DEL EQUIPMENT
+|--------------------------------------------------------------------------
+*/
+
+function saveEquipment() {
+
+    const $button =
+        $(this);
+
+    $.confirm({
+        icon: 'fas fa-smile',
+        theme: 'modern',
+        closeIcon: true,
+        animation: 'zoom',
+        type: 'orange',
+        title: 'Guardar cambios',
+        content:
+            '¿Está seguro de guardar los cambios en los productos?',
+
+        buttons: {
+
+            confirm: {
+                text: 'CONFIRMAR',
+
+                action: function () {
+
+                    const $card =
+                        $button.closest(
+                            '[data-equip]'
+                        );
+
+                    const result =
+                        buildEquipmentFromCard(
+                            $card
+                        );
+
+                    if (!result) {
+                        return false;
+                    }
+
+                    /*
+                     * Regla actual:
+                     * Quote posee un único Equipment.
+                     */
+                    $equipments = [
+                        result
+                    ];
+
+                    $button.attr(
+                        'data-saveEquipment',
+                        0
+                    );
+
+                    markEquipClean(
+                        $card
+                    );
+
+                    $.alert(
+                        'Productos guardados!'
+                    );
+                }
+            },
+
+            cancel: {
+                text: 'CANCELAR',
+
+                action: function () {
+
+                    $.alert(
+                        'Modificación cancelada.'
+                    );
+                }
+            }
         }
     });
-
-    return flag;
 }
 
-function storeQuote() {
+
+/*
+|--------------------------------------------------------------------------
+| CONSTRUIR EQUIPMENT DESDE EL DOM
+|--------------------------------------------------------------------------
+*/
+
+function buildEquipmentFromCard(
+    $card
+) {
+
+    const consumableRead =
+        readConsumablesFromDom(
+            $card
+        );
+
+    if (
+        consumableRead.error
+    ) {
+        return null;
+    }
+
+    const consumables =
+        consumableRead
+            .consumables;
+
+    if (
+        consumables.length === 0
+    ) {
+
+        toastr.error(
+            'La cotización debe contener al menos un producto.',
+            'Error'
+        );
+
+        return null;
+    }
+
+    const servicesContainer =
+        $card
+            .find(
+                '[data-bodyService]'
+            )
+            .first();
+
+    let servicesRead = {
+        array: [],
+        sum_all: 0,
+        sum_billable: 0
+    };
+
+    if (
+        servicesContainer.length
+    ) {
+
+        servicesRead =
+            readServicesFromDom(
+                servicesContainer
+            );
+    }
+
+    const totals =
+        calculateQuoteTotals(
+            consumables,
+            servicesRead.sum_billable,
+            consumableRead
+                .promotion_discount
+        );
+
+    updateQuoteSummary(
+        totals
+    );
+
+    const detail =
+        $card
+            .find(
+                '[data-detailequipment]'
+            )
+            .val()
+        || '';
+
+    return {
+        id:
+            0,
+
+        quantity:
+            1,
+
+        total:
+        totals.total,
+
+        description:
+            '',
+
+        detail:
+        detail,
+
+        consumables:
+        consumables,
+
+        workforces:
+        servicesRead.array,
+
+        discount_global: {
+            base:
+            totals.discount_base,
+
+            meta: {
+                subtotal_with_igv:
+                totals.subtotal_with_igv,
+
+                discount_with_igv:
+                totals.discount_with_igv,
+
+                discount_base:
+                totals.discount_base,
+
+                igv_pct:
+                totals.igv_pct,
+
+                factor:
+                totals.factor
+            }
+        }
+    };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CONTROL DE CAMBIOS
+|--------------------------------------------------------------------------
+*/
+
+function getEquipCardFromElement(
+    element
+) {
+
+    return $(element)
+        .closest(
+            '[data-equip]'
+        );
+}
+
+
+function markEquipDirty(
+    elementOrCard
+) {
+
+    const $card =
+        elementOrCard instanceof jQuery
+            ? (
+                elementOrCard.is(
+                    '[data-equip]'
+                )
+                    ? elementOrCard
+                    : elementOrCard.closest(
+                    '[data-equip]'
+                    )
+            )
+            : getEquipCardFromElement(
+            elementOrCard
+            );
+
+    if (
+        !$card.length
+    ) {
+        return;
+    }
+
+    $card.attr(
+        'data-dirty',
+        '1'
+    );
+
+    $card
+        .removeClass(
+            'card-success'
+        )
+        .addClass(
+            'card-gray-dark'
+        );
+}
+
+
+function markEquipClean(
+    elementOrCard
+) {
+
+    const $card =
+        elementOrCard instanceof jQuery
+            ? (
+                elementOrCard.is(
+                    '[data-equip]'
+                )
+                    ? elementOrCard
+                    : elementOrCard.closest(
+                    '[data-equip]'
+                    )
+            )
+            : getEquipCardFromElement(
+            elementOrCard
+            );
+
+    if (
+        !$card.length
+    ) {
+        return;
+    }
+
+    $card.attr(
+        'data-dirty',
+        '0'
+    );
+
+    $card
+        .removeClass(
+            'card-gray-dark'
+        )
+        .addClass(
+            'card-success'
+        );
+}
+
+
+function editedActive() {
+
+    let dirty =
+        false;
+
+    $('[data-equip]')
+        .each(
+            function () {
+
+                if (
+                    $(this).attr(
+                        'data-dirty'
+                    ) === '1' ||
+                    $(this).hasClass(
+                        'card-gray-dark'
+                    )
+                ) {
+
+                    dirty = true;
+
+                    return false;
+                }
+            }
+        );
+
+    return dirty;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GUARDAR COTIZACIÓN
+|--------------------------------------------------------------------------
+*/
+
+function storeQuote(
+    event
+) {
+
     event.preventDefault();
-    $("#btn-submit").attr("disabled", true);
 
-    if ( editedActive() )
-    {
-        toastr.error('No se puede guardar porque hay productos no confirmados.', 'Error',
-            {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        $("#btn-submit").attr("disabled", false);
+    const $button =
+        $('#btn-submit');
+
+    $button.prop(
+        'disabled',
+        true
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validar cambios pendientes
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        editedActive()
+    ) {
+
+        toastr.error(
+            'No se puede guardar porque hay productos no confirmados.',
+            'Error'
+        );
+
+        $button.prop(
+            'disabled',
+            false
+        );
+
         return;
     }
-    if( $equipments.length === 0 )
-    {
-        toastr.error('No se puede crear una cotización sin productos.', 'Error',
-            {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        $("#btn-submit").attr("disabled", false);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Regla actual: exactamente un Equipment
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $equipments.length !== 1
+    ) {
+
+        toastr.error(
+            'Debe confirmar la cotización antes de guardarla.',
+            'Error'
+        );
+
+        $button.prop(
+            'disabled',
+            false
+        );
+
         return;
     }
-    // Obtener la URL
-    var createUrl = $formCreate.data('url');
-    var equipos = JSON.stringify($equipments);
-    var formulario = $('#formCreate')[0];
-    var form = new FormData(formulario);
-    form.append('equipments', equipos);
 
-    // Datos totales
-    let descuento = $("#descuento").html();
-    let gravada = $("#gravada").html();
-    let igv_total = $("#igv_total").html();
-    let total_importe = $("#total_importe").html();
 
-    let descuentoReal = $('#descuento').attr('data-descuento_real');
-    let gravadaReal = $('#gravada').attr('data-gravada_real');
-    let igvReal = $('#igv_total').attr('data-igv_total_real');
-    let totalReal = $('#total_importe').attr('data-total_importe_real');
+    /*
+    |--------------------------------------------------------------------------
+    | FormData
+    |--------------------------------------------------------------------------
+    */
 
-    form.append('descuento', descuento);
-    form.append('gravada', gravada);
-    form.append('igv_total', igv_total);
-    form.append('total_importe', total_importe);
+    const createUrl =
+        $formCreate.data(
+            'url'
+        );
 
-    form.append('descuentoReal', descuentoReal);
-    form.append('gravadaReal', gravadaReal);
-    form.append('igvReal', igvReal);
-    form.append('totalReal', totalReal);
+    const formulario =
+        $('#formCreate')[0];
 
-    const $d = $('#discountSection');
+    const form =
+        new FormData(
+            formulario
+        );
 
-    form.append('discount_input_value', $d.attr('data-discount_value') || '0');
+    form.append(
+        'equipments',
+        JSON.stringify(
+            $equipments
+        )
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Totales reales
+    |--------------------------------------------------------------------------
+    */
+
+    const descuentoReal =
+        $('#descuento')
+            .attr(
+                'data-descuento_real'
+            )
+        || '0';
+
+    const gravadaReal =
+        $('#gravada')
+            .attr(
+                'data-gravada_real'
+            )
+        || '0';
+
+    const igvReal =
+        $('#igv_total')
+            .attr(
+                'data-igv_total_real'
+            )
+        || '0';
+
+    const totalReal =
+        $('#total_importe')
+            .attr(
+                'data-total_importe_real'
+            )
+        || '0';
+
+    form.append(
+        'descuentoReal',
+        descuentoReal
+    );
+
+    form.append(
+        'gravadaReal',
+        gravadaReal
+    );
+
+    form.append(
+        'igvReal',
+        igvReal
+    );
+
+    form.append(
+        'totalReal',
+        totalReal
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Información del descuento
+    |--------------------------------------------------------------------------
+    */
+
+    const $discount =
+        $('#discountSection');
+
+    form.set(
+        'discount_type',
+        $discount.attr(
+            'data-discount_type'
+        )
+        || 'amount'
+    );
+
+    form.set(
+        'discount_input_mode',
+        $discount.attr(
+            'data-discount_input_mode'
+        )
+        || 'without_igv'
+    );
+
+    form.set(
+        'discount_input_value',
+        $discount.attr(
+            'data-discount_value'
+        )
+        || '0'
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AJAX
+    |--------------------------------------------------------------------------
+    */
 
     $.ajax({
-        url: createUrl,
-        method: 'POST',
-        data: form,
-        processData:false,
-        contentType:false,
-        success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
-                $("#btn-submit").attr("disabled", false);
-                location.reload();
-            }, 2000 )
-        },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-submit").attr("disabled", false);
+        url:
+        createUrl,
 
+        method:
+            'POST',
+
+        data:
+        form,
+
+        processData:
+            false,
+
+        contentType:
+            false,
+
+        success: function (
+            data
+        ) {
+
+            toastr.success(
+                data.message,
+                'Éxito'
+            );
+
+            setTimeout(
+                function () {
+
+                    $button.prop(
+                        'disabled',
+                        false
+                    );
+
+                    location.reload();
+                },
+                1500
+            );
         },
+
+        error: function (
+            xhr
+        ) {
+
+            const response =
+                xhr.responseJSON
+                || {};
+
+            if (
+                response.message
+            ) {
+
+                toastr.error(
+                    response.message,
+                    'Error'
+                );
+            }
+
+            if (
+                response.errors
+            ) {
+
+                Object.keys(
+                    response.errors
+                )
+                    .forEach(
+                        function (property) {
+
+                            const error =
+                                response.errors[
+                                    property
+                                    ];
+
+                            if (
+                                Array.isArray(
+                                    error
+                                )
+                            ) {
+
+                                error.forEach(
+                                    function (
+                                        message
+                                    ) {
+
+                                        toastr.error(
+                                            message,
+                                            'Error'
+                                        );
+                                    }
+                                );
+
+                            } else {
+
+                                toastr.error(
+                                    error,
+                                    'Error'
+                                );
+                            }
+                        }
+                    );
+            }
+
+            $button.prop(
+                'disabled',
+                false
+            );
+        }
     });
 }
 
-function activateTemplate(id) {
-    var t = document.querySelector(id);
-    return document.importNode(t.content, true);
+
+/*
+|--------------------------------------------------------------------------
+| HELPERS
+|--------------------------------------------------------------------------
+*/
+
+function activateTemplate(
+    id
+) {
+
+    const template =
+        document.querySelector(
+            id
+        );
+
+    return document.importNode(
+        template.content,
+        true
+    );
+}
+
+
+function getFactor(
+    igvPct
+) {
+
+    return (
+        1 +
+        (
+            (
+                Number(
+                    igvPct
+                )
+                || 0
+            )
+            /
+            100
+        )
+    );
+}
+
+
+function round10(
+    number
+) {
+
+    return (
+        Math.round(
+            (
+                Number(
+                    number
+                )
+                || 0
+            )
+            *
+            1e10
+        )
+        /
+        1e10
+    );
+}
+
+
+function moneyRound(
+    number
+) {
+
+    return (
+        Math.round(
+            (
+                Number(
+                    number
+                )
+                || 0
+            )
+            *
+            100
+        )
+        /
+        100
+    );
+}
+
+
+function mayus(
+    element
+) {
+
+    element.value =
+        (
+            element.value
+            || ''
+        )
+            .toUpperCase();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ESCAPAR HTML
+|--------------------------------------------------------------------------
+|
+| El endpoint devuelve información de códigos, lotes y almacenes.
+| No insertamos esa información directamente dentro del HTML sin escapar.
+|
+*/
+
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value == null
+            ? ''
+            : value
+    )
+        .replace(
+            /&/g,
+            '&amp;'
+        )
+        .replace(
+            /</g,
+            '&lt;'
+        )
+        .replace(
+            />/g,
+            '&gt;'
+        )
+        .replace(
+            /"/g,
+            '&quot;'
+        )
+        .replace(
+            /'/g,
+            '&#039;'
+        );
 }
