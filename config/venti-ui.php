@@ -28,7 +28,5 @@ return [
         'category.index',
         'category.create',
         'category.edit',
-        'material.indexV2',
-        'dashboard.principal'
     ],
 ];

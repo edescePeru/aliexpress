@@ -2,6 +2,38 @@ $(document).ready(function () {
     $formCreate = $('#formCreate');
     //$formCreate.on('submit', storeMaterial);
     $('#btn-submit').on('click', storeMaterial);
+
+    $(document).on('show.bs.modal', '.next-material-page ~ .modal', function (event) {
+        let trigger = event.relatedTarget || document.activeElement;
+
+        if (trigger && trigger !== document.body && !this.contains(trigger)) {
+            $(this).data('next-modal-trigger', trigger);
+        }
+    });
+
+    $(document).on('shown.bs.modal', '.next-material-page ~ .modal', function () {
+        let field = $(this)
+            .find('[data-modal-autofocus], input:not([type="hidden"]), textarea, select')
+            .filter(':visible')
+            .first()
+            .get(0);
+
+        if (field) {
+            window.setTimeout(function () {
+                field.focus({ preventScroll: true });
+            }, 0);
+        }
+    });
+
+    $(document).on('hidden.bs.modal', '.next-material-page ~ .modal', function () {
+        let trigger = $(this).data('next-modal-trigger');
+
+        if (trigger && document.contains(trigger)) {
+            window.setTimeout(function () {
+                trigger.focus({ preventScroll: true });
+            }, 0);
+        }
+    });
     
     $('#btn-add').on('click', showTemplateSpecification);
 
@@ -195,7 +227,11 @@ $(document).ready(function () {
 
     // Prevenir abrir el modal si no hay marca seleccionada
     $('#modalExampler').on('show.bs.modal', function () {
-        if (!$('#brand_id_hidden').val()) {
+        let brandId = $('#brand').val();
+
+        $('#brand_id_hidden').val(brandId || '');
+
+        if (!brandId) {
             alert('Primero seleccione una marca');
             $('#modalExampler').modal('hide');
         }
@@ -296,7 +332,7 @@ $(document).ready(function () {
 
         if (selectedCategoriaId) {
             // Asignar marca al input hidden del formulario
-            $('#category_id_hidden').val(selectedCategoriaId);
+            $('#categoria_id_hidden').val(selectedCategoriaId);
 
             // Mostrar el modal
             $('#modalSubCategoria').modal('show');
@@ -337,6 +373,18 @@ $(document).ready(function () {
 
     $(document).on('click', '[data-delete]', function () {
         $(this).closest('.item-variante').remove();
+        renderVariantsEmptyState();
+    });
+
+    $(document).on('change', '[data-image_variante]', function () {
+        let fileName = this.files && this.files.length
+            ? this.files[0].name
+            : 'Sin archivo';
+
+        $(this)
+            .closest('.next-variant-cell--image')
+            .find('[data-variant-file-name]')
+            .text(fileName);
     });
 
     $('#btn-newMaterialType').on('click', function () {
@@ -843,15 +891,18 @@ function appendVariantRow(talla, color, skuBase, genero) {
 
     $template.find('[data-talla_text]').val(talla.text);
     $template.find('[data-talla_id]').val(talla.id);
+    $template.find('[data-variant-size-label]').text(talla.text);
 
     $template.find('[data-color_text]').val(color.text);
     $template.find('[data-color_id]').val(color.id);
+    $template.find('[data-variant-color-label]').text(color.text);
 
     $template.find('[data-sku_sugerido]').val(skuFinal);
     $template.find('[data-codigo_barras]').val('');
     $template.find('[data-stock_minimo]').val('');
     $template.find('[data-stock_maximo]').val('');
 
+    $('#body-variantes').find('[data-variants-empty]').remove();
     $('#body-variantes').append($template);
 
     $("input[data-bootstrap-switch]").each(function(){
@@ -954,6 +1005,26 @@ function limpiarSeccionConVariantes() {
     $('#color').val(null).trigger('change');
 
     $('#body-variantes').empty();
+    renderVariantsEmptyState();
+}
+
+function renderVariantsEmptyState() {
+    let $body = $('#body-variantes');
+
+    if ($body.find('.item-variante').length || $body.find('[data-variants-empty]').length) {
+        return;
+    }
+
+    $body.append(
+        '<tr class="next-variants-empty-row" data-variants-empty>' +
+            '<td colspan="9">' +
+                '<div class="next-variants-empty">' +
+                    '<i class="fas fa-layer-group" aria-hidden="true"></i>' +
+                    '<span>Selecciona talla y color para generar las combinaciones.</span>' +
+                '</div>' +
+            '</td>' +
+        '</tr>'
+    );
 }
 
 function limpiarSeccionSinVariantes() {

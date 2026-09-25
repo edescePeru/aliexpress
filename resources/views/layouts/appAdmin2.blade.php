@@ -26,21 +26,33 @@
     <link rel="stylesheet" href="{{ asset('admin/dist/css/adminlte.min.css') }}">
 
     @php
-        $ventiEnabled = config('venti-ui.enabled', false);
-
-        $ventiRoutes = config('venti-ui.routes', []);
-
         $currentRoute = optional(request()->route())->getName();
 
-        $useVentiUi =
-            $ventiEnabled === true
+        $ventiEnabled = config('venti-ui.enabled', false);
+        $ventiRoutes = config('venti-ui.routes', []);
+        $ventiNextEnabled = config('venti-next.enabled', false);
+        $ventiNextRoutes = config('venti-next.routes', []);
+
+        $useVentiNext =
+            $ventiNextEnabled === true
             && $currentRoute
-            && is_array($ventiRoutes)
-            && in_array($currentRoute, $ventiRoutes, true);
+            && is_array($ventiNextRoutes)
+            && in_array($currentRoute, $ventiNextRoutes, true);
+
+        $useVentiUi =
+            ($ventiEnabled === true
+                && $currentRoute
+                && is_array($ventiRoutes)
+                && in_array($currentRoute, $ventiRoutes, true))
+            || $useVentiNext;
     @endphp
 
     @if($useVentiUi)
         <link rel="stylesheet" href="{{ asset('admin/dist/css/venti.min.css') }}">
+    @endif
+
+    @if($useVentiNext)
+        <link rel="stylesheet" href="{{ asset('admin/dist/css/venti-next.css') }}">
     @endif
 
     <style>
