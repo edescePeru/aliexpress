@@ -610,6 +610,58 @@
                         </ul>
                     </li>
                     @endcan
+
+                    @can('enable_priceList')
+                        <li class="nav-header">PRECIOS</li>
+
+                        <li class="nav-item has-treeview @yield('openPriceList')">
+
+                            <a href="#" class="nav-link @yield('activePriceList')">
+                                <i class="nav-icon fas fa-tags"></i>
+
+                                <p>
+                                    Listas de Precios
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+
+                            <ul class="nav nav-treeview">
+
+                                @can('show_priceList')
+                                    <li class="nav-item">
+                                        <a
+                                                href="{{ route('priceList.index') }}"
+                                                class="nav-link @yield('activePriceListIndex')"
+                                        >
+                                            <i class="far fa-circle nav-icon"></i>
+
+                                            <p>
+                                                Listas de precios
+                                            </p>
+                                        </a>
+                                    </li>
+                                @endcan
+
+                                @can('manage_priceListMaterial')
+                                    <li class="nav-item">
+                                        <a
+                                                href="{{ route('priceList.index') }}"
+                                                class="nav-link @yield('activePriceListMaterials')"
+                                        >
+                                            <i class="far fa-circle nav-icon"></i>
+
+                                            <p>
+                                                Precios por producto
+                                            </p>
+                                        </a>
+                                    </li>
+                                @endcan
+
+                            </ul>
+                        </li>
+                    @endcan
+
+
                     @can('enable_promotions')
                     <li class="nav-header">PROMOCIONES</li>
                     <li class="nav-item has-treeview @yield('openPromotions')">

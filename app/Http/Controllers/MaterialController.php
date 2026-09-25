@@ -51,6 +51,7 @@ use App\Support\TenantContext;
 use App\CompanyStockItem;
 use App\Services\Inventory\DefaultInventoryLocationResolver;
 use App\Services\SettingService;
+use App\Services\PriceResolverService;
 
 class MaterialController extends Controller
 {
@@ -5326,76 +5327,210 @@ class MaterialController extends Controller
     {
         $search = trim($request->get('search', ''));
 
+        $companyId = TenantContext::companyId();
+
+        /** @var PriceResolverService $priceResolver */
+        $priceResolver = app(PriceResolverService::class);
+
         $materials = Material::with([
             'unitMeasure',
             'typeScrap',
-            'stockItems' => function ($q) {
+
+            'stockItems' => function ($q) use ($companyId) {
                 $q->where('is_active', 1)
+                    ->enabledForCompany($companyId)
                     ->with([
-                        'inventoryLevels',
-                        'priceListItems.priceList'
+                        'inventoryLevels' => function ($inventoryQuery) use ($companyId) {
+                            $inventoryQuery->where(
+                                'company_id',
+                                $companyId
+                            );
+                        }
                     ]);
             }
         ])
             ->where('enable_status', 1)
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $query->where('full_name', 'LIKE', "%{$search}%")
-                        ->orWhereHas('stockItems', function ($stockQuery) use ($search) {
-                            $stockQuery->where('is_active', 1)
-                                ->where(function ($sq) use ($search) {
-                                    $sq->where('sku', 'LIKE', "%{$search}%")
-                                        ->orWhere('barcode', 'LIKE', "%{$search}%")
-                                        ->orWhere('display_name', 'LIKE', "%{$search}%");
-                                });
-                        });
+
+            ->when($search !== '', function ($q) use ($search, $companyId) {
+                $q->where(function ($query) use ($search, $companyId) {
+
+                    $query->where(
+                        'full_name',
+                        'LIKE',
+                        "%{$search}%"
+                    )
+                        ->orWhereHas(
+                            'stockItems',
+                            function ($stockQuery) use ($search, $companyId) {
+                                $stockQuery
+                                    ->where('is_active', 1)
+                                    ->enabledForCompany($companyId)
+                                    ->where(function ($sq) use ($search) {
+                                        $sq->where(
+                                            'sku',
+                                            'LIKE',
+                                            "%{$search}%"
+                                        )
+                                            ->orWhere(
+                                                'barcode',
+                                                'LIKE',
+                                                "%{$search}%"
+                                            )
+                                            ->orWhere(
+                                                'display_name',
+                                                'LIKE',
+                                                "%{$search}%"
+                                            );
+                                    });
+                            }
+                        );
                 });
             })
+
+            /*
+             * Solo Materials que tengan al menos un StockItem
+             * habilitado para la Company actual.
+             */
+            ->whereHas('stockItems', function ($q) use ($companyId) {
+                $q->where('is_active', 1)
+                    ->enabledForCompany($companyId);
+            })
+
             ->limit(30)
             ->get();
 
         $array = [];
 
         foreach ($materials as $material) {
+
             $stockItems = $material->stockItems;
 
-            $activeStockItemsCount = $stockItems->count();
+            $activeStockItemsCount =
+                $stockItems->count();
 
-            $stockCurrent = $stockItems->sum(function ($stockItem) {
-                return $stockItem->inventoryLevels->sum('qty_on_hand');
-            });
+            /*
+             * Inventario únicamente de la Company actual,
+             * porque la relación ya viene filtrada arriba.
+             */
+            $stockCurrent =
+                $stockItems->sum(function ($stockItem) {
+                    return $stockItem
+                        ->inventoryLevels
+                        ->sum('qty_on_hand');
+                });
 
             $simpleStockItem = null;
 
             if ($activeStockItemsCount === 1) {
-                $simpleStockItem = $stockItems->first();
+                $simpleStockItem =
+                    $stockItems->first();
             }
 
-            $hasVariants = $stockItems->whereNotNull('variant_id')->count() > 0;
+            $hasVariants =
+                $stockItems
+                    ->whereNotNull('variant_id')
+                    ->count() > 0;
+
+            /*
+             * =========================================================
+             * PRECIO
+             * =========================================================
+             *
+             * Solo resolvemos automáticamente cuando existe
+             * exactamente un StockItem.
+             *
+             * Si hay variantes, cada una puede tener override
+             * diferente, así que el precio se resolverá cuando
+             * se seleccione el StockItem específico.
+             */
+
+            $price = 0;
+            $hasPrice = false;
+
+            if ($simpleStockItem) {
+
+                $priceData =
+                    $priceResolver->resolveWithSource(
+                        $simpleStockItem,
+                        $companyId
+                    );
+
+                $hasPrice =
+                    $priceData['price'] !== null;
+
+                $price =
+                    $hasPrice
+                        ? (float) $priceData['price']
+                        : 0;
+            }
 
             $array[] = [
-                'id' => $material->id,
-                'material_id' => $material->id,
+                'id' =>
+                    $material->id,
 
-                'material' => $material->full_name,
-                'unit' => optional($material->unitMeasure)->name ?? '',
+                'material_id' =>
+                    $material->id,
 
-                'price' => $simpleStockItem ? $simpleStockItem->list_price : 0,
-                'typescrap' => $material->typescrap_id,
-                'full_typescrap' => $material->typeScrap,
-                'stock_current' => $stockCurrent,
-                'category' => $material->category_id,
-                'enable_status' => $material->enable_status,
-                'tipo_venta_id' => $material->tipo_venta_id,
-                'perecible' => $material->perecible ?? 'n',
+                'material' =>
+                    $material->full_name,
 
-                'has_variants' => $hasVariants,
-                'stock_items_count' => $activeStockItemsCount,
+                'unit' =>
+                    optional(
+                        $material->unitMeasure
+                    )->name ?? '',
 
-                'stock_item_id' => optional($simpleStockItem)->id,
-                'stock_item_sku' => optional($simpleStockItem)->sku,
-                'stock_item_barcode' => optional($simpleStockItem)->barcode,
-                'stock_item_display_name' => optional($simpleStockItem)->display_name,
+                'price' =>
+                    $price,
+
+                'has_price' =>
+                    $hasPrice,
+
+                'typescrap' =>
+                    $material->typescrap_id,
+
+                'full_typescrap' =>
+                    $material->typeScrap,
+
+                'stock_current' =>
+                    $stockCurrent,
+
+                'category' =>
+                    $material->category_id,
+
+                'enable_status' =>
+                    $material->enable_status,
+
+                'tipo_venta_id' =>
+                    $material->tipo_venta_id,
+
+                'perecible' =>
+                    $material->perecible ?? 'n',
+
+                'has_variants' =>
+                    $hasVariants,
+
+                'stock_items_count' =>
+                    $activeStockItemsCount,
+
+                'stock_item_id' =>
+                    optional(
+                        $simpleStockItem
+                    )->id,
+
+                'stock_item_sku' =>
+                    optional(
+                        $simpleStockItem
+                    )->sku,
+
+                'stock_item_barcode' =>
+                    optional(
+                        $simpleStockItem
+                    )->barcode,
+
+                'stock_item_display_name' =>
+                    optional(
+                        $simpleStockItem
+                    )->display_name,
             ];
         }
 
@@ -5404,30 +5539,88 @@ class MaterialController extends Controller
 
     public function getStockItemsForEntry($materialId)
     {
+        $companyId = TenantContext::companyId();
+
+        /** @var PriceResolverService $priceResolver */
+        $priceResolver = app(PriceResolverService::class);
+
         $stockItems = StockItem::with([
-            'variant',
-            'priceListItems.priceList'
+            'variant'
         ])
-            ->where('material_id', $materialId)
-            ->where('is_active', 1)
-            ->whereNotNull('variant_id')
-            ->orderBy('display_name', 'asc')
+            ->where(
+                'material_id',
+                $materialId
+            )
+            ->where(
+                'is_active',
+                1
+            )
+            ->enabledForCompany(
+                $companyId
+            )
+            ->whereNotNull(
+                'variant_id'
+            )
+            ->orderBy(
+                'display_name',
+                'asc'
+            )
             ->get();
 
         $array = [];
 
         foreach ($stockItems as $stockItem) {
-            $variant = $stockItem->variant;
+
+            $variant =
+                $stockItem->variant;
+
+            $priceData =
+                $priceResolver->resolveWithSource(
+                    $stockItem,
+                    $companyId
+                );
+
+            $hasPrice =
+                $priceData['price'] !== null;
 
             $array[] = [
-                'stock_item_id' => $stockItem->id,
-                'material_id' => $stockItem->material_id,
-                'variant_id' => $stockItem->variant_id,
-                'price' => $stockItem->list_price,
-                'attribute_summary' => optional($variant)->attribute_summary ?? $stockItem->display_name,
-                'sku' => $stockItem->sku,
-                'barcode' => $stockItem->barcode,
-                'display_name' => $stockItem->display_name,
+                'stock_item_id' =>
+                    $stockItem->id,
+
+                'material_id' =>
+                    $stockItem->material_id,
+
+                'variant_id' =>
+                    $stockItem->variant_id,
+
+                'price' =>
+                    $hasPrice
+                        ? (float) $priceData['price']
+                        : 0,
+
+                'has_price' =>
+                    $hasPrice,
+
+                'price_source' =>
+                    $priceData['source'],
+
+                'price_list_id' =>
+                    $priceData['price_list_id'],
+
+                'attribute_summary' =>
+                    optional(
+                        $variant
+                    )->attribute_summary
+                    ?? $stockItem->display_name,
+
+                'sku' =>
+                    $stockItem->sku,
+
+                'barcode' =>
+                    $stockItem->barcode,
+
+                'display_name' =>
+                    $stockItem->display_name,
             ];
         }
 

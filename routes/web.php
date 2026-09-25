@@ -341,6 +341,44 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         Route::get('/principal', 'HomeController@dashboard')->name('dashboard.principal');
 
+        // TODO: Rutas módulo PriceList
+        Route::prefix('/prices')->group(function () {
+
+            Route::get('/', 'PriceListController@index')
+                ->name('priceList.index')
+                ->middleware('permission:show_priceList');
+
+            Route::get(
+                '/company/{companyId}/lists',
+                'PriceListController@getPriceLists'
+            )->name('priceList.lists')
+                ->middleware('permission:show_priceList');
+
+            Route::post(
+                '/lists',
+                'PriceListController@store'
+            )->name('priceList.store')
+                ->middleware('permission:manage_priceListMaterial');
+
+            Route::put(
+                '/lists/{priceList}',
+                'PriceListController@update'
+            )->name('priceList.update')
+                ->middleware('permission:manage_priceListMaterial');
+
+            Route::get(
+                '/lists/{priceList}/materials',
+                'PriceListController@getMaterials'
+            )->name('priceList.materials')
+                ->middleware('permission:manage_priceListMaterial');
+
+            Route::post(
+                '/lists/{priceList}/materials',
+                'PriceListController@saveMaterialPrices'
+            )->name('priceList.materials.save')
+                ->middleware('permission:manage_priceListMaterial');
+        });
+
         // TODO: Rutas módulo Accesos
 
         //USER
@@ -473,7 +511,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('materialtype.destroy')
             ->middleware('permission:destroy_materialType');
         Route::get('/get/types/{subcategory_id}', 'MaterialTypeController@getTypesBySubCategory')
-            ->middleware('permission:destroy_materialType');
+            ->middleware('permission:list_materialType');
         Route::post('/materialtype/delete-multiple', 'MaterialTypeController@deleteMultiple');
 
         //SUB TYPE

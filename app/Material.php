@@ -450,4 +450,10 @@ class Material extends Model
     {
         return $this->hasMany(MaterialPresentation::class, 'material_id');
     }
+
+    public function priceListMaterials()
+    {
+        return $this->hasMany(PriceListMaterial::class, 'material_id');
+    }
+
 }

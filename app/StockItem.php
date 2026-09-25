@@ -44,7 +44,7 @@ class StockItem extends Model
         return (float) $this->stock_current - (float) $this->stock_reserved;
     }
 
-    public function getListPriceAttribute()
+    /*public function getListPriceAttribute()
     {
         $defaultPriceList = PriceList::where('is_default', 1)
             ->where('is_active', 1)
@@ -59,20 +59,19 @@ class StockItem extends Model
             ->first();
 
         return $priceListItem ? (float) $priceListItem->price : 0;
-    }
+    }*/
 
     public function getUiColorAttribute()
     {
-        if ($this->material && (int) $this->material->enable_status === 0) {
+        if (
+            $this->material &&
+            (int) $this->material->enable_status === 0
+        ) {
             return 'purple';
         }
 
         if ((float) $this->stock_available <= 0) {
             return 'red';
-        }
-
-        if ((float) $this->list_price > 0) {
-            return 'blue';
         }
 
         return '';

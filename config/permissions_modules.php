@@ -113,4 +113,6 @@ return [
 
     'companyBankAccount' => 'CUENTAS BANCARIAS DE LA EMPRESA',
     'companySetting' => 'CONFIGURACIONES DE LA EMPRESA',
+
+    'priceListMaterial' => 'LISTAS DE PRECIOS',
 ];
