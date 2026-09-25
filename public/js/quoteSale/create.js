@@ -628,21 +628,16 @@ $(document).ready(function () {
 */
 
 function addConsumable() {
+    const $button = $(this);
 
-    const $button =
-        $(this);
-
-    const consumableID =
-        parseInt(
-            $button
-                .closest('.row')
-                .find('[data-consumable]')
-                .val()
-            || 0
-        );
+    const consumableID = parseInt(
+        $button
+            .closest('.row')
+            .find('[data-consumable]')
+            .val() || 0
+    );
 
     if (!consumableID) {
-
         toastr.error(
             'Debe seleccionar un producto.',
             'Error'
@@ -651,21 +646,18 @@ function addConsumable() {
         return;
     }
 
-    const $render =
-        $button
-            .closest('.card-body')
-            .find('[data-bodyConsumable]')
-            .first();
+    const $render = $button
+        .closest('.card-body')
+        .find('[data-bodyConsumable]')
+        .first();
 
-    const consumable =
-        $consumables.find(
-            function (item) {
-                return parseInt(item.id) === consumableID;
-            }
-        );
+    const consumable = $consumables.find(
+        function (item) {
+            return parseInt(item.id) === consumableID;
+        }
+    );
 
     if (!consumable) {
-
         toastr.error(
             'No se encontró la información del producto.',
             'Error'
@@ -674,34 +666,67 @@ function addConsumable() {
         return;
     }
 
-    const consumablePrice =
-        parseFloat(
-            consumable.list_price || 0
+    /*
+     * ============================================================
+     * 1. SIN PRECIO CONFIGURADO
+     * ============================================================
+     *
+     * No es lo mismo que precio = 0.
+     *
+     * Significa que PriceResolverService no encontró:
+     *
+     * - PriceListItem
+     * - PriceListMaterial
+     */
+    if (!consumable.has_price) {
+        toastr.error(
+            'El producto no tiene un precio configurado en la lista de precios "' +
+            (consumable.price_list_name || 'predeterminada') +
+            '".',
+            'Producto sin precio'
         );
 
-    /*
-     * Permitimos precio 0, pero avisamos al usuario.
-     */
-    if (consumablePrice <= 0) {
+        return;
+    }
 
+    /*
+     * ============================================================
+     * 2. PRECIO CONFIGURADO
+     * ============================================================
+     */
+
+    const consumablePrice = parseFloat(
+        consumable.list_price || 0
+    );
+
+    /*
+     * ============================================================
+     * 3. PRECIO EXPLÍCITO EN CERO
+     * ============================================================
+     *
+     * Aquí SÍ existe un registro de precio,
+     * pero el valor configurado es 0.
+     */
+    if (consumablePrice === 0) {
         $.confirm({
             icon: 'fas fa-exclamation-triangle',
             theme: 'modern',
             closeIcon: true,
             animation: 'zoom',
             type: 'orange',
+
             title: 'Precio en cero',
+
             content:
-                'El precio de este producto es 0. ¿Desea continuar?',
+                'Este producto tiene un precio de venta configurado en 0. ' +
+                '¿Desea continuar con la cotización?',
 
             buttons: {
-
                 confirm: {
                     text: 'SÍ, CONTINUAR',
                     btnClass: 'btn-orange',
 
                     action: function () {
-
                         clearConsumableSearch();
 
                         showModalQuantityConsumable(
@@ -719,6 +744,12 @@ function addConsumable() {
 
         return;
     }
+
+    /*
+     * ============================================================
+     * 4. PRECIO NORMAL
+     * ============================================================
+     */
 
     clearConsumableSearch();
 

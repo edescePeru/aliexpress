@@ -554,4 +554,8 @@ return [
 
     'list_companySetting' => 'Ver configuraciones de la empresa',
     'edit_companySetting' => 'Modificar configuraciones de la empresa',
+
+    'enable_priceList' => 'Acceder al módulo de listas de precios',
+    'show_priceList' => 'Visualizar las listas de precios',
+    'manage_priceListMaterial' => 'Administrar precios de productos por lista de precios',
 ];

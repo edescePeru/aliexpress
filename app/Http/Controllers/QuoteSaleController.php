@@ -71,6 +71,7 @@ use Illuminate\Support\Str;
 use Webklex\PDFMerger\Facades\PDFMergerFacade as PDFMerger;
 use Intervention\Image\Facades\Image;
 use App\Services\QuoteStockReservationService;
+use App\Services\PriceResolverService;
 
 class QuoteSaleController extends Controller
 {
@@ -372,16 +373,10 @@ class QuoteSaleController extends Controller
     {
         $companyId = TenantContext::companyId();
 
-        /*
-         * PriceList todavía es catálogo global.
-         *
-         * Lo obtenemos una sola vez para evitar buscarlo
-         * repetidamente por cada StockItem.
-         */
-        $defaultPriceList = PriceList::query()
-            ->where('is_default', 1)
-            ->where('is_active', 1)
-            ->first();
+        /** @var PriceResolverService $priceResolver */
+        $priceResolver = app(
+            PriceResolverService::class
+        );
 
         $stockItems = StockItem::query()
             ->with([
@@ -401,8 +396,7 @@ class QuoteSaleController extends Controller
                 'unitMeasure:id,name',
 
                 /*
-                 * MUY IMPORTANTE:
-                 * solamente inventario de la Company actual.
+                 * Inventario únicamente de la Company actual.
                  */
                 'inventoryLevels' => function ($query) use ($companyId) {
                     $query
@@ -417,24 +411,6 @@ class QuoteSaleController extends Controller
                             'qty_on_hand',
                             'qty_reserved',
                         ]);
-                },
-
-                /*
-                 * Solamente necesitamos el precio de la lista default.
-                 */
-                'priceListItems' => function ($query) use ($defaultPriceList) {
-                    if ($defaultPriceList) {
-                        $query->where(
-                            'price_list_id',
-                            $defaultPriceList->id
-                        );
-                    } else {
-                        /*
-                         * Si no existe lista default evitamos cargar
-                         * registros innecesarios.
-                         */
-                        $query->whereRaw('1 = 0');
-                    }
                 },
             ])
             ->where(
@@ -465,12 +441,19 @@ class QuoteSaleController extends Controller
                 continue;
             }
 
+            /*
+             * ============================================================
+             * VARIANTE
+             * ============================================================
+             */
+
             $variantText = $this->getVariantText(
                 $stockItem
             );
 
-            $fullDescription = $stockItem->display_name
-                ?: $material->full_name;
+            $fullDescription =
+                $stockItem->display_name
+                    ?: $material->full_name;
 
             if ($variantText) {
                 $fullDescription .=
@@ -479,8 +462,11 @@ class QuoteSaleController extends Controller
             }
 
             /*
-             * Stock EXCLUSIVO de la Company actual.
+             * ============================================================
+             * INVENTARIO DE LA COMPANY ACTUAL
+             * ============================================================
              */
+
             $stockCurrent = (float) $stockItem
                 ->inventoryLevels
                 ->sum(function ($level) {
@@ -504,63 +490,128 @@ class QuoteSaleController extends Controller
                 $stockReserved;
 
             /*
-             * Precio de la lista default.
+             * ============================================================
+             * PRECIO
+             * ============================================================
+             *
+             * Regla:
+             *
+             * 1. PriceListItem
+             * 2. PriceListMaterial
+             * 3. null = sin precio
              */
-            $priceListItem = $stockItem
-                ->priceListItems
-                ->first();
 
-            $listPrice = $priceListItem
-                ? (float) $priceListItem->price
-                : 0;
+            $priceData =
+                $priceResolver
+                    ->resolveWithSource(
+                        $stockItem,
+                        $companyId
+                    );
+
+            $listPrice =
+                $priceData['price'];
+
+            /*
+             * Para compatibilidad con create.js todavía enviamos
+             * list_price numérico.
+             *
+             * Pero además enviamos has_price/source para distinguir:
+             *
+             * precio 0 válido
+             * vs
+             * producto sin precio.
+             */
+            $hasPrice =
+                $listPrice !== null;
 
             $array[] = [
-                'id' => $stockItem->id,
+                'id' =>
+                    $stockItem->id,
 
-                'type' => 'stock_item',
+                'type' =>
+                    'stock_item',
 
-                'material_id' => $material->id,
+                'material_id' =>
+                    $material->id,
 
-                'stock_item_id' => $stockItem->id,
+                'stock_item_id' =>
+                    $stockItem->id,
 
-                'full_description' => $fullDescription,
+                'full_description' =>
+                    $fullDescription,
 
-                'display_name' => $stockItem->display_name,
+                'display_name' =>
+                    $stockItem->display_name,
 
-                'variant_text' => $variantText,
+                'variant_text' =>
+                    $variantText,
 
-                'unit' => optional($stockItem->unitMeasure)->name
-                    ?: optional($material->unitMeasure)->name
-                        ?: '',
+                'unit' =>
+                    optional(
+                        $stockItem->unitMeasure
+                    )->name
+                        ?:
+                        optional(
+                            $material->unitMeasure
+                        )->name
+                            ?: '',
 
-                'code' => $material->code,
+                'code' =>
+                    $material->code,
 
-                'sku' => $stockItem->sku,
+                'sku' =>
+                    $stockItem->sku,
 
-                'barcode' => $stockItem->barcode,
+                'barcode' =>
+                    $stockItem->barcode,
 
-                'type_scrap' => $material->typeScrap,
+                'type_scrap' =>
+                    $material->typeScrap,
 
-                'tipo_venta_id' => $material->tipo_venta_id,
+                'tipo_venta_id' =>
+                    $material->tipo_venta_id,
 
-                'unit_measure' => $stockItem->unitMeasure
-                    ?: $material->unitMeasure,
-
-                'list_price' => $listPrice,
-
-                'enable_status' => $material->enable_status,
-
-                'stock_current' => $stockCurrent,
-
-                'stock_reserved' => $stockReserved,
-
-                'stock_available' => $stockAvailable,
+                'unit_measure' =>
+                    $stockItem->unitMeasure
+                        ?: $material->unitMeasure,
 
                 /*
-                 * Se mantiene porque el JS / otras pantallas
-                 * pueden seguir usándolo.
+                 * Precio efectivo.
                  */
-                'state_update_price' => $material->state_update_price,
+                'list_price' =>
+                    $hasPrice
+                        ? (float) $listPrice
+                        : 0,
+
+                /*
+                 * Metadata útil para UI y debug.
+                 */
+                'has_price' =>
+                    $hasPrice,
+
+                'price_source' =>
+                    $priceData['source'],
+
+                'price_list_id' =>
+                    $priceData['price_list_id'],
+
+                'price_list_name' =>
+                    $priceData['price_list_name'],
+
+                'enable_status' =>
+                    $material->enable_status,
+
+                'stock_current' =>
+                    $stockCurrent,
+
+                'stock_reserved' =>
+                    $stockReserved,
+
+                'stock_available' =>
+                    $stockAvailable,
+
+                'state_update_price' =>
+                    $material->state_update_price,
             ];
         }
 
