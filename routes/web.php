@@ -349,7 +349,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 ->middleware('permission:show_priceList');
 
             Route::get(
-                '/company/{companyId}/lists',
+                '/lists',
                 'PriceListController@getPriceLists'
             )->name('priceList.lists')
                 ->middleware('permission:show_priceList');
@@ -377,6 +377,20 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 'PriceListController@saveMaterialPrices'
             )->name('priceList.materials.save')
                 ->middleware('permission:manage_priceListMaterial');
+
+            Route::get(
+                '/lists/{priceList}/materials/{material}/variants',
+                'PriceListController@getMaterialVariants'
+            )
+                ->middleware('permission:manage_priceListMaterial')
+                ->name('priceList.materialVariants');
+
+            Route::post(
+                '/lists/{priceList}/materials/{material}/variants',
+                'PriceListController@saveMaterialVariants'
+            )
+                ->middleware('permission:manage_priceListMaterial')
+                ->name('priceList.materialVariants.save');
         });
 
         // TODO: Rutas módulo Accesos
