@@ -17,129 +17,105 @@
 @endsection
 
 @section('title')
-    Archivos de Materiales
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Importar stocks de materiales
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Subir archivos de Stocks de materiales</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Importación</span>
+        <h1 class="page-title">Importar stocks de materiales</h1>
+        <p class="next-page-description">Actualiza stocks mínimos y máximos mediante un archivo Excel.</p>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Subir nuevo archivo</h5>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Actualización masiva</strong>
+            <span>Revisa el archivo antes de iniciar el procesamiento.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formStocksFile">Cancelar</button>
+            <button type="button" id="btn-submitStockFiles" class="btn btn-primary" form="formStocksFile" disabled>
+                <i class="fas fa-file-import" aria-hidden="true"></i> Importar archivo
+            </button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
+            <a href="{{ route('dashboard.principal') }}">Dashboard</a>
         </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('stocks.files.index') }}"><i class="fa fa-archive"></i> Archivos</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Stocks materiales</li>
+        <li class="breadcrumb-item">Materiales</li>
+        <li class="breadcrumb-item active" aria-current="page">Importar stocks</li>
     </ol>
 @endsection
 
 @section('content')
-    <div class="row">
-        <div class="col-md-12">
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <strong>Importante!</strong> Solo esta permitido subir archivos excels, al subir el excel se ejecutará las acciones y se eliminará el archivo.
-                <br>
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+    <form
+        id="formStocksFile"
+        class="form-horizontal"
+        data-url="{{ route('stocks.files.store') }}"
+        enctype="multipart/form-data"
+    >
+        @csrf
+
+        <section class="next-form-section" aria-labelledby="material-stock-import-title">
+            <div class="next-section-header flex-wrap">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="material-stock-import-title">Archivo de actualización</h2>
+                    <p>La primera hoja debe contener Código, Stock mínimo y Stock máximo, en ese orden.</p>
+                </div>
+                <button
+                    class="btn btn-outline-secondary btn-sm"
+                    type="button"
+                    id="exampleStockFile"
+                    data-url="{{ url('/dashboard/download/example/stock/file') }}"
+                >
+                    <i class="fas fa-download mr-1" aria-hidden="true"></i>
+                    Descargar plantilla
                 </button>
             </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-primary">
-                <div class="card-header">
-                    <h3 class="card-title">Stocks Mínimos y Máximos de Materiales</h3>
-
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
-                        </button>
-                    </div>
-                    <!-- /.card-tools -->
+            <div class="alert alert-warning d-flex align-items-start mb-4" role="note" aria-labelledby="stock-import-warning-title">
+                <i class="fas fa-exclamation-triangle mt-1 mr-3" aria-hidden="true"></i>
+                <div>
+                    <strong id="stock-import-warning-title" class="d-block">Antes de importar</strong>
+                    <span>Solo se admiten archivos Excel. El procesamiento actualiza los mínimos y máximos de los materiales coincidentes; seleccionar un archivo todavía no realiza cambios.</span>
                 </div>
-                <!-- /.card-header -->
-                <div class="card-body" style="display: block;">
-                    <form id="formStocksFile" class="form-horizontal" data-url="{{ route('stocks.files.store') }}" enctype="multipart/form-data">
-                        @csrf
-                        <div class="form-group row">
-                            <div class="col-md-12">
-                                <label for="file">Archivo EXCEL </label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text"><i class="fas fa-file-excel"></i></span>
-                                    </div>
-                                    <input type="file" id="stockFile" name="file" class="form-control" accept=".xlsx, .xls" title="Solo se permiten archivos de Excel (.xlsx, .xls)">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-primary" type="button" id="exampleStockFile">Descargar ejemplo</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-center">
-                            <button type="button" id="btn-submitStockFiles" class="btn btn-outline-success">Subir archivo</button>
-                            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                        </div>
-                        <!-- /.card-footer -->
-                    </form>
-
-                </div>
-                <!-- /.card-body -->
             </div>
-        </div>
-    </div>
 
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/inputmask/min/jquery.inputmask.bundle.min.js') }}"></script>
-
+            <div class="row">
+                <div class="col-12 col-lg-8">
+                    <div class="form-group mb-0">
+                        <label for="stockFile">Archivo Excel <span class="next-required">(*)</span></label>
+                        <div class="custom-file">
+                            <input
+                                type="file"
+                                id="stockFile"
+                                name="file"
+                                class="custom-file-input"
+                                accept=".xlsx,.xls"
+                                aria-describedby="stock-file-help"
+                                required
+                            >
+                            <label class="custom-file-label text-truncate" for="stockFile" data-browse="Seleccionar" data-stock-file-label>
+                                Ningún archivo seleccionado
+                            </label>
+                        </div>
+                        <small id="stock-file-help" class="form-text text-muted">
+                            Formatos permitidos: .xlsx y .xls. Tamaño máximo: 10 MB. La primera fila se interpreta como cabecera.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </form>
 @endsection
 
 @section('scripts')
-    <script>
-        $(function () {
-            //$('#datemask').inputmask()
-            $('#date_start').inputmask('dd/mm/yyyy', { 'placeholder': 'dd/mm/yyyy' });
-            $('#date_end').inputmask('dd/mm/yyyy', { 'placeholder': 'dd/mm/yyyy' });
-            $('#worker_id').select2({
-                placeholder: "Selecione trabajador",
-            });
-
-        })
-    </script>
     <script src="{{ asset('js/files/stockFiles.js') }}"></script>
 @endsection

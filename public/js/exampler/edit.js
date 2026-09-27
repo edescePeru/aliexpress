@@ -1,76 +1,65 @@
-$(document).ready(function () {
-    $(".select2").select2({
-        placeholder: "Selecione una marca",
-        allowClear: true
-    });
-    $formEdit = $('#formEdit');
-    $formEdit.on('submit', updateCategory);
-
-});
-
 var $formEdit;
 
-function mayus(e) {
-    e.value = e.value.toUpperCase();
+$(document).ready(function () {
+    $('.select2').select2({
+        placeholder: 'Seleccione una marca',
+        allowClear: true,
+        width: '100%'
+    });
+
+    $formEdit = $('#formEdit');
+    $formEdit.on('submit', updateExampler);
+});
+
+function mayus(element) {
+    element.value = element.value.toUpperCase();
 }
 
-function updateCategory() {
+function updateExampler(event) {
     event.preventDefault();
-    // Obtener la URL
-    var editUrl = $formEdit.data('url');
+
     $.ajax({
-        url: editUrl,
+        url: $formEdit.data('url'),
         method: 'POST',
         data: new FormData(this),
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "4000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
-                $(location).attr('href', data.url)
-            }, 4000 )
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '2000'
+            });
+            setTimeout(function () {
+                $(location).attr('href', data.url);
+            }, 2000);
         },
-        error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "4000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
+        error: function (xhr) {
+            showValidationErrors(xhr, 'No se pudo modificar el modelo.');
+        }
+    });
+}
 
+function showValidationErrors(xhr, fallback) {
+    var response = xhr.responseJSON || {};
 
-        },
+    if (response.errors) {
+        $.each(response.errors, function (property, messages) {
+            toastr.error(messages, 'Error', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '3000'
+            });
+        });
+        return;
+    }
+
+    toastr.error(response.message || fallback, 'Error', {
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-top-right',
+        timeOut: '3000'
     });
 }

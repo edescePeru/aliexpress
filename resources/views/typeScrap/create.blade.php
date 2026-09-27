@@ -13,7 +13,7 @@
 @endsection
 
 @section('activeTypeScrap')
-
+    active
 @endsection
 
 @section('activeCreateTypeScrap')
@@ -21,92 +21,68 @@
 @endsection
 
 @section('title')
-    Tipos de retacería
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Nuevo tipo de retacería
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Tipo de retacería</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Nuevo tipo de retacería</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear Tipo de retacería</h5>
-    <a href="{{ route('typescrap.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Tipo de Material </a>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Datos del tipo de retacería</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formCreate">Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="formCreate">Guardar tipo</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('typescrap.index') }}"><i class="fa fa-archive"></i> Tipo de Retacería</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nuevo</li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('typescrap.index') }}">Tipos de retacería</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Nuevo</li>
     </ol>
 @endsection
 
 @section('content')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('typescrap.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Tipo de retacería">
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Largo <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" name="length" min="0" placeholder="Ejm: 0,00" step="0.01" >
+        <section class="next-form-section" aria-labelledby="typescrap-create-title">
+            <div class="next-section-header">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="typescrap-create-title">Identidad y dimensiones</h2>
+                    <p>Define el nombre y las dimensiones base utilizadas por este tipo.</p>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Ancho <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" name="width" min="0" placeholder="Ejm: 0,00" step="0.01"> 
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="typescrap-name">Nombre <span class="next-required">(*)</span></label>
+                    <input type="text" class="form-control" id="typescrap-name" name="name"
+                        onkeyup="mayus(this);" placeholder="Ej.: Plancha" maxlength="191" required autofocus>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="typescrap-length">Largo <span class="next-required">(*)</span></label>
+                    <input type="number" class="form-control" id="typescrap-length" name="length"
+                        min="0" max="99999.99" step="0.01" placeholder="Ej.: 6000.00" required>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="typescrap-width">Ancho <span class="next-required">(*)</span></label>
+                    <input type="number" class="form-control" id="typescrap-width" name="width"
+                        min="0" max="99999.99" step="0.01" placeholder="Ej.: 3000.00" required>
                 </div>
             </div>
-
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        </section>
     </form>
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 @endsection
 
 @section('scripts')

@@ -36,14 +36,12 @@
     <div class="next-page-heading">
         <span class="next-page-eyebrow">Materiales</span>
         <h1 class="page-title">Nuevo material</h1>
-        <p class="next-page-description">Define la identidad, clasificación e inventario del nuevo material.</p>
     </div>
 @endsection
 
 @section('page-title')
     <div class="next-page-toolbar">
         <div class="next-toolbar-context">
-            <span class="next-toolbar-icon" aria-hidden="true"><i class="fas fa-cube"></i></span>
             <div>
                 <strong>Ficha del material</strong>
                 <span>Los campos marcados con (*) son obligatorios.</span>
@@ -74,6 +72,21 @@
     <form id="formCreate" class="form-horizontal next-material-page" data-url="{{ route('material.store') }}" enctype="multipart/form-data">
         @csrf
 
+        @php
+            $existingTipoVenta = isset($material) ? $material->tipo_venta_id : null;
+            $unidadTipoVenta = $tipoVentas->first(function ($tipoVenta) {
+                return preg_match('/^unidad(?:\s|$)/iu', trim($tipoVenta->description)) === 1;
+            });
+            $defaultTipoVenta = $existingTipoVenta !== null
+                ? $existingTipoVenta
+                : optional($unidadTipoVenta)->id;
+            $selectedTipoVenta = old('tipo_venta', $defaultTipoVenta);
+
+            $existingPerecible = isset($material) ? $material->perecible : null;
+            $defaultPerecible = $existingPerecible !== null ? $existingPerecible : 'n';
+            $selectedPerecible = old('perecible', $defaultPerecible);
+        @endphp
+
         <section class="next-form-section" aria-labelledby="material-identity-title">
             <div class="next-section-header">
                 <div>
@@ -84,7 +97,7 @@
             </div>
 
             <div class="row">
-                <div class="col-lg-6">
+                <div class="col-12">
                     <div class="form-group">
                         <label for="description">Descripción <span class="next-required">(*)</span></label>
                         <input type="text" id="description" name="description" class="form-control" autocomplete="off">
@@ -255,9 +268,11 @@
                                     @endforeach
                                 </select>
                                 <div class="input-group-append">
-                                    <button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalGenero" title="Crear género" aria-label="Crear género">
-                                        <i class="fas fa-plus" aria-hidden="true"></i>
-                                    </button>
+                                    @can('create_genero')
+                                        <button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalGenero" title="Crear género" aria-label="Crear género">
+                                            <i class="fas fa-plus" aria-hidden="true"></i>
+                                        </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -291,7 +306,7 @@
                         <select id="tipo_venta" name="tipo_venta" class="form-control select2">
                             <option></option>
                             @foreach($tipoVentas as $tipo)
-                                <option value="{{ $tipo->id }}">{{ $tipo->description }}</option>
+                                <option value="{{ $tipo->id }}" {{ (string) $selectedTipoVenta === (string) $tipo->id ? 'selected' : '' }}>{{ $tipo->description }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -303,8 +318,8 @@
                             <label for="perecible">Perecible</label>
                             <select id="perecible" name="perecible" class="form-control select2">
                                 <option></option>
-                                <option value="s">SI</option>
-                                <option value="n">NO</option>
+                                <option value="s" {{ $selectedPerecible === 's' ? 'selected' : '' }}>SI</option>
+                                <option value="n" {{ $selectedPerecible === 'n' ? 'selected' : '' }}>NO</option>
                             </select>
                         </div>
                     </div>
@@ -312,7 +327,7 @@
             </div>
 
             <div class="row next-generated-row">
-                <div class="col-xl-6">
+                <div class="col-12">
                     <div class="form-group">
                         <label for="name">Nombre completo</label>
                         <div class="next-generated-field">
@@ -482,9 +497,11 @@
                                     @endforeach
                                 </select>
                                 <div class="input-group-append">
-                                    <button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalTalla" title="Crear talla" aria-label="Crear talla">
-                                        <i class="fas fa-plus" aria-hidden="true"></i>
-                                    </button>
+                                    @can('create_talla')
+                                        <button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalTalla" title="Crear talla" aria-label="Crear talla">
+                                            <i class="fas fa-plus" aria-hidden="true"></i>
+                                        </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -504,9 +521,11 @@
                                 @endforeach
                             </select>
                             <div class="input-group-append">
+                                @can('create_color')
                                 <button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalColor" title="Crear color" aria-label="Crear color">
                                     <i class="fas fa-plus" aria-hidden="true"></i>
                                 </button>
+                                @endcan
                             </div>
                         </div>
                     </div>
@@ -708,13 +727,17 @@
                     </div>
                     <div class="modal-body">
                         <div class="form-row">
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-5">
                                 <label for="modalTallaName">Talla <span class="next-required" aria-label="obligatorio">*</span></label>
-                                <input type="text" id="modalTallaName" class="form-control" name="name" onkeyup="mayus(this);" placeholder="Ejm: Talla" aria-required="true" data-modal-autofocus>
+                                <input type="text" id="modalTallaName" class="form-control" name="name" onkeyup="mayus(this);" maxlength="191" placeholder="Ejm: Talla" required aria-required="true" data-modal-autofocus>
                             </div>
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-3">
+                                <label for="modalTallaShortName">Nombre corto</label>
+                                <input type="text" id="modalTallaShortName" class="form-control" name="short_name" onkeyup="mayus(this);" maxlength="191" placeholder="Ejm: M">
+                            </div>
+                            <div class="form-group col-md-4">
                                 <label for="modalTallaDescription">Descripción</label>
-                                <input type="text" id="modalTallaDescription" class="form-control" name="description" onkeyup="mayus(this);" placeholder="Ejm: Descripción">
+                                <input type="text" id="modalTallaDescription" class="form-control" name="description" onkeyup="mayus(this);" maxlength="255" placeholder="Ejm: Descripción">
                             </div>
                         </div>
                     </div>
@@ -810,15 +833,15 @@
                         <div class="form-row">
                             <div class="form-group col-md-4">
                                 <label for="modalColorName">Color <span class="next-required" aria-label="obligatorio">*</span></label>
-                                <input type="text" id="modalColorName" class="form-control" name="name" placeholder="Ejm: Blanco" aria-required="true" data-modal-autofocus>
+                                <input type="text" id="modalColorName" class="form-control" name="name" maxlength="255" placeholder="Ejm: Blanco" required aria-required="true" data-modal-autofocus>
                             </div>
                             <div class="form-group col-md-4">
                                 <label for="modalColorCode">Código HEX</label>
-                                <input type="text" id="modalColorCode" class="form-control" name="code" onkeyup="mayus(this);" placeholder="Ejm: #000000">
+                                <input type="text" id="modalColorCode" class="form-control" name="code" maxlength="7" onkeyup="mayus(this);" placeholder="Ejm: #000000">
                             </div>
                             <div class="form-group col-md-4">
                                 <label for="modalColorShortName">Nombre clave <span class="next-required" aria-label="obligatorio">*</span></label>
-                                <input type="text" id="modalColorShortName" class="form-control" name="short_name" onkeyup="mayus(this);" placeholder="Ejm: BLA" aria-required="true">
+                                <input type="text" id="modalColorShortName" class="form-control" name="short_name" maxlength="255" onkeyup="mayus(this);" placeholder="Ejm: BLA" required aria-required="true">
                             </div>
                         </div>
                     </div>

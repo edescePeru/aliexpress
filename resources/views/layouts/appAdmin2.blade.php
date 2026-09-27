@@ -119,14 +119,39 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="#" class="nav-link" style="color: red"> Tipo de cambio </a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="#" class="nav-link" style="color: blue" id="tasaCompra"></a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="#" class="nav-link" style="color: green" id="tasaVenta"></a>
+            <li class="nav-item dropdown next-exchange-rate">
+                <button
+                    type="button"
+                    class="nav-link next-exchange-rate-trigger"
+                    id="exchange-rate-trigger"
+                    data-toggle="dropdown"
+                    data-boundary="viewport"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    aria-label="Consultar tipo de cambio"
+                >
+                    <i class="fas fa-exchange-alt" aria-hidden="true"></i>
+                    <span class="d-none d-sm-inline">TC</span>
+                </button>
+                <div
+                    class="dropdown-menu next-navbar-floating-menu next-exchange-rate-menu"
+                    aria-labelledby="exchange-rate-trigger"
+                >
+                    <div class="next-column-visibility-header">
+                        <strong>Tipo de cambio</strong>
+                        <span id="tasaFecha">No disponible</span>
+                    </div>
+                    <dl class="next-exchange-rate-values" aria-live="polite">
+                        <div>
+                            <dt>Compra</dt>
+                            <dd id="tasaCompra">No disponible</dd>
+                        </div>
+                        <div>
+                            <dt>Venta</dt>
+                            <dd id="tasaVenta">No disponible</dd>
+                        </div>
+                    </dl>
+                </div>
             </li>
             {{--<li class="nav-item d-none d-sm-inline-block">
                 <a href="#" class="nav-link">Contact</a>
@@ -1030,7 +1055,7 @@
                         </li>
                     @endcan
 
-                    @canany(['list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler'])
+                    @canany(['list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_genero', 'list_talla', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler'])
                     <li class="nav-header">MATERIALES</li>
                     @endcanany
                     {{--@canany('list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')--}}
@@ -1046,7 +1071,7 @@
                         <ul class="nav nav-treeview">
                             @can('list_unitMeasure')
                                 <li class="nav-item has-treeview @yield('openUnitMeasure')">
-                                    <a href="#" class="nav-link">
+                                    <a href="#" class="nav-link @yield('activeUnitMeasure')">
                                         <i class="far fa-circle nav-icon text-success"></i>
                                         <p>
                                             Unidad de Medida
@@ -1076,7 +1101,7 @@
 
                             @can('list_typeScrap')
                                 <li class="nav-item has-treeview @yield('openTypeScrap')">
-                                    <a href="#" class="nav-link">
+                                    <a href="#" class="nav-link @yield('activeTypeScrap')">
                                         <i class="far fa-circle nav-icon text-success"></i>
                                         <p>
                                             Tipo de retacería
@@ -1106,7 +1131,7 @@
 
                             @can('list_category')
                             <li class="nav-item has-treeview @yield('openCategory')">
-                                <a href="#" class="nav-link">
+                                <a href="#" class="nav-link @yield('activeCategory')">
                                     <i class="far fa-circle nav-icon text-success"></i>
                                     <p>
                                         Categorías
@@ -1136,7 +1161,7 @@
 
                             @can('list_subcategory')
                                 <li class="nav-item has-treeview @yield('openSubcategory')">
-                                    <a href="#" class="nav-link">
+                                    <a href="#" class="nav-link @yield('activeSubcategory')">
                                         <i class="far fa-circle nav-icon text-success"></i>
                                         <p>
                                             Subcategorías
@@ -1323,7 +1348,7 @@
 
                                         </li>
 
-
+                                        @can('create_color')
                                         <li class="nav-item">
 
                                             <a href="{{ route('color.create') }}" class="nav-link @yield('activeCreateColor')">
@@ -1335,6 +1360,7 @@
                                             </a>
 
                                         </li>
+                                        @endcan
 
                                     </ul>
 
@@ -1372,7 +1398,7 @@
 
                             @can('list_brand')
                             <li class="nav-item has-treeview @yield('openBrand')">
-                                <a href="#" class="nav-link">
+                                <a href="#" class="nav-link @yield('activeBrand')">
                                     <i class="far fa-circle nav-icon text-success"></i>
                                     <p>
                                         Marcas
@@ -1402,7 +1428,7 @@
 
                             @can('list_exampler')
                             <li class="nav-item has-treeview @yield('openExampler')">
-                                <a href="#" class="nav-link">
+                                <a href="#" class="nav-link @yield('activeExampler')">
                                     <i class="far fa-circle nav-icon text-success"></i>
                                     <p>
                                         Modelos
@@ -1455,7 +1481,7 @@
 
                             @can('enable_materialSetting')
                                 <li class="nav-item has-treeview @yield('openSettingsMaterialDetail')">
-                                    <a href="#" class="nav-link">
+                                    <a href="#" class="nav-link @yield('activeSettingsMaterialDetails')">
                                         <i class="far fa-circle nav-icon text-success"></i>
                                         <p>
                                             Parámetros

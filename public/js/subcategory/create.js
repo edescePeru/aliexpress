@@ -1,26 +1,31 @@
 $(document).ready(function () {
     $(".select2").select2({
-        placeholder: "Selecione una categoría",
-        allowClear: true
+        theme: "bootstrap4",
+        placeholder: "Seleccione una categoría",
+        allowClear: true,
+        width: "100%"
     });
 
     $formCreate = $('#formCreate');
     $('#btn-submit').on('click', storeSubCategory);
+    $formCreate.on('reset', syncSelect2AfterReset);
     //$formCreate.on('submit', storeSubCategory);
 
-    let subcategoryIndex = 1;
+    var subcategoryIndex = 1;
 
     $('#add-subcategory').click(function () {
-        const newGroup = `
-        <div class="form-group row subcategory-group">
-            <div class="col-md-5">
-                <input type="text" class="form-control" name="subcategories[${subcategoryIndex}][name]" placeholder="Nombre Subcategoría" onkeyup="mayus(this);">
+        var newGroup = `
+        <div class="form-row align-items-end subcategory-group">
+            <div class="form-group col-md-5">
+                <label class="sr-only" for="subcategory-name-${subcategoryIndex}">Nombre de subcategoría</label>
+                <input type="text" class="form-control" id="subcategory-name-${subcategoryIndex}" name="subcategories[${subcategoryIndex}][name]" placeholder="Ej.: Calzado deportivo" onkeyup="mayus(this);" maxlength="255" required>
             </div>
-            <div class="col-md-5">
-                <input type="text" class="form-control" name="subcategories[${subcategoryIndex}][description]" placeholder="Descripción" onkeyup="mayus(this);">
+            <div class="form-group col-md-5">
+                <label class="sr-only" for="subcategory-description-${subcategoryIndex}">Descripción de subcategoría</label>
+                <input type="text" class="form-control" id="subcategory-description-${subcategoryIndex}" name="subcategories[${subcategoryIndex}][description]" placeholder="Ej.: Calzado para actividad deportiva" onkeyup="mayus(this);" maxlength="255">
             </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-danger remove-subcategory">X</button>
+            <div class="form-group col-md-2">
+                <button type="button" class="btn btn-outline-danger btn-block remove-subcategory" aria-label="Quitar subcategoría">Quitar</button>
             </div>
         </div>
         `;
@@ -40,7 +45,15 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
-function storeSubCategory() {
+function syncSelect2AfterReset() {
+    var form = this;
+
+    setTimeout(function () {
+        $(form).find('.select2').trigger('change');
+    }, 0);
+}
+
+function storeSubCategory(event) {
     event.preventDefault();
     $("#btn-submit").attr("disabled", true);
     // Obtener la URL

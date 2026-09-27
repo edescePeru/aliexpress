@@ -22,6 +22,19 @@ $(function () {
     initializeColorPreview();
 
 
+    $('#formColor').on(
+        'reset',
+        function () {
+
+            setTimeout(
+                initializeColorPreview,
+                0
+            );
+
+        }
+    );
+
+
     $('#colorPicker').on(
         'input change',
         function () {
@@ -334,17 +347,15 @@ $(function () {
         ) {
 
             $('#colorPreview')
-                .css(
-                    'background-color',
+                .val(
                     color
                 );
 
         } else {
 
             $('#colorPreview')
-                .css(
-                    'background-color',
-                    '#f4f6f9'
+                .val(
+                    '#ffffff'
                 );
 
         }

@@ -9,6 +9,10 @@ $(document).ready(function () {
         updateData();
     });
 
+    $('.next-column-visibility-menu').on('click', function (event) {
+        event.stopPropagation();
+    });
+
 
     // Variable para almacenar los nombres clave de los checkboxes activos
     var activeColumns = getActiveColumns();
@@ -37,12 +41,20 @@ $(document).ready(function () {
 
     $("#btnBusquedaAvanzada").click(function(e){
         e.preventDefault();
-        $(".busqueda-avanzada").slideToggle();
+        var $button = $(this);
+        $(".busqueda-avanzada").stop(true, true).slideToggle(180, function () {
+            $button.attr('aria-expanded', $(this).is(':visible') ? 'true' : 'false');
+        });
     });
 
     $(document).on('click', '[data-item]', showData);
 
     $("#btn-search").on('click', showDataSearch);
+
+    $('.next-list-toolbar').on('submit', function (event) {
+        event.preventDefault();
+        showDataSearch();
+    });
 
     $('body').tooltip({
         selector: '[data-toggle="tooltip"]'
@@ -69,16 +81,27 @@ $(document).ready(function () {
 
     $selectCategory.change(function () {
         $selectSubCategory.empty();
-        $selectType.val('0');
-        $selectType.trigger('change');
-        $selectSubtype.val('0');
-        $selectSubtype.trigger('change');
+        $selectType.empty().append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        })).trigger('change');
+        $selectSubtype.empty().append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        })).trigger('change');
         var category =  $selectCategory.val();
+
+        $selectSubCategory.append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        }));
+
+        if (!category) {
+            $selectSubCategory.trigger('change');
+            return;
+        }
+
         $.get( "/dashboard/get/subcategories/"+category, function( data ) {
-            $selectSubCategory.append($("<option>", {
-                value: '',
-                text: 'Ninguna'
-            }));
             for ( var i=0; i<data.length; i++ )
             {
                 $selectSubCategory.append($("<option>", {
@@ -91,58 +114,55 @@ $(document).ready(function () {
     });
 
     $selectSubCategory.change(function () {
-        let subcategory = $selectSubCategory.select2('data');
-        let option = $selectSubCategory.find(':selected');
+        var subcategoryId = $selectSubCategory.val();
 
-        console.log(option);
-        if(subcategory[0].text == 'INOX' || subcategory[0].text == 'FENE') {
-            $selectType.empty();
-            var subcategoria =  subcategory[0].id;
-            $.get( "/dashboard/get/types/"+subcategoria, function( data ) {
-                $selectType.append($("<option>", {
-                    value: '',
-                    text: 'Ninguno'
-                }));
-                for ( var i=0; i<data.length; i++ )
-                {
-                    $selectType.append($("<option>", {
-                        value: data[i].id,
-                        text: data[i].type
-                    }));
-                }
-            });
-        } else {
-            console.log(subcategory[0].text);
-            $selectType.val('0');
+        $selectType.empty().append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        }));
+        $selectSubtype.empty().append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        }));
+
+        if (!subcategoryId || !$selectType.length) {
             $selectType.trigger('change');
-            $selectSubtype.val('0');
-            $selectSubtype.trigger('change');
-            $selectSubCategory.select2('close');
+            return;
         }
+
+        $.get('/dashboard/get/types/' + subcategoryId, function (data) {
+            for (var i = 0; i < data.length; i++) {
+                $selectType.append($('<option>', {
+                    value: data[i].id,
+                    text: data[i].type
+                }));
+            }
+            $selectType.trigger('change');
+        });
     });
 
     $selectType.change(function () {
-        $selectSubtype.empty();
-        var type = $selectType.select2('data');
-        console.log(type);
-        if( type.length !== 0)
-        {
-            $.get( "/dashboard/get/subtypes/"+type[0].id, function( data ) {
-                $selectSubtype.append($("<option>", {
-                    value: '',
-                    text: 'Ninguno'
-                }));
-                for ( var i=0; i<data.length; i++ )
-                {
-                    $selectSubtype.append($("<option>", {
-                        value: data[i].id,
-                        text: data[i].subtype
-                    }));
-                }
-            });
+        var typeId = $selectType.val();
+
+        $selectSubtype.empty().append($('<option>', {
+            value: '',
+            text: 'TODOS'
+        }));
+
+        if (!typeId || !$selectSubtype.length) {
+            $selectSubtype.trigger('change');
+            return;
         }
 
-
+        $.get('/dashboard/get/subtypes/' + typeId, function (data) {
+            for (var i = 0; i < data.length; i++) {
+                $selectSubtype.append($('<option>', {
+                    value: data[i].id,
+                    text: data[i].subtype
+                }));
+            }
+            $selectSubtype.trigger('change');
+        });
     });
 
     $(document).on('click', '[data-precioDirecto]', openModalPrecioDirecto);
@@ -1564,8 +1584,6 @@ function getDataMaterials($numberPage, $activeColumns) {
     var subcategory = $('#subcategory').val();
     var material_type = $('#material_type').val();
     var sub_type = $('#sub_type').val();
-    var cedula = $('#cedula').val();
-    var calidad = $('#calidad').val();
     var marca = $('#marca').val();
     var retaceria = $('#retaceria').val();
     var rotation = $('#rotation').val();
@@ -1578,8 +1596,6 @@ function getDataMaterials($numberPage, $activeColumns) {
         subcategory: subcategory,
         material_type: material_type,
         sub_type: sub_type,
-        cedula: cedula,
-        calidad: calidad,
         marca: marca,
         retaceria: retaceria,
         rotation: rotation,
@@ -1587,7 +1603,7 @@ function getDataMaterials($numberPage, $activeColumns) {
     }, function(data) {
         if ( data.data.length == 0 )
         {
-            renderDataMaterialsEmpty(data);
+            renderDataMaterialsEmpty(data, $activeColumns);
         } else {
             renderDataMaterials(data, $activeColumns);
         }
@@ -1647,12 +1663,13 @@ function getDataMaterials($numberPage, $activeColumns) {
         });
 }
 
-function renderDataMaterialsEmpty(data) {
+function renderDataMaterialsEmpty(data, activeColumns) {
     var dataAccounting = data.data;
     var pagination = data.pagination;
     console.log(dataAccounting);
     console.log(pagination);
 
+    $("#header-table").html('');
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
@@ -1660,7 +1677,8 @@ function renderDataMaterialsEmpty(data) {
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
-    renderDataTableEmpty();
+    renderDataTableHeader(activeColumns);
+    renderDataTableEmpty(activeColumns);
 }
 
 function renderDataMaterials(data, activeColumns) {
@@ -1722,8 +1740,9 @@ function renderDataMaterials(data, activeColumns) {
     }
 }
 
-function renderDataTableEmpty() {
+function renderDataTableEmpty(activeColumns) {
     var clone = activateTemplate('#item-table-empty');
+    clone.querySelector('td').setAttribute('colspan', activeColumns.length + 1);
     $("#body-table").append(clone);
 }
 
@@ -1778,7 +1797,7 @@ function renderDataTable(data, activeColumns) {
     } else {
         stockContainer.innerHTML = `
             <div class="d-flex flex-column align-items-center">
-                <button class="btn btn-sm btn-outline-primary mt-1"
+                <button class="btn btn-sm btn-outline-secondary next-table-cell-action"
                     data-material-id="${data.id}"
                     data-ver-inventario>
                     Ver Inv.
@@ -1794,7 +1813,7 @@ function renderDataTable(data, activeColumns) {
     } else {
         stockMinContainer.innerHTML = `
             <div class="d-flex flex-column align-items-center">
-                <button class="btn btn-sm btn-outline-primary mt-1"
+                <button class="btn btn-sm btn-outline-secondary next-table-cell-action"
                     data-material-id="${data.id}"
                     data-ver-inventario>
                     Ver Inv.
@@ -1810,7 +1829,7 @@ function renderDataTable(data, activeColumns) {
     } else {
         stockMaxContainer.innerHTML = `
             <div class="d-flex flex-column align-items-center">
-                <button class="btn btn-sm btn-outline-primary mt-1"
+                <button class="btn btn-sm btn-outline-secondary next-table-cell-action"
                     data-material-id="${data.id}"
                     data-ver-inventario>
                     Ver Inv.
@@ -1839,7 +1858,19 @@ function renderDataTable(data, activeColumns) {
     clone.querySelector("[data-ver_imagen]").setAttribute("data-src", url_image);
     clone.querySelector("[data-ver_imagen]").setAttribute("data-image", data.id);
 
-    clone.querySelector("[data-rotation]").innerHTML = data.rotation;
+    var rotationContainer = clone.querySelector("[data-rotation]");
+    rotationContainer.innerHTML = data.rotation;
+    var rotationBadge = rotationContainer.querySelector('.badge');
+    if (rotationBadge) {
+        if (rotationBadge.classList.contains('bg-success')) {
+            rotationBadge.classList.add('badge-success');
+        } else if (rotationBadge.classList.contains('bg-warning')) {
+            rotationBadge.classList.add('badge-warning');
+        } else if (rotationBadge.classList.contains('bg-danger')) {
+            rotationBadge.classList.add('badge-danger');
+        }
+        rotationBadge.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'text-md');
+    }
 
     // Configurar enlaces y botones según los permisos y datos
     if ($.inArray('update_material', $permissions) !== -1) {
@@ -1946,6 +1977,24 @@ function renderDataTable(data, activeColumns) {
         }
         if (element2) {
             element2.style.display = 'none';
+        }
+    }
+
+    var actionsTrigger = clone.querySelector('.next-row-actions-trigger');
+    if (actionsTrigger) {
+        actionsTrigger.setAttribute('aria-label', 'Abrir acciones de ' + data.descripcion);
+    }
+
+    var availableActions = Array.prototype.filter.call(
+        clone.querySelectorAll('.next-row-actions-menu .dropdown-item'),
+        function (action) {
+            return action.style.display !== 'none';
+        }
+    );
+    if (availableActions.length === 0) {
+        var actionsCell = clone.querySelector('[data-buttons]');
+        if (actionsCell) {
+            actionsCell.innerHTML = '<span class="text-muted" aria-label="Sin acciones disponibles">—</span>';
         }
     }
 
