@@ -52,5 +52,6 @@ return [
         'typescrap.edit',
         'settings.material-details.index',
         'stocks.files.index',
+        'dashboard.principal',
     ],
 ];
