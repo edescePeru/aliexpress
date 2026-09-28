@@ -10,6 +10,7 @@ namespace App\Services;
 
 use App\InventoryLevel;
 use App\Item;
+use App\Quote;
 use App\QuoteStockLot;
 use App\StockLot;
 use Illuminate\Support\Facades\DB;
@@ -287,32 +288,62 @@ class QuoteStockReservationService
 
     public function releaseReservationsByQuote(int $quoteId): void
     {
-        $reservations = QuoteStockLot::where('quote_id', $quoteId)
+        $this->validateQuoteCompany($quoteId);
+
+        $reservations = QuoteStockLot::query()
+            ->where('quote_id', $quoteId)
             ->lockForUpdate()
             ->get();
 
         foreach ($reservations as $reservation) {
-            $this->releaseReservation($reservation);
+            $this->releaseReservation(
+                $reservation
+            );
         }
 
-        QuoteStockLot::where('quote_id', $quoteId)->delete();
+        QuoteStockLot::query()
+            ->where(
+                'quote_id',
+                $quoteId
+            )
+            ->delete();
     }
 
     public function releaseReservationsByQuoteDetail(
         int $quoteId,
         int $quoteDetailId
     ): void {
-        $reservations = QuoteStockLot::where('quote_id', $quoteId)
-            ->where('quote_detail_id', $quoteDetailId)
+        $this->validateQuoteCompany(
+            $quoteId
+        );
+
+        $reservations = QuoteStockLot::query()
+            ->where(
+                'quote_id',
+                $quoteId
+            )
+            ->where(
+                'quote_detail_id',
+                $quoteDetailId
+            )
             ->lockForUpdate()
             ->get();
 
         foreach ($reservations as $reservation) {
-            $this->releaseReservation($reservation);
+            $this->releaseReservation(
+                $reservation
+            );
         }
 
-        QuoteStockLot::where('quote_id', $quoteId)
-            ->where('quote_detail_id', $quoteDetailId)
+        QuoteStockLot::query()
+            ->where(
+                'quote_id',
+                $quoteId
+            )
+            ->where(
+                'quote_detail_id',
+                $quoteDetailId
+            )
             ->delete();
     }
 
@@ -490,5 +521,21 @@ class QuoteStockReservationService
             $qtyReserved;
 
         $inventoryLevel->save();
+    }
+
+    private function validateQuoteCompany(int $quoteId): void
+    {
+        $companyId = TenantContext::companyId();
+
+        $exists = Quote::query()
+            ->where('id', $quoteId)
+            ->where('company_id', $companyId)
+            ->exists();
+
+        if (!$exists) {
+            throw new \RuntimeException(
+                'La cotización no pertenece a la empresa actual.'
+            );
+        }
     }
 }

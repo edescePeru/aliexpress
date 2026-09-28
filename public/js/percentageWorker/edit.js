@@ -1,98 +1,178 @@
-$(document).ready(function () {
+$(function () {
 
-    $formEdit = $('#formEdit');
-    $('#btn-submit').on('click', updatePercentage);
-    //$formEdit.on('submit', updatePercentage);
+    const $form =
+        $('#formEdit');
 
+    const $button =
+        $('#btn-submit');
+
+    const $buttonText =
+        $button.find(
+            '[data-button-text]'
+        );
+
+    $button.on(
+        'click',
+        function () {
+
+            const value =
+                $.trim(
+                    $form
+                        .find('[name="value"]')
+                        .val()
+                );
+
+            if (value === '') {
+                toastr.warning(
+                    'Ingrese un valor.'
+                );
+
+                return;
+            }
+
+            savePercentageWorker();
+        }
+    );
+
+    function savePercentageWorker()
+    {
+        const url =
+            $form.data('url');
+
+        const formData =
+            new FormData(
+                $form[0]
+            );
+
+        /*
+         * Estado guardando.
+         */
+        $button
+            .prop('disabled', true);
+
+        $buttonText.text(
+            'Guardando...'
+        );
+
+        $.ajax({
+            url:
+            url,
+
+            method:
+                'POST',
+
+            data:
+            formData,
+
+            processData:
+                false,
+
+            contentType:
+                false,
+
+            success:
+                function () {
+
+                    $.alert({
+                        icon:
+                            'fas fa-check-circle',
+
+                        theme:
+                            'modern',
+
+                        animation:
+                            'zoom',
+
+                        type:
+                            'green',
+
+                        title:
+                            'Actualización correcta',
+
+                        content:
+                            'El parámetro laboral se actualizó correctamente.',
+
+                        buttons: {
+
+                            ok: {
+                                text:
+                                    'Aceptar',
+
+                                btnClass:
+                                    'btn-success',
+
+                                action:
+                                    function () {
+
+                                        window.location.href =
+                                            '/dashboard/plataforma/parametros-laborales';
+                                    }
+                            }
+                        }
+                    });
+                },
+
+            error:
+                function (xhr) {
+
+                    let message =
+                        'No se pudo actualizar el parámetro.';
+
+                    if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                    ) {
+                        message =
+                            xhr.responseJSON.message;
+                    }
+
+                    $.alert({
+                        icon:
+                            'fas fa-exclamation-triangle',
+
+                        theme:
+                            'modern',
+
+                        animation:
+                            'zoom',
+
+                        type:
+                            'orange',
+
+                        title:
+                            'No se pudo actualizar',
+
+                        content:
+                            $('<div>')
+                                .text(message)
+                                .html(),
+
+                        buttons: {
+
+                            ok: {
+                                text:
+                                    'Aceptar',
+
+                                btnClass:
+                                    'btn-warning'
+                            }
+                        }
+                    });
+                },
+
+            complete:
+                function () {
+
+                    $button
+                        .prop(
+                            'disabled',
+                            false
+                        );
+
+                    $buttonText.text(
+                        'Guardar cambios'
+                    );
+                }
+        });
+    }
 });
-
-var $formEdit;
-
-function mayus(e) {
-    e.value = e.value.toUpperCase();
-}
-
-function updatePercentage() {
-    event.preventDefault();
-    // Obtener la URL
-    $("#btn-submit").attr("disabled", true);
-    var formulario = $('#formEdit')[0];
-    var form = new FormData(formulario);
-    var editUrl = $formEdit.data('url');
-    $.ajax({
-        url: editUrl,
-        method: 'POST',
-        data: form,
-        processData:false,
-        contentType:false,
-        success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
-                $(location).attr('href', data.url)
-            }, 2000 )
-        },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-
-            $("#btn-submit").attr("disabled", false);
-        },
-    });
-}

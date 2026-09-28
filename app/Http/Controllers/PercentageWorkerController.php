@@ -23,7 +23,10 @@ class PercentageWorkerController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('percentageWorker.index', compact('porcentages'));
+        return view(
+            'percentageWorker.index',
+            compact('porcentages')
+        );
     }
 
 
@@ -62,7 +65,9 @@ class PercentageWorkerController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        $percentageWorker->value = $request->get('value');
+        $percentageWorker->value =
+            $request->get('value');
+
         $percentageWorker->save();
 
         return redirect()

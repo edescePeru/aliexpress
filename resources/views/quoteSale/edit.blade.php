@@ -71,10 +71,9 @@
 
     <div class="col-md-12">
         <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong>Importante!</strong> Código de colores en los productos. <br>
-            El color gris indica que el producto no ha sufrido modificaciones. <br>
-            El color <strong style="color: blue;">AZUL</strong> indica que el producto ha sido actualizado el precio. <br>
-            El color <strong style="color: red;">ROJO</strong> indica que no hay stock en el almacén. <br>
+            <strong>Importante:</strong>
+            El color rojo indica que el producto actualmente no tiene stock disponible.
+
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -207,9 +206,6 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group row">
-                            <input type="hidden" data-utilityequipment="" value="{{ $equipment->utility }}">
-                            <input type="hidden" data-rentequipment="" value="{{ $equipment->rent }}">
-                            <input type="hidden" data-letterequipment="" value="{{ $equipment->letter }}">
                             <input type="hidden" name="" id="igv" value="{{ $igv }}">
                             <div class="col-md-12" style="display: none">
                                 <label for="description">Detalles de cotización <span class="right badge badge-danger">(*)</span></label>
@@ -298,8 +294,10 @@
                                             $selectedItemCodes = [];
 
                                             if (!empty($selectedItemIds)) {
-                                                $itemsById = \App\Item::whereIn('id', $selectedItemIds)
-                                                    ->get(['id', 'code'])
+                                                $itemsById = \App\Item::query()
+                                                    ->where('company_id', \App\Support\TenantContext::companyId())
+                                                    ->whereIn('id', $selectedItemIds)
+                                                    ->get(['id','code',])
                                                     ->keyBy('id');
 
                                                 $selectedItemCodes = collect($selectedItemIds)
@@ -1065,76 +1063,6 @@
                     >
                         Confirmar ítems
                     </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <div id="modalChangePercentages" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Cambiar los porcentages de ganancia</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="quote_percentage" id="quote_percentage">
-                    <input type="hidden" name="equipment_percentage" id="equipment_percentage">
-
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                <strong>Importante!</strong> Se recargará automaticamente la página para que hagan efecto los cambios.
-                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="col-sm-12 control-label" for="percentage_utility"> Utilidad </label>
-
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control form-control-sm" name="percentage_utility" id="percentage_utility" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                        ">
-                                <div class="input-group-append">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="col-sm-12 control-label" for="percentage_letter"> Letra </label>
-
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control form-control-sm" name="percentage_letter" id="percentage_letter" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                        ">
-                                <div class="input-group-append">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4" >
-                            <label class="col-sm-12 control-label" for="percentage_rent"> Renta </label>
-
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control form-control-sm" name="percentage_rent" id="percentage_rent" placeholder="0.00" min="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                        ">
-                                <div class="input-group-append">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger" data-dismiss="modal">Cancelar</button>
-                    <button type="button" id="btn-changePercentage" class="btn btn-outline-primary">Guardar porcentajes</button>
                 </div>
 
             </div>
