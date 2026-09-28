@@ -1,73 +1,59 @@
-$(document).ready(function () {
-
-    $formCreate = $('#formCreate');
-    $formCreate.on('submit', storeBrand);
-
-});
-
 var $formCreate;
 
-function mayus(e) {
-    e.value = e.value.toUpperCase();
+$(document).ready(function () {
+    $formCreate = $('#formCreate');
+    $formCreate.on('submit', storeBrand);
+});
+
+function mayus(element) {
+    element.value = element.value.toUpperCase();
 }
 
-function storeBrand() {
+function storeBrand(event) {
     event.preventDefault();
-    // Obtener la URL
-    var createUrl = $formCreate.data('url');
+
     $.ajax({
-        url: createUrl,
+        url: $formCreate.data('url'),
         method: 'POST',
         data: new FormData(this),
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '2000'
+            });
+            setTimeout(function () {
                 location.reload();
-            }, 2000 )
+            }, 2000);
         },
-        error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "3000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
+        error: function (xhr) {
+            showValidationErrors(xhr, 'No se pudo registrar la marca.');
+        }
+    });
+}
 
+function showValidationErrors(xhr, fallback) {
+    var response = xhr.responseJSON || {};
 
-        },
+    if (response.errors) {
+        $.each(response.errors, function (property, messages) {
+            toastr.error(messages, 'Error', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '3000'
+            });
+        });
+        return;
+    }
+
+    toastr.error(response.message || fallback, 'Error', {
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-top-right',
+        timeOut: '3000'
     });
 }

@@ -1,9 +1,5 @@
 @extends('layouts.appAdmin2')
 
-@section('title')
-    Tallas
-@endsection
-
 @section('openConfig')
     menu-open
 @endsection
@@ -16,275 +12,160 @@
     menu-open
 @endsection
 
-{{--@section('activeTalla')
+@section('activeTalla')
     active
-@endsection--}}
+@endsection
 
 @section('activeListTalla')
     active
 @endsection
 
+@section('title')
+    Tallas
+@endsection
+
 @section('page-header')
-    <h1 class="page-title">Tallas</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Tallas</h1>
+        <p class="next-page-description">Administra tallas, capacidades y otras medidas usadas por las variantes.</p>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de tallas</h5>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Catálogo de tallas</strong>
+            <span>Busca y administra los registros del tenant actual.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            @can('destroy_talla')
+                <button
+                    type="button"
+                    id="btnDeleteSelectedTallas"
+                    class="btn btn-outline-danger btn-sm"
+                    data-backend-sync-open="true"
+                    aria-disabled="true"
+                    title="Pendiente de validación backend dedicada para eliminación múltiple"
+                    disabled>
+                    Eliminar seleccionadas
+                </button>
+            @endcan
+            @can('create_talla')
+                <a href="{{ route('talla.create') }}" class="btn btn-primary btn-sm">Nueva talla</a>
+            @endcan
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('talla.index') }}"><i class="fa fa-archive"></i> Tallas</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li>
+        <li class="breadcrumb-item">Materiales</li>
+        <li class="breadcrumb-item active" aria-current="page">Tallas</li>
     </ol>
 @endsection
 
 @section('content')
+    <section
+        id="talla-app"
+        class="next-operational-list"
+        aria-label="Listado de tallas"
+        data-url-data="{{ route('talla.data') }}"
+        data-url-create="{{ route('talla.create') }}"
+        data-url-edit="{{ route('talla.edit', ['id' => ':id']) }}"
+        data-url-delete="{{ route('talla.destroy') }}"
+        data-url-delete-multiple="{{ route('talla.deleteMultiple') }}"
+        data-can-create="{{ auth()->user()->can('create_talla') ? 1 : 0 }}"
+        data-can-update="{{ auth()->user()->can('update_talla') ? 1 : 0 }}"
+        data-can-delete="{{ auth()->user()->can('destroy_talla') ? 1 : 0 }}">
 
-    <div
-            id="talla-app"
-            class="container-fluid"
-
-            data-url-data="{{route('talla.data')}}"
-            data-url-edit="{{route('talla.edit',['id' => ':id'])}}"
-            data-url-delete="{{route('talla.destroy')}}"
-            data-url-delete-multiple="{{route('talla.deleteMultiple')}}"
-            data-can-update="{{auth()->user()->can('update_talla')? 1: 0}}"
-            data-can-delete="{{auth()->user()->can('destroy_talla')? 1: 0}}"
-    >
-
-        <div class="card card-outline card-primary">
-
-            <div class="card-header">
-
-                <h3 class="card-title">
-
-                    <i class="fas fa-ruler-combined mr-1"></i>
-
-                    Tallas
-
-                </h3>
-
-
-                <div class="card-tools">
-
-                    <a
-                            href="{{ route('talla.create') }}"
-                            class="btn btn-success btn-sm"
-                    >
-
-                        <i class="fas fa-plus mr-1"></i>
-
-                        Nueva talla
-
-                    </a>
-
+        <div class="next-list-toolbar">
+            <div class="next-list-search-row">
+                <div class="next-list-search-control">
+                    <label class="sr-only" for="tallaSearch">Buscar tallas</label>
+                    <input
+                        type="search"
+                        id="tallaSearch"
+                        class="form-control"
+                        placeholder="Buscar por nombre, nombre corto o descripción"
+                        autocomplete="off">
                 </div>
-
+                <div class="next-list-length">
+                    <label for="tallaPerPage" class="d-flex align-items-center mb-0">
+                        Mostrar
+                        <select id="tallaPerPage" class="form-control form-control-sm mx-2">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                        registros
+                    </label>
+                </div>
             </div>
-
-
-            <div class="card-body">
-
-                <div class="row mb-3">
-
-                    <div class="col-md-6">
-
-                        <div class="form-group mb-0">
-
-                            <label>
-                                Buscar
-                            </label>
-
-                            <input
-                                    type="text"
-                                    id="tallaSearch"
-                                    class="form-control"
-                                    placeholder="Nombre, nombre corto o descripción..."
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="col-md-2">
-
-                        <div class="form-group mb-0">
-
-                            <label>
-                                Mostrar
-                            </label>
-
-                            <select
-                                    id="tallaPerPage"
-                                    class="form-control"
-                            >
-
-                                <option value="10">
-                                    10
-                                </option>
-
-                                <option value="25">
-                                    25
-                                </option>
-
-                                <option value="50">
-                                    50
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-
-                    <div
-                            class="
-                        col-md-4
-                        d-flex
-                        align-items-end
-                    "
-                    >
-
-                        <div class="form-group mb-0 w-100">
-
-                            <button
-                                    type="button"
-                                    id="btnDeleteSelectedTallas"
-                                    class="
-                                btn
-                                btn-outline-danger
-                                btn-block
-                            "
-                                    disabled
-                            >
-
-                                <i class="fas fa-trash mr-1"></i>
-
-                                Eliminar seleccionadas
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="table-responsive">
-
-                    <table
-                            class="
-                        table
-                        table-bordered
-                        table-hover
-                        table-sm
-                    "
-                    >
-
-                        <thead>
-
-                        <tr>
-
-                            <th
-                                    class="text-center"
-                                    style="width:45px;"
-                            >
-
-                                <input
-                                        type="checkbox"
-                                        id="checkAllTallas"
-                                >
-
-                            </th>
-
-
-                            <th>
-                                Nombre
-                            </th>
-
-                            <th style="width:160px;">
-                                Nombre corto
-                            </th>
-
-                            <th>
-                                Descripción
-                            </th>
-
-                            <th style="width:170px;">
-                                Acciones
-                            </th>
-
-                        </tr>
-
-                        </thead>
-
-
-                        <tbody id="tallaTableBody">
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-
-                <div
-                        id="tallaEmpty"
-                        class="
-                    alert
-                    alert-light
-                    border
-                    text-center
-                    d-none
-                "
-                >
-
-                    No se encontraron tallas.
-
-                </div>
-
-
-                <div
-                        class="
-                    d-flex
-                    justify-content-between
-                    align-items-center
-                    flex-wrap
-                    mt-3
-                "
-                >
-
-                    <div
-                            id="tallaPaginationInfo"
-                            class="text-muted"
-                    ></div>
-
-
-                    <div
-                            id="tallaPagination"
-                    ></div>
-
-                </div>
-
-            </div>
-
         </div>
 
-    </div>
+        <div id="tallaResultSummary" class="next-list-summary" aria-live="polite"></div>
 
+        <div class="next-list-content">
+            <div class="table-responsive" tabindex="0">
+                <table class="table table-bordered table-hover table-sm next-data-table">
+                    <thead>
+                    <tr>
+                        @can('destroy_talla')
+                            <th class="text-center" data-selection>
+                                <div class="custom-control custom-checkbox d-inline-block">
+                                    <input type="checkbox" class="custom-control-input" id="checkAllTallas" aria-label="Seleccionar todas las tallas visibles">
+                                    <label class="custom-control-label" for="checkAllTallas"><span class="sr-only">Seleccionar todas las tallas visibles</span></label>
+                                </div>
+                            </th>
+                        @endcan
+                        <th class="text-left">Nombre</th>
+                        <th class="text-center">Nombre corto</th>
+                        <th class="text-left">Descripción</th>
+                        @canany(['update_talla', 'destroy_talla'])
+                            <th class="text-center" data-buttons>Acciones</th>
+                        @endcanany
+                    </tr>
+                    </thead>
+                    <tbody id="tallaTableBody"></tbody>
+                </table>
+            </div>
+            <div id="tallaEmpty" class="next-table-empty d-none" aria-live="polite"></div>
+        </div>
+
+        <div class="next-list-pagination">
+            <div id="tallaPaginationInfo" class="next-list-page-context" aria-live="polite"></div>
+            <nav id="tallaPagination" aria-label="Paginación de tallas"></nav>
+        </div>
+    </section>
+
+    @can('destroy_talla')
+        <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1" role="dialog" aria-labelledby="modalDeleteLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <form id="formDelete" class="next-aux-modal-form" data-url="{{ route('talla.destroy') }}">
+                    @csrf
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalDeleteLabel">Eliminar talla</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="talla_id" name="talla_id">
+                            <p class="mb-2">Esta acción eliminará la talla seleccionada si no está asociada a variantes.</p>
+                            <p class="mb-0"><strong id="tallaDeleteName"></strong></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-delete-cancel data-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger">Eliminar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 @endsection
 
-
 @section('scripts')
-
-    <script src="{{ asset('js/talla/index.js') }}"></script>
-
+    <script src="{{ asset('js/talla/index.js') }}?v={{ time() }}"></script>
 @endsection

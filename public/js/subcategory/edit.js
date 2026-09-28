@@ -1,10 +1,13 @@
 $(document).ready(function () {
     $(".select2").select2({
-        placeholder: "Selecione una categoría",
-        allowClear: true
+        theme: "bootstrap4",
+        placeholder: "Seleccione una categoría",
+        allowClear: true,
+        width: "100%"
     });
     $formEdit = $('#formEdit');
     $formEdit.on('submit', updateSubCategory);
+    $formEdit.on('reset', syncSelect2AfterReset);
 
 });
 
@@ -14,7 +17,15 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
-function updateSubCategory() {
+function syncSelect2AfterReset() {
+    var form = this;
+
+    setTimeout(function () {
+        $(form).find('.select2').trigger('change');
+    }, 0);
+}
+
+function updateSubCategory(event) {
     event.preventDefault();
     // Obtener la URL
     var editUrl = $formEdit.data('url');

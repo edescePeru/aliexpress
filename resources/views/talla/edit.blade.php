@@ -1,232 +1,74 @@
 @extends('layouts.appAdmin2')
 
-@section('title')
-    Editar talla
-@endsection
+@section('openConfig') menu-open @endsection
+@section('activeConfig') active @endsection
+@section('openTalla') menu-open @endsection
+@section('activeTalla') active @endsection
+@section('activeListTalla') active @endsection
 
-@section('openConfig')
-    menu-open
-@endsection
-
-@section('activeConfig')
-    active
-@endsection
-
-@section('openTalla')
-    menu-open
-@endsection
-
-{{--@section('activeTalla')
-    active
-@endsection--}}
-
-@section('activeListTalla')
-    active
-@endsection
+@section('title') Editar talla @endsection
 
 @section('page-header')
-    <h1 class="page-title">Tallas</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Editar talla</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Editar tallas</h5>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>{{ $talla->name }}</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formTalla">Cancelar</button>
+            <button type="submit" id="btnSaveTalla" class="btn btn-primary" form="formTalla">Guardar cambios</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('talla.index') }}"><i class="fa fa-archive"></i> Tallas</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Editar</li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('talla.index') }}">Tallas</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Editar</li>
     </ol>
 @endsection
 
 @section('content')
-
-    <div
-            id="talla-form-app"
-            class="container-fluid"
-
-            data-url-update="{{route('talla.update')}}"
-            data-url-index="{{route('talla.index')}}"
-    >
-
-        <div class="row">
-
-            <div
-                    class="
-                col-lg-12
-                col-md-12
-                mx-auto
-            "
-            >
-
-                <div
-                        class="
-                    card
-                    card-outline
-                    card-primary
-                "
-                >
-
-                    <div class="card-header">
-
-                        <h3 class="card-title">
-
-                            <i
-                                    class="
-                                fas
-                                fa-ruler-combined
-                                mr-1
-                            "
-                            ></i>
-
-                            Editar talla
-
-                        </h3>
-
+    <div id="talla-form-app" data-url-update="{{ route('talla.update') }}" data-url-index="{{ route('talla.index') }}">
+        <form id="formTalla" class="form-horizontal">
+            @csrf
+            <input type="hidden" name="talla_id" value="{{ $talla->id }}">
+            <section class="next-form-section" aria-labelledby="talla-edit-title">
+                <div class="next-section-header">
+                    <div>
+                        <span class="next-section-kicker">01</span>
+                        <h2 id="talla-edit-title">Información general</h2>
+                        <p>Actualiza el nombre operativo, su abreviatura o la descripción.</p>
                     </div>
-
-
-                    <form id="formTalla">
-
-                        @csrf
-
-
-                        <input
-                                type="hidden"
-                                name="talla_id"
-                                value="{{ $talla->id }}"
-                        >
-
-
-                        <div class="card-body">
-
-                            <div class="row">
-
-                                <div class="col-md-8">
-
-                                    <div class="form-group">
-
-                                        <label for="name">
-
-                                            Nombre
-
-                                            <span class="text-danger">
-                                            *
-                                        </span>
-
-                                        </label>
-
-                                        <input
-                                                type="text"
-                                                id="name"
-                                                name="name"
-                                                class="form-control"
-                                                maxlength="191"
-                                                value="{{ $talla->name }}"
-                                                required
-                                        >
-
-                                    </div>
-
-                                </div>
-
-
-                                <div class="col-md-4">
-
-                                    <div class="form-group">
-
-                                        <label for="short_name">
-                                            Nombre corto
-                                        </label>
-
-                                        <input
-                                                type="text"
-                                                id="short_name"
-                                                name="short_name"
-                                                class="form-control"
-                                                maxlength="191"
-                                                value="{{
-                                            $talla->short_name
-                                        }}"
-                                        >
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="form-group">
-
-                                <label for="description">
-                                    Descripción
-                                </label>
-
-                                <input
-                                        type="text"
-                                        id="description"
-                                        name="description"
-                                        class="form-control"
-                                        maxlength="255"
-                                        value="{{
-                                    $talla->description
-                                }}"
-                                >
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="card-footer text-right">
-
-                            <a
-                                    href="{{ route('talla.index') }}"
-                                    class="
-                                btn
-                                btn-outline-secondary
-                                mr-2
-                            "
-                            >
-                                Cancelar
-                            </a>
-
-
-                            <button
-                                    type="submit"
-                                    id="btnSaveTalla"
-                                    class="btn btn-success"
-                            >
-
-                                <i class="fas fa-save mr-1"></i>
-
-                                Guardar cambios
-
-                            </button>
-
-                        </div>
-
-                    </form>
-
                 </div>
-
-            </div>
-
-        </div>
-
+                <div class="form-row">
+                    <div class="form-group col-md-8">
+                        <label for="name">Nombre <span class="next-required">(*)</span></label>
+                        <input type="text" id="name" name="name" class="form-control" maxlength="191" value="{{ $talla->name }}" required autofocus>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="short_name">Nombre corto</label>
+                        <input type="text" id="short_name" name="short_name" class="form-control" maxlength="191" value="{{ $talla->short_name }}">
+                    </div>
+                    <div class="form-group col-12">
+                        <label for="description">Descripción</label>
+                        <input type="text" id="description" name="description" class="form-control" maxlength="255" value="{{ $talla->description }}">
+                        <small class="form-text text-muted">Puede representar una talla, capacidad o presentación usada para diferenciar variantes.</small>
+                    </div>
+                </div>
+            </section>
+        </form>
     </div>
-
 @endsection
 
-
 @section('scripts')
-
-    <script src="{{ asset('js/talla/form.js') }}"></script>
-
+    <script src="{{ asset('js/talla/form.js') }}?v={{ time() }}"></script>
 @endsection

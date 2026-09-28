@@ -471,6 +471,35 @@ adapt the grid minimally;
 do not invent a parallel form system.
 Tables and operational lists
 
+## Table Alignment Standard
+
+Unless a screen has a documented functional reason to behave differently, all operational tables must follow this alignment standard:
+
+- identifiers / short codes → center
+- descriptive text → left
+- units → center
+- quantities / stock values → center
+- currency / monetary values → right
+- percentages → right
+- dates → center
+- statuses / badges → center
+- image/action/icon columns → center
+- row actions → center
+
+The header alignment must always match the data alignment of its column.
+
+Do not mix alignments within the same semantic column type.
+
+Reuse Bootstrap or existing Venti Next utility classes before creating page-specific CSS.
+
+Exceptions are allowed only when:
+
+- the data type materially benefits from a different alignment;
+- the exception is consistent across the whole table;
+- the reason is documented.
+
+This rule is the default standard for all Venti Next operational tables.
+
 For real operational lists prefer approved patterns:
 
 Operational List

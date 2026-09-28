@@ -1,14 +1,14 @@
 $(document).ready(function () {
+    initializeNextRowActions();
+
     $.ajax({
         url: "/api/sunat",
         type: 'GET',
         dataType: 'json',
         success: function (json) {
-            console.log(json.compra);
-            /*$('#tasaCompra').html('Compra: '+json.compra);
-            $('#tasaVenta').html('Venta: '+json.venta);*/
-            $('#tasaCompra').html('Compra: '+json.precioCompra);
-            $('#tasaVenta').html('Venta: '+json.precioVenta);
+            $('#tasaCompra').text(normalizeExchangeRateValue(json && json.precioCompra));
+            $('#tasaVenta').text(normalizeExchangeRateValue(json && json.precioVenta));
+            $('#tasaFecha').text(formatExchangeRateDate(json && json.fecha));
         }
     });
 
@@ -103,6 +103,84 @@ $(document).ready(function () {
     $('#read-all').on('click', readAllNotification);
 
 });
+
+function normalizeExchangeRateValue(value) {
+    if (
+        value === null ||
+        typeof value === 'undefined' ||
+        String(value).trim() === '' ||
+        String(value).toLowerCase() === 'undefined' ||
+        String(value).toLowerCase() === 'null'
+    ) {
+        return 'No disponible';
+    }
+
+    return String(value);
+}
+
+function formatExchangeRateDate(value) {
+    var dateMatch = typeof value === 'string'
+        ? value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+        : null;
+
+    if (!dateMatch) {
+        return 'No disponible';
+    }
+
+    return 'Actualizado: ' + dateMatch[3] + '/' + dateMatch[2] + '/' + dateMatch[1];
+}
+
+function initializeNextRowActions() {
+    var triggerCounter = 0;
+
+    $(document).on('show.bs.dropdown', '.next-row-actions', function () {
+        var dropdown = this;
+        var $dropdown = $(dropdown);
+        var $trigger = $dropdown.children('.next-row-actions-trigger').first();
+        var $menu = $dropdown.children('.next-row-actions-menu').first();
+
+        if (!$menu.length) {
+            return;
+        }
+
+        if (!$trigger.attr('id')) {
+            triggerCounter += 1;
+            $trigger.attr('id', 'next-row-actions-trigger-' + triggerCounter);
+        }
+
+        $menu
+            .attr('aria-labelledby', $trigger.attr('id'))
+            .attr('data-next-row-actions-portaled', 'true')
+            .data('nextRowActionsOwner', dropdown)
+            .data('nextRowActionsNextSibling', $menu[0].nextSibling)
+            .appendTo(document.body);
+    });
+
+    $(document).on('hidden.bs.dropdown', '.next-row-actions', function () {
+        var dropdown = this;
+        var $menu = $('body > .next-row-actions-menu').filter(function () {
+            return $(this).data('nextRowActionsOwner') === dropdown;
+        }).first();
+
+        if (!$menu.length) {
+            return;
+        }
+
+        var nextSibling = $menu.data('nextRowActionsNextSibling');
+
+        $menu.removeAttr('data-next-row-actions-portaled');
+
+        if (nextSibling && nextSibling.parentNode === dropdown) {
+            $menu.insertBefore(nextSibling);
+        } else {
+            $menu.appendTo(dropdown);
+        }
+
+        $menu
+            .removeData('nextRowActionsOwner')
+            .removeData('nextRowActionsNextSibling');
+    });
+}
 
 function showNotificationModal(message, url) {
     $.confirm({

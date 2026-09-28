@@ -1,7 +1,15 @@
 $(document).ready(function () {
 
+    $(".select2").select2({
+        theme: "bootstrap4",
+        placeholder: "Seleccione una subcategoría",
+        allowClear: true,
+        width: "100%"
+    });
+
     $formEdit = $('#formEdit');
     $formEdit.on('submit', updateMaterialType);
+    $formEdit.on('reset', syncSelect2AfterReset);
 
 });
 
@@ -11,7 +19,15 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
-function updateMaterialType() {
+function syncSelect2AfterReset() {
+    var form = this;
+
+    setTimeout(function () {
+        $(form).find('.select2').trigger('change');
+    }, 0);
+}
+
+function updateMaterialType(event) {
     event.preventDefault();
     // Obtener la URL
     var editUrl = $formEdit.data('url');

@@ -13,7 +13,7 @@
 @endsection
 
 @section('activeUnitMeasure')
-
+    active
 @endsection
 
 @section('activeCreateUnitMeasure')
@@ -21,82 +21,82 @@
 @endsection
 
 @section('title')
-    Unidad de medida
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Nueva unidad de medida
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Unidades de medida</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Nueva unidad de medida</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear unidad de medida</h5>
-    <a href="{{ route('unitmeasure.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Unidades </a>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Datos de la unidad</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formCreate">Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="formCreate">Guardar unidad</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
+            <a href="{{ route('dashboard.principal') }}">Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('unitmeasure.index') }}"><i class="fa fa-archive"></i> Unidades de medidas</a>
+            <a href="{{ route('unitmeasure.index') }}">Unidades de medida</a>
         </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nuevo</li>
+        <li class="breadcrumb-item active" aria-current="page">Nueva</li>
     </ol>
 @endsection
 
 @section('content')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('unitmeasure.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Unidad de media <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Unidad de medida">
+        <section class="next-form-section" aria-labelledby="unit-measure-create-title">
+            <div class="next-section-header">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="unit-measure-create-title">Información general</h2>
+                    <p>Define el nombre operativo y una descripción opcional.</p>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Descripción</label>
-                <div class="col-sm-10">
-                     <input type="text" class="form-control" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="unit-measure-name">Unidad de medida <span class="next-required">(*)</span></label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="unit-measure-name"
+                        name="name"
+                        onkeyup="mayus(this);"
+                        placeholder="Ej.: Unidad"
+                        maxlength="255"
+                        required
+                        autofocus>
+                </div>
+
+                <div class="form-group col-md-6">
+                    <label for="unit-measure-description">Descripción</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="unit-measure-description"
+                        name="description"
+                        onkeyup="mayus(this);"
+                        placeholder="Ej.: Venta y control por unidad"
+                        maxlength="255">
                 </div>
             </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        </section>
     </form>
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 @endsection
 
 @section('scripts')

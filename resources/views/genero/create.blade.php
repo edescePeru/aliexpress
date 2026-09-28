@@ -13,7 +13,7 @@
 @endsection
 
 @section('activeGenero')
-
+    active
 @endsection
 
 @section('activeCreateGenero')
@@ -21,82 +21,68 @@
 @endsection
 
 @section('title')
-    Géneros
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Nuevo género
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Géneros</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Nuevo género</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nueva género</h5>
-    <a href="{{ route('genero.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de géneros </a>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Datos del género</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formCreate">Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="formCreate">Guardar género</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
+            <a href="{{ route('dashboard.principal') }}">Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('genero.index') }}"><i class="fa fa-archive"></i> Géneros</a>
+            <a href="{{ route('genero.index') }}">Géneros</a>
         </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nuevo</li>
+        <li class="breadcrumb-item active" aria-current="page">Nuevo</li>
     </ol>
 @endsection
 
 @section('content')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('genero.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Género <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Género">
+        <section class="next-form-section" aria-labelledby="genero-create-title">
+            <div class="next-section-header">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="genero-create-title">Información general</h2>
+                    <p>Define el nombre operativo y una descripción opcional.</p>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Descripción</label>
-                <div class="col-sm-10">
-                     <input type="text" class="form-control" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="genero-name">Género <span class="next-required">(*)</span></label>
+                    <input type="text" class="form-control" id="genero-name" name="name"
+                        onkeyup="mayus(this);" placeholder="Ej.: Unisex" maxlength="191" required autofocus>
+                </div>
+
+                <div class="form-group col-md-6">
+                    <label for="genero-description">Descripción</label>
+                    <input type="text" class="form-control" id="genero-description" name="description"
+                        onkeyup="mayus(this);" placeholder="Ej.: Aplicable a cualquier género" maxlength="255">
                 </div>
             </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        </section>
     </form>
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 @endsection
 
 @section('scripts')

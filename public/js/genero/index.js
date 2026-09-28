@@ -1,194 +1,185 @@
+var $formDelete;
+var $modalDelete;
+var $permissions = [];
+var deleteTrigger = null;
+
 $(document).ready(function () {
-    $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
-    $('#dynamic-table').DataTable( {
+    var $table = $('#dynamic-table');
+    var permissionsValue = $('#permissions').val();
+
+    if (permissionsValue) {
+        $permissions = JSON.parse(permissionsValue);
+    }
+
+    var canCreate = $table.attr('data-can-create') === 'true';
+    var canUpdate = $table.attr('data-can-update') === 'true';
+    var canDestroy = $table.attr('data-can-destroy') === 'true';
+    var columns = [];
+
+    if (canDestroy) {
+        columns.push({
+            data: null,
+            orderable: false,
+            searchable: false,
+            className: 'text-center',
+            render: function (data, type, row) {
+                var checkboxId = 'genero-select-' + escapeHtml(row.id);
+                var accessibleName = 'Seleccionar ' + escapeHtml(row.name);
+
+                return '<div class="custom-control custom-checkbox d-inline-block">' +
+                    '<input type="checkbox" class="custom-control-input row-checkbox" id="' +
+                    checkboxId +
+                    '" value="' +
+                    escapeHtml(row.id) +
+                    '" aria-label="' +
+                    accessibleName +
+                    '">' +
+                    '<label class="custom-control-label" for="' +
+                    checkboxId +
+                    '"><span class="sr-only">' +
+                    accessibleName +
+                    '</span></label>' +
+                    '</div>';
+            }
+        });
+    }
+
+    columns.push({
+        data: 'name',
+        className: 'text-left'
+    });
+
+    columns.push({
+        data: 'description',
+        className: 'text-left',
+        defaultContent: ''
+    });
+
+    if (canUpdate || canDestroy) {
+        columns.push({
+            data: null,
+            orderable: false,
+            searchable: false,
+            className: 'text-center',
+            createdCell: function (cell) {
+                $(cell).attr('data-buttons', '');
+            },
+            render: function (item) {
+                return renderRowActions(item, canUpdate, canDestroy, $table.data('url-edit'));
+            }
+        });
+    }
+
+    var emptyState = '<div class="next-table-empty">No hay géneros registrados.';
+
+    if (canCreate) {
+        emptyState += ' <a href="' +
+            document.location.origin +
+            '/dashboard/crear/genero">Crear el primer género</a>.';
+    }
+
+    emptyState += '</div>';
+
+    var dataTable = $table.DataTable({
         ajax: {
-            url: "/dashboard/all/generos",
+            url: $table.data('url-data'),
             dataSrc: 'data'
         },
         bAutoWidth: false,
-        "aoColumns": [
-            {
-                data: null,
-                orderable: false,
-                render: function (data, type, row) {
-                    return `<input type="checkbox" class="row-checkbox" value="${row.id}">`;
-                }
-            },
-            { data: 'name' },
-            { data: 'description' },
-            { data: null,
-                title: 'Acciones',
-                wrap: true,
-                "render": function (item)
-                {
-                    var text = '';
-                    if ( $.inArray('update_warrant', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/genero/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
-                    }
-                    if ( $.inArray('destroy_warrant', $permissions) !== -1 ) {
-                        text = text + '<button data-delete="'+item.id+'" data-name="'+item.name+'" '+
-                            'class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
-                    }
-                    return text;
-
-                } },
-
-        ],
-        "aaSorting": [],
-
-        select: {
-            style: 'single'
-        },
+        pageLength: 10,
+        lengthMenu: [10, 25, 50, 100],
+        aoColumns: columns,
+        aaSorting: [],
+        dom:
+            '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>>' +
+            '<"next-list-summary"i>' +
+            '<"next-list-content"<"table-responsive"t>>' +
+            '<"next-list-pagination"p>',
         language: {
-            "processing": "Procesando...",
-            "lengthMenu": "Mostrar _MENU_ registros",
-            "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
-            "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
-            "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
-            "infoFiltered": "(filtrado de un total de _MAX_ registros)",
-            "search": "Buscar:",
-            "infoThousands": ",",
-            "loadingRecords": "Cargando...",
-            "paginate": {
-                "first": "Primero",
-                "last": "Último",
-                "next": "Siguiente",
-                "previous": "Anterior"
+            processing: 'Procesando...',
+            lengthMenu: 'Mostrar _MENU_ registros',
+            zeroRecords: '<div class="next-table-empty">No se encontraron géneros con la búsqueda actual.</div>',
+            emptyTable: emptyState,
+            info: 'Mostrando _START_–_END_ de _TOTAL_ géneros',
+            infoEmpty: 'Mostrando 0 géneros',
+            infoFiltered: '(filtrado de _MAX_ registros)',
+            search: 'Buscar:',
+            loadingRecords: 'Cargando géneros...',
+            paginate: {
+                first: 'Primero',
+                last: 'Último',
+                next: 'Siguiente',
+                previous: 'Anterior'
             },
-            "aria": {
-                "sortAscending": ": Activar para ordenar la columna de manera ascendente",
-                "sortDescending": ": Activar para ordenar la columna de manera descendente"
-            },
-            "buttons": {
-                "copy": "Copiar",
-                "colvis": "Visibilidad",
-                "collection": "Colección",
-                "colvisRestore": "Restaurar visibilidad",
-                "copyKeys": "Presione ctrl o u2318 + C para copiar los datos de la tabla al portapapeles del sistema. <br \/> <br \/> Para cancelar, haga clic en este mensaje o presione escape.",
-                "copySuccess": {
-                    "1": "Copiada 1 fila al portapapeles",
-                    "_": "Copiadas %d fila al portapapeles"
-                },
-                "copyTitle": "Copiar al portapapeles",
-                "csv": "CSV",
-                "excel": "Excel",
-                "pageLength": {
-                    "-1": "Mostrar todas las filas",
-                    "1": "Mostrar 1 fila",
-                    "_": "Mostrar %d filas"
-                },
-                "pdf": "PDF",
-                "print": "Imprimir"
-            },
-            "autoFill": {
-                "cancel": "Cancelar",
-                "fill": "Rellene todas las celdas con <i>%d<\/i>",
-                "fillHorizontal": "Rellenar celdas horizontalmente",
-                "fillVertical": "Rellenar celdas verticalmentemente"
-            },
-            "decimal": ",",
-            "searchBuilder": {
-                "add": "Añadir condición",
-                "button": {
-                    "0": "Constructor de búsqueda",
-                    "_": "Constructor de búsqueda (%d)"
-                },
-                "clearAll": "Borrar todo",
-                "condition": "Condición",
-                "conditions": {
-                    "date": {
-                        "after": "Despues",
-                        "before": "Antes",
-                        "between": "Entre",
-                        "empty": "Vacío",
-                        "equals": "Igual a",
-                        "not": "No",
-                        "notBetween": "No entre",
-                        "notEmpty": "No Vacio"
-                    },
-                    "number": {
-                        "between": "Entre",
-                        "empty": "Vacio",
-                        "equals": "Igual a",
-                        "gt": "Mayor a",
-                        "gte": "Mayor o igual a",
-                        "lt": "Menor que",
-                        "lte": "Menor o igual que",
-                        "not": "No",
-                        "notBetween": "No entre",
-                        "notEmpty": "No vacío"
-                    },
-                    "string": {
-                        "contains": "Contiene",
-                        "empty": "Vacío",
-                        "endsWith": "Termina en",
-                        "equals": "Igual a",
-                        "not": "No",
-                        "notEmpty": "No Vacio",
-                        "startsWith": "Empieza con"
-                    }
-                },
-                "data": "Data",
-                "deleteTitle": "Eliminar regla de filtrado",
-                "leftTitle": "Criterios anulados",
-                "logicAnd": "Y",
-                "logicOr": "O",
-                "rightTitle": "Criterios de sangría",
-                "title": {
-                    "0": "Constructor de búsqueda",
-                    "_": "Constructor de búsqueda (%d)"
-                },
-                "value": "Valor"
-            },
-            "searchPanes": {
-                "clearMessage": "Borrar todo",
-                "collapse": {
-                    "0": "Paneles de búsqueda",
-                    "_": "Paneles de búsqueda (%d)"
-                },
-                "count": "{total}",
-                "countFiltered": "{shown} ({total})",
-                "emptyPanes": "Sin paneles de búsqueda",
-                "loadMessage": "Cargando paneles de búsqueda",
-                "title": "Filtros Activos - %d"
-            },
-            "select": {
-                "1": "%d fila seleccionada",
-                "_": "%d filas seleccionadas",
-                "cells": {
-                    "1": "1 celda seleccionada",
-                    "_": "$d celdas seleccionadas"
-                },
-                "columns": {
-                    "1": "1 columna seleccionada",
-                    "_": "%d columnas seleccionadas"
-                }
-            },
-            "thousands": ".",
-            "datetime": {
-                "previous": "Anterior",
-                "next": "Proximo",
-                "hours": "Horas"
+            aria: {
+                sortAscending: ': activar para ordenar ascendente',
+                sortDescending: ': activar para ordenar descendente'
             }
-        }
+        },
+        initComplete: function () {
+            var $wrapper = $table.closest('.dataTables_wrapper');
+            var $filter = $wrapper.find('.dataTables_filter');
+            var $filterLabel = $filter.find('label');
+            var $filterInput = $filter.find('input');
+            var $lengthLabel = $wrapper.find('.dataTables_length label');
+            var $info = $wrapper.find('.next-list-summary .dataTables_info');
 
-    } );
+            $filter.removeClass('text-right').addClass('text-left mb-0');
+            $filterLabel.addClass('w-100 mb-0');
+            $filterLabel.contents().filter(function () {
+                return this.nodeType === 3;
+            }).remove();
+            $filterLabel.prepend('<span class="sr-only">Buscar géneros</span>');
+            $filterInput
+                .removeClass('ml-2')
+                .addClass('w-100 ml-0')
+                .attr('placeholder', 'Buscar por nombre o descripción')
+                .attr('aria-label', 'Buscar por nombre o descripción');
+            $lengthLabel.addClass('d-flex align-items-center mb-0');
+            $info.addClass('d-flex align-items-center justify-content-between flex-wrap w-100');
+            $wrapper.find('.next-list-pagination').prepend(
+                '<div class="next-list-page-context" aria-live="polite"></div>'
+            );
+
+            updateDataTableContext(this.api(), $wrapper);
+        },
+        drawCallback: function () {
+            $('#select-all').prop('checked', false);
+            updateDataTableContext(this.api(), $table.closest('.dataTables_wrapper'));
+        }
+    });
 
     $formDelete = $('#formDelete');
-    $formDelete.on('submit', destroyWarrant);
     $modalDelete = $('#modalDelete');
+
+    $formDelete.on('submit', destroyGenero);
     $(document).on('click', '[data-delete]', openModalDelete);
 
+    $modalDelete.on('shown.bs.modal', function () {
+        $modalDelete.find('[data-delete-cancel]').trigger('focus');
+    });
+
+    $modalDelete.on('hidden.bs.modal', function () {
+        if (deleteTrigger) {
+            $(deleteTrigger).trigger('focus');
+        }
+        deleteTrigger = null;
+    });
+
     $('#select-all').on('click', function () {
-        let rows = $('#dynamic-table').DataTable().rows({ search: 'applied' }).nodes();
+        var rows = dataTable.rows({ search: 'applied' }).nodes();
         $('input[type="checkbox"].row-checkbox', rows).prop('checked', this.checked);
     });
 
     $('#delete-selected').on('click', function () {
-        let ids = [];
+        var $bulkButton = $(this);
+
+        if ($bulkButton.prop('disabled') || $bulkButton.attr('data-backend-sync-open') === 'true') {
+            return;
+        }
+
+        var ids = [];
+
         $('.row-checkbox:checked').each(function () {
             ids.push($(this).val());
         });
@@ -213,7 +204,7 @@ $(document).ready(function () {
                     btnClass: 'btn-red',
                     action: function () {
                         $.ajax({
-                            url: '/dashboard/genero/delete-multiple',
+                            url: $bulkButton.attr('data-url-bulk'),
                             type: 'POST',
                             data: {
                                 ids: ids,
@@ -226,12 +217,12 @@ $(document).ready(function () {
                                     type: 'green',
                                     typeAnimated: true
                                 });
-                                $('#dynamic-table').DataTable().ajax.reload();
+                                dataTable.ajax.reload();
                             },
                             error: function (xhr) {
                                 $.alert({
                                     title: 'Error',
-                                    content: 'Error al eliminar elementos.',
+                                    content: getErrorMessage(xhr, 'No se pudieron eliminar los géneros seleccionados.'),
                                     type: 'red',
                                     typeAnimated: true
                                 });
@@ -241,85 +232,149 @@ $(document).ready(function () {
                 },
                 cancelar: {
                     text: 'Cancelar',
-                    action: function () { }
+                    action: function () {}
                 }
             }
         });
     });
 });
 
-var $formDelete;
-var $modalDelete;
-var $permissions;
+function updateDataTableContext(dataTable, $wrapper) {
+    var page = dataTable.page.info();
+    var total = page.recordsDisplay;
+    var start = total === 0 ? 0 : page.start + 1;
+    var end = page.end;
+    var noun = total === 1 ? 'género' : 'géneros';
+    var summary = '<div class="next-list-summary-copy">' +
+        '<strong class="next-list-count">' + total + '</strong>' +
+        '<span>' + noun + ' ' + (total === 1 ? 'encontrado' : 'encontrados') + '</span>' +
+        '</div>' +
+        '<span class="next-list-sort-context">' +
+        '<i class="fas fa-sort-alpha-down" aria-hidden="true"></i> Orden alfabético' +
+        '</span>';
 
-function openModalDelete() {
-    var genero_id = $(this).data('delete');
-    var name = $(this).data('name');
+    $wrapper.find('.next-list-summary .dataTables_info').html(summary);
+    $wrapper.find('.next-list-page-context').text(
+        'Mostrando ' + start + ' a ' + end + ' de ' + total + ' ' + noun + '.'
+    );
+}
 
-    $modalDelete.find('[id=genero_id]').val(genero_id);
-    $modalDelete.find('[id=name]').html(name);
+function renderRowActions(item, canUpdate, canDestroy, editUrl) {
+    var actions = '';
+    var escapedName = escapeHtml(item.name);
 
+    if (canUpdate) {
+        actions +=
+            '<a class="dropdown-item" href="' +
+            editUrl + '/' + encodeURIComponent(item.id) +
+            '">' +
+            '<i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i>' +
+            '<span>Editar</span>' +
+            '</a>';
+    }
+
+    if (canUpdate && canDestroy) {
+        actions += '<div class="dropdown-divider"></div>';
+    }
+
+    if (canDestroy) {
+        actions +=
+            '<button type="button" class="dropdown-item next-row-action-danger" data-delete="' +
+            escapeHtml(item.id) +
+            '" data-name="' +
+            escapedName +
+            '">' +
+            '<i class="fas fa-trash next-row-action-item-icon" aria-hidden="true"></i>' +
+            '<span>Eliminar</span>' +
+            '</button>';
+    }
+
+    return '<div class="dropdown next-row-actions">' +
+        '<button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" ' +
+        'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" ' +
+        'aria-label="Abrir acciones de ' + escapedName + '">' +
+        '<i class="fas fa-ellipsis-h" aria-hidden="true"></i>' +
+        '</button>' +
+        '<div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' +
+        actions +
+        '</div>' +
+        '</div>';
+}
+
+function openModalDelete(event) {
+    event.preventDefault();
+
+    var dropdownOwner = $(this)
+        .closest('.next-row-actions-menu')
+        .data('nextRowActionsOwner');
+
+    deleteTrigger = dropdownOwner
+        ? $(dropdownOwner).children('.next-row-actions-trigger').first()[0]
+        : this;
+    $modalDelete.find('#genero_id').val($(this).data('delete'));
+    $modalDelete.find('#name').text($(this).data('name'));
     $modalDelete.modal('show');
 }
 
-function destroyWarrant() {
+function destroyGenero(event) {
     event.preventDefault();
-    // Obtener la URL
-    var deleteUrl = $formDelete.data('url');
+
     $.ajax({
-        url: deleteUrl,
+        url: $formDelete.data('url'),
         method: 'POST',
         data: new FormData(this),
-        processData:false,
-        contentType:false,
+        processData: false,
+        contentType: false,
         success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "3000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
+            toastr.success(data.message, 'Éxito', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '2000'
+            });
             $modalDelete.modal('hide');
-            setTimeout( function () {
+            setTimeout(function () {
                 location.reload();
-            }, 3000 )
+            }, 2000);
         },
-        error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "3000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
+        error: function (xhr) {
+            var response = xhr.responseJSON || {};
+
+            if (response.errors) {
+                $.each(response.errors, function (property, messages) {
+                    toastr.error(messages, 'Error', {
+                        closeButton: true,
+                        progressBar: true,
+                        positionClass: 'toast-top-right',
+                        timeOut: '3000'
                     });
+                });
+                return;
             }
 
-
-        },
+            toastr.error(getErrorMessage(xhr, 'No se pudo eliminar el género.'), 'Error', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '3000'
+            });
+        }
     });
+}
+
+function getErrorMessage(xhr, fallback) {
+    if (xhr.responseJSON && xhr.responseJSON.message) {
+        return xhr.responseJSON.message;
+    }
+
+    return fallback;
+}
+
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }

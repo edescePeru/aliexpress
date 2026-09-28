@@ -1,1052 +1,391 @@
-let colorCurrentPage = 1;
-let colorSearchTimeout = null;
-let colorRoutes = {};
-let canUpdateColor = false;
-let canDeleteColor = false;
+var colorCurrentPage = 1;
+var colorSearchTimeout = null;
+var colorRoutes = {};
+var canCreateColor = false;
+var canUpdateColor = false;
+var canDeleteColor = false;
+var colorDeleteTrigger = null;
 
 $(function () {
-
-    const $app =
-        $('#color-app');
-
+    var $app = $('#color-app');
 
     colorRoutes = {
-
-        data:
-            $app.data(
-                'url-data'
-            ),
-
-        edit:
-            $app.data(
-                'url-edit'
-            ),
-
-        delete:
-            $app.data(
-                'url-delete'
-            ),
-
-        deleteMultiple:
-            $app.data(
-                'url-delete-multiple'
-            )
-
+        data: $app.data('url-data'),
+        create: $app.data('url-create'),
+        edit: $app.data('url-edit'),
+        delete: $app.data('url-delete'),
+        deleteMultiple: $app.data('url-delete-multiple')
     };
 
-
-    canUpdateColor =
-        parseInt(
-            $app.data(
-                'can-update'
-            ),
-            10
-        ) === 1;
-
-
-    canDeleteColor =
-        parseInt(
-            $app.data(
-                'can-delete'
-            ),
-            10
-        ) === 1;
-
+    canCreateColor = parseInt($app.data('can-create'), 10) === 1;
+    canUpdateColor = parseInt($app.data('can-update'), 10) === 1;
+    canDeleteColor = parseInt($app.data('can-delete'), 10) === 1;
 
     loadColors();
 
-
-    $('#colorSearch').on(
-        'keyup',
-        function () {
-
-            clearTimeout(
-                colorSearchTimeout
-            );
-
-            colorSearchTimeout =
-                setTimeout(
-                    function () {
-
-                        colorCurrentPage = 1;
-
-                        loadColors();
-
-                    },
-                    350
-                );
-
-        }
-    );
-
-
-    $('#colorPerPage').on(
-        'change',
-        function () {
-
+    $('#colorSearch').on('input', function () {
+        clearTimeout(colorSearchTimeout);
+        colorSearchTimeout = setTimeout(function () {
             colorCurrentPage = 1;
-
             loadColors();
+        }, 350);
+    });
 
+    $('#colorPerPage').on('change', function () {
+        colorCurrentPage = 1;
+        loadColors();
+    });
+
+    $(document).on('click', '[data-color-page]', function () {
+        if ($(this).prop('disabled')) {
+            return;
         }
-    );
 
+        var page = parseInt($(this).data('color-page'), 10);
 
-    $(document).on(
-        'click',
-        '[data-color-page]',
-        function () {
-
-            const page =
-                parseInt(
-                    $(this).data(
-                        'color-page'
-                    ),
-                    10
-                );
-
-            if (!page) {
-                return;
-            }
-
-            colorCurrentPage =
-                page;
-
-            loadColors();
-
+        if (!page || page === colorCurrentPage) {
+            return;
         }
-    );
 
+        colorCurrentPage = page;
+        loadColors();
+    });
 
-    $(document).on(
-        'click',
-        '[data-delete-color]',
-        function () {
+    $(document).on('click', '[data-delete-color]', openDeleteColorModal);
 
-            const id =
-                $(this).data(
-                    'delete-color'
-                );
+    $('#formDelete').on('submit', function (event) {
+        event.preventDefault();
+        sendDeleteColor(new FormData(this));
+    });
 
-            deleteColor(
-                id
-            );
+    $('#modalDelete').on('shown.bs.modal', function () {
+        $(this).find('[data-delete-cancel]').trigger('focus');
+    });
 
+    $('#modalDelete').on('hidden.bs.modal', function () {
+        if (colorDeleteTrigger) {
+            $(colorDeleteTrigger).trigger('focus');
         }
-    );
+        colorDeleteTrigger = null;
+    });
 
+    $(document).on('change', '.color-checkbox', function () {
+        updateColorBulkSelection();
+        updateCheckAllColorsState();
+    });
 
-    $(document).on(
-        'change',
-        '.color-checkbox',
-        function () {
+    $('#checkAllColors').on('change', function () {
+        $('.color-checkbox').prop('checked', $(this).is(':checked'));
+        updateColorBulkSelection();
+    });
 
-            updateDeleteButton();
-
-            updateCheckAllState();
-
+    $('#btnDeleteSelectedColors').on('click', function () {
+        if ($(this).prop('disabled') || $(this).attr('data-backend-sync-open') === 'true') {
+            return;
         }
-    );
-
-
-    $('#checkAllColors').on(
-        'change',
-        function () {
-
-            $('.color-checkbox')
-                .prop(
-                    'checked',
-                    $(this).is(':checked')
-                );
-
-            updateDeleteButton();
-
-        }
-    );
-
-
-    $('#btnDeleteSelectedColors').on(
-        'click',
-        function () {
-
-            const ids =
-                getSelectedColorIds();
-
-            if (!ids.length) {
-                return;
-            }
-
-            deleteMultipleColors(
-                ids
-            );
-
-        }
-    );
-
+    });
 });
 
-
 function loadColors() {
-
-    const colspan =
-        canDeleteColor
-            ? 6
-            : 5;
-
-
-    $('#colorTableBody')
-        .html(
-            `
-                <tr>
-                    <td
-                        colspan="${colspan}"
-                        class="text-center py-4"
-                    >
-                        <i
-                            class="
-                                fas
-                                fa-spinner
-                                fa-spin
-                            "
-                        ></i>
-
-                        Cargando...
-                    </td>
-                </tr>
-            `
-        );
-
-
-    $.ajax({
-
-        url:
-        colorRoutes.data,
-
-        type:
-            'GET',
-
-        dataType:
-            'json',
-
-        data: {
-
-            page:
-            colorCurrentPage,
-
-            search:
-                $('#colorSearch')
-                    .val(),
-
-            per_page:
-                $('#colorPerPage')
-                    .val()
-
-        },
-
-        success:
-            function (
-                response
-            ) {
-
-                renderColors(
-                    response
-                );
-
-            },
-
-        error:
-            function () {
-
-                $('#colorTableBody')
-                    .html(
-                        `
-                            <tr>
-                                <td
-                                    colspan="${colspan}"
-                                    class="
-                                        text-center
-                                        text-danger
-                                        py-4
-                                    "
-                                >
-                                    No se pudieron
-                                    cargar los colores.
-                                </td>
-                            </tr>
-                        `
-                    );
-
-            }
-
-    });
-
-}
-
-
-function renderColors(
-    response
-) {
-
-    /*
-     * Si tu endpoint devuelve directamente
-     * un array, también lo soportamos.
-     */
-    const colors =
-        Array.isArray(response)
-            ? response
-            : (
-                response.data || []
-            );
-
-
-    if (!colors.length) {
-
-        $('#colorTableBody')
-            .html('');
-
-        $('#colorEmpty')
-            .removeClass(
-                'd-none'
-            );
-
-        $('#colorPaginationInfo')
-            .html('');
-
-        $('#colorPagination')
-            .html('');
-
-        return;
-
-    }
-
-
-    $('#colorEmpty')
-        .addClass(
-            'd-none'
-        );
-
-
-    let html = '';
-
-
-    colors.forEach(
-        function (
-            color
-        ) {
-
-            const editUrl =
-                colorRoutes
-                    .edit
-                    .replace(
-                        ':id',
-                        color.id
-                    );
-
-
-            let actions = '';
-
-
-            if (canUpdateColor) {
-
-                actions += `
-                    <a
-                        href="${editUrl}"
-                        class="
-                            btn
-                            btn-outline-warning
-                            btn-sm
-                            mr-1
-                        "
-                    >
-                        <i
-                            class="
-                                fas
-                                fa-pencil-alt
-                            "
-                        ></i>
-
-                        Editar
-                    </a>
-                `;
-
-            }
-
-
-            if (canDeleteColor) {
-
-                actions += `
-                    <button
-                        type="button"
-                        class="
-                            btn
-                            btn-outline-danger
-                            btn-sm
-                        "
-                        data-delete-color="${
-                    color.id
-                    }"
-                    >
-                        <i
-                            class="
-                                fas
-                                fa-trash
-                            "
-                        ></i>
-                    </button>
-                `;
-
-            }
-
-
-            const colorBox =
-                buildColorPreview(
-                    color.code
-                );
-
-
-            html += `
-                <tr>
-
-                    ${
-                canDeleteColor
-                    ? `
-                                <td
-                                    class="text-center"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        class="color-checkbox"
-                                        value="${
-                        color.id
-                        }"
-                                    >
-                                </td>
-                            `
-                    : ''
-                }
-
-
-                    <td
-                        class="text-center"
-                    >
-                        ${colorBox}
-                    </td>
-
-
-                    <td>
-                        ${escapeHtml(
-                color.name || '-'
-            )}
-                    </td>
-
-
-                    <td>
-                        ${
-                color.code
-                    ? `
-                                    <code>
-                                        ${escapeHtml(
-                    color.code
-                    )}
-                                    </code>
-                                `
-                    : '-'
-                }
-                    </td>
-
-
-                    <td>
-                        ${escapeHtml(
-                color.short_name
-                || '-'
-            )}
-                    </td>
-
-
-                    <td>
-                        ${actions || '-'}
-                    </td>
-
-                </tr>
-            `;
-
-        }
+    var colspan = getColorColumnCount();
+
+    $('#colorEmpty').addClass('d-none').empty();
+    $('#colorTableBody').html(
+        '<tr><td colspan="' + colspan + '" class="text-center py-4">' +
+        '<i class="fas fa-spinner fa-spin mr-1" aria-hidden="true"></i>Cargando colores...' +
+        '</td></tr>'
     );
 
-
-    $('#colorTableBody')
-        .html(
-            html
-        );
-
-
-    $('#checkAllColors')
-        .prop(
-            'checked',
-            false
-        )
-        .prop(
-            'indeterminate',
-            false
-        );
-
-
-    updateDeleteButton();
-
-
-    if (
-        !Array.isArray(
-            response
-        )
-    ) {
-        renderColorPagination(
-            response
-        );
-    }
-
-}
-
-
-function buildColorPreview(
-    code
-) {
-
-    if (
-        !code ||
-        !isValidHexColor(
-            code
-        )
-    ) {
-
-        return `
-            <span
-                class="
-                    badge
-                    badge-light
-                    border
-                "
-            >
-                N/A
-            </span>
-        `;
-
-    }
-
-
-    return `
-        <span
-            title="${escapeHtml(code)}"
-            style="
-                display:inline-block;
-                width:32px;
-                height:32px;
-                border-radius:6px;
-                border:1px solid #adb5bd;
-                background-color:${
-        escapeHtml(code)
-        };
-                vertical-align:middle;
-            "
-        ></span>
-    `;
-
-}
-
-
-function isValidHexColor(
-    value
-) {
-
-    return /^#[0-9A-Fa-f]{6}$/
-        .test(
-            String(value)
-        );
-
-}
-
-
-function deleteColor(
-    id
-) {
-
-    $.confirm({
-
-        title:
-            'Eliminar color',
-
-        content:
-            '¿Está seguro de eliminar este color?',
-
-        type:
-            'red',
-
-        buttons: {
-
-            confirm: {
-
-                text:
-                    'Sí, eliminar',
-
-                btnClass:
-                    'btn-danger',
-
-                action:
-                    function () {
-
-                        sendDeleteColor(
-                            id
-                        );
-
-                    }
-
-            },
-
-            cancel: {
-
-                text:
-                    'Cancelar'
-
-            }
-
-        }
-
-    });
-
-}
-
-
-function sendDeleteColor(
-    id
-) {
-
     $.ajax({
-
-        url:
-        colorRoutes.delete,
-
-        type:
-            'POST',
-
+        url: colorRoutes.data,
+        type: 'GET',
+        dataType: 'json',
         data: {
-
-            _token:
-                $('meta[name="csrf-token"]')
-                    .attr('content'),
-
-            color_id:
-            id
-
+            page: colorCurrentPage,
+            search: $('#colorSearch').val(),
+            per_page: $('#colorPerPage').val()
         },
-
-        success:
-            function (
-                response
-            ) {
-
-                $.alert({
-
-                    title:
-                        'Correcto',
-
-                    content:
-                    response.message,
-
-                    type:
-                        'green',
-
-                    buttons: {
-
-                        ok: {
-
-                            text:
-                                'Aceptar',
-
-                            action:
-                                function () {
-
-                                    loadColors();
-
-                                }
-
-                        }
-
-                    }
-
-                });
-
-            },
-
-        error:
-            function (
-                xhr
-            ) {
-
-                showColorAjaxError(
-                    xhr,
-                    'No se pudo eliminar el color.'
-                );
-
-            }
-
+        success: renderColors,
+        error: function () {
+            $('#colorTableBody').html(
+                '<tr><td colspan="' + colspan + '" class="text-center text-danger py-4">' +
+                'No se pudieron cargar los colores.' +
+                '</td></tr>'
+            );
+            $('#colorResultSummary').empty();
+            $('#colorPaginationInfo').empty();
+            $('#colorPagination').empty();
+        }
     });
-
 }
 
+function renderColors(response) {
+    var colors = response.data || [];
+    var total = parseInt(response.total, 10) || 0;
+    var noun = total === 1 ? 'color' : 'colores';
+    var resultLabel = total === 1 ? 'encontrado' : 'encontrados';
 
-function getSelectedColorIds() {
+    $('#colorResultSummary').html(
+        '<div class="next-list-summary-copy">' +
+        '<strong class="next-list-count">' + total + '</strong>' +
+        '<span>' + noun + ' ' + resultLabel + '</span>' +
+        '</div>' +
+        '<span class="next-list-sort-context">' +
+        '<i class="fas fa-sort-alpha-down" aria-hidden="true"></i> Orden alfabético' +
+        '</span>'
+    );
 
-    const ids = [];
+    if (!colors.length) {
+        var hasSearch = $.trim($('#colorSearch').val()) !== '';
+        var emptyMessage = hasSearch
+            ? 'No se encontraron colores con la búsqueda actual.'
+            : 'No hay colores registrados.';
 
-
-    $('.color-checkbox:checked')
-        .each(
-            function () {
-
-                ids.push(
-                    $(this).val()
-                );
-
-            }
-        );
-
-
-    return ids;
-
-}
-
-
-function deleteMultipleColors(
-    ids
-) {
-
-    $.confirm({
-
-        title:
-            'Eliminar colores',
-
-        content:
-            '¿Está seguro de eliminar los colores seleccionados?',
-
-        type:
-            'red',
-
-        buttons: {
-
-            confirm: {
-
-                text:
-                    'Sí, eliminar',
-
-                btnClass:
-                    'btn-danger',
-
-                action:
-                    function () {
-
-                        $.ajax({
-
-                            url:
-                            colorRoutes
-                                .deleteMultiple,
-
-                            type:
-                                'POST',
-
-                            data: {
-
-                                _token:
-                                    $('meta[name="csrf-token"]')
-                                        .attr('content'),
-
-                                ids:
-                                ids
-
-                            },
-
-                            success:
-                                function (
-                                    response
-                                ) {
-
-                                    $.alert({
-
-                                        title:
-                                            'Correcto',
-
-                                        content:
-                                        response.message,
-
-                                        type:
-                                            'green',
-
-                                        buttons: {
-
-                                            ok: {
-
-                                                text:
-                                                    'Aceptar',
-
-                                                action:
-                                                    function () {
-
-                                                        loadColors();
-
-                                                    }
-
-                                            }
-
-                                        }
-
-                                    });
-
-                                },
-
-                            error:
-                                function (
-                                    xhr
-                                ) {
-
-                                    showColorAjaxError(
-                                        xhr,
-                                        'No se pudieron eliminar los colores.'
-                                    );
-
-                                }
-
-                        });
-
-                    }
-
-            },
-
-            cancel: {
-
-                text:
-                    'Cancelar'
-
-            }
-
+        if (!hasSearch && canCreateColor) {
+            emptyMessage += ' <a href="' + colorRoutes.create + '">Crear el primer color</a>.';
         }
 
+        $('#colorTableBody').empty();
+        $('#colorEmpty').removeClass('d-none').html(emptyMessage);
+        $('#colorPaginationInfo').text('Mostrando 0 colores.');
+        $('#colorPagination').empty();
+        resetColorSelection();
+        return;
+    }
+
+    $('#colorEmpty').addClass('d-none').empty();
+
+    var html = '';
+
+    $.each(colors, function (index, color) {
+        var escapedId = escapeColorHtml(color.id);
+        var escapedName = escapeColorHtml(color.name || '-');
+        var checkboxId = 'color-select-' + escapedId;
+        var editUrl = colorRoutes.edit.replace(':id', encodeURIComponent(color.id));
+
+        html += '<tr>';
+
+        if (canDeleteColor) {
+            html +=
+                '<td class="text-center" data-selection>' +
+                '<div class="custom-control custom-checkbox d-inline-block">' +
+                '<input type="checkbox" class="custom-control-input color-checkbox" id="' + checkboxId +
+                '" value="' + escapedId + '" aria-label="Seleccionar ' + escapedName + '">' +
+                '<label class="custom-control-label" for="' + checkboxId + '">' +
+                '<span class="sr-only">Seleccionar ' + escapedName + '</span>' +
+                '</label></div></td>';
+        }
+
+        html += '<td class="text-center">' + renderColorSwatch(color.code, escapedName) + '</td>';
+        html += '<td class="text-left"><strong>' + escapedName + '</strong></td>';
+        html += '<td class="text-center">' + (
+            isValidHexColor(color.code)
+                ? '<code>' + escapeColorHtml(String(color.code).toUpperCase()) + '</code>'
+                : '<span aria-label="Sin código">—</span>'
+        ) + '</td>';
+        html += '<td class="text-center">' + (
+            color.short_name
+                ? '<span class="badge badge-info">' + escapeColorHtml(color.short_name) + '</span>'
+                : '<span aria-label="Sin nombre corto">—</span>'
+        ) + '</td>';
+
+        if (canUpdateColor || canDeleteColor) {
+            html += '<td class="text-center" data-buttons>' + renderColorRowActions(color, editUrl) + '</td>';
+        }
+
+        html += '</tr>';
     });
 
+    $('#colorTableBody').html(html);
+    resetColorSelection();
+    renderColorPagination(response);
 }
 
+function renderColorSwatch(code, escapedName) {
+    if (!isValidHexColor(code)) {
+        return '<span class="badge badge-light border">Sin código</span>';
+    }
 
-function updateDeleteButton() {
+    var escapedCode = escapeColorHtml(String(code).toUpperCase());
 
-    const selected =
-        $('.color-checkbox:checked')
-            .length;
-
-    $('#btnDeleteSelectedColors')
-        .prop(
-            'disabled',
-            selected === 0
-        );
-
+    return '<input type="color" class="form-control form-control-sm p-0 mx-auto size-32" ' +
+        'value="' + escapedCode + '" disabled ' +
+        'aria-label="Muestra de ' + escapedName + ': ' + escapedCode + '" title="' + escapedCode + '">';
 }
 
+function renderColorRowActions(color, editUrl) {
+    var escapedName = escapeColorHtml(color.name || 'color');
+    var actions = '';
 
-function updateCheckAllState() {
+    if (canUpdateColor) {
+        actions += '<a class="dropdown-item" href="' + editUrl + '">' +
+            '<i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i>' +
+            '<span>Editar</span></a>';
+    }
 
-    const total =
-        $('.color-checkbox')
-            .length;
+    if (canUpdateColor && canDeleteColor) {
+        actions += '<div class="dropdown-divider"></div>';
+    }
 
-    const selected =
-        $('.color-checkbox:checked')
-            .length;
+    if (canDeleteColor) {
+        actions += '<button type="button" class="dropdown-item next-row-action-danger" ' +
+            'data-delete-color="' + escapeColorHtml(color.id) + '" data-name="' + escapedName + '">' +
+            '<i class="fas fa-trash next-row-action-item-icon" aria-hidden="true"></i>' +
+            '<span>Eliminar</span></button>';
+    }
 
+    return '<div class="dropdown next-row-actions">' +
+        '<button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" ' +
+        'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" ' +
+        'aria-label="Abrir acciones de ' + escapedName + '">' +
+        '<i class="fas fa-ellipsis-h" aria-hidden="true"></i>' +
+        '</button>' +
+        '<div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + actions + '</div></div>';
+}
+
+function openDeleteColorModal(event) {
+    event.preventDefault();
+
+    var dropdownOwner = $(this).closest('.next-row-actions-menu').data('nextRowActionsOwner');
+    colorDeleteTrigger = dropdownOwner
+        ? $(dropdownOwner).children('.next-row-actions-trigger').first()[0]
+        : this;
+
+    $('#color_id').val($(this).data('delete-color'));
+    $('#colorDeleteName').text($(this).data('name'));
+    $('#modalDelete').modal('show');
+}
+
+function sendDeleteColor(formData) {
+    $.ajax({
+        url: colorRoutes.delete,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (response) {
+            toastr.success(response.message, 'Éxito', {
+                closeButton: true,
+                progressBar: true,
+                positionClass: 'toast-top-right',
+                timeOut: '2000'
+            });
+            $('#modalDelete').modal('hide');
+            loadColors();
+        },
+        error: function (xhr) {
+            showColorIndexError(xhr, 'No se pudo eliminar el color.');
+        }
+    });
+}
+
+function renderColorPagination(response) {
+    var total = parseInt(response.total, 10) || 0;
+    var from = parseInt(response.from, 10) || 0;
+    var to = parseInt(response.to, 10) || 0;
+    var currentPage = parseInt(response.current_page, 10) || 1;
+    var lastPage = parseInt(response.last_page, 10) || 1;
+    var noun = total === 1 ? 'color' : 'colores';
+
+    $('#colorPaginationInfo').text('Mostrando ' + from + ' a ' + to + ' de ' + total + ' ' + noun + '.');
+
+    if (lastPage <= 1) {
+        $('#colorPagination').empty();
+        return;
+    }
+
+    var start = Math.max(1, currentPage - 2);
+    var end = Math.min(lastPage, currentPage + 2);
+    var html = '<ul class="pagination pagination-sm mb-0">';
+
+    html += renderColorPageButton('Anterior', currentPage - 1, currentPage === 1, false);
+
+    for (var page = start; page <= end; page++) {
+        html += renderColorPageButton(String(page), page, false, page === currentPage);
+    }
+
+    html += renderColorPageButton('Siguiente', currentPage + 1, currentPage === lastPage, false);
+    html += '</ul>';
+    $('#colorPagination').html(html);
+}
+
+function renderColorPageButton(label, page, disabled, active) {
+    return '<li class="page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '') + '">' +
+        '<button type="button" class="page-link" data-color-page="' + page + '"' +
+        (disabled ? ' disabled' : '') + (active ? ' aria-current="page"' : '') +
+        '>' + label + '</button></li>';
+}
+
+function updateColorBulkSelection() {
+    var $button = $('#btnDeleteSelectedColors');
+
+    if ($button.attr('data-backend-sync-open') === 'true') {
+        $button.prop('disabled', true).attr('aria-disabled', 'true');
+        return;
+    }
+
+    $button.prop('disabled', $('.color-checkbox:checked').length === 0);
+}
+
+function updateCheckAllColorsState() {
+    var total = $('.color-checkbox').length;
+    var selected = $('.color-checkbox:checked').length;
 
     $('#checkAllColors')
-        .prop(
-            'checked',
-            total > 0 &&
-            selected === total
-        )
-        .prop(
-            'indeterminate',
-            selected > 0 &&
-            selected < total
-        );
-
+        .prop('checked', total > 0 && selected === total)
+        .prop('indeterminate', selected > 0 && selected < total);
 }
 
-
-function renderColorPagination(
-    response
-) {
-
-    if (
-        response.total === undefined
-    ) {
-        return;
-    }
-
-
-    $('#colorPaginationInfo')
-        .text(
-            response.total
-                ? (
-                    'Mostrando ' +
-                    response.from +
-                    ' a ' +
-                    response.to +
-                    ' de ' +
-                    response.total +
-                    ' registros'
-                )
-                : ''
-        );
-
-
-    if (
-        response.last_page <= 1
-    ) {
-
-        $('#colorPagination')
-            .html('');
-
-        return;
-
-    }
-
-
-    let html =
-        '<ul class="pagination pagination-sm mb-0">';
-
-
-    const start =
-        Math.max(
-            1,
-            response.current_page - 2
-        );
-
-    const end =
-        Math.min(
-            response.last_page,
-            response.current_page + 2
-        );
-
-
-    for (
-        let page = start;
-        page <= end;
-        page++
-    ) {
-
-        html += `
-            <li
-                class="
-                    page-item
-                    ${
-            page ===
-            response.current_page
-                ? 'active'
-                : ''
-            }
-                "
-            >
-
-                <button
-                    type="button"
-                    class="page-link"
-                    data-color-page="${
-            page
-            }"
-                >
-                    ${page}
-                </button>
-
-            </li>
-        `;
-
-    }
-
-
-    html += '</ul>';
-
-
-    $('#colorPagination')
-        .html(
-            html
-        );
-
+function resetColorSelection() {
+    $('#checkAllColors').prop('checked', false).prop('indeterminate', false);
+    updateColorBulkSelection();
 }
 
+function getColorColumnCount() {
+    var count = 4;
 
-function showColorAjaxError(
-    xhr,
-    defaultMessage
-) {
+    if (canDeleteColor) {
+        count++;
+    }
 
-    let message =
-        defaultMessage;
+    if (canUpdateColor || canDeleteColor) {
+        count++;
+    }
 
+    return count;
+}
 
-    if (
-        xhr.status === 422 &&
-        xhr.responseJSON &&
-        xhr.responseJSON.errors
-    ) {
+function isValidHexColor(value) {
+    return /^#[0-9A-Fa-f]{6}$/.test(String(value || ''));
+}
 
-        const first =
-            Object.values(
-                xhr.responseJSON.errors
-            )[0];
+function showColorIndexError(xhr, defaultMessage) {
+    var message = defaultMessage;
 
-        if (
-            first &&
-            first[0]
-        ) {
-            message =
-                first[0];
+    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+        var errorKeys = Object.keys(xhr.responseJSON.errors);
+        var first = errorKeys.length ? xhr.responseJSON.errors[errorKeys[0]] : null;
+
+        if (first && first[0]) {
+            message = first[0];
         }
-
-    } else if (
-        xhr.responseJSON &&
-        xhr.responseJSON.message
-    ) {
-
-        message =
-            xhr.responseJSON.message;
-
+    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+        message = xhr.responseJSON.message;
     }
 
-
-    $.alert({
-
-        title:
-            'Aviso',
-
-        content:
-        message,
-
-        type:
-            'orange'
-
+    toastr.error(message, 'Aviso', {
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-top-right',
+        timeOut: '3000'
     });
-
 }
 
-
-function escapeHtml(
-    value
-) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return '';
-    }
-
-
-    return $('<div>')
-        .text(
-            value
-        )
-        .html();
-
+function escapeColorHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }

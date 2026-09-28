@@ -2,6 +2,38 @@ $(document).ready(function () {
 
     $formEdit = $('#formEdit');
 
+    $(document).on('show.bs.modal', '.next-material-page ~ .modal', function (event) {
+        let trigger = event.relatedTarget || document.activeElement;
+
+        if (trigger && trigger !== document.body && !this.contains(trigger)) {
+            $(this).data('next-modal-trigger', trigger);
+        }
+    });
+
+    $(document).on('shown.bs.modal', '.next-material-page ~ .modal', function () {
+        let field = $(this)
+            .find('[data-modal-autofocus], input:not([type="hidden"]), textarea, select')
+            .filter(':visible')
+            .first()
+            .get(0);
+
+        if (field) {
+            window.setTimeout(function () {
+                field.focus({ preventScroll: true });
+            }, 0);
+        }
+    });
+
+    $(document).on('hidden.bs.modal', '.next-material-page ~ .modal', function () {
+        let trigger = $(this).data('next-modal-trigger');
+
+        if (trigger && document.contains(trigger)) {
+            window.setTimeout(function () {
+                trigger.focus({ preventScroll: true });
+            }, 0);
+        }
+    });
+
     $selectCategory = $('#category');
     $selectSubCategory = $('#subcategory');
 
@@ -12,30 +44,30 @@ $(document).ready(function () {
     $selectSubtype = $('#subtype');
 
     if ($('#brand').val()) {
-        $btnNewExampler.show();
+        $btnNewExampler.removeClass('d-none');
     } else {
-        $btnNewExampler.hide();
+        $btnNewExampler.addClass('d-none');
     }
 
 
     if ($('#category').val()) {
-        $btnNewSubCategoria.show();
+        $btnNewSubCategoria.removeClass('d-none');
     } else {
-        $btnNewSubCategoria.hide();
+        $btnNewSubCategoria.addClass('d-none');
     }
 
 
     if ($('#subcategory').val()) {
-        $('#btn-newMaterialType').show();
+        $('#btn-newMaterialType').removeClass('d-none');
     } else {
-        $('#btn-newMaterialType').hide();
+        $('#btn-newMaterialType').addClass('d-none');
     }
 
 
     if ($('#material_type').val()) {
-        $('#btn-newSubtype').show();
+        $('#btn-newSubtype').removeClass('d-none');
     } else {
-        $('#btn-newSubtype').hide();
+        $('#btn-newSubtype').addClass('d-none');
     }
 
     $('#btn-submit').on('click', updateMaterial);
@@ -85,15 +117,15 @@ $(document).ready(function () {
         $('#categoria_id_hidden')
             .val(categoryId || '');
 
-        $('#btn-newMaterialType').hide();
-        $('#btn-newSubtype').hide();
+        $('#btn-newMaterialType').addClass('d-none');
+        $('#btn-newSubtype').addClass('d-none');
 
         if (!categoryId) {
-            $btnNewSubCategoria.hide();
+            $btnNewSubCategoria.addClass('d-none');
             return;
         }
 
-        $btnNewSubCategoria.show();
+        $btnNewSubCategoria.removeClass('d-none');
 
         $.get(
             '/dashboard/get/subcategories/' + categoryId,
@@ -137,14 +169,14 @@ $(document).ready(function () {
             )
             .trigger('change');
 
-        $('#btn-newSubtype').hide();
+        $('#btn-newSubtype').addClass('d-none');
 
         if (!subcategoryId) {
-            $('#btn-newMaterialType').hide();
+            $('#btn-newMaterialType').addClass('d-none');
             return;
         }
 
-        $('#btn-newMaterialType').show();
+        $('#btn-newMaterialType').removeClass('d-none');
 
         $.get(
             '/dashboard/get/types/' + subcategoryId,
@@ -182,11 +214,11 @@ $(document).ready(function () {
             .trigger('change');
 
         if (!materialTypeId) {
-            $('#btn-newSubtype').hide();
+            $('#btn-newSubtype').addClass('d-none');
             return;
         }
 
-        $('#btn-newSubtype').show();
+        $('#btn-newSubtype').removeClass('d-none');
 
         $.get(
             '/dashboard/get/subtypes/' + materialTypeId,
@@ -229,12 +261,12 @@ $(document).ready(function () {
 
         if (!brandId) {
 
-            $btnNewExampler.hide();
+            $btnNewExampler.addClass('d-none');
 
             return;
         }
 
-        $btnNewExampler.show();
+        $btnNewExampler.removeClass('d-none');
 
         $.get(
             '/dashboard/get/exampler/' + brandId,
@@ -336,12 +368,16 @@ $(document).ready(function () {
         $('#con_variantes').prop('checked', true);
         $('#seccion_con_variantes').show();
         $('#seccion_sin_variantes').hide();
+        $('[data-simple-variant-state]').addClass('d-none');
+        $('[data-multiple-variant-content]').removeClass('d-none');
 
         loadVariantsEdit();
     } else {
         $('#sin_variantes').prop('checked', true);
-        $('#seccion_con_variantes').hide();
+        $('#seccion_con_variantes').show();
         $('#seccion_sin_variantes').show();
+        $('[data-simple-variant-state]').removeClass('d-none');
+        $('[data-multiple-variant-content]').addClass('d-none');
 
         loadSingleVariantSection();
     }
@@ -875,7 +911,7 @@ function renderInventoryLevelsSingle(levels) {
     if (!Array.isArray(levels) || levels.length === 0) {
         $tbody.append(`
             <tr>
-                <td colspan="7" class="text-center text-muted">
+                <td colspan="8" class="text-center text-muted">
                     No hay niveles de inventario registrados.
                 </td>
             </tr>
@@ -889,7 +925,11 @@ function renderInventoryLevelsSingle(levels) {
                 <td>
                     <input type="hidden" name="inventory_levels[${index}][id]" value="${level.inventory_level_id || ''}">
                     <input type="hidden" name="inventory_levels[${index}][warehouse_id]" value="${level.warehouse_id || ''}">
-                    <input type="text" class="form-control form-control-sm" value="${level.warehouse_name || ''}" readonly>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.warehouse_name || '')}" readonly>
+                </td>
+
+                <td>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.location_name || level.location || '')}" readonly>
                 </td>
 
                 <td>
@@ -930,7 +970,8 @@ function renderInventoryLevelsSingle(levels) {
 
 function renderInventoryLevelsVariant($row, item) {
     const levels = Array.isArray(item.inventory_levels) ? item.inventory_levels : [];
-    const $tbody = $row.find('[data-inventory_levels_body]');
+    const $inventoryRow = $row.next('[data-inventory_levels_wrapper]');
+    const $tbody = $inventoryRow.find('[data-inventory_levels_body]');
     $tbody.empty();
 
     const variantKey = item.variant_id || item.id || 'new';
@@ -938,7 +979,7 @@ function renderInventoryLevelsVariant($row, item) {
     if (levels.length === 0) {
         $tbody.append(`
             <tr>
-                <td colspan="7" class="text-center text-muted">
+                <td colspan="8" class="text-center text-muted">
                     No hay niveles de inventario registrados.
                 </td>
             </tr>
@@ -961,6 +1002,13 @@ function renderInventoryLevelsVariant($row, item) {
                     <input type="text"
                            class="form-control form-control-sm"
                            value="${escapeHtml(level.warehouse_name || '')}"
+                           readonly>
+                </td>
+
+                <td>
+                    <input type="text"
+                           class="form-control form-control-sm"
+                           value="${escapeHtml(level.location_name || level.location || '')}"
                            readonly>
                 </td>
 
@@ -1051,17 +1099,19 @@ function renderVariantRowEdit(item) {
 
     $template.find('[data-talla_text]').val(item.talla_text || '');
     $template.find('[data-talla_id]').val(item.talla_id || '');
+    $template.find('[data-variant-size-label]').text(item.talla_text || 'Sin talla');
 
     $template.find('[data-color_text]').val(item.color_text || '');
     $template.find('[data-color_id]').val(item.color_id || '');
+    $template.find('[data-variant-color-label]').text(item.color_text || 'Sin color');
 
     $template.find('[data-sku_sugerido]').val(item.sku || '');
     $template.find('[data-codigo_barras]').val(item.barcode || '');
 
     if (item.image) {
-        $template.find('[data-image_label]').text('Imagen actual: ' + item.image);
+        $template.find('[data-variant-file-name]').text('Actual: ' + item.image);
     } else {
-        $template.find('[data-image_label]').text('');
+        $template.find('[data-variant-file-name]').text('Sin imagen');
     }
 
     // Agregar primero al DOM para poder trabajar sobre la fila final
@@ -1102,8 +1152,14 @@ function renderVariantRowEdit(item) {
 
     // Mostrar/ocultar bloque inventario
     $row.find('[data-toggle_inventory_levels]').on('click', function () {
-        const $wrapper = $row.find('[data-inventory_levels_wrapper]');
+        const $wrapper = $row.next('[data-inventory_levels_wrapper]');
         $wrapper.toggleClass('d-none');
+        $(this).attr('aria-expanded', !$wrapper.hasClass('d-none'));
+    });
+
+    $row.find('[data-image_variante]').on('change', function () {
+        const fileName = this.files && this.files.length ? this.files[0].name : (item.image ? 'Actual: ' + item.image : 'Sin imagen');
+        $row.find('[data-variant-file-name]').text(fileName);
     });
 }
 
@@ -1228,9 +1284,19 @@ function saveTalla() {
         success: function(response) {
             if (response.success) {
                 // Agregar la nueva opción al select
-                $('#talla').append(
-                    `<option value="${response.data.id}" selected>${response.data.description}</option>`
-                ).trigger('change');
+                var tallaOption = new Option(
+                    response.data.description,
+                    response.data.id,
+                    true,
+                    true
+                );
+
+                $(tallaOption).attr(
+                    'data-short-name',
+                    response.data.short_name || ''
+                );
+
+                $('#talla').append(tallaOption).trigger('change');
 
                 // Cerrar el modal
                 $('#modalTalla').modal('hide');
@@ -1286,10 +1352,19 @@ function saveColor() {
         data: data,
         success: function(response) {
             if (response.success) {
-                // Agregar la nueva opción al select
-                $('#color').append(
-                    `<option value="${response.data.id}" data-short-name="${response.data.short_name}" selected>${response.data.description}</option>`
-                ).trigger('change');
+                var colorOption = new Option(
+                    response.data.description,
+                    response.data.id,
+                    true,
+                    true
+                );
+
+                $(colorOption).attr(
+                    'data-short-name',
+                    response.data.short_name || ''
+                );
+
+                $('#color').append(colorOption).trigger('change');
 
                 // Cerrar el modal
                 $('#modalColor').modal('hide');
@@ -1902,7 +1977,7 @@ function buildMultipleVariantsPayloadEdit(form) {
 function buildVariantInventoryLevelsPayload($row) {
     let levels = [];
 
-    $row.find('[data-inventory_levels_body] tr').each(function () {
+    $row.next('[data-inventory_levels_wrapper]').find('[data-inventory_levels_body] tr').each(function () {
         let $tr = $(this);
 
         let id = $tr.find('[name$="[id]"]').val() || null;

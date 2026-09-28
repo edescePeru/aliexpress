@@ -28,85 +28,29 @@
 @endsection
 
 @section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Materiales en Almacen</h1>
+    <h1 class="page-title">Materiales en Almacén</h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listar materiales almacen</h5>
-    <button type="button" class="btn btn-outline-info btn-sm float-right" id="btn-resumen-stock">
-        Ver resumen de stock
-    </button>
-    @can('create_material')
-        <a href="{{ route('material.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo material </a>
-    @endcan
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>Inventario de materiales</strong>
+            <span>Consulta, filtra y administra el catálogo operativo.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-resumen-stock">
+                <i class="fas fa-chart-bar mr-1" aria-hidden="true"></i> Ver resumen de stock
+            </button>
+            @can('create_material')
+                <a href="{{ route('material.create') }}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-plus mr-1" aria-hidden="true"></i> Nuevo material
+                </a>
+            @endcan
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
@@ -121,489 +65,198 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <input type="hidden" id="hay-alertas" value="{{ $hayAlertas ? '1' : '0' }}">
-    <!--begin::Form-->
-    <form action="#">
-        <!--begin::Card-->
-        <!--begin::Input group-->
-        <div class="row">
-            <div class="col-md-12">
-                <!-- Barra de búsqueda -->
-                <div class="input-group">
-                    <input type="text" id="description" class="form-control" placeholder="Descripción del material..." autocomplete="off">
-                    <div class="input-group-append ">
-                        <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
-                        <a href="#" id="btnBusquedaAvanzada" class="vertical-center ml-3 mt-2">Búsqueda Avanzada</a>
+    <section class="next-operational-list next-advanced-operational-list next-material-list" aria-label="Listado de materiales">
+        <form action="#" class="next-list-toolbar">
+            <div class="next-list-search-row">
+                <div class="input-group next-list-search-control">
+                    <input type="text" id="description" class="form-control" placeholder="Buscar por descripción del material" autocomplete="off" aria-label="Buscar material por descripción">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary next-list-search" type="button" id="btn-search">
+                            <i class="fas fa-search mr-1" aria-hidden="true"></i> Buscar
+                        </button>
                     </div>
                 </div>
 
-                <!-- Sección de búsqueda avanzada (inicialmente oculta) -->
-                <div class="mt-3 busqueda-avanzada">
-                    <!-- Aquí coloca más campos de búsqueda avanzada -->
-                    <div class="row">
+                <button type="button" id="btnBusquedaAvanzada" class="btn btn-link next-list-advanced-toggle" aria-controls="material-advanced-filters" aria-expanded="false">
+                    <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                    <span>Búsqueda avanzada</span>
+                </button>
 
-                        <div class="col-md-3">
-                            <label for="category">Categoría:</label>
-                            <select id="category" class="form-control form-control-sm select2" style="width: 100%;">
+                <div class="dropdown next-column-visibility">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-column-visibility-trigger" id="material-columns-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-columns mr-1" aria-hidden="true"></i> Columnas
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right next-column-visibility-menu" aria-labelledby="material-columns-trigger">
+                        <div class="next-column-visibility-header">
+                            <strong>Columnas visibles</strong>
+                            <span>Personaliza esta tabla</span>
+                        </div>
+                        <div class="next-column-visibility-grid">
+                            @php
+                                $materialColumns = [
+                                    ['columnCodigo', 'codigo', 'Código', true],
+                                    ['columnDescripcion', 'descripcion', 'Descripción', true],
+                                    ['columnUnidadMedida', 'unidad_medida', 'Unidad de medida', in_array('unit_measure', $enabled, true)],
+                                    ['columnStockActual', 'stock_actual', 'Stock actual', true],
+                                    ['columnStockMin', 'stock_min', 'Stock mínimo', true],
+                                    ['columnStockMax', 'stock_max', 'Stock máximo', true],
+                                    ['columnCategoria', 'categoria', 'Categoría', in_array('category', $enabled, true)],
+                                    ['columnSubcategoria', 'sub_categoria', 'Subcategoría', in_array('subcategory', $enabled, true)],
+                                    ['columnMarca', 'marca', 'Marca', in_array('brand', $enabled, true)],
+                                    ['columnModelo', 'modelo', 'Modelo', in_array('exampler', $enabled, true)],
+                                    ['columnTipoMaterial', 'tipo_material', 'Tipo material', in_array('material_type', $enabled, true)],
+                                    ['columnSubtipo', 'subtipo', 'Subtipo', in_array('subtype', $enabled, true)],
+                                    ['columnRetaceria', 'retaceria', 'Tipo retacería', in_array('typescrap', $enabled, true)],
+                                    ['columnImagen', 'imagen', 'Imagen', true],
+                                    ['columnRotation', 'rotation', 'Rotación', true],
+                                ];
+                            @endphp
+                            @foreach ($materialColumns as [$switchId, $column, $label, $checked])
+                                <div class="custom-control custom-switch custom-switch-off-danger custom-switch-on-success next-column-visibility-option">
+                                    <input type="checkbox" {{ $checked ? 'checked' : '' }} data-column="{{ $column }}" class="custom-control-input column-toggle" id="{{ $switchId }}">
+                                    <label class="custom-control-label" for="{{ $switchId }}">{{ $label }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="busqueda-avanzada" id="material-advanced-filters">
+                <div class="next-list-filters-header">
+                    <div>
+                        <strong>Filtros avanzados</strong>
+                        <span>Acota el catálogo por clasificación, código o tipo de material.</span>
+                    </div>
+                </div>
+                <div class="row next-list-filters-grid">
+                    @if(in_array('category', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="category">Categoría</label>
+                            <select id="category" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
                                 @for ($i=0; $i<count($arrayCategories); $i++)
                                     <option value="{{ $arrayCategories[$i]['id'] }}">{{ $arrayCategories[$i]['name'] }}</option>
                                 @endfor
                             </select>
                         </div>
-
-                        <div class="col-md-3">
-                            <label for="subcategory">SubCategoría:</label>
-                            <select id="subcategory" name="subcategory" class="form-control form-control-sm select2" style="width: 100%;">
+                    @endif
+                    @if(in_array('subcategory', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="subcategory">Subcategoría</label>
+                            <select id="subcategory" name="subcategory" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
-
                             </select>
                         </div>
-
-                        {{--<div class="col-md-2">
-                            <label for="material_type">Tipo:</label>
-                            <select id="material_type" name="material_type" class="form-control form-control-sm select2" style="width: 100%;">
+                    @endif
+                    @if(in_array('material_type', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="material_type">Tipo de material</label>
+                            <select id="material_type" name="material_type" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
-
                             </select>
                         </div>
-
-                        <div class="col-md-2">
-                            <label for="sub_type">SubTipo:</label>
-                            <select id="sub_type" name="sub_type" class="form-control form-control-sm select2" style="width: 100%;">
+                    @endif
+                    @if(in_array('subtype', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="sub_type">Subtipo</label>
+                            <select id="sub_type" name="sub_type" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
-
-                            </select>
-                        </div>--}}
-                        <div class="col-md-2">
-                            <label for="rotation">Rotación:</label>
-                            <select id="rotation" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @for ($i=0; $i<count($arrayRotations); $i++)
-                                    <option value="{{ $arrayRotations[$i]['value'] }}">{{ $arrayRotations[$i]['display'] }}</option>
-                                @endfor
                             </select>
                         </div>
-
+                    @endif
+                    <div class="col-lg-3 col-md-6 next-list-filter">
+                        <label for="rotation">Rotación</label>
+                        <select id="rotation" class="form-control form-control-sm select2">
+                            <option value="">TODOS</option>
+                            @for ($i=0; $i<count($arrayRotations); $i++)
+                                <option value="{{ $arrayRotations[$i]['value'] }}">{{ $arrayRotations[$i]['display'] }}</option>
+                            @endfor
+                        </select>
                     </div>
-
-                    <br>
-
-                    <div class="row">
-                        {{--<div class="col-md-2">
-                            <label for="cedula">Cédula:</label>
-                            <select id="cedula" name="cedula" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @for ($i=0; $i<count($arrayCedulas); $i++)
-                                    <option value="{{ $arrayCedulas[$i]['id'] }}">{{ $arrayCedulas[$i]['name'] }}</option>
-                                @endfor
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="calidad">Calidad:</label>
-                            <select id="calidad" name="calidad" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @for ($i=0; $i<count($arrayCalidades); $i++)
-                                    <option value="{{ $arrayCalidades[$i]['id'] }}">{{ $arrayCalidades[$i]['name'] }}</option>
-                                @endfor
-                            </select>
-                        </div>--}}
-                        <div class="col-md-2">
-                            <label for="marca">Marca:</label>
-                            <select id="marca" name="marca" class="form-control form-control-sm select2" style="width: 100%;">
+                    @if(in_array('brand', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="marca">Marca</label>
+                            <select id="marca" name="marca" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
                                 @for ($i=0; $i<count($arrayMarcas); $i++)
                                     <option value="{{ $arrayMarcas[$i]['id'] }}">{{ $arrayMarcas[$i]['name'] }}</option>
                                 @endfor
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label for="retaceria">Retacería:</label>
-                            <select id="retaceria" name="retaceria" class="form-control form-control-sm select2" style="width: 100%;">
+                    @endif
+                    @if(in_array('typescrap', $enabled, true))
+                        <div class="col-lg-3 col-md-6 next-list-filter">
+                            <label for="retaceria">Retacería</label>
+                            <select id="retaceria" name="retaceria" class="form-control form-control-sm select2">
                                 <option value="">TODOS</option>
                                 @for ($i=0; $i<count($arrayRetacerias); $i++)
                                     <option value="{{ $arrayRetacerias[$i]['id'] }}">{{ $arrayRetacerias[$i]['name'] }}</option>
                                 @endfor
                             </select>
                         </div>
-
-                        <div class="col-md-2">
-                            <label for="quote">Código:</label>
-                            <input type="text" id="code" class="form-control form-control-sm" placeholder="791" autocomplete="off">
-
-                        </div>
-                        <div class="col-md-2">
-                            <label for="isPack">Es paquete:</label>
-                            <select id="isPack" name="isPack" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                <option value="0">No</option>
-                                <option value="1">Si</option>
-                            </select>
-                        </div>
+                    @endif
+                    <div class="col-lg-3 col-md-6 next-list-filter">
+                        <label for="code">Código</label>
+                        <input type="text" id="code" class="form-control form-control-sm" placeholder="Ej. 791" autocomplete="off">
                     </div>
-
-                    <br>
-
-                    <!-- Añade más campos según lo necesario -->
+                    <div class="col-lg-3 col-md-6 next-list-filter">
+                        <label for="isPack">Es paquete</label>
+                        <select id="isPack" name="isPack" class="form-control form-control-sm select2">
+                            <option value="">TODOS</option>
+                            <option value="0">No</option>
+                            <option value="1">Sí</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-        </div>
-        <!--end::Input group-->
-        <!--begin:Action-->
-        {{--<div class="col-md-1">
-            <label for="btn-search">&nbsp;</label><br>
-            <button type="button" id="btn-search" class="btn btn-primary me-5">Buscar</button>
-        </div>--}}
+        </form>
 
-    </form>
-    <!--end::Form-->
-
-    <div class="row mt-3">
-
-        {{-- CÓDIGO --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="codigo"
-                    class="custom-control-input column-toggle"
-                    id="columnCodigo"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnCodigo"
-            >
-                Código
-            </label>
+        <div class="next-list-summary">
+            <div class="next-list-summary-copy">
+                <strong class="next-list-count" id="numberItems"></strong>
+                <span>materiales encontrados</span>
+            </div>
+            <span class="next-list-sort-context">
+                <i class="fas fa-sort-amount-down" aria-hidden="true"></i> Por fecha de creación
+            </span>
         </div>
 
-
-        {{-- DESCRIPCIÓN --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="descripcion"
-                    class="custom-control-input column-toggle"
-                    id="columnDescripcion"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnDescripcion"
-            >
-                Descripción
-            </label>
+        <div class="next-list-content">
+            <div class="table-responsive" tabindex="0" aria-label="Tabla de materiales; desplázate horizontalmente para ver todas las columnas">
+                <table class="table table-bordered table-hover table-sm next-data-table next-materials-table">
+                    <thead id="header-table"></thead>
+                    <tbody id="body-table"></tbody>
+                </table>
+            </div>
         </div>
 
-
-        {{-- UNIDAD MEDIDA --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('unit_measure', $enabled, true) ? 'checked' : '' }}
-                    data-column="unidad_medida"
-                    class="custom-control-input column-toggle"
-                    id="columnUnidadMedida"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnUnidadMedida"
-            >
-                Unidad Medida
-            </label>
-        </div>
-
-
-        {{-- STOCK ACTUAL --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="stock_actual"
-                    class="custom-control-input column-toggle"
-                    id="columnStockActual"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnStockActual"
-            >
-                Stock Actual
-            </label>
-        </div>
-
-
-        {{-- STOCK MÍNIMO --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="stock_min"
-                    class="custom-control-input column-toggle"
-                    id="columnStockMin"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnStockMin"
-            >
-                Stock Mínimo
-            </label>
-        </div>
-
-
-        {{-- STOCK MÁXIMO --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="stock_max"
-                    class="custom-control-input column-toggle"
-                    id="columnStockMax"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnStockMax"
-            >
-                Stock Máximo
-            </label>
-        </div>
-
-
-        {{-- CATEGORÍA --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('category', $enabled, true) ? 'checked' : '' }}
-                    data-column="categoria"
-                    class="custom-control-input column-toggle"
-                    id="columnCategoria"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnCategoria"
-            >
-                Categoría
-            </label>
-        </div>
-
-
-        {{-- SUBCATEGORÍA --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('subcategory', $enabled, true) ? 'checked' : '' }}
-                    data-column="sub_categoria"
-                    class="custom-control-input column-toggle"
-                    id="columnSubcategoria"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnSubcategoria"
-            >
-                SubCategoría
-            </label>
-        </div>
-
-
-        {{-- MARCA --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('brand', $enabled, true) ? 'checked' : '' }}
-                    data-column="marca"
-                    class="custom-control-input column-toggle"
-                    id="columnMarca"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnMarca"
-            >
-                Marca
-            </label>
-        </div>
-
-
-        {{-- MODELO --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('exampler', $enabled, true) ? 'checked' : '' }}
-                    data-column="modelo"
-                    class="custom-control-input column-toggle"
-                    id="columnModelo"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnModelo"
-            >
-                Modelo
-            </label>
-        </div>
-
-
-        {{-- TIPO MATERIAL --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('material_type', $enabled, true) ? 'checked' : '' }}
-                    data-column="tipo_material"
-                    class="custom-control-input column-toggle"
-                    id="columnTipoMaterial"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnTipoMaterial"
-            >
-                Tipo Material
-            </label>
-        </div>
-
-
-        {{-- SUBTIPO --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('subtype', $enabled, true) ? 'checked' : '' }}
-                    data-column="subtipo"
-                    class="custom-control-input column-toggle"
-                    id="columnSubtipo"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnSubtipo"
-            >
-                Subtipo
-            </label>
-        </div>
-
-
-        {{-- TIPO RETACERÍA --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    {{ in_array('typescrap', $enabled, true) ? 'checked' : '' }}
-                    data-column="retaceria"
-                    class="custom-control-input column-toggle"
-                    id="columnRetaceria"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnRetaceria"
-            >
-                Tipo Retacería
-            </label>
-        </div>
-
-
-        {{-- IMAGEN --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="imagen"
-                    class="custom-control-input column-toggle"
-                    id="columnImagen"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnImagen"
-            >
-                Imagen
-            </label>
-        </div>
-
-
-        {{-- ROTACIÓN --}}
-        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input
-                    type="checkbox"
-                    checked
-                    data-column="rotation"
-                    class="custom-control-input column-toggle"
-                    id="columnRotation"
-            >
-
-            <label
-                    class="custom-control-label"
-                    for="columnRotation"
-            >
-                Rotación
-            </label>
-        </div>
-
-    </div>
-
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Materiales
-                <span class="text-gray-400 fs-6">por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
-                <thead id="header-table">
-                </thead>
-                <tbody id="body-table">
-
-                </tbody>
-            </table>
-        </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
-
-            </ul>
-            <!--end::Pages-->
-        </div>
-        <!--end::Pagination-->
-    </div>
-    <!--end::Tab Content-->
+        <nav class="next-list-pagination" aria-label="Paginación de materiales">
+            <div id="textPagination"></div>
+            <ul class="pagination" id="pagination"></ul>
+        </nav>
+    </section>
 
     <template id="item-header">
-        <tr class="normal-title">
-            <th data-column="codigo" data-codigo>Código</th>
-            <th data-column="descripcion" data-descripcion>Descripcion</th>
-            <th data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
-            <th data-column="stock_actual" data-stock_actual>Stock Actual</th>
-            <th data-column="stock_min" data-stock_min>Stock Minimo</th>
-            <th data-column="stock_max" data-stock_max>Stock Maximo</th>
+        <tr>
+            <th class="text-center" data-column="codigo" data-codigo>Código</th>
+            <th class="text-left" data-column="descripcion" data-descripcion>Descripcion</th>
+            <th class="text-center" data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
+            <th class="text-center" data-column="stock_actual" data-stock_actual>Stock Actual</th>
+            <th class="text-center" data-column="stock_min" data-stock_min>Stock Minimo</th>
+            <th class="text-center" data-column="stock_max" data-stock_max>Stock Maximo</th>
             {{--<th data-column="precio_unitario" data-precio_unitario>Precio Costo</th>
             <th data-column="precio_lista" data-precio_lista>Precio Venta</th>--}}
-            <th data-column="categoria" data-categoria>Categoría</th>
-            <th data-column="sub_categoria" data-sub_categoria>SubCategoría</th>
-            <th data-column="marca" data-marca>Marca</th>
-            <th data-column="modelo" data-modelo>Modelo</th>
-            <th data-column="tipo_material" data-tipo_material>Tipo Material</th>
-            <th data-column="subtipo" data-subtipo>Subtipo</th>
-            <th data-column="retaceria" data-retaceria>Tipo Retacería</th>
-            <th data-column="imagen" data-imagen>Imagen</th>
-            <th data-column="rotation" data-rotation>Rotación</th>
-            <th></th>
+            <th class="text-left" data-column="categoria" data-categoria>Categoría</th>
+            <th class="text-left" data-column="sub_categoria" data-sub_categoria>SubCategoría</th>
+            <th class="text-left" data-column="marca" data-marca>Marca</th>
+            <th class="text-left" data-column="modelo" data-modelo>Modelo</th>
+            <th class="text-left" data-column="tipo_material" data-tipo_material>Tipo material</th>
+            <th class="text-left" data-column="subtipo" data-subtipo>Subtipo</th>
+            <th class="text-left" data-column="retaceria" data-retaceria>Tipo retacería</th>
+            <th class="text-center" data-column="imagen" data-imagen>Imagen</th>
+            <th class="text-center" data-column="rotation" data-rotation>Rotación</th>
+            <th class="text-center" data-buttons>Acciones</th>
         </tr>
     </template>
 
@@ -639,43 +292,64 @@
 
     <template id="item-table">
         <tr>
-            <td data-column="codigo" data-codigo></td>
-            <td data-column="descripcion" data-descripcion></td>
-            <td data-column="unidad_medida" data-unidad_medida></td>
-            <td data-column="stock_actual" data-stock_actual></td>
-            <td data-column="stock_min" data-stock_min></td>
-            <td data-column="stock_max" data-stock_max></td>
+            <td class="text-center" data-column="codigo" data-codigo></td>
+            <td class="text-left" data-column="descripcion" data-descripcion></td>
+            <td class="text-center" data-column="unidad_medida" data-unidad_medida></td>
+            <td class="text-center" data-column="stock_actual" data-stock_actual></td>
+            <td class="text-center" data-column="stock_min" data-stock_min></td>
+            <td class="text-center" data-column="stock_max" data-stock_max></td>
             {{--<td data-column="precio_unitario" data-precio_unitario></td>
             <td data-column="precio_lista" data-precio_lista></td>--}}
-            <td data-column="categoria" data-categoria></td>
-            <td data-column="sub_categoria" data-sub_categoria></td>
-            <td data-column="marca" data-marca></td>
-            <td data-column="modelo" data-modelo></td>
-            <td data-column="tipo_material" data-tipo_material></td>
-            <td data-column="subtipo" data-subtipo></td>
-            <td data-column="retaceria" data-retaceria></td>
-            <td data-column="imagen" data-imagen>
-                <button data-ver_imagen data-src="{{--'+document.location.origin+ '/images/material/'+item.image+'--}}" data-image="{{--'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>
+            <td class="text-left" data-column="categoria" data-categoria></td>
+            <td class="text-left" data-column="sub_categoria" data-sub_categoria></td>
+            <td class="text-left" data-column="marca" data-marca></td>
+            <td class="text-left" data-column="modelo" data-modelo></td>
+            <td class="text-left" data-column="tipo_material" data-tipo_material></td>
+            <td class="text-left" data-column="subtipo" data-subtipo></td>
+            <td class="text-left" data-column="retaceria" data-retaceria></td>
+            <td class="text-center" data-column="imagen" data-imagen>
+                <button type="button" data-ver_imagen data-src="{{--'+document.location.origin+ '/images/material/'+item.image+'--}}" data-image="{{--'+item.id+'--}}" class="btn btn-outline-secondary btn-sm next-table-cell-action" data-toggle="tooltip" data-placement="top" title="Ver imagen" aria-label="Ver imagen del material"><i class="fa fa-image" aria-hidden="true"></i></button>
             </td>
-            <td data-column="rotation" data-rotation></td>
-            <td>
-                <a data-editar_material href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>
-                <button data-deshabilitar data-delete="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" data-measure="{{--'+item.measure+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Deshabilitar"><i class="fas fa-bell-slash"></i> </button>
-                {{--<a data-ver_items href="--}}{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver items"><i class="fa fa-eye"></i> </a>
-                --}}
-                <a data-ver_variants href="{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Ver variantes"><i class="fa fa-eye"></i> </a>
-                <button data-precioDirecto data-material="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Gestionar precios"><i class="fas fa-tag"></i> </button>
-                <button data-separate data-material="" data-quantity data-description="" data-measure="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Separar Paquete"><i class="far fa-object-ungroup"></i></button>
-                <button data-assign_child data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Asignar Hijos"><i class="fas fa-boxes"></i></button>
-                <button data-show_vencimiento data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver fechas"><i class="fas fa-calendar-alt"></i></button>
-                <button data-manage_presentations data-material="" data-description="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Configurar presentaciones"><i class="fas fa-cubes"></i></button>
+            <td class="text-center" data-column="rotation" data-rotation></td>
+            <td class="text-center" data-buttons>
+                <div class="dropdown next-row-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones del material">
+                        <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                        <a data-editar_material href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="dropdown-item">
+                            <i class="fa fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar material</span>
+                        </a>
+                        <a data-ver_variants href="{{--'+document.location.origin+ '/dashboard/view/material/items/'+item.id+'--}}" class="dropdown-item">
+                            <i class="fa fa-layer-group next-row-action-item-icon" aria-hidden="true"></i><span>Ver variantes</span>
+                        </a>
+                        <button type="button" data-precioDirecto data-material="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" class="dropdown-item">
+                            <i class="fas fa-tag next-row-action-item-icon" aria-hidden="true"></i><span>Gestionar precios</span>
+                        </button>
+                        <button type="button" data-show_vencimiento data-material="" data-description="" class="dropdown-item">
+                            <i class="fas fa-calendar-alt next-row-action-item-icon" aria-hidden="true"></i><span>Ver vencimientos</span>
+                        </button>
+                        <button type="button" data-manage_presentations data-material="" data-description="" class="dropdown-item">
+                            <i class="fas fa-cubes next-row-action-item-icon" aria-hidden="true"></i><span>Configurar presentaciones</span>
+                        </button>
+                        <button type="button" data-assign_child data-material="" data-description="" class="dropdown-item">
+                            <i class="fas fa-boxes next-row-action-item-icon" aria-hidden="true"></i><span>Asignar productos hijos</span>
+                        </button>
+                        <button type="button" data-separate data-material="" data-quantity data-description="" data-measure="" class="dropdown-item">
+                            <i class="far fa-object-ungroup next-row-action-item-icon" aria-hidden="true"></i><span>Separar paquete</span>
+                        </button>
+                        <button type="button" data-deshabilitar data-delete="{{--'+item.id+'--}}" data-description="{{--'+item.full_description+'--}}" data-measure="{{--'+item.measure+'--}}" class="dropdown-item next-row-action-danger">
+                            <i class="fas fa-bell-slash next-row-action-item-icon" aria-hidden="true"></i><span>Deshabilitar material</span>
+                        </button>
+                    </div>
+                </div>
             </td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="22" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="1" class="next-table-empty">No se ha encontrado ningún material.</td>
         </tr>
     </template>
 
@@ -1168,16 +842,6 @@
 
             $('#marca').select2({
                 placeholder: "Selecione Marca",
-                allowClear: true
-            });
-
-            $('#calidad').select2({
-                placeholder: "Selecione Calidad",
-                allowClear: true
-            });
-
-            $('#cedula').select2({
-                placeholder: "Seleccione Cedula",
                 allowClear: true
             });
 

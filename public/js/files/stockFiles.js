@@ -1,21 +1,48 @@
 $(document).ready(function () {
-
     $formStocksFile = $('#formStocksFile');
-    //$formCreate.on('submit', storeCategory);
+    $stockFile = $('#stockFile');
+    $stockFileLabel = $('[data-stock-file-label]');
+    $submitStockFiles = $('#btn-submitStockFiles');
+
     $('#btn-submitStockFiles').on('click', storeStockFiles);
     $('#exampleStockFile').on('click', downloadExampleStock);
+    $stockFile.on('change', syncStockFileState);
+    $formStocksFile.on('reset', function () {
+        setTimeout(syncStockFileState, 0);
+    });
+
+    syncStockFileState();
 });
 
 var $formStocksFile;
+var $stockFile;
+var $stockFileLabel;
+var $submitStockFiles;
 
-function downloadExampleStock() {
-    window.location.href = '/dashboard/download/example/stock/file';
+function syncStockFileState() {
+    var input = $stockFile[0];
+    var selectedFile = input && input.files && input.files.length
+        ? input.files[0]
+        : null;
+
+    $stockFileLabel.text(selectedFile ? selectedFile.name : 'Ningún archivo seleccionado');
+    $submitStockFiles.prop('disabled', !selectedFile);
 }
 
-function storeStockFiles() {
+function downloadExampleStock() {
+    window.location.href = $('#exampleStockFile').data('url');
+}
+
+function storeStockFiles(event) {
     event.preventDefault();
+
+    if (!$stockFile[0].files.length) {
+        syncStockFileState();
+        return;
+    }
+
     // Obtener la URL
-    $("#btn-submitStockFiles").attr("disabled", true);
+    $submitStockFiles.prop('disabled', true);
     var formulario = $('#formStocksFile')[0];
     var form = new FormData(formulario);
     var createUrl = $formStocksFile.data('url');
@@ -26,7 +53,6 @@ function storeStockFiles() {
         processData:false,
         contentType:false,
         success: function (data) {
-            console.log(data);
             toastr.success(data.message, 'Éxito',
                 {
                     "closeButton": true,
@@ -46,14 +72,16 @@ function storeStockFiles() {
                     "hideMethod": "fadeOut"
                 });
             setTimeout( function () {
-                $("#btn-submitStockFiles").attr("disabled", false);
+                $submitStockFiles.prop('disabled', false);
                 location.reload();
             }, 2000 )
         },
         error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
+            var response = data.responseJSON || {};
+
+            if (response.message && !response.errors)
             {
-                toastr.error(data.responseJSON.message, 'Error',
+                toastr.error(response.message, 'Error',
                     {
                         "closeButton": true,
                         "debug": false,
@@ -72,8 +100,8 @@ function storeStockFiles() {
                         "hideMethod": "fadeOut"
                     });
             }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
+            for (var property in response.errors || {}) {
+                toastr.error(response.errors[property], 'Error',
                     {
                         "closeButton": true,
                         "debug": false,
@@ -93,7 +121,7 @@ function storeStockFiles() {
                     });
             }
 
-            $("#btn-submitStockFiles").attr("disabled", false);
+            syncStockFileState();
         },
     });
 }

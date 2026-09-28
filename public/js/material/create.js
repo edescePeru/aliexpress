@@ -1139,10 +1139,19 @@ function saveColor() {
         data: data,
         success: function(response) {
             if (response.success) {
-                // Agregar la nueva opción al select
-                $('#color').append(
-                    `<option value="${response.data.id}" data-short-name="${response.data.short_name}" selected>${response.data.description}</option>`
-                ).trigger('change');
+                var colorOption = new Option(
+                    response.data.description,
+                    response.data.id,
+                    true,
+                    true
+                );
+
+                $(colorOption).attr(
+                    'data-short-name',
+                    response.data.short_name || ''
+                );
+
+                $('#color').append(colorOption).trigger('change');
 
                 // Cerrar el modal
                 $('#modalColor').modal('hide');
@@ -1199,9 +1208,19 @@ function saveTalla() {
         success: function(response) {
             if (response.success) {
                 // Agregar la nueva opción al select
-                $('#talla').append(
-                    `<option value="${response.data.id}" selected>${response.data.description}</option>`
-                ).trigger('change');
+                var tallaOption = new Option(
+                    response.data.description,
+                    response.data.id,
+                    true,
+                    true
+                );
+
+                $(tallaOption).attr(
+                    'data-short-name',
+                    response.data.short_name || ''
+                );
+
+                $('#talla').append(tallaOption).trigger('change');
 
                 // Cerrar el modal
                 $('#modalTalla').modal('hide');

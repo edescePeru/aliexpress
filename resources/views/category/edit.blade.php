@@ -13,7 +13,7 @@
 @endsection
 
 @section('activeCategory')
-
+    active
 @endsection
 
 @section('activeListCategory')
@@ -21,85 +21,86 @@
 @endsection
 
 @section('title')
-    Categorias
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Editar categoría
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Categorias</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Editar categoría</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Editar categoria {{$category->name}}</h5>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>{{ $category->name }}</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formEdit">Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="formEdit">Guardar cambios</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
+            <a href="{{ route('dashboard.principal') }}">Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('category.index') }}"><i class="fa fa-archive"></i> Categorías</a>
+            <a href="{{ route('category.index') }}">Categorías</a>
         </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Editar</li>
+        <li class="breadcrumb-item active" aria-current="page">Editar</li>
     </ol>
 @endsection
 
 @section('content')
     <form id="formEdit" class="form-horizontal" data-url="{{ route('category.update') }}" enctype="multipart/form-data">
         @csrf
-        <input type="hidden" class="form-control" name="category_id" value="{{$category->id}}">
+        <input type="hidden" name="category_id" value="{{ $category->id }}">
 
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Categoría" value="{{$category->name}}">
+        <section class="next-form-section" aria-labelledby="category-edit-title">
+            <div class="next-section-header">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="category-edit-title">Información general</h2>
+                    <p>Actualiza el nombre operativo o la descripción de la categoría.</p>
                 </div>
             </div>
-        </div>
 
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Descripcion</label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción" value="{{$category->description}}">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="category-name">Categoría <span class="next-required">(*)</span></label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="category-name"
+                        name="name"
+                        onkeyup="mayus(this);"
+                        placeholder="Ej.: Accesorios"
+                        value="{{ $category->name }}"
+                        maxlength="255"
+                        required
+                        autofocus>
+                </div>
+
+                <div class="form-group col-md-6">
+                    <label for="category-description">Descripción</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="category-description"
+                        name="description"
+                        onkeyup="mayus(this);"
+                        placeholder="Ej.: Materiales y accesorios complementarios"
+                        value="{{ $category->description }}"
+                        maxlength="255">
                 </div>
             </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar Cambios</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        </section>
     </form>
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 @endsection
 
 @section('scripts')

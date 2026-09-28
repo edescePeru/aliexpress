@@ -13,7 +13,7 @@
 @endsection
 
 @section('activeTypeScrap')
-
+    active
 @endsection
 
 @section('activeListTypeScrap')
@@ -21,94 +21,71 @@
 @endsection
 
 @section('title')
-    Tipos de Retacería
-@endsection
-
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+    Editar tipo de retacería
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Tipo de Retacería</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Materiales · Configuraciones</span>
+        <h1 class="page-title">Editar tipo de retacería</h1>
+    </div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Editar Tipo de Retacería: {{$typeScrap->name}}</h5>
-    <a href="{{ route('typescrap.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Tipo de Material </a>
+    <div class="next-page-toolbar">
+        <div class="next-toolbar-context">
+            <strong>{{ $typeScrap->name }}</strong>
+            <span>Los campos marcados con (*) son obligatorios.</span>
+        </div>
+        <div class="next-toolbar-actions">
+            <button type="reset" class="btn btn-outline-secondary" form="formEdit">Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="formEdit">Guardar cambios</button>
+        </div>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('typescrap.index') }}"><i class="fa fa-archive"></i> Tipo de Retacería</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Editar</li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('typescrap.index') }}">Tipos de retacería</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Editar</li>
     </ol>
 @endsection
 
 @section('content')
     <form id="formEdit" class="form-horizontal" data-url="{{ route('typescrap.update') }}" enctype="multipart/form-data">
         @csrf
-        <input type="hidden" class="form-control" name="typeScrap_id" value="{{$typeScrap->id}}">
-        
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre</label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Tipo de retacería" value="{{$typeScrap->name}}">
-                </div>
-            </div>
-        </div>
+        <input type="hidden" name="typeScrap_id" value="{{ $typeScrap->id }}">
 
-        <div class="form-group row">
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">Largo</label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" name="length" min="0" placeholder="Ejm: 0,00" step="0.01" value="{{$typeScrap->length}}">
+        <section class="next-form-section" aria-labelledby="typescrap-edit-title">
+            <div class="next-section-header">
+                <div>
+                    <span class="next-section-kicker">01</span>
+                    <h2 id="typescrap-edit-title">Identidad y dimensiones</h2>
+                    <p>Actualizar este catálogo no modifica automáticamente los Items existentes.</p>
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">Ancho</label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" name="width" min="0" placeholder="Ejm: 0,00" step="0.01" value="{{$typeScrap->width}}">
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="typescrap-name">Nombre <span class="next-required">(*)</span></label>
+                    <input type="text" class="form-control" id="typescrap-name" name="name"
+                        onkeyup="mayus(this);" placeholder="Ej.: Plancha" maxlength="191"
+                        value="{{ $typeScrap->name }}" required autofocus>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="typescrap-length">Largo <span class="next-required">(*)</span></label>
+                    <input type="number" class="form-control" id="typescrap-length" name="length"
+                        min="0" max="99999.99" step="0.01" value="{{ $typeScrap->length }}" required>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="typescrap-width">Ancho <span class="next-required">(*)</span></label>
+                    <input type="number" class="form-control" id="typescrap-width" name="width"
+                        min="0" max="99999.99" step="0.01" value="{{ $typeScrap->width }}" required>
                 </div>
             </div>
-
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar Cambios</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        </section>
     </form>
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 @endsection
 
 @section('scripts')
