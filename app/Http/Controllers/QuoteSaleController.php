@@ -2447,15 +2447,30 @@ class QuoteSaleController extends Controller
     public function renewQuote(Quote $quote)
     {
         try {
-            $renewQuote = DB::transaction(function () use ($quote) {
+
+            $companyId = TenantContext::companyId();
+            $tenantId = TenantContext::tenantId();
+
+            $renewQuote = DB::transaction(function () use (
+                $quote,
+                $companyId,
+                $tenantId
+            ) {
                 $begin = microtime(true);
+
                 /*
                  * ==========================================================
                  * 1. BLOQUEAR Y OBTENER LA COTIZACIÓN ORIGINAL
                  * ==========================================================
+                 *
+                 * BelongsToTenant protege Tenant.
+                 * company_id protege explícitamente entre Companies
+                 * del mismo Tenant.
                  */
+
                 $originalQuote = Quote::query()
                     ->where('id', $quote->id)
+                    ->where('company_id', $companyId)
                     ->with([
                         'equipments.consumables.material',
                         'equipments.consumables.stockItem',
@@ -2476,10 +2491,17 @@ class QuoteSaleController extends Controller
 
                 /*
                  * Una cotización original solamente puede generar
-                 * una nueva recotización.
+                 * una nueva recotización dentro de la misma Company.
                  */
                 $alreadyRenewed = Quote::query()
-                    ->where('renewed_from_quote_id', $originalQuote->id)
+                    ->where(
+                        'renewed_from_quote_id',
+                        $originalQuote->id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
                     ->exists();
 
                 if ($alreadyRenewed) {
@@ -2490,9 +2512,10 @@ class QuoteSaleController extends Controller
 
                 /*
                  * ==========================================================
-                 * 2. VALIDAR QUE SOLAMENTE EXISTA UN EQUIPO
+                 * 2. VALIDAR QUE SOLAMENTE EXISTA UN EQUIPMENT
                  * ==========================================================
                  */
+
                 if ($originalQuote->equipments->isEmpty()) {
                     throw new \Exception(
                         'La cotización no contiene productos para recotizar.'
@@ -2507,10 +2530,16 @@ class QuoteSaleController extends Controller
 
                 /*
                  * ==========================================================
-                 * 3. VALIDAR QUE NO EXISTAN PRODUCTOS ITEMEABLES
+                 * 3. VALIDAR PRODUCTOS ITEMEABLES
                  * ==========================================================
+                 *
+                 * Por ahora no recotizamos automáticamente productos
+                 * con ítems físicos porque sería necesario volver
+                 * a seleccionar las unidades específicas.
                  */
+
                 foreach ($originalQuote->equipments as $equipment) {
+
                     foreach ($equipment->consumables as $consumable) {
 
                         if (!$consumable->material) {
@@ -2519,13 +2548,21 @@ class QuoteSaleController extends Controller
                             );
                         }
 
-                        if ((int) $consumable->material->tipo_venta_id === 3) {
+                        if (
+                            (int) $consumable
+                                ->material
+                                ->tipo_venta_id === 3
+                        ) {
                             throw new \Exception(
                                 'La cotización contiene productos con ítems físicos y no puede recotizarse automáticamente.'
                             );
                         }
 
-                        if (empty($consumable->stock_item_id)) {
+                        if (
+                        empty(
+                        $consumable->stock_item_id
+                        )
+                        ) {
                             throw new \Exception(
                                 'El producto "' .
                                 $consumable->material->full_name .
@@ -2539,68 +2576,122 @@ class QuoteSaleController extends Controller
                  * ==========================================================
                  * 4. CONFIGURACIÓN DE IGV
                  * ==========================================================
+                 *
+                 * Temporalmente seguimos usando PorcentageQuote,
+                 * igual que Create/Edit.
+                 *
+                 * TAX-01 queda pendiente.
                  */
-                $dataIgv = DataGeneral::where('name', 'igv_venta')->first();
+
+                $dataIgv = PorcentageQuote::query()
+                    ->where(
+                        'name',
+                        'igv'
+                    )
+                    ->first();
 
                 if (!$dataIgv) {
                     throw new \Exception(
-                        'No se encontró la configuración del IGV de venta.'
+                        'No se encontró la configuración del IGV.'
                     );
                 }
 
-                $igvPct = (float) $dataIgv->valueNumber;
-                $factor = 1 + ($igvPct / 100);
+                $igvPct =
+                    (float) $dataIgv->value;
+
+                $factor =
+                    1 + ($igvPct / 100);
 
                 /*
                  * Redondeo comercial equivalente a moneyRound().
                  */
                 $moneyRound = function ($value) {
-                    return round((float) $value, 2);
+                    return round(
+                        (float) $value,
+                        2
+                    );
                 };
 
                 /*
                  * Redondeo utilizado para valores reales.
                  */
                 $round10 = function ($value) {
-                    return round((float) $value, 10);
+                    return round(
+                        (float) $value,
+                        10
+                    );
                 };
 
                 /*
                  * ==========================================================
-                 * 5. CREAR LA NUEVA COTIZACIÓN
+                 * 5. CREAR NUEVA COTIZACIÓN
                  * ==========================================================
                  */
+
                 $renewQuote = Quote::create([
-                    /*
-                     * Código temporal para evitar conflictos con el índice unique.
-                     */
-                    'code' => 'TMP-' . Str::uuid(),
-
-                    'renewed_from_quote_id' => $originalQuote->id,
-
-                    'description_quote' => $originalQuote->description_quote,
-                    'observations' => $originalQuote->observations,
-
-                    'date_quote' => Carbon::now(),
-                    'date_validate' => Carbon::now()->addDays(5),
-
-                    'way_to_pay' => $originalQuote->way_to_pay,
-                    'delivery_time' => $originalQuote->delivery_time,
-
-                    'customer_id' => $originalQuote->customer_id,
-                    'contact_id' => $originalQuote->contact_id,
-                    'payment_deadline_id' => $originalQuote->payment_deadline_id,
-
-                    'state' => 'created',
-                    'currency_invoice' => $originalQuote->currency_invoice,
 
                     /*
-                     * Se conserva la configuración del descuento.
-                     * Los importes serán recalculados posteriormente.
+                     * Company explícita.
+                     * tenant_id lo asigna BelongsToTenant.
                      */
-                    'discount_type' => $originalQuote->discount_type,
-                    'discount_input_mode' => $originalQuote->discount_input_mode,
-                    'discount_input_value' => $originalQuote->discount_input_value,
+                    'company_id' =>
+                        $companyId,
+
+                    /*
+                     * Código temporal para evitar conflicto
+                     * con índice unique.
+                     */
+                    'code' =>
+                        'TMP-' . Str::uuid(),
+
+                    'renewed_from_quote_id' =>
+                        $originalQuote->id,
+
+                    'description_quote' =>
+                        $originalQuote->description_quote,
+
+                    'observations' =>
+                        $originalQuote->observations,
+
+                    'date_quote' =>
+                        Carbon::now(),
+
+                    'date_validate' =>
+                        Carbon::now()->addDays(5),
+
+                    'way_to_pay' =>
+                        $originalQuote->way_to_pay,
+
+                    'delivery_time' =>
+                        $originalQuote->delivery_time,
+
+                    'customer_id' =>
+                        $originalQuote->customer_id,
+
+                    'contact_id' =>
+                        $originalQuote->contact_id,
+
+                    'payment_deadline_id' =>
+                        $originalQuote->payment_deadline_id,
+
+                    'state' =>
+                        'created',
+
+                    'currency_invoice' =>
+                        $originalQuote->currency_invoice,
+
+                    /*
+                     * Se conserva la configuración del descuento,
+                     * pero los importes se recalculan.
+                     */
+                    'discount_type' =>
+                        $originalQuote->discount_type,
+
+                    'discount_input_mode' =>
+                        $originalQuote->discount_input_mode,
+
+                    'discount_input_value' =>
+                        $originalQuote->discount_input_value,
 
                     'descuento' => 0,
                     'gravada' => 0,
@@ -2611,7 +2702,9 @@ class QuoteSaleController extends Controller
                 /*
                  * Código definitivo.
                  */
-                $renewQuote->code = 'COT-' . str_pad(
+                $renewQuote->code =
+                    'COT-' .
+                    str_pad(
                         $renewQuote->id,
                         5,
                         '0',
@@ -2621,15 +2714,32 @@ class QuoteSaleController extends Controller
                 $renewQuote->save();
 
                 QuoteUser::create([
-                    'quote_id' => $renewQuote->id,
-                    'user_id' => Auth::id(),
+                    'quote_id' =>
+                        $renewQuote->id,
+
+                    'user_id' =>
+                        Auth::id(),
                 ]);
 
+                /*
+                 * ==========================================================
+                 * SERVICIOS
+                 * ==========================================================
+                 */
+
                 /** @var QuoteStockReservationService $reservationService */
-                $reservationService = app(QuoteStockReservationService::class);
+                $reservationService = app(
+                    QuoteStockReservationService::class
+                );
+
+                /** @var PriceResolverService $priceResolver */
+                $priceResolver = app(
+                    PriceResolverService::class
+                );
 
                 /*
-                 * Totales que reproducen el comportamiento del frontend.
+                 * Totales que reproducen el comportamiento
+                 * actual del frontend.
                  */
                 $subtotalConsumablesWithIgvReal = 0;
                 $discountPromotions = 0;
@@ -2637,104 +2747,185 @@ class QuoteSaleController extends Controller
 
                 /*
                  * ==========================================================
-                 * 6. COPIAR EQUIPOS
+                 * 6. COPIAR EQUIPMENT
                  * ==========================================================
                  */
-                foreach ($originalQuote->equipments as $originalEquipment) {
 
-                    $renewEquipment = Equipment::create([
-                        'quote_id' => $renewQuote->id,
-                        'description' => $originalEquipment->description ?: '',
-                        'detail' => $originalEquipment->detail ?: '',
-                        'quantity' => $originalEquipment->quantity ?: 1,
-                        'utility' => $originalEquipment->utility ?: 0,
-                        'rent' => $originalEquipment->rent ?: 0,
-                        'letter' => $originalEquipment->letter ?: 0,
-                        'total' => 0,
-                    ]);
+                foreach (
+                    $originalQuote->equipments
+                    as $originalEquipment
+                ) {
+
+                    $renewEquipment =
+                        Equipment::create([
+                            'quote_id' =>
+                                $renewQuote->id,
+
+                            'description' =>
+                                $originalEquipment->description
+                                    ?: '',
+
+                            'detail' =>
+                                $originalEquipment->detail
+                                    ?: '',
+
+                            'quantity' =>
+                                $originalEquipment->quantity
+                                    ?: 1,
+
+                            /*
+                             * Legacy.
+                             * Ya no forman parte del cálculo actual.
+                             */
+                            'utility' => 0,
+                            'rent' => 0,
+                            'letter' => 0,
+
+                            'total' => 0,
+                        ]);
 
                     $totalConsumablesForEquipment = 0;
                     $totalWorkforcesForEquipment = 0;
 
                     /*
                      * ======================================================
-                     * 6.1. CONSUMIBLES
+                     * 6.1. PRODUCTOS
                      * ======================================================
                      */
-                    foreach ($originalEquipment->consumables as $originalConsumable) {
+
+                    foreach (
+                        $originalEquipment->consumables
+                        as $originalConsumable
+                    ) {
+
+                        /*
+                         * StockItem:
+                         *
+                         * - Tenant actual vía BelongsToTenant
+                         * - activo
+                         * - habilitado comercialmente para Company
+                         */
 
                         $stockItem = StockItem::query()
                             ->with([
                                 'material',
                             ])
-                            ->where('id', $originalConsumable->stock_item_id)
-                            ->where('is_active', true)
+                            ->where(
+                                'id',
+                                $originalConsumable
+                                    ->stock_item_id
+                            )
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->enabledForCompany(
+                                $companyId
+                            )
                             ->first();
 
                         if (!$stockItem) {
                             throw new \Exception(
-                                'Uno de los productos ya no se encuentra activo o disponible.'
+                                'Uno de los productos ya no está activo o habilitado para la empresa actual.'
                             );
                         }
 
                         if (!$stockItem->material) {
                             throw new \Exception(
                                 'El producto con ID ' .
-                                $originalConsumable->stock_item_id .
+                                $originalConsumable
+                                    ->stock_item_id .
                                 ' no tiene material asociado.'
                             );
                         }
 
-                        if ((int) $stockItem->material->tipo_venta_id === 3) {
+                        /*
+                         * Doble protección por si la configuración
+                         * cambió desde la cotización original.
+                         */
+                        if (
+                            (int) $stockItem
+                                ->material
+                                ->tipo_venta_id === 3
+                        ) {
                             throw new \Exception(
                                 'El producto "' .
-                                $stockItem->material->full_name .
-                                '" requiere selección de ítems físicos y no puede recotizarse.'
+                                $stockItem
+                                    ->material
+                                    ->full_name .
+                                '" requiere selección de ítems físicos y no puede recotizarse automáticamente.'
                             );
                         }
 
                         /*
-                         * No modificamos la cantidad solicitada originalmente.
+                         * No modificamos la cantidad solicitada
+                         * originalmente.
                          */
-                        $requestedUnits = (float) $originalConsumable->quantity;
+
+                        $requestedUnits =
+                            (float) $originalConsumable
+                                ->quantity;
 
                         if ($requestedUnits <= 0) {
                             throw new \Exception(
                                 'El producto "' .
-                                $stockItem->material->full_name .
+                                $stockItem
+                                    ->material
+                                    ->full_name .
                                 '" tiene una cantidad inválida.'
                             );
                         }
 
-                        $presentationId = $originalConsumable
-                            ->material_presentation_id;
+                        $presentationId =
+                            $originalConsumable
+                                ->material_presentation_id;
 
-                        $packs = $originalConsumable->packs;
-                        $unitsPerPack = $originalConsumable->units_per_pack;
+                        $packs =
+                            $originalConsumable
+                                ->packs;
 
-                        $currentPrice = 0;
-                        $lineQuantityForPrice = $requestedUnits;
+                        $unitsPerPack =
+                            $originalConsumable
+                                ->units_per_pack;
+
+                        $currentPrice = null;
+
+                        $lineQuantityForPrice =
+                            $requestedUnits;
 
                         /*
                          * ==================================================
                          * PRODUCTO CON PRESENTACIÓN
                          * ==================================================
+                         *
+                         * Conservamos la lógica actual:
+                         * una presentación posee su precio propio.
                          */
+
                         if (!empty($presentationId)) {
 
-                            $presentation = MaterialPresentation::query()
-                                ->where('id', $presentationId)
-                                ->where(
-                                    'material_id',
-                                    $stockItem->material_id
-                                )
-                                ->where('active', 1)
-                                ->first();
+                            $presentation =
+                                MaterialPresentation::query()
+                                    ->where(
+                                        'id',
+                                        $presentationId
+                                    )
+                                    ->where(
+                                        'material_id',
+                                        $stockItem->material_id
+                                    )
+                                    ->where(
+                                        'active',
+                                        1
+                                    )
+                                    ->first();
 
                             if (!$presentation) {
                                 throw new \Exception(
                                     'La presentación del producto "' .
-                                    $stockItem->material->full_name .
+                                    $stockItem
+                                        ->material
+                                        ->full_name .
                                     '" ya no se encuentra activa.'
                                 );
                             }
@@ -2747,7 +2938,9 @@ class QuoteSaleController extends Controller
                             ) {
                                 throw new \Exception(
                                     'La presentación del producto "' .
-                                    $stockItem->material->full_name .
+                                    $stockItem
+                                        ->material
+                                        ->full_name .
                                     '" contiene información inválida.'
                                 );
                             }
@@ -2762,13 +2955,18 @@ class QuoteSaleController extends Controller
                             ) {
                                 throw new \Exception(
                                     'La presentación del producto "' .
-                                    $stockItem->material->full_name .
+                                    $stockItem
+                                        ->material
+                                        ->full_name .
                                     '" cambió su cantidad de unidades. Revise el producto manualmente.'
                                 );
                             }
 
-                            $currentPrice = (float) $presentation->price;
-                            $lineQuantityForPrice = (float) $packs;
+                            $currentPrice =
+                                (float) $presentation->price;
+
+                            $lineQuantityForPrice =
+                                (float) $packs;
 
                         } else {
 
@@ -2776,33 +2974,52 @@ class QuoteSaleController extends Controller
                              * ==================================================
                              * PRODUCTO POR UNIDAD
                              * ==================================================
+                             *
+                             * PriceResolverService:
+                             *
+                             * 1. PriceListItem
+                             * 2. PriceListMaterial
+                             * 3. null = sin precio
+                             *
+                             * Siempre sobre la PriceList default activa
+                             * de la Company actual.
                              */
-                            $priceListItem = PriceListItem::query()
-                                ->where(
-                                    'stock_item_id',
-                                    $stockItem->id
-                                )
-                                ->whereHas('priceList', function ($query) {
-                                    $query->where('is_default', true)
-                                        ->where('is_active', true);
-                                })
-                                ->first();
 
-                            if (!$priceListItem) {
+                            $priceData =
+                                $priceResolver
+                                    ->resolveWithSource(
+                                        $stockItem,
+                                        $companyId
+                                    );
+
+                            if (
+                                $priceData['price'] === null
+                            ) {
                                 throw new \Exception(
                                     'El producto "' .
-                                    $stockItem->display_name .
+                                    $stockItem
+                                        ->display_name .
                                     '" no tiene un precio configurado en la lista predeterminada.'
                                 );
                             }
 
-                            $currentPrice = (float) $priceListItem->price;
+                            $currentPrice =
+                                (float) $priceData['price'];
                         }
 
-                        if ($currentPrice <= 0) {
+                        /*
+                         * En recotización automática no permitimos
+                         * precio 0 porque no existe interacción
+                         * para que el usuario lo autorice.
+                         */
+                        if (
+                            $currentPrice === null ||
+                            $currentPrice <= 0
+                        ) {
                             throw new \Exception(
                                 'El producto "' .
-                                $stockItem->display_name .
+                                $stockItem
+                                    ->display_name .
                                 '" tiene un precio inválido o igual a cero.'
                             );
                         }
@@ -2810,29 +3027,45 @@ class QuoteSaleController extends Controller
                         /*
                          * Precio con IGV y valor unitario sin IGV.
                          */
-                        $priceReal = $round10($currentPrice);
-                        $valorUnitarioReal = $round10(
-                            $priceReal / $factor
-                        );
 
-                        $importeReal = $round10(
-                            $lineQuantityForPrice * $priceReal
-                        );
+                        $priceReal =
+                            $round10(
+                                $currentPrice
+                            );
+
+                        $valorUnitarioReal =
+                            $round10(
+                                $priceReal /
+                                $factor
+                            );
+
+                        $importeReal =
+                            $round10(
+                                $lineQuantityForPrice *
+                                $priceReal
+                            );
 
                         /*
                          * ==================================================
                          * VALIDAR STOCK ACTUAL
                          * ==================================================
                          */
-                        $available = $reservationService
-                            ->getAvailableStockByStockItem(
-                                (int) $stockItem->id
-                            );
 
-                        if ($requestedUnits > $available) {
+                        $available =
+                            $reservationService
+                                ->getAvailableStockByStockItem(
+                                    (int) $stockItem->id
+                                );
+
+                        if (
+                            $requestedUnits >
+                            $available
+                        ) {
                             throw new \Exception(
                                 'El producto "' .
-                                $stockItem->material->full_name .
+                                $stockItem
+                                    ->material
+                                    ->full_name .
                                 '" no cuenta con stock suficiente. ' .
                                 'Requerido: ' .
                                 $requestedUnits .
@@ -2844,67 +3077,106 @@ class QuoteSaleController extends Controller
 
                         /*
                          * ==================================================
-                         * CREAR EL NUEVO CONSUMIBLE
+                         * CREAR NUEVO CONSUMABLE
                          * ==================================================
                          */
-                        $renewConsumable = EquipmentConsumable::create([
-                            'equipment_id' => $renewEquipment->id,
-                            'material_id' => $stockItem->material_id,
-                            'stock_item_id' => $stockItem->id,
 
-                            /*
-                             * Se conserva la cantidad real solicitada.
-                             */
-                            'quantity' => $requestedUnits,
+                        $renewConsumable =
+                            EquipmentConsumable::create([
+                                'equipment_id' =>
+                                    $renewEquipment->id,
 
-                            'price' => $priceReal,
-                            'valor_unitario' => $valorUnitarioReal,
-                            'total' => $importeReal,
+                                'material_id' =>
+                                    $stockItem->material_id,
 
-                            /*
-                             * Se conserva el descuento específico anterior.
-                             */
-                            'discount' => $originalConsumable->discount ?: 0,
-                            'type_promo' => $originalConsumable->type_promo,
+                                'stock_item_id' =>
+                                    $stockItem->id,
 
-                            'material_presentation_id' => $presentationId,
-                            'packs' => $packs,
-                            'units_per_pack' => $unitsPerPack,
+                                /*
+                                 * Cantidad real solicitada.
+                                 */
+                                'quantity' =>
+                                    $requestedUnits,
 
-                            'state' => 'En compra',
-                            'availability' => 'Completo',
-                        ]);
+                                'price' =>
+                                    $priceReal,
+
+                                'valor_unitario' =>
+                                    $valorUnitarioReal,
+
+                                'total' =>
+                                    $importeReal,
+
+                                /*
+                                 * Conservamos metadata de promoción
+                                 * existente por compatibilidad.
+                                 */
+                                'discount' =>
+                                    $originalConsumable
+                                        ->discount
+                                        ?: 0,
+
+                                'type_promo' =>
+                                    $originalConsumable
+                                        ->type_promo,
+
+                                'material_presentation_id' =>
+                                    $presentationId,
+
+                                'packs' =>
+                                    $packs,
+
+                                'units_per_pack' =>
+                                    $unitsPerPack,
+
+                                'state' =>
+                                    'En compra',
+
+                                'availability' =>
+                                    'Completo',
+                            ]);
 
                         /*
-                         * Crear las reservas de la nueva cotización.
+                         * ==================================================
+                         * RESERVAR STOCK NUEVO
+                         * ==================================================
                          */
-                        $reservationService->reserveForQuoteDetail(
-                            (int) $renewQuote->id,
-                            (int) $renewConsumable->id,
-                            (int) $stockItem->id,
-                            $requestedUnits
-                        );
+
+                        $reservationService
+                            ->reserveForQuoteDetail(
+                                (int) $renewQuote->id,
+                                (int) $renewConsumable->id,
+                                (int) $stockItem->id,
+                                $requestedUnits
+                            );
 
                         /*
-                         * Totales del equipo, siguiendo store().
+                         * Totales del Equipment.
                          */
-                        $totalConsumablesForEquipment = $round10(
-                            $totalConsumablesForEquipment +
-                            $importeReal
-                        );
+                        $totalConsumablesForEquipment =
+                            $round10(
+                                $totalConsumablesForEquipment +
+                                $importeReal
+                            );
 
                         /*
-                         * Totales generales, siguiendo confirmEquipment().
+                         * Totales generales.
                          */
-                        $subtotalConsumablesWithIgvReal = $round10(
-                            $subtotalConsumablesWithIgvReal +
-                            $importeReal
-                        );
+                        $subtotalConsumablesWithIgvReal =
+                            $round10(
+                                $subtotalConsumablesWithIgvReal +
+                                $importeReal
+                            );
 
-                        $discountPromotions = $round10(
-                            $discountPromotions +
-                            (float) ($originalConsumable->discount ?: 0)
-                        );
+                        $discountPromotions =
+                            $round10(
+                                $discountPromotions +
+                                (float) (
+                                $originalConsumable
+                                    ->discount
+                                    ?: 0
+                                )
+                            );
                     }
 
                     /*
@@ -2912,55 +3184,94 @@ class QuoteSaleController extends Controller
                      * 6.2. SERVICIOS ADICIONALES
                      * ======================================================
                      */
-                    foreach ($originalEquipment->workforces as $originalWorkforce) {
 
-                        $billable = isset($originalWorkforce->billable)
-                            ? (int) $originalWorkforce->billable
-                            : 1;
+                    foreach (
+                        $originalEquipment->workforces
+                        as $originalWorkforce
+                    ) {
 
-                        $renewWorkforce = EquipmentWorkforce::create([
-                            'equipment_id' => $renewEquipment->id,
-                            'description' => $originalWorkforce->description ?: '',
-                            'price' => (float) $originalWorkforce->price,
-                            'quantity' => (float) $originalWorkforce->quantity,
-                            'total' => (float) $originalWorkforce->total,
-                            'unit' => $originalWorkforce->unit ?: '',
-                            'billable' => $billable,
-                        ]);
+                        $billable =
+                            isset(
+                                $originalWorkforce
+                                    ->billable
+                            )
+                                ? (int) $originalWorkforce
+                                ->billable
+                                : 1;
+
+                        $renewWorkforce =
+                            EquipmentWorkforce::create([
+                                'equipment_id' =>
+                                    $renewEquipment->id,
+
+                                'description' =>
+                                    $originalWorkforce
+                                        ->description
+                                        ?: '',
+
+                                'price' =>
+                                    (float) $originalWorkforce
+                                        ->price,
+
+                                'quantity' =>
+                                    (float) $originalWorkforce
+                                        ->quantity,
+
+                                'total' =>
+                                    (float) $originalWorkforce
+                                        ->total,
+
+                                'unit' =>
+                                    $originalWorkforce
+                                        ->unit
+                                        ?: '',
+
+                                'billable' =>
+                                    $billable,
+                            ]);
 
                         /*
-                         * Store suma todos los servicios para equipment.total.
+                         * Equipment.total suma todos los servicios.
                          */
-                        $totalWorkforcesForEquipment = $round10(
-                            $totalWorkforcesForEquipment +
-                            (float) $renewWorkforce->total
-                        );
-
-                        /*
-                         * Para total_importe solamente se consideran
-                         * los servicios facturables.
-                         */
-                        if ($billable === 1) {
-                            $servicesSumBillable = $round10(
-                                $servicesSumBillable +
+                        $totalWorkforcesForEquipment =
+                            $round10(
+                                $totalWorkforcesForEquipment +
                                 (float) $renewWorkforce->total
                             );
+
+                        /*
+                         * total_importe solo incluye facturables.
+                         */
+                        if ($billable === 1) {
+
+                            $servicesSumBillable =
+                                $round10(
+                                    $servicesSumBillable +
+                                    (float) $renewWorkforce
+                                        ->total
+                                );
                         }
                     }
 
                     /*
                      * ======================================================
-                     * 6.3. TOTAL DEL EQUIPO SEGÚN STORE ACTUAL
+                     * 6.3. TOTAL EQUIPMENT
                      * ======================================================
                      */
-                    $totalEquipment = $round10(
-                        (
-                            $totalConsumablesForEquipment +
-                            $totalWorkforcesForEquipment
-                        ) * (float) $renewEquipment->quantity
-                    );
 
-                    $renewEquipment->total = $totalEquipment;
+                    $totalEquipment =
+                        $round10(
+                            (
+                                $totalConsumablesForEquipment +
+                                $totalWorkforcesForEquipment
+                            ) *
+                            (float) $renewEquipment
+                                ->quantity
+                        );
+
+                    $renewEquipment->total =
+                        $totalEquipment;
+
                     $renewEquipment->save();
                 }
 
@@ -2971,112 +3282,161 @@ class QuoteSaleController extends Controller
                  */
 
                 /*
-                 * Descuentos de promociones guardados en las líneas.
+                 * Descuentos de promociones guardados en líneas.
                  */
-                $subtotalConsumablesWithIgvReal = $round10(
-                    $subtotalConsumablesWithIgvReal -
-                    $discountPromotions
-                );
 
-                if ($subtotalConsumablesWithIgvReal < 0) {
+                $subtotalConsumablesWithIgvReal =
+                    $round10(
+                        $subtotalConsumablesWithIgvReal -
+                        $discountPromotions
+                    );
+
+                if (
+                    $subtotalConsumablesWithIgvReal < 0
+                ) {
                     $subtotalConsumablesWithIgvReal = 0;
                 }
 
-                $subtotalWithIgvReal = $round10(
-                    $subtotalConsumablesWithIgvReal +
-                    $servicesSumBillable
-                );
+                $subtotalWithIgvReal =
+                    $round10(
+                        $subtotalConsumablesWithIgvReal +
+                        $servicesSumBillable
+                    );
 
                 /*
                  * Reproducir computeDiscountWithIgv().
                  */
-                $discountType = $originalQuote->discount_type ?: 'amount';
 
-                $discountInputMode = $originalQuote
-                    ->discount_input_mode ?: 'without_igv';
+                $discountType =
+                    $originalQuote->discount_type
+                        ?: 'amount';
 
-                $discountInputValue = (float) (
-                $originalQuote->discount_input_value ?: 0
-                );
+                $discountInputMode =
+                    $originalQuote
+                        ->discount_input_mode
+                        ?: 'without_igv';
+
+                $discountInputValue =
+                    (float) (
+                    $originalQuote
+                        ->discount_input_value
+                        ?: 0
+                    );
 
                 $discountWithIgv = 0;
 
-                if ($discountInputValue > 0) {
+                if (
+                    $discountInputValue > 0
+                ) {
 
-                    if ($discountType === 'amount') {
+                    if (
+                        $discountType === 'amount'
+                    ) {
 
                         $discountWithIgv =
-                            $discountInputMode === 'with_igv'
+                            $discountInputMode ===
+                            'with_igv'
                                 ? $discountInputValue
                                 : $moneyRound(
-                                $discountInputValue * $factor
+                                $discountInputValue *
+                                $factor
                             );
 
                     } else {
 
-                        $percentage = $discountInputValue / 100;
+                        $percentage =
+                            $discountInputValue /
+                            100;
 
-                        if ($discountInputMode === 'with_igv') {
-                            $discountWithIgv = $moneyRound(
-                                $subtotalWithIgvReal *
-                                $percentage
-                            );
+                        if (
+                            $discountInputMode ===
+                            'with_igv'
+                        ) {
+
+                            $discountWithIgv =
+                                $moneyRound(
+                                    $subtotalWithIgvReal *
+                                    $percentage
+                                );
+
                         } else {
-                            $discountWithIgv = $moneyRound(
-                                (
-                                    $subtotalWithIgvReal /
+
+                            $discountWithIgv =
+                                $moneyRound(
+                                    (
+                                        $subtotalWithIgvReal /
+                                        $factor
+                                    ) *
+                                    $percentage *
                                     $factor
-                                ) *
-                                $percentage *
-                                $factor
-                            );
+                                );
                         }
                     }
 
-                    if ($discountWithIgv > $subtotalWithIgvReal) {
-                        $discountWithIgv = $subtotalWithIgvReal;
+                    if (
+                        $discountWithIgv >
+                        $subtotalWithIgvReal
+                    ) {
+                        $discountWithIgv =
+                            $subtotalWithIgvReal;
                     }
                 }
 
-                $discountWithIgv = $moneyRound(
-                    $discountWithIgv
-                );
+                $discountWithIgv =
+                    $moneyRound(
+                        $discountWithIgv
+                    );
 
-                $totalFinalWithIgvReal = $round10(
-                    $subtotalWithIgvReal -
-                    $discountWithIgv
-                );
+                $totalFinalWithIgvReal =
+                    $round10(
+                        $subtotalWithIgvReal -
+                        $discountWithIgv
+                    );
 
-                if ($totalFinalWithIgvReal < 0) {
+                if (
+                    $totalFinalWithIgvReal < 0
+                ) {
                     $totalFinalWithIgvReal = 0;
                 }
 
-                $baseFinalReal = $round10(
-                    $totalFinalWithIgvReal /
-                    $factor
-                );
+                $baseFinalReal =
+                    $round10(
+                        $totalFinalWithIgvReal /
+                        $factor
+                    );
 
                 if ($baseFinalReal < 0) {
                     $baseFinalReal = 0;
                 }
 
-                $igvFinalReal = $round10(
-                    $totalFinalWithIgvReal -
-                    $baseFinalReal
-                );
+                $igvFinalReal =
+                    $round10(
+                        $totalFinalWithIgvReal -
+                        $baseFinalReal
+                    );
 
-                $discountBaseReal = $round10(
-                    $discountWithIgv /
-                    $factor
-                );
+                $discountBaseReal =
+                    $round10(
+                        $discountWithIgv /
+                        $factor
+                    );
 
                 /*
-                 * Guardar los totales reales.
+                 * Guardar totales recalculados.
                  */
-                $renewQuote->descuento = $discountBaseReal;
-                $renewQuote->gravada = $baseFinalReal;
-                $renewQuote->igv_total = $igvFinalReal;
-                $renewQuote->total_importe = $totalFinalWithIgvReal;
+
+                $renewQuote->descuento =
+                    $discountBaseReal;
+
+                $renewQuote->gravada =
+                    $baseFinalReal;
+
+                $renewQuote->igv_total =
+                    $igvFinalReal;
+
+                $renewQuote->total_importe =
+                    $totalFinalWithIgvReal;
+
                 $renewQuote->save();
 
                 /*
@@ -3084,43 +3444,83 @@ class QuoteSaleController extends Controller
                  * 8. NOTIFICACIÓN
                  * ==========================================================
                  */
-                $notification = Notification::create([
-                    'content' =>
-                        $renewQuote->code .
-                        ' recotizada desde ' .
-                        $originalQuote->code .
-                        ' por ' .
-                        Auth::user()->name,
 
-                    'reason_for_creation' => 'renew_quote',
+                $notification =
+                    Notification::create([
+                        'content' =>
+                            $renewQuote->code .
+                            ' recotizada desde ' .
+                            $originalQuote->code .
+                            ' por ' .
+                            Auth::user()->name,
 
-                    'user_id' => Auth::id(),
+                        'reason_for_creation' =>
+                            'renew_quote',
 
-                    'url_go' => route(
-                        'quote.edit',
-                        $renewQuote->id
-                    ),
-                ]);
+                        'user_id' =>
+                            Auth::id(),
 
-                $users = User::role([
-                    'admin',
-                    'principal',
-                    'logistic'
-                ])->get();
+                        'url_go' =>
+                            route(
+                                'quoteSale.edit',
+                                $renewQuote->id
+                            ),
+                    ]);
 
-                foreach ($users as $user) {
-                    if ($user->id == Auth::id()) {
+                /*
+                 * Evitar notificar usuarios de otros Tenants.
+                 *
+                 * Los nombres de roles siguen siendo legacy
+                 * y pueden revisarse después en QUOTE-NOTIF-01.
+                 */
+
+                $users = User::query()
+                    ->where(
+                        'tenant_id',
+                        $tenantId
+                    )
+                    ->role([
+                        'admin',
+                        'principal',
+                        'logistic',
+                    ])
+                    ->get();
+
+                foreach (
+                    $users
+                    as $user
+                ) {
+
+                    if (
+                        $user->id ==
+                        Auth::id()
+                    ) {
                         continue;
                     }
 
-                    foreach ($user->roles as $role) {
+                    foreach (
+                        $user->roles
+                        as $role
+                    ) {
+
                         NotificationUser::create([
-                            'notification_id' => $notification->id,
-                            'role_id' => $role->id,
-                            'user_id' => $user->id,
-                            'read' => false,
-                            'date_read' => null,
-                            'date_delete' => null,
+                            'notification_id' =>
+                                $notification->id,
+
+                            'role_id' =>
+                                $role->id,
+
+                            'user_id' =>
+                                $user->id,
+
+                            'read' =>
+                                false,
+
+                            'date_read' =>
+                                null,
+
+                            'date_delete' =>
+                                null,
                         ]);
                     }
                 }
@@ -3130,36 +3530,57 @@ class QuoteSaleController extends Controller
                  * 9. AUDITORÍA
                  * ==========================================================
                  */
-                $end = microtime(true) - $begin;
+
+                $end =
+                    microtime(true) -
+                    $begin;
 
                 Audit::create([
-                    'user_id' => Auth::id(),
+                    'user_id' =>
+                        Auth::id(),
+
                     'action' =>
                         'Recotizar cotización de venta ' .
                         $originalQuote->code .
                         ' a ' .
                         $renewQuote->code,
-                    'time' => $end,
+
+                    'time' =>
+                        $end,
                 ]);
 
                 return $renewQuote;
             });
 
             return response()->json([
-                'ok' => true,
+                'ok' =>
+                    true,
+
                 'message' =>
                     'La cotización ' .
                     $renewQuote->code .
                     ' fue creada correctamente.',
-                'url' => route('quoteSale.index'),
+
+                'url' =>
+                    route(
+                        'quoteSale.index'
+                    ),
             ], 200);
 
         } catch (\Throwable $e) {
+
             return response()->json([
-                'ok' => false,
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+                'ok' =>
+                    false,
+
+                'message' =>
+                    $e->getMessage(),
+
+                'file' =>
+                    $e->getFile(),
+
+                'line' =>
+                    $e->getLine(),
             ], 422);
         }
     }
@@ -3993,93 +4414,105 @@ class QuoteSaleController extends Controller
     {
         $begin = microtime(true);
 
+        $companyId = TenantContext::companyId();
+
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
+        $permissions = $user
+            ->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
 
         $unitMeasures = UnitMeasure::all();
-        $customers = Customer::all();
 
-        $defaultConsumable = '(*)';
-        $defaultElectric = '(e)';
-
-        $consumables = Material::with('unitMeasure')
-            ->where('category_id', 2)
-            ->where('description', 'LIKE', '%' . $defaultConsumable . '%')
-            ->orderBy('full_name', 'asc')
+        /*
+         * Customer es Tenant-level.
+         */
+        $customers = Customer::query()
+            ->orderBy('business_name')
             ->get();
 
-        $electrics = Material::with('unitMeasure')
-            ->where('category_id', 2)
-            ->whereElectric('description', $defaultElectric)
-            ->orderBy('full_name', 'asc')
+        $workforces = Workforce::with('unitMeasure')
             ->get();
 
-        $workforces = Workforce::with('unitMeasure')->get();
+        $paymentDeadlines = PaymentDeadline::where(
+            'type',
+            'quotes'
+        )->get();
 
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
-
-        $utility = PorcentageQuote::where('name', 'utility')->first();
-        $rent = PorcentageQuote::where('name', 'rent')->first();
-        $letter = PorcentageQuote::where('name', 'letter')->first();
-
-        $quote = Quote::where('id', $id)
-            ->with('customer')
-            ->with('deadline')
+        /*
+         * CRÍTICO:
+         * Quote debe pertenecer a la Company actual.
+         */
+        $quote = Quote::query()
+            ->where('id', $id)
+            ->where('company_id', $companyId)
             ->with([
+                'customer',
+                'deadline',
+
                 'equipments' => function ($query) {
                     $query->with([
-                        'materials',
 
                         'consumables' => function ($consumableQuery) {
                             $consumableQuery->with([
                                 'presentation',
-                                'stockItem.material',
-                                'stockItem.inventoryLevels',
-                                'stockItem.priceListItems.priceList',
+
+                                'stockItem' => function ($stockItemQuery) {
+                                    $stockItemQuery->with([
+                                        'material.unitMeasure',
+                                    ]);
+                                },
+
                                 'quoteStockLots',
                             ]);
                         },
 
-                        'electrics',
                         'workforces',
-                        'turnstiles',
-                        'workdays',
                     ]);
-                }
+                },
             ])
-            ->first();
+            ->firstOrFail();
 
         $images = [];
 
-        $currency = app(SettingService::class)->get('finance.base_currency');
+        $currency = app(
+            SettingService::class
+        )->get(
+            'finance.base_currency'
+        );
 
-        $dataIgv = PorcentageQuote::where('name', 'igv')->first();
-        $igv = $dataIgv->value;
+        $dataIgv = PorcentageQuote::where(
+            'name',
+            'igv'
+        )->first();
+
+        $igv = $dataIgv
+            ? $dataIgv->value
+            : 18;
 
         $end = microtime(true) - $begin;
 
         Audit::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::id(),
             'action' => 'Editar cotizacion VISTA',
-            'time' => $end
+            'time' => $end,
         ]);
 
-        return view('quoteSale.edit', compact(
-            'quote',
-            'unitMeasures',
-            'customers',
-            'consumables',
-            'electrics',
-            'workforces',
-            'permissions',
-            'paymentDeadlines',
-            'utility',
-            'rent',
-            'letter',
-            'images',
-            'currency',
-            'igv'
-        ));
+        return view(
+            'quoteSale.edit',
+            compact(
+                'quote',
+                'unitMeasures',
+                'customers',
+                'workforces',
+                'permissions',
+                'paymentDeadlines',
+                'images',
+                'currency',
+                'igv'
+            )
+        );
     }
 
     public function update(UpdateQuoteRequest $request)
@@ -4441,68 +4874,6 @@ class QuoteSaleController extends Controller
 
     public function destroyO(Quote $quote)
     {
-        DB::transaction(function () use ($quote) {
-
-            /*
-             * 1) LIBERAR RESERVAS DE MATERIALES (QuoteMaterialReservation)
-             *    y AJUSTAR stock_reserved EN Material
-             */
-            $reservations = QuoteMaterialReservation::where('quote_id', $quote->id)
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($reservations as $reservation) {
-                $material = Material::lockForUpdate()->find($reservation->material_id);
-
-                if ($material) {
-                    // Restar la cantidad reservada y evitar negativos
-                    $material->stock_reserved = max(
-                        0,
-                        (float) $material->stock_reserved - (float) $reservation->quantity
-                    );
-                    $material->save();
-                }
-
-                // Borramos la reserva de esta cotización
-                $reservation->delete();
-            }
-
-            /*
-             * 2) LIMPIAR EQUIPOS Y CONSUMIBLES LIGADOS A LA COTIZACIÓN
-             *    - Eliminar PromotionUsage por consumible
-             *    - Eliminar consumibles
-             *    - Eliminar equipos
-             */
-            $equipments = Equipment::where('quote_id', $quote->id)
-                ->with('consumables')   // relación: equipment -> consumables
-                ->get();
-
-            foreach ($equipments as $equipment) {
-                foreach ($equipment->consumables as $consumable) {
-
-                    // Borrar usos de promociones ligados a este consumible
-                    PromotionUsage::where('equipment_consumable_id', $consumable->id)->delete();
-
-                    // Borrar el consumible
-                    //$consumable->delete();
-                }
-
-                // Borrar el equipo
-                //$equipment->delete();
-            }
-
-            /*
-             * 3) MARCAR LA COTIZACIÓN COMO ANULADA
-             */
-            $quote->state = 'canceled';
-            $quote->save();
-        });
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function destroy(Quote $quote)
-    {
         try {
             DB::transaction(function () use ($quote) {
 
@@ -4585,1321 +4956,188 @@ class QuoteSaleController extends Controller
         }
     }
 
-    public function updateEquipmentOfQuoteOriginal(Request $request, $id_equipment, $id_quote)
-    {
-        //dump($request);
-        //dd();
-        $begin = microtime(true);
-        $user = Auth::user();
-        $quote = Quote::find($id_quote);
-        $quote_user = QuoteUser::where('quote_id', $id_quote)
-            ->where('user_id', $user->id)->first();
-
-        $equipmentSent = null;
-
-        DB::beginTransaction();
-        try {
-            $equipment_quote = Equipment::where('id', $id_equipment)
-                ->where('quote_id',$quote->id)->first();
-
-            $output_details= OutputDetail::where('equipment_id', $equipment_quote->id)->get();
-
-            if ( count($output_details) == 0 )
-            {
-                // TODO: Si no hay outputs details que proceda como estaba planificado
-                //$totalDeleted = 0;
-                foreach( $equipment_quote->materials as $material ) {
-                    //$totalDeleted = $totalDeleted + (float) $material->total;
-                    $material->delete();
-                }
-                foreach( $equipment_quote->consumables as $consumable ) {
-                    //$totalDeleted = $totalDeleted + (float) $consumable->total;
-                    $consumable->delete();
-                }
-                foreach( $equipment_quote->electrics as $electric ) {
-                    //$totalDeleted = $totalDeleted + (float) $consumable->total;
-                    $electric->delete();
-                }
-                foreach( $equipment_quote->workforces as $workforce ) {
-                    //$totalDeleted = $totalDeleted + (float) $workforce->total;
-                    $workforce->delete();
-                }
-                foreach( $equipment_quote->turnstiles as $turnstile ) {
-                    //$totalDeleted = $totalDeleted + (float) $turnstile->total;
-                    $turnstile->delete();
-                }
-                foreach( $equipment_quote->workdays as $workday ) {
-                    //$totalDeleted = $totalDeleted + (float) $workday->total;
-                    $workday->delete();
-                }
-
-                $equipment_quote->delete();
-
-                $equipments = $request->input('equipment');
-
-                $totalQuote = 0;
-
-                foreach ( $equipments as $equip )
-                {
-                    $equipment = Equipment::create([
-                        'quote_id' => $quote->id,
-                        'description' => ($equip['description'] == "" || $equip['description'] == null) ? '':$equip['description'],
-                        'detail' => ($equip['detail'] == "" || $equip['detail'] == null) ? '':$equip['detail'],
-                        'quantity' => $equip['quantity'],
-                        'utility' => $equip['utility'],
-                        'rent' => $equip['rent'],
-                        'letter' => $equip['letter'],
-                        'total' => $equip['total']
-                    ]);
-
-                    $totalMaterial = 0;
-
-                    $totalConsumable = 0;
-
-                    $totalElectric = 0;
-
-                    $totalWorkforces = 0;
-
-                    $totalTornos = 0;
-
-                    $totalDias = 0;
-
-                    $materials = $equip['materials'];
-
-                    $consumables = $equip['consumables'];
-
-                    $electrics = $equip['electrics'];
-
-                    $workforces = $equip['workforces'];
-
-                    $tornos = $equip['tornos'];
-
-                    $dias = $equip['dias'];
-                    //dump($materials);
-                    foreach ( $materials as $material )
-                    {
-                        $equipmentMaterial = EquipmentMaterial::create([
-                            'equipment_id' => $equipment->id,
-                            'material_id' => (int)$material['material']['id'],
-                            'quantity' => (float) $material['quantity'],
-                            'price' => (float) $material['material']['unit_price'],
-                            'length' => (float) ($material['length'] == '') ? 0: $material['length'],
-                            'width' => (float) ($material['width'] == '') ? 0: $material['width'],
-                            'percentage' => (float) $material['quantity'],
-                            'state' => ($material['quantity'] > $material['material']['stock_current']) ? 'Falta comprar':'En compra',
-                            'availability' => ($material['quantity'] > $material['material']['stock_current']) ? 'Agotado':'Completo',
-                            'total' => (float) $material['quantity']*(float) $material['material']['unit_price']
-                        ]);
-
-                        //$totalMaterial += $equipmentMaterial->total;
-                    }
-
-                    /*for ($k = 0; $k < sizeof($consumables); $k++) {
-                        $material = Material::find($consumables[$k]->id);
-
-                        // 🟢 VALIDAR PROMOCIÓN SI type_promo = limit
-                        if ($consumables[$k]->type_promo == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumables[$k]->id)
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
-                                ->first();
-
-                            if ($promotion) {
-                                // buscar uso
-                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
-
-                                if ($promotion->applies_to == 'worker') {
-                                    $query->where('user_id', auth()->id());
-                                }
-
-                                $usage = $query->first();
-
-                                if (!$usage) {
-                                    $usage = PromotionUsage::create([
-                                        'promotion_limit_id' => $promotion->id,
-                                        'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                        'used_quantity' => 0,
-                                    ]);
-                                }
-
-                                $requestedQty = (float) $consumables[$k]->quantity;
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
-
-                                if ($remaining < $requestedQty) {
-                                    throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
-                                }
-
-                                // actualizar consumo
-                                $usage->increment('used_quantity', $requestedQty);
-                            }
-                        }
-
-                        // 🟢 REGISTRAR EQUIPMENT CONSUMABLE
-                        $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumables[$k]->quantity > $material->stock_current) ? 'Agotado' : 'Completo',
-                            'state' => ((float) $consumables[$k]->quantity > $material->stock_current) ? 'Falta comprar' : 'En compra',
-                            'equipment_id' => $equipment->id,
-                            'material_id' => $consumables[$k]->id,
-                            'quantity' => (float) $consumables[$k]->quantity,
-                            'price' => (float) $consumables[$k]->price,
-                            'valor_unitario' => (float) $consumables[$k]->valor,
-                            'discount' => (float) $consumables[$k]->discount,
-                            'total' => (float) $consumables[$k]->importe,
-                            'type_promo' => $consumables[$k]->type_promo,
-                        ]);
-
-                        $totalConsumable += $equipmentConsumable->total;
-                    }*/
-
-                    foreach ( $consumables as $consumable )
-                    {
-                        $material = Material::find((int)$consumable['id']);
-
-                        // 🟢 VALIDAR PROMOCIÓN SI type_promo = limit
-                        if ($consumable["type_promo"] == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumable["id"])
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
-                                ->first();
-
-                            if ($promotion) {
-                                // buscar uso
-                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
-
-                                if ($promotion->applies_to == 'worker') {
-                                    $query->where('user_id', auth()->id());
-                                }
-
-                                $usage = $query->first();
-
-                                if (!$usage) {
-                                    $usage = PromotionUsage::create([
-                                        'promotion_limit_id' => $promotion->id,
-                                        'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                        'used_quantity' => 0,
-                                    ]);
-                                }
-
-                                $requestedQty = (float) $consumable["quantity"];
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
-
-                                if ($remaining < $requestedQty) {
-                                    throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
-                                }
-
-                                // actualizar consumo
-                                $usage->increment('used_quantity', $requestedQty);
-                            }
-                        }
-
-                        $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Agotado':'Completo',
-                            'state' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Falta comprar':'En compra',
-                            'equipment_id' => $equipment->id,
-                            'material_id' => $consumable['id'],
-                            'quantity' => (float) $consumable['quantity'],
-                            'price' => (float) $consumable['price'],
-                            'valor_unitario' => (float) $consumable['valor'],
-                            'discount' => (float) $consumable['discount'],
-                            'total' => (float) $consumable['importe'],
-                            'type_promo' => $consumables['type_promo'],
-                        ]);
-                    }
-
-                    foreach ( $electrics as $electricd )
-                    {
-                        $equipmentElectric = EquipmentElectric::create([
-                            'equipment_id' => $equipment->id,
-                            'material_id' => $electricd['id'],
-                            'quantity' => (float) $electricd['quantity'],
-                            'price' => (float) $electricd['price'],
-                            'total' => (float) $electricd['quantity']*(float) $electricd['price'],
-                        ]);
-
-                        //$totalConsumable += $equipmentConsumable->total;
-                    }
-
-                    foreach ( $workforces as $workforce )
-                    {
-                        $equipmentWorkforce = EquipmentWorkforce::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $workforce['description'],
-                            'price' => (float) $workforce['price'],
-                            'quantity' => (float) $workforce['quantity'],
-                            'total' => (float) $workforce['price']*(float) $workforce['quantity'],
-                            'unit' => $workforce['unit'],
-                        ]);
-
-                        //$totalWorkforces += $equipmentWorkforce->total;
-                    }
-
-                    foreach ( $tornos as $torno )
-                    {
-                        $equipmenttornos = EquipmentTurnstile::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $torno['description'],
-                            'price' => (float) $torno['price'],
-                            'quantity' => (float) $torno['quantity'],
-                            'total' => (float) $torno['price']*(float) $torno['quantity']
-                        ]);
-
-                        //$totalTornos += $equipmenttornos->total;
-                    }
-
-                    foreach ( $dias as $dia )
-                    {
-                        $equipmentdias = EquipmentWorkday::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $dia['description'],
-                            'quantityPerson' => (float) $dia['quantity'],
-                            'hoursPerPerson' => (float) $dia['hours'],
-                            'pricePerHour' => (float) $dia['price'],
-                            'total' => (float) $dia['quantity']*(float) $dia['hours']*(float) $dia['price']
-                        ]);
-
-                        //$totalDias += $equipmentdias->total;
-                    }
-
-                    $totalEquipo2 = (float)$equip['total'];
-                    $totalEquipmentU2 = $totalEquipo2*(($equip['utility']/100)+1);
-                    $totalEquipmentL2 = $totalEquipmentU2*(($equip['letter']/100)+1);
-                    $totalEquipmentR2 = $totalEquipmentL2*(($equip['rent']/100)+1);
-
-                    $totalQuote = $totalQuote + $totalEquipmentR2;
-
-                    $equipment->total = $totalEquipo2;
-
-                    $equipment->save();
-
-                    $equipmentSent = $equipment;
-                }
-
-                // Guardamos los totales
-                $quote->descuento = ($request->has('descuento')) ? $request->get('descuento') : null;
-                $quote->gravada = ($request->has('gravada')) ? $request->get('gravada') : null;
-                $quote->igv_total = ($request->has('igv_total')) ? $request->get('igv_total') : null;
-                $quote->total_importe = ($request->has('total_importe')) ? $request->get('total_importe') : null;
-
-                $quote->save();
-            } else {
-                // TODO: Ya no eliminamos el equipo solo lo modificamos
-                //$totalDeleted = 0;
-                foreach( $equipment_quote->materials as $material ) {
-                    //$totalDeleted = $totalDeleted + (float) $material->total;
-                    $material->delete();
-                }
-                foreach( $equipment_quote->consumables as $consumable ) {
-                    //$totalDeleted = $totalDeleted + (float) $consumable->total;
-                    $consumable->delete();
-                }
-                foreach( $equipment_quote->electrics as $electric ) {
-                    //$totalDeleted = $totalDeleted + (float) $consumable->total;
-                    $electric->delete();
-                }
-                foreach( $equipment_quote->workforces as $workforce ) {
-                    //$totalDeleted = $totalDeleted + (float) $workforce->total;
-                    $workforce->delete();
-                }
-                foreach( $equipment_quote->turnstiles as $turnstile ) {
-                    //$totalDeleted = $totalDeleted + (float) $turnstile->total;
-                    $turnstile->delete();
-                }
-                foreach( $equipment_quote->workdays as $workday ) {
-                    //$totalDeleted = $totalDeleted + (float) $workday->total;
-                    $workday->delete();
-                }
-
-                $quote->save();
-
-                //$equipment_quote->delete();
-
-                $equipments = $request->input('equipment');
-
-                $totalQuote = 0;
-
-                foreach ( $equipments as $equip )
-                {
-                    $equipment_quote->quote_id = $quote->id;
-                    $equipment_quote->description = ($equip['description'] == "" || $equip['description'] == null) ? '':$equip['description'];
-                    $equipment_quote->detail = ($equip['detail'] == "" || $equip['detail'] == null) ? '':$equip['detail'];
-                    $equipment_quote->quantity = $equip['quantity'];
-                    $equipment_quote->utility = $equip['utility'];
-                    $equipment_quote->rent = $equip['rent'];
-                    $equipment_quote->letter = $equip['letter'];
-                    $equipment_quote->total = $equip['total'];
-                    $equipment_quote->save();
-
-                    $totalMaterial = 0;
-
-                    $totalConsumable = 0;
-
-                    $totalElectric = 0;
-
-                    $totalWorkforces = 0;
-
-                    $totalTornos = 0;
-
-                    $totalDias = 0;
-
-                    $materials = $equip['materials'];
-
-                    $consumables = $equip['consumables'];
-
-                    $electrics = $equip['electrics'];
-
-                    $workforces = $equip['workforces'];
-
-                    $tornos = $equip['tornos'];
-
-                    $dias = $equip['dias'];
-                    //dump($materials);
-                    foreach ( $materials as $material )
-                    {
-                        $equipmentMaterial = EquipmentMaterial::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => (int)$material['material']['id'],
-                            'quantity' => (float) $material['quantity'],
-                            'price' => (float) $material['material']['unit_price'],
-                            'length' => (float) ($material['length'] == '') ? 0: $material['length'],
-                            'width' => (float) ($material['width'] == '') ? 0: $material['width'],
-                            'percentage' => (float) $material['quantity'],
-                            'state' => ($material['quantity'] > $material['material']['stock_current']) ? 'Falta comprar':'En compra',
-                            'availability' => ($material['quantity'] > $material['material']['stock_current']) ? 'Agotado':'Completo',
-                            'total' => (float) $material['quantity']*(float) $material['material']['unit_price']
-                        ]);
-
-                        //$totalMaterial += $equipmentMaterial->total;
-                    }
-
-                    foreach ( $consumables as $consumable )
-                    {
-                        $material = Material::find((int)$consumable['id']);
-
-                        // 🟢 VALIDAR PROMOCIÓN SI type_promo = limit
-                        if ($consumable["type_promo"] == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumable["id"])
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
-                                ->first();
-
-                            if ($promotion) {
-                                // buscar uso
-                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id);
-
-                                if ($promotion->applies_to == 'worker') {
-                                    $query->where('user_id', auth()->id());
-                                }
-
-                                $usage = $query->first();
-
-                                if (!$usage) {
-                                    $usage = PromotionUsage::create([
-                                        'promotion_limit_id' => $promotion->id,
-                                        'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                        'used_quantity' => 0,
-                                    ]);
-                                }
-
-                                $requestedQty = (float) $consumable["quantity"];
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
-
-                                if ($remaining < $requestedQty) {
-                                    throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
-                                }
-
-                                // actualizar consumo
-                                $usage->increment('used_quantity', $requestedQty);
-                            }
-                        }
-
-                        $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Agotado':'Completo',
-                            'state' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Falta comprar':'En compra',
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => $consumable['id'],
-                            'quantity' => (float) $consumable['quantity'],
-                            'price' => (float) $consumable['price'],
-                            'valor_unitario' => (float) $consumable['valor'],
-                            'discount' => (float) $consumable['discount'],
-                            'total' => (float) $consumable['importe'],
-                            'type_promo' => $consumables['type_promo'],
-                        ]);
-                    }
-
-                    foreach ( $electrics as $electric )
-                    {
-                        $equipmentElectric = EquipmentElectric::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => $electric['id'],
-                            'quantity' => (float) $electric['quantity'],
-                            'price' => (float) $electric['price'],
-                            'total' => (float) $electric['quantity']*(float) $electric['price'],
-                        ]);
-
-                        //$totalConsumable += $equipmentConsumable->total;
-                    }
-
-                    foreach ( $workforces as $workforce )
-                    {
-                        $equipmentWorkforce = EquipmentWorkforce::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $workforce['description'],
-                            'price' => (float) $workforce['price'],
-                            'quantity' => (float) $workforce['quantity'],
-                            'total' => (float) $workforce['price']*(float) $workforce['quantity'],
-                            'unit' => $workforce['unit'],
-                        ]);
-
-                        //$totalWorkforces += $equipmentWorkforce->total;
-                    }
-
-                    foreach ( $tornos as $torno )
-                    {
-                        $equipmenttornos = EquipmentTurnstile::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $torno['description'],
-                            'price' => (float) $torno['price'],
-                            'quantity' => (float) $torno['quantity'],
-                            'total' => (float) $torno['price']*(float) $torno['quantity']
-                        ]);
-
-                        //$totalTornos += $equipmenttornos->total;
-                    }
-
-                    foreach ( $dias as $dia )
-                    {
-                        $equipmentdias = EquipmentWorkday::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $dia['description'],
-                            'quantityPerson' => (float) $dia['quantity'],
-                            'hoursPerPerson' => (float) $dia['hours'],
-                            'pricePerHour' => (float) $dia['price'],
-                            'total' => (float) $dia['quantity']*(float) $dia['hours']*(float) $dia['price']
-                        ]);
-
-                        //$totalDias += $equipmentdias->total;
-                    }
-                }
-
-                $quote->descuento = ($request->has('descuento')) ? $request->get('descuento') : null;
-                $quote->gravada = ($request->has('gravada')) ? $request->get('gravada') : null;
-                $quote->igv_total = ($request->has('igv_total')) ? $request->get('igv_total') : null;
-                $quote->total_importe = ($request->has('total_importe')) ? $request->get('total_importe') : null;
-
-                $quote->save();
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Modificar equipo de cotizacion',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage().' '.$e->getLine()], 422);
-        }
-        return response()->json(['message' => 'Equipo guardado con éxito.', 'equipment'=>$equipmentSent, 'quote'=>$quote], 200);
-
-    }
-
-    public function updateEquipmentOfQuote2(Request $request, $id_equipment, $id_quote)
+    public function destroy(Quote $quote)
     {
         $begin = microtime(true);
-        $user = Auth::user();
-        $quote = Quote::find($id_quote);
-        $quote_user = QuoteUser::where('quote_id', $id_quote)
-            ->where('user_id', $user->id)->first();
 
-        $equipmentSent = null;
-
-        DB::beginTransaction();
-        try {
-            $equipment_quote = Equipment::where('id', $id_equipment)
-                ->where('quote_id',$quote->id)->first();
-
-            $output_details= OutputDetail::where('equipment_id', $equipment_quote->id)->get();
-
-            if ( count($output_details) == 0 )
-            {
-                // TODO: Si no hay outputs details que proceda como estaba planificado
-                foreach( $equipment_quote->materials as $material ) {
-                    $material->delete();
-                }
-                foreach( $equipment_quote->consumables as $consumable ) {
-                    // 🧮 devolver reserva de este consumible
-                    $material = Material::lockForUpdate()->find($consumable->material_id);
-
-                    if ($material) {
-                        // buscar la reserva total de este material para esta cotización
-                        $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                            ->where('material_id', $consumable->material_id)
-                            ->lockForUpdate()
-                            ->first();
-
-                        if ($reservation) {
-                            $reservation->quantity -= (float) $consumable->quantity;
-
-                            if ($reservation->quantity <= 0) {
-                                $reservation->delete();
-                            } else {
-                                $reservation->save();
-                            }
-                        }
-
-                        // restar del stock_reserved del material
-                        $material->stock_reserved -= (float) $consumable->quantity;
-                        if ($material->stock_reserved < 0) {
-                            $material->stock_reserved = 0; // por seguridad
-                        }
-                        $material->save();
-                    }
-                    // 🟢 eliminar usages ligados
-                    PromotionUsage::where('equipment_consumable_id', $consumable->id)->delete();
-                    $consumable->delete();
-                }
-                foreach( $equipment_quote->electrics as $electric ) {
-                    $electric->delete();
-                }
-                foreach( $equipment_quote->workforces as $workforce ) {
-                    $workforce->delete();
-                }
-                foreach( $equipment_quote->turnstiles as $turnstile ) {
-                    $turnstile->delete();
-                }
-                foreach( $equipment_quote->workdays as $workday ) {
-                    $workday->delete();
-                }
-
-                $equipment_quote->delete();
-
-                $equipments = $request->input('equipment');
-
-                $totalQuote = 0;
-
-                foreach ( $equipments as $equip )
-                {
-                    $equipment = Equipment::create([
-                        'quote_id' => $quote->id,
-                        'description' => ($equip['description'] == "" || $equip['description'] == null) ? '':$equip['description'],
-                        'detail' => ($equip['detail'] == "" || $equip['detail'] == null) ? '':$equip['detail'],
-                        'quantity' => $equip['quantity'],
-                        'utility' => $equip['utility'],
-                        'rent' => $equip['rent'],
-                        'letter' => $equip['letter'],
-                        'total' => $equip['total']
-                    ]);
-
-                    $materials = $equip['materials'];
-                    $consumables = $equip['consumables'];
-                    $electrics = $equip['electrics'];
-                    $workforces = $equip['workforces'];
-                    $tornos = $equip['tornos'];
-                    $dias = $equip['dias'];
-
-                    foreach ( $materials as $material )
-                    {
-                        EquipmentMaterial::create([
-                            'equipment_id' => $equipment->id,
-                            'material_id' => (int)$material['material']['id'],
-                            'quantity' => (float) $material['quantity'],
-                            'price' => (float) $material['material']['unit_price'],
-                            'length' => (float) ($material['length'] == '') ? 0: $material['length'],
-                            'width' => (float) ($material['width'] == '') ? 0: $material['width'],
-                            'percentage' => (float) $material['quantity'],
-                            'state' => ($material['quantity'] > $material['material']['stock_current']) ? 'Falta comprar':'En compra',
-                            'availability' => ($material['quantity'] > $material['material']['stock_current']) ? 'Agotado':'Completo',
-                            'total' => (float) $material['quantity']*(float) $material['material']['unit_price']
-                        ]);
-                    }
-
-                    foreach ( $consumables as $consumable )
-                    {
-                        // 🔒 bloquear material para evitar race conditions
-                        $material = Material::lockForUpdate()->find((int)$consumable['id']);
-
-                        if (!$material) {
-                            throw new \Exception("El material con ID {$consumable['id']} no existe.");
-                        }
-
-                        $requestedQty = (float) $consumable['quantity'];
-                        $available = (float) $material->stock_current - (float) $material->stock_reserved;
-
-                        if ($requestedQty > $available) {
-                            throw new \Exception("El material {$material->full_name} no cuenta con stock suficiente para la cantidad solicitada ({$requestedQty}). Stock disponible: {$available}.");
-                        }
-
-                        // 🟢 PRIMERO crear consumible
-                        $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Agotado':'Completo',
-                            'state' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Falta comprar':'En compra',
-                            'equipment_id' => $equipment->id,
-                            'material_id' => $consumable['id'],
-                            'quantity' => (float) $consumable['quantity'],
-                            'price' => (float) $consumable['price'],
-                            'valor_unitario' => (float) $consumable['valor'],
-                            'discount' => (float) $consumable['discount'],
-                            'total' => (float) $consumable['importe'],
-                            'type_promo' => $consumable['type_promo'],
-                        ]);
-
-                        // 🟢 REGISTRAR/ACTUALIZAR RESERVA POR COTIZACIÓN
-                        $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                            ->where('material_id', $material->id)
-                            ->lockForUpdate()
-                            ->first();
-
-                        if ($reservation) {
-                            $reservation->quantity += $requestedQty;
-                            $reservation->save();
-                        } else {
-                            $reservation = QuoteMaterialReservation::create([
-                                'quote_id'    => $quote->id,
-                                'material_id' => $material->id,
-                                'quantity'    => $requestedQty,
-                            ]);
-                        }
-
-                        // 🟢 ACTUALIZAR EL STOCK RESERVADO DEL MATERIAL
-                        $material->stock_reserved += $requestedQty;
-                        $material->save();
-
-                        // 🟢 Luego validar promoción
-                        if ($consumable["type_promo"] == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumable["id"])
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
-                                ->first();
-
-                            if ($promotion) {
-                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id)
-                                    ->where('quote_id', $quote->id)
-                                    ->where('equipment_id', $equipment->id)
-                                    ->where('equipment_consumable_id', $equipmentConsumable->id);
-
-                                if ($promotion->applies_to == 'worker') {
-                                    $query->where('user_id', auth()->id());
-                                }
-
-                                $usage = $query->first();
-
-                                if (!$usage) {
-                                    $usage = PromotionUsage::create([
-                                        'promotion_limit_id' => $promotion->id,
-                                        'quote_id' => $quote->id,
-                                        'equipment_id' => $equipment->id,
-                                        'equipment_consumable_id' => $equipmentConsumable->id,
-                                        'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                        'used_quantity' => 0,
-                                    ]);
-                                }
-
-                                $requestedQty = (float) $consumable["quantity"];
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
-
-                                if ($remaining < $requestedQty) {
-                                    throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
-                                }
-
-                                $usage->increment('used_quantity', $requestedQty);
-                            }
-                        }
-                    }
-
-                    foreach ( $electrics as $electricd )
-                    {
-                        EquipmentElectric::create([
-                            'equipment_id' => $equipment->id,
-                            'material_id' => $electricd['id'],
-                            'quantity' => (float) $electricd['quantity'],
-                            'price' => (float) $electricd['price'],
-                            'total' => (float) $electricd['quantity']*(float) $electricd['price'],
-                        ]);
-                    }
-
-                    foreach ( $workforces as $workforce )
-                    {
-                        EquipmentWorkforce::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $workforce['description'],
-                            'price' => (float) $workforce['price'],
-                            'quantity' => (float) $workforce['quantity'],
-                            'total' => (float) $workforce['price']*(float) $workforce['quantity'],
-                            'unit' => $workforce['unit'],
-                        ]);
-                    }
-
-                    foreach ( $tornos as $torno )
-                    {
-                        EquipmentTurnstile::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $torno['description'],
-                            'price' => (float) $torno['price'],
-                            'quantity' => (float) $torno['quantity'],
-                            'total' => (float) $torno['price']*(float) $torno['quantity']
-                        ]);
-                    }
-
-                    foreach ( $dias as $dia )
-                    {
-                        EquipmentWorkday::create([
-                            'equipment_id' => $equipment->id,
-                            'description' => $dia['description'],
-                            'quantityPerson' => (float) $dia['quantity'],
-                            'hoursPerPerson' => (float) $dia['hours'],
-                            'pricePerHour' => (float) $dia['price'],
-                            'total' => (float) $dia['quantity']*(float) $dia['hours']*(float) $dia['price']
-                        ]);
-                    }
-
-                    $totalEquipo2 = (float)$equip['total'];
-                    $totalEquipmentU2 = $totalEquipo2*(($equip['utility']/100)+1);
-                    $totalEquipmentL2 = $totalEquipmentU2*(($equip['letter']/100)+1);
-                    $totalEquipmentR2 = $totalEquipmentL2*(($equip['rent']/100)+1);
-
-                    $totalQuote = $totalQuote + $totalEquipmentR2;
-
-                    $equipment->total = $totalEquipo2;
-                    $equipment->save();
-
-                    $equipmentSent = $equipment;
-                }
-
-                // Guardamos los totales
-                $quote->descuento = ($request->has('descuento')) ? $request->get('descuento') : null;
-                $quote->gravada = ($request->has('gravada')) ? $request->get('gravada') : null;
-                $quote->igv_total = ($request->has('igv_total')) ? $request->get('igv_total') : null;
-                $quote->total_importe = ($request->has('total_importe')) ? $request->get('total_importe') : null;
-                $quote->save();
-
-            } else {
-                // 🟢 Ya no eliminamos el equipo, solo lo modificamos
-                foreach( $equipment_quote->materials as $material ) {
-                    $material->delete();
-                }
-                foreach( $equipment_quote->consumables as $consumable ) {
-                    // 🧮 devolver reserva de este consumible
-                    $material = Material::lockForUpdate()->find($consumable->material_id);
-
-                    if ($material) {
-                        // buscar la reserva total de este material para esta cotización
-                        $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                            ->where('material_id', $consumable->material_id)
-                            ->lockForUpdate()
-                            ->first();
-
-                        if ($reservation) {
-                            $reservation->quantity -= (float) $consumable->quantity;
-
-                            if ($reservation->quantity <= 0) {
-                                $reservation->delete();
-                            } else {
-                                $reservation->save();
-                            }
-                        }
-
-                        // restar del stock_reserved del material
-                        $material->stock_reserved -= (float) $consumable->quantity;
-                        if ($material->stock_reserved < 0) {
-                            $material->stock_reserved = 0; // por seguridad
-                        }
-                        $material->save();
-                    }
-                    PromotionUsage::where('equipment_consumable_id', $consumable->id)->delete();
-                    $consumable->delete();
-                }
-                foreach( $equipment_quote->electrics as $electric ) {
-                    $electric->delete();
-                }
-                foreach( $equipment_quote->workforces as $workforce ) {
-                    $workforce->delete();
-                }
-                foreach( $equipment_quote->turnstiles as $turnstile ) {
-                    $turnstile->delete();
-                }
-                foreach( $equipment_quote->workdays as $workday ) {
-                    $workday->delete();
-                }
-
-                $quote->save();
-
-                $equipments = $request->input('equipment');
-                $totalQuote = 0;
-
-                foreach ( $equipments as $equip )
-                {
-                    $equipment_quote->quote_id = $quote->id;
-                    $equipment_quote->description = ($equip['description'] == "" || $equip['description'] == null) ? '':$equip['description'];
-                    $equipment_quote->detail = ($equip['detail'] == "" || $equip['detail'] == null) ? '':$equip['detail'];
-                    $equipment_quote->quantity = $equip['quantity'];
-                    $equipment_quote->utility = $equip['utility'];
-                    $equipment_quote->rent = $equip['rent'];
-                    $equipment_quote->letter = $equip['letter'];
-                    $equipment_quote->total = $equip['total'];
-                    $equipment_quote->save();
-
-                    $materials = $equip['materials'];
-                    $consumables = $equip['consumables'];
-                    $electrics = $equip['electrics'];
-                    $workforces = $equip['workforces'];
-                    $tornos = $equip['tornos'];
-                    $dias = $equip['dias'];
-
-                    foreach ( $materials as $material )
-                    {
-                        EquipmentMaterial::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => (int)$material['material']['id'],
-                            'quantity' => (float) $material['quantity'],
-                            'price' => (float) $material['material']['unit_price'],
-                            'length' => (float) ($material['length'] == '') ? 0: $material['length'],
-                            'width' => (float) ($material['width'] == '') ? 0: $material['width'],
-                            'percentage' => (float) $material['quantity'],
-                            'state' => ($material['quantity'] > $material['material']['stock_current']) ? 'Falta comprar':'En compra',
-                            'availability' => ($material['quantity'] > $material['material']['stock_current']) ? 'Agotado':'Completo',
-                            'total' => (float) $material['quantity']*(float) $material['material']['unit_price']
-                        ]);
-                    }
-
-                    foreach ( $consumables as $consumable )
-                    {
-                        // 🔒 bloquear material para evitar race conditions
-                        $material = Material::lockForUpdate()->find((int)$consumable['id']);
-
-                        if (!$material) {
-                            throw new \Exception("El material con ID {$consumable['id']} no existe.");
-                        }
-
-                        $requestedQty = (float) $consumable['quantity'];
-                        $available = (float) $material->stock_current - (float) $material->stock_reserved;
-
-                        if ($requestedQty > $available) {
-                            throw new \Exception("El material {$material->full_name} no cuenta con stock suficiente para la cantidad solicitada ({$requestedQty}). Stock disponible: {$available}.");
-                        }
-
-                        $equipmentConsumable = EquipmentConsumable::create([
-                            'availability' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Agotado':'Completo',
-                            'state' => ((float) $consumable['quantity'] > $material->stock_current) ? 'Falta comprar':'En compra',
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => $consumable['id'],
-                            'quantity' => (float) $consumable['quantity'],
-                            'price' => (float) $consumable['price'],
-                            'valor_unitario' => (float) $consumable['valor'],
-                            'discount' => (float) $consumable['discount'],
-                            'total' => (float) $consumable['importe'],
-                            'type_promo' => $consumable['type_promo'],
-                        ]);
-
-                        // 🟢 REGISTRAR/ACTUALIZAR RESERVA POR COTIZACIÓN
-                        $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                            ->where('material_id', $material->id)
-                            ->lockForUpdate()
-                            ->first();
-
-                        if ($reservation) {
-                            $reservation->quantity += $requestedQty;
-                            $reservation->save();
-                        } else {
-                            $reservation = QuoteMaterialReservation::create([
-                                'quote_id'    => $quote->id,
-                                'material_id' => $material->id,
-                                'quantity'    => $requestedQty,
-                            ]);
-                        }
-
-                        // 🟢 ACTUALIZAR EL STOCK RESERVADO DEL MATERIAL
-                        $material->stock_reserved += $requestedQty;
-                        $material->save();
-
-                        if ($consumable["type_promo"] == "limit") {
-                            $promotion = PromotionLimit::where('material_id', $consumable["id"])
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
-                                ->first();
-
-                            if ($promotion) {
-                                $query = PromotionUsage::where('promotion_limit_id', $promotion->id)
-                                    ->where('quote_id', $quote->id)
-                                    ->where('equipment_id', $equipment_quote->id)
-                                    ->where('equipment_consumable_id', $equipmentConsumable->id);
-
-                                if ($promotion->applies_to == 'worker') {
-                                    $query->where('user_id', auth()->id());
-                                }
-
-                                $usage = $query->first();
-
-                                if (!$usage) {
-                                    $usage = PromotionUsage::create([
-                                        'promotion_limit_id' => $promotion->id,
-                                        'quote_id' => $quote->id,
-                                        'equipment_id' => $equipment_quote->id,
-                                        'equipment_consumable_id' => $equipmentConsumable->id,
-                                        'user_id' => $promotion->applies_to == 'worker' ? auth()->id() : null,
-                                        'used_quantity' => 0,
-                                    ]);
-                                }
-
-                                $requestedQty = (float) $consumable["quantity"];
-                                $remaining = $promotion->limit_quantity - $usage->used_quantity;
-
-                                if ($remaining < $requestedQty) {
-                                    throw new \Exception("La promoción para {$material->full_name} ya no tiene suficiente cantidad disponible");
-                                }
-
-                                $usage->increment('used_quantity', $requestedQty);
-                            }
-                        }
-                    }
-
-                    foreach ( $electrics as $electric )
-                    {
-                        EquipmentElectric::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'material_id' => $electric['id'],
-                            'quantity' => (float) $electric['quantity'],
-                            'price' => (float) $electric['price'],
-                            'total' => (float) $electric['quantity']*(float) $electric['price'],
-                        ]);
-                    }
-
-                    foreach ( $workforces as $workforce )
-                    {
-                        EquipmentWorkforce::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $workforce['description'],
-                            'price' => (float) $workforce['price'],
-                            'quantity' => (float) $workforce['quantity'],
-                            'total' => (float) $workforce['price']*(float) $workforce['quantity'],
-                            'unit' => $workforce['unit'],
-                        ]);
-                    }
-
-                    foreach ( $tornos as $torno )
-                    {
-                        EquipmentTurnstile::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $torno['description'],
-                            'price' => (float) $torno['price'],
-                            'quantity' => (float) $torno['quantity'],
-                            'total' => (float) $torno['price']*(float) $torno['quantity']
-                        ]);
-                    }
-
-                    foreach ( $dias as $dia )
-                    {
-                        EquipmentWorkday::create([
-                            'equipment_id' => $equipment_quote->id,
-                            'description' => $dia['description'],
-                            'quantityPerson' => (float) $dia['quantity'],
-                            'hoursPerPerson' => (float) $dia['hours'],
-                            'pricePerHour' => (float) $dia['price'],
-                            'total' => (float) $dia['quantity']*(float) $dia['hours']*(float) $dia['price']
-                        ]);
-                    }
-                }
-
-                $quote->descuento = ($request->has('descuento')) ? $request->get('descuento') : null;
-                $quote->gravada = ($request->has('gravada')) ? $request->get('gravada') : null;
-                $quote->igv_total = ($request->has('igv_total')) ? $request->get('igv_total') : null;
-                $quote->total_importe = ($request->has('total_importe')) ? $request->get('total_importe') : null;
-                $quote->save();
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Modificar equipo de cotizacion',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage().' '.$e->getLine()], 422);
-        }
-        return response()->json(['message' => 'Equipo guardado con éxito.', 'equipment'=>$equipmentSent, 'quote'=>$quote], 200);
-
-    }
-
-    public function updateEquipmentOfQuote3(Request $request, $id_equipment, $id_quote)
-    {
-        //dd($request);
-        $begin = microtime(true);
-
-        $quote = Quote::findOrFail($id_quote);
-
-        DB::beginTransaction();
         try {
 
-            $dateQuote = $request->get('date_quote')
-                ? Carbon::createFromFormat('d/m/Y', $request->get('date_quote'))
-                : null;
+            $companyId = TenantContext::companyId();
 
-            $dateValidate = $request->get('date_validate')
-                ? Carbon::createFromFormat('d/m/Y', $request->get('date_validate'))
-                : null;
+            DB::transaction(function () use (
+                $quote,
+                $companyId,
+                $begin
+            ) {
 
-            $quote->update([
-                'description_quote'   => $request->get('descriptionQuote'),
-                'code'                => $request->get('codeQuote'),
-                'date_quote'          => $dateQuote,
-                'date_validate'       => $dateValidate,
-                'way_to_pay'          => $request->get('way_to_pay') ?? '',
-                'delivery_time'       => $request->get('delivery_time') ?? '',
-                'customer_id'         => $request->get('customer_id') ?? null,
-                'contact_id'          => $request->get('contact_id') ?? null,
-                'payment_deadline_id' => $request->get('payment_deadline') ?? null,
-                'observations'        => $request->get('observations') ?? '',
-            ]);
+                /*
+                 * ==========================================================
+                 * 1. OBTENER Y BLOQUEAR QUOTE DE LA COMPANY ACTUAL
+                 * ==========================================================
+                 */
 
+                $quote = Quote::query()
+                    ->where('id', $quote->id)
+                    ->where('company_id', $companyId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            $equipment_quote = Equipment::where('id', $id_equipment)
-                ->where('quote_id', $quote->id)
-                ->firstOrFail();
+                /*
+                 * ==========================================================
+                 * 2. VALIDAR ESTADO
+                 * ==========================================================
+                 */
 
-            /**
-             * 1) Guardar totales de Quote + metadata del descuento
-             * AHORA vienen del front como:
-             * - descuento, gravada, igv_total, total_importe (reales 10 dec)
-             */
-            $quote->descuento      = (string)($request->input('descuento', '0'));
-            $quote->gravada        = (string)($request->input('gravada', '0'));
-            $quote->igv_total      = (string)($request->input('igv_total', '0'));
-            $quote->total_importe  = (string)($request->input('total_importe', '0'));
-
-            $quote->discount_type       = $request->input('discount_type');        // amount|percent
-            $quote->discount_input_mode = $request->input('discount_input_mode');  // with_igv|without_igv
-            $quote->discount_input_value= $request->input('discount_input_value'); // numeric
-            $quote->save();
-
-            /**
-             * 2) Eliminar consumables antiguos y devolver reservas
-             * quantity en BD = unidades equivalentes (stock)
-             */
-            foreach ($equipment_quote->consumables as $consumable) {
-
-                $material = Material::lockForUpdate()->find($consumable->material_id);
-
-                if ($material) {
-                    $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                        ->where('material_id', $consumable->material_id)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if ($reservation) {
-                        $reservation->quantity -= (float)$consumable->quantity;
-                        if ($reservation->quantity <= 0) $reservation->delete();
-                        else $reservation->save();
-                    }
-
-                    $material->stock_reserved -= (float)$consumable->quantity;
-                    if ($material->stock_reserved < 0) $material->stock_reserved = 0;
-                    $material->save();
+                if ($quote->state === 'canceled') {
+                    throw new \Exception(
+                        'La cotización ya fue anulada.'
+                    );
                 }
 
-                $consumable->delete();
-            }
+                /** @var QuoteStockReservationService $reservationService */
+                $reservationService = app(
+                    QuoteStockReservationService::class
+                );
 
-            // Limpiar relaciones restantes (siempre recreamos)
-            foreach ($equipment_quote->workforces as $workforce) $workforce->delete();
-            foreach ($equipment_quote->materials as $m) $m->delete();
-            foreach ($equipment_quote->electrics as $e) $e->delete();
-            foreach ($equipment_quote->turnstiles as $t) $t->delete();
-            foreach ($equipment_quote->workdays as $w) $w->delete();
+                /*
+                 * ==========================================================
+                 * 3. VALIDAR VENTA ACTIVA
+                 * ==========================================================
+                 *
+                 * Mientras Sale todavía no sea Company-level,
+                 * la relación quote_id es nuestra referencia.
+                 *
+                 * Cuando migremos Sale en QUOTE-SALE-07,
+                 * agregaremos company_id también aquí.
+                 */
 
-            /**
-             * 3) Payload (array con 1 equipo)
-             */
-            $equipments = $request->input('equipment');
-            if (!is_array($equipments) || count($equipments) === 0) {
-                throw new \Exception('No se recibieron equipos.');
-            }
-            $equip = $equipments[0];
-
-            /**
-             * 4) Actualizar equipo principal
-             */
-            $equipment_quote->description = $equip['description'] ?? '';
-            $equipment_quote->detail      = $equip['detail'] ?? '';
-            $equipment_quote->quantity    = $equip['quantity'] ?? 1;
-            $equipment_quote->utility     = $equip['utility'] ?? 0;
-            $equipment_quote->rent        = $equip['rent'] ?? 0;
-            $equipment_quote->letter      = $equip['letter'] ?? 0;
-
-            // total del equipo con IGV (real 10 dec)
-            $equipment_quote->total       = (string)($equip['total'] ?? '0');
-            $equipment_quote->save();
-
-            /**
-             * 5) Re-crear consumables
-             * - En BD: quantity SIEMPRE unidades equivalentes (stock)
-             * - price / valor_unitario / total: VIENEN DEL FRONT EN REAL (10 dec)
-             */
-            $consumables = $equip['consumables'] ?? [];
-
-            // Para sumar con precisión si lo necesitas
-            @bcscale(10);
-
-            foreach ($consumables as $c) {
-
-                $materialId = (int)($c['id'] ?? 0);
-                $material = Material::lockForUpdate()->find($materialId);
-
-                if (!$material) {
-                    throw new \Exception("El material con ID {$materialId} no existe.");
-                }
-
-                // --- presentación solo para stock/reserva ---
-                $presentationId = $c['presentation_id'] ?? null;
-                $packs = null;
-                $unitsPerPack = null;
-
-                // units equivalentes a reservar
-                $requestedUnits = 0;
-
-                if (!empty($presentationId)) {
-
-                    // En UI quantity = packs
-                    $packs = (int)($c['quantity'] ?? 0);
-                    if ($packs < 1) {
-                        throw new \Exception("Packs inválidos para {$material->full_name}.");
-                    }
-
-                    // Validar presentación real
-                    $presentation = MaterialPresentation::where('id', $presentationId)
-                        ->where('material_id', $materialId)
-                        ->where('active', 1)
-                        ->first();
-
-                    if (!$presentation) {
-                        throw new \Exception("Presentación inválida para {$material->full_name}.");
-                    }
-
-                    $unitsPerPack = (int)$presentation->quantity;
-                    if ($unitsPerPack < 1) {
-                        throw new \Exception("Units_per_pack inválido para {$material->full_name}.");
-                    }
-
-                    $requestedUnits = (float)($packs * $unitsPerPack);
-
-                } else {
-
-                    // Unitario: units_equivalent debe ser unidades (si no viene, usa quantity)
-                    $requestedUnits = (float)($c['units_equivalent'] ?? ($c['quantity'] ?? 0));
-                    if ($requestedUnits <= 0) {
-                        throw new \Exception("Cantidad inválida para {$material->full_name}.");
-                    }
-                }
-
-                // --- Dinero (NO recalcular): guardar lo real del front ---
-                $valorUnitarioReal = (string)($c['valorReal'] ?? $c['valor'] ?? '0'); // sin IGV
-                $priceReal         = (string)($c['priceReal'] ?? $c['price'] ?? '0'); // con IGV
-                $importeReal       = (string)($c['importe'] ?? '0');                  // total con IGV
-
-                if ((float)$valorUnitarioReal < 0 || (float)$priceReal < 0 || (float)$importeReal < 0) {
-                    throw new \Exception("Valores inválidos (precio/valor/total) para {$material->full_name}.");
-                }
-
-                // validar stock disponible (considera reservas)
-                $available = (float)$material->stock_current - (float)$material->stock_reserved;
-                if ($requestedUnits > $available) {
-                    throw new \Exception("Stock insuficiente para {$material->full_name}. Requerido: {$requestedUnits}. Disponible: {$available}.");
-                }
-
-                $availability = ($requestedUnits > (float)$material->stock_current) ? 'Agotado' : 'Completo';
-                $state        = ($requestedUnits > (float)$material->stock_current) ? 'Falta comprar' : 'En compra';
-
-                // crear consumable (BD guarda unidades equivalentes)
-                $equipmentConsumable = EquipmentConsumable::create([
-                    'equipment_id' => $equipment_quote->id,
-                    'material_id' => $materialId,
-
-                    'material_presentation_id' => $presentationId,
-                    'packs' => $packs,
-                    'units_per_pack' => $unitsPerPack,
-
-                    // ✅ stock (unidades equivalentes)
-                    'quantity' => (float)$requestedUnits,
-
-                    // ✅ dinero real (decimal 20,10)
-                    'price' => $priceReal,
-                    'valor_unitario' => $valorUnitarioReal,
-                    'total' => $importeReal,
-
-                    'discount' => (string)($c['discount'] ?? '0'),
-                    'type_promo' => $c['type_promo'] ?? null,
-                    'availability' => $availability,
-                    'state' => $state,
-                ]);
-
-                // crear/actualizar reserva
-                $reservation = QuoteMaterialReservation::where('quote_id', $quote->id)
-                    ->where('material_id', $materialId)
+                $activeSale = Sale::query()
+                    ->where(
+                        'quote_id',
+                        $quote->id
+                    )
+                    ->where(
+                        'state_annulled',
+                        0
+                    )
                     ->lockForUpdate()
                     ->first();
 
-                if ($reservation) {
-                    $reservation->quantity += $requestedUnits;
-                    $reservation->save();
-                } else {
-                    QuoteMaterialReservation::create([
-                        'quote_id' => $quote->id,
-                        'material_id' => $materialId,
-                        'quantity' => $requestedUnits,
-                    ]);
+                if (
+                    $quote->state === 'confirmed' &&
+                    $activeSale
+                ) {
+                    throw new \Exception(
+                        'No se puede anular esta cotización porque tiene una venta activa asociada. Primero debe anular la venta.'
+                    );
                 }
 
-                // actualizar stock_reserved
-                $material->stock_reserved += $requestedUnits;
-                $material->save();
-            }
+                /*
+                 * ==========================================================
+                 * 4. LIBERAR TODAS LAS RESERVAS
+                 * ==========================================================
+                 *
+                 * QuoteStockReservationService:
+                 *
+                 * - libera qty_reserved de StockLot
+                 * - devuelve Items reserved -> entered
+                 * - elimina QuoteStockLot
+                 * - sincroniza InventoryLevel
+                 */
 
-            /**
-             * 6) Re-crear workforces
-             * (si tus workforces también tienen reales, aplícalo igual)
-             */
-            $workforces = $equip['workforces'] ?? [];
+                $reservationService
+                    ->releaseReservationsByQuote(
+                        (int) $quote->id
+                    );
 
-            foreach ($workforces as $w) {
-                EquipmentWorkforce::create([
-                    'equipment_id' => $equipment_quote->id,
-                    'description' => $w['description'] ?? '',
-                    'price' => (string)($w['price'] ?? '0'),        // con IGV
-                    'quantity' => (float)($w['quantity'] ?? 0),
-                    'total' => (string)($w['importe'] ?? '0'),      // con IGV
-                    'unit' => $w['unit'] ?? '',
-                    'billable' => isset($w['billable']) ? (int)$w['billable'] : 1,
+                /*
+                 * ==========================================================
+                 * 5. LIBERAR USOS DE PROMOCIONES
+                 * ==========================================================
+                 *
+                 * Conservamos por ahora el comportamiento existente:
+                 * si la Quote se cancela, su consumo promocional deja
+                 * de ocupar cupo.
+                 *
+                 * No eliminamos Equipment ni EquipmentConsumable porque
+                 * forman parte del histórico de la cotización.
+                 */
+
+                $equipmentIds = Equipment::query()
+                    ->where(
+                        'quote_id',
+                        $quote->id
+                    )
+                    ->pluck('id');
+
+                if ($equipmentIds->isNotEmpty()) {
+
+                    $consumableIds =
+                        EquipmentConsumable::query()
+                            ->whereIn(
+                                'equipment_id',
+                                $equipmentIds
+                            )
+                            ->pluck('id');
+
+                    if ($consumableIds->isNotEmpty()) {
+
+                        PromotionUsage::query()
+                            ->whereIn(
+                                'equipment_consumable_id',
+                                $consumableIds
+                            )
+                            ->delete();
+                    }
+                }
+
+                /*
+                 * ==========================================================
+                 * 6. MARCAR QUOTE COMO CANCELADA
+                 * ==========================================================
+                 *
+                 * NO hacemos delete().
+                 * Conservamos toda la estructura para histórico/auditoría.
+                 */
+
+                $quote->state = 'canceled';
+
+                $quote->save();
+
+                /*
+                 * ==========================================================
+                 * 7. AUDITORÍA
+                 * ==========================================================
+                 */
+
+                Audit::create([
+                    'user_id' =>
+                        Auth::id(),
+
+                    'action' =>
+                        'Anular cotización de venta ' .
+                        $quote->code,
+
+                    'time' => microtime(true) - $begin,
                 ]);
-            }
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Modificar equipo de cotizacion (EDIT)',
-                'time' => microtime(true) - $begin
-            ]);
-
-            DB::commit();
+            });
 
             return response()->json([
-                'message' => 'Equipo guardado con éxito.',
-                'equipment' => $equipment_quote,
-                'quote' => $quote
+                'ok' => true,
+                'message' =>
+                    'La cotización fue anulada correctamente.',
             ], 200);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
+
             return response()->json([
+                'ok' => false,
                 'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
             ], 422);
         }
     }
 
-    public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote)
+    public function updateEquipmentOfQuoteO(Request $request, $id_equipment, $id_quote)
     {
         $begin = microtime(true);
 
@@ -6326,6 +5564,772 @@ class QuoteSaleController extends Controller
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+            ], 422);
+        }
+    }
+
+    public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote) {
+        $begin = microtime(true);
+
+        $companyId = TenantContext::companyId();
+
+        DB::beginTransaction();
+
+        try {
+            /** @var QuoteStockReservationService $reservationService */
+            $reservationService = app(
+                QuoteStockReservationService::class
+            );
+
+            /*
+             * =========================================================
+             * 1) VALIDAR QUOTE DE LA COMPANY ACTUAL
+             * =========================================================
+             */
+
+            $quote = Quote::query()
+                ->where('id', $id_quote)
+                ->where('company_id', $companyId)
+                ->firstOrFail();
+
+            /*
+             * =========================================================
+             * 2) VALIDAR DATOS GENERALES
+             * =========================================================
+             */
+
+            $customerId =
+                $request->get('customer_id');
+
+            $contactId =
+                $request->get('contact_id');
+
+            if ($customerId) {
+                Customer::query()
+                    ->where('id', $customerId)
+                    ->firstOrFail();
+            }
+
+            if ($contactId) {
+                ContactName::query()
+                    ->where('id', $contactId)
+                    ->where('customer_id', $customerId)
+                    ->firstOrFail();
+            }
+
+            $paymentDeadlineId =
+                $request->get('payment_deadline');
+
+            if ($paymentDeadlineId) {
+                PaymentDeadline::query()
+                    ->where('id', $paymentDeadlineId)
+                    ->where('type', 'quotes')
+                    ->firstOrFail();
+            }
+
+            $dateQuote = $request->get('date_quote')
+                ? Carbon::createFromFormat(
+                    'd/m/Y',
+                    $request->get('date_quote')
+                )
+                : null;
+
+            $dateValidate = $request->get('date_validate')
+                ? Carbon::createFromFormat(
+                    'd/m/Y',
+                    $request->get('date_validate')
+                )
+                : null;
+
+            /*
+             * =========================================================
+             * 3) ACTUALIZAR DATOS GENERALES DE QUOTE
+             * =========================================================
+             */
+
+            $quote->update([
+                'description_quote' =>
+                    $request->get('descriptionQuote'),
+
+                'code' =>
+                    $request->get('codeQuote'),
+
+                'date_quote' =>
+                    $dateQuote,
+
+                'date_validate' =>
+                    $dateValidate,
+
+                'way_to_pay' =>
+                    $request->get('way_to_pay') ?? '',
+
+                'delivery_time' =>
+                    $request->get('delivery_time') ?? '',
+
+                'customer_id' =>
+                    $customerId ?: null,
+
+                'contact_id' =>
+                    $contactId ?: null,
+
+                'payment_deadline_id' =>
+                    $paymentDeadlineId ?: null,
+
+                'observations' =>
+                    $request->get('observations') ?? '',
+            ]);
+
+            /*
+             * =========================================================
+             * 4) VALIDAR EQUIPMENT PERTENECE A LA QUOTE
+             * =========================================================
+             */
+
+            $equipmentQuote = Equipment::query()
+                ->where('id', $id_equipment)
+                ->where('quote_id', $quote->id)
+                ->firstOrFail();
+
+            /*
+             * =========================================================
+             * 5) TOTALES GENERALES
+             * =========================================================
+             */
+
+            $quote->descuento =
+                (string) $request->input(
+                    'descuento',
+                    '0'
+                );
+
+            $quote->gravada =
+                (string) $request->input(
+                    'gravada',
+                    '0'
+                );
+
+            $quote->igv_total =
+                (string) $request->input(
+                    'igv_total',
+                    '0'
+                );
+
+            $quote->total_importe =
+                (string) $request->input(
+                    'total_importe',
+                    '0'
+                );
+
+            $quote->discount_type =
+                $request->input(
+                    'discount_type'
+                );
+
+            $quote->discount_input_mode =
+                $request->input(
+                    'discount_input_mode'
+                );
+
+            $quote->discount_input_value =
+                $request->input(
+                    'discount_input_value'
+                );
+
+            $quote->save();
+
+            /*
+             * =========================================================
+             * 6) LIBERAR RESERVAS Y ELIMINAR DETALLES ANTERIORES
+             * =========================================================
+             */
+
+            $equipmentQuote->load([
+                'consumables',
+                'workforces',
+            ]);
+
+            foreach (
+                $equipmentQuote->consumables
+                as $consumable
+            ) {
+                $reservationService
+                    ->releaseReservationsByQuoteDetail(
+                        (int) $quote->id,
+                        (int) $consumable->id
+                    );
+
+                $consumable->delete();
+            }
+
+            foreach (
+                $equipmentQuote->workforces
+                as $workforce
+            ) {
+                $workforce->delete();
+            }
+
+            /*
+             * =========================================================
+             * 7) OBTENER PAYLOAD
+             * =========================================================
+             */
+
+            $equipments =
+                $request->input(
+                    'equipment'
+                );
+
+            if (
+                !is_array($equipments) ||
+                count($equipments) === 0
+            ) {
+                throw new \Exception(
+                    'No se recibió la información de la cotización.'
+                );
+            }
+
+            /*
+             * Actualmente trabajamos con un solo Equipment.
+             */
+            $equip =
+                $equipments[0];
+
+            /*
+             * =========================================================
+             * 8) ACTUALIZAR EQUIPMENT PRINCIPAL
+             * =========================================================
+             */
+
+            $equipmentQuote->description =
+                $equip['description'] ?? '';
+
+            $equipmentQuote->detail =
+                $equip['detail'] ?? '';
+
+            $equipmentQuote->quantity =
+                $equip['quantity'] ?? 1;
+
+            /*
+             * utility / rent / letter ya no forman parte
+             * del flujo funcional moderno.
+             *
+             * Se mantienen en 0 únicamente por compatibilidad
+             * con columnas legacy.
+             */
+            $equipmentQuote->utility = 0;
+            $equipmentQuote->rent = 0;
+            $equipmentQuote->letter = 0;
+
+            $equipmentQuote->total =
+                (string) (
+                    $equip['total'] ?? '0'
+                );
+
+            $equipmentQuote->save();
+
+            /*
+             * =========================================================
+             * 9) RECREAR CONSUMABLES Y RESERVAS
+             * =========================================================
+             */
+
+            $consumables =
+                $equip['consumables'] ?? [];
+
+            @bcscale(10);
+
+            foreach ($consumables as $c) {
+
+                /*
+                 * En la lógica moderna:
+                 *
+                 * stock_item_id es la identidad real del producto.
+                 */
+                $stockItemId = (int) (
+                    $c['stock_item_id']
+                    ?? $c['stockItemId']
+                    ?? $c['id']
+                    ?? 0
+                );
+
+                if ($stockItemId <= 0) {
+                    throw new \Exception(
+                        'No se pudo identificar el producto seleccionado.'
+                    );
+                }
+
+                /*
+                 * CRÍTICO:
+                 * El StockItem debe:
+                 *
+                 * - pertenecer al Tenant actual por BelongsToTenant
+                 * - estar activo
+                 * - estar habilitado comercialmente para esta Company
+                 */
+                $stockItem = StockItem::query()
+                    ->with([
+                        'material',
+                    ])
+                    ->where(
+                        'id',
+                        $stockItemId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->enabledForCompany(
+                        $companyId
+                    )
+                    ->first();
+
+                if (!$stockItem) {
+                    throw new \Exception(
+                        'El producto seleccionado no está disponible para la empresa actual.'
+                    );
+                }
+
+                if (!$stockItem->material) {
+                    throw new \Exception(
+                        "El StockItem {$stockItemId} no tiene material asociado."
+                    );
+                }
+
+                $material =
+                    $stockItem->material;
+
+                $materialId =
+                    (int) $material->id;
+
+                /*
+                 * =====================================================
+                 * ITEMEABLE
+                 * =====================================================
+                 */
+
+                $isItemeable =
+                    (int) (
+                        $material->tipo_venta_id ?? 0
+                    ) === 3;
+
+                /*
+                 * =====================================================
+                 * PRESENTACIÓN / UNIDADES
+                 * =====================================================
+                 */
+
+                $presentationId =
+                    $c['presentation_id'] ?? null;
+
+                $packs = null;
+                $unitsPerPack = null;
+                $requestedUnits = 0;
+
+                if (!empty($presentationId)) {
+
+                    $packs =
+                        (int) (
+                            $c['quantity'] ?? 0
+                        );
+
+                    if ($packs < 1) {
+                        throw new \Exception(
+                            "Cantidad de paquetes inválida para {$stockItem->display_name}."
+                        );
+                    }
+
+                    $presentation =
+                        MaterialPresentation::query()
+                            ->where(
+                                'id',
+                                $presentationId
+                            )
+                            ->where(
+                                'material_id',
+                                $materialId
+                            )
+                            ->where(
+                                'active',
+                                1
+                            )
+                            ->first();
+
+                    if (!$presentation) {
+                        throw new \Exception(
+                            "La presentación seleccionada no es válida para {$stockItem->display_name}."
+                        );
+                    }
+
+                    $unitsPerPack =
+                        (int) $presentation->quantity;
+
+                    if ($unitsPerPack < 1) {
+                        throw new \Exception(
+                            "La presentación tiene una cantidad inválida para {$stockItem->display_name}."
+                        );
+                    }
+
+                    $requestedUnits =
+                        (float) (
+                            $packs *
+                            $unitsPerPack
+                        );
+
+                } else {
+
+                    $requestedUnits =
+                        (float) (
+                            $c['units_equivalent']
+                            ?? $c['quantity']
+                            ?? 0
+                        );
+
+                    if ($requestedUnits <= 0) {
+                        throw new \Exception(
+                            "Cantidad inválida para {$stockItem->display_name}."
+                        );
+                    }
+                }
+
+                /*
+                 * =====================================================
+                 * VALORES MONETARIOS
+                 * =====================================================
+                 *
+                 * IMPORTANTE:
+                 * Conservamos el precio enviado por Edit porque
+                 * corresponde al precio histórico de la cotización.
+                 *
+                 * No re-preciamos automáticamente usando PriceResolver.
+                 */
+
+                $valorUnitarioReal =
+                    (string) (
+                        $c['valorReal']
+                        ?? $c['valor']
+                        ?? '0'
+                    );
+
+                $priceReal =
+                    (string) (
+                        $c['priceReal']
+                        ?? $c['price']
+                        ?? '0'
+                    );
+
+                $importeReal =
+                    (string) (
+                        $c['importe']
+                        ?? '0'
+                    );
+
+                if (
+                    (float) $valorUnitarioReal < 0 ||
+                    (float) $priceReal < 0 ||
+                    (float) $importeReal < 0
+                ) {
+                    throw new \Exception(
+                        "Valores monetarios inválidos para {$stockItem->display_name}."
+                    );
+                }
+
+                /*
+                 * =====================================================
+                 * VALIDAR ITEMS FÍSICOS
+                 * =====================================================
+                 */
+
+                $selectedItemIds = [];
+
+                if ($isItemeable) {
+
+                    $rawSelectedItemIds =
+                        $c['selected_item_ids']
+                        ?? [];
+
+                    if (
+                    is_string(
+                        $rawSelectedItemIds
+                    )
+                    ) {
+                        $decodedIds =
+                            json_decode(
+                                $rawSelectedItemIds,
+                                true
+                            );
+
+                        $rawSelectedItemIds =
+                            is_array($decodedIds)
+                                ? $decodedIds
+                                : [];
+                    }
+
+                    if (
+                    !is_array(
+                        $rawSelectedItemIds
+                    )
+                    ) {
+                        $rawSelectedItemIds = [];
+                    }
+
+                    $selectedItemIds =
+                        collect(
+                            $rawSelectedItemIds
+                        )
+                            ->map(function ($itemId) {
+                                return (int) $itemId;
+                            })
+                            ->filter(function ($itemId) {
+                                return $itemId > 0;
+                            })
+                            ->values()
+                            ->toArray();
+
+                    if (
+                    empty(
+                    $selectedItemIds
+                    )
+                    ) {
+                        throw new \Exception(
+                            "Debe seleccionar los ítems físicos para {$material->full_name}."
+                        );
+                    }
+
+                    if (
+                        count(
+                            $selectedItemIds
+                        ) !==
+                        count(
+                            array_unique(
+                                $selectedItemIds
+                            )
+                        )
+                    ) {
+                        throw new \Exception(
+                            "Se detectaron ítems repetidos para {$material->full_name}."
+                        );
+                    }
+
+                    if (
+                        (int) $requestedUnits !==
+                        count(
+                            $selectedItemIds
+                        )
+                    ) {
+                        throw new \Exception(
+                            "La cantidad de ítems seleccionados no coincide con la cantidad requerida para {$material->full_name}. " .
+                            "Requerido: {$requestedUnits}. " .
+                            "Seleccionados: " .
+                            count($selectedItemIds) .
+                            '.'
+                        );
+                    }
+                }
+
+                /*
+                 * =====================================================
+                 * VALIDAR STOCK DISPONIBLE
+                 * =====================================================
+                 *
+                 * QuoteStockReservationService ya trabaja
+                 * contra la Company actual.
+                 */
+
+                $available =
+                    $reservationService
+                        ->getAvailableStockByStockItem(
+                            $stockItemId
+                        );
+
+                if (
+                    $requestedUnits >
+                    $available
+                ) {
+                    throw new \Exception(
+                        "Stock insuficiente para {$material->full_name}. " .
+                        "Requerido: {$requestedUnits}. " .
+                        "Disponible: {$available}."
+                    );
+                }
+
+                /*
+                 * =====================================================
+                 * CREAR EQUIPMENT CONSUMABLE
+                 * =====================================================
+                 */
+
+                $equipmentConsumable =
+                    EquipmentConsumable::create([
+                        'equipment_id' =>
+                            $equipmentQuote->id,
+
+                        'material_id' =>
+                            $materialId,
+
+                        'stock_item_id' =>
+                            $stockItemId,
+
+                        'material_presentation_id' =>
+                            $presentationId,
+
+                        'packs' =>
+                            $packs,
+
+                        'units_per_pack' =>
+                            $unitsPerPack,
+
+                        'quantity' =>
+                            (float) $requestedUnits,
+
+                        'price' =>
+                            $priceReal,
+
+                        'valor_unitario' =>
+                            $valorUnitarioReal,
+
+                        'total' =>
+                            $importeReal,
+
+                        'discount' =>
+                            (string) (
+                                $c['discount']
+                                ?? '0'
+                            ),
+
+                        'type_promo' =>
+                            $c['type_promo']
+                            ?? null,
+
+                        'availability' =>
+                            'Completo',
+
+                        'state' =>
+                            'En compra',
+                    ]);
+
+                /*
+                 * =====================================================
+                 * RESERVAR INVENTARIO
+                 * =====================================================
+                 */
+
+                if ($isItemeable) {
+
+                    $reservationService
+                        ->reserveItemeableForQuoteDetail(
+                            (int) $quote->id,
+                            (int) $equipmentConsumable->id,
+                            (int) $stockItemId,
+                            $selectedItemIds
+                        );
+
+                } else {
+
+                    $reservationService
+                        ->reserveForQuoteDetail(
+                            (int) $quote->id,
+                            (int) $equipmentConsumable->id,
+                            (int) $stockItemId,
+                            (float) $requestedUnits
+                        );
+                }
+            }
+
+            /*
+             * =========================================================
+             * 10) RECREAR SERVICIOS ADICIONALES
+             * =========================================================
+             */
+
+            $workforces =
+                $equip['workforces'] ?? [];
+
+            foreach (
+                $workforces
+                as $workforce
+            ) {
+                EquipmentWorkforce::create([
+                    'equipment_id' =>
+                        $equipmentQuote->id,
+
+                    'description' =>
+                        $workforce['description']
+                        ?? '',
+
+                    'price' =>
+                        (string) (
+                            $workforce['price']
+                            ?? '0'
+                        ),
+
+                    'quantity' =>
+                        (float) (
+                            $workforce['quantity']
+                            ?? 0
+                        ),
+
+                    'total' =>
+                        (string) (
+                            $workforce['importe']
+                            ?? '0'
+                        ),
+
+                    'unit' =>
+                        $workforce['unit']
+                        ?? '',
+
+                    'billable' =>
+                        isset(
+                            $workforce['billable']
+                        )
+                            ? (int) $workforce['billable']
+                            : 1,
+                ]);
+            }
+
+            /*
+             * =========================================================
+             * 11) AUDITORÍA
+             * =========================================================
+             */
+
+            Audit::create([
+                'user_id' =>
+                    Auth::id(),
+
+                'action' =>
+                    'Modificar equipo de cotizacion (EDIT)',
+
+                'time' =>
+                    microtime(true) - $begin,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' =>
+                    'Cotización actualizada correctamente.',
+
+                'equipment' =>
+                    $equipmentQuote,
+
+                'quote' =>
+                    $quote,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+
+                'file' =>
+                    $e->getFile(),
+
+                'line' =>
+                    $e->getLine(),
             ], 422);
         }
     }

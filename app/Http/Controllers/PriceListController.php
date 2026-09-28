@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Company;
 use App\Material;
 use App\PriceList;
+use App\PriceListItem;
 use App\PriceListMaterial;
 use App\StockItem;
 use App\Support\TenantContext;
@@ -16,79 +17,37 @@ class PriceListController extends Controller
 {
     public function index()
     {
-        $tenantId = TenantContext::tenantId();
+        $companyId = TenantContext::companyId();
 
-        $companies = Company::query()
-            ->where('tenant_id', $tenantId)
-            ->where('is_active', 1)
-            ->orderBy('business_name')
-            ->get([
-                'id',
-                'business_name',
-                'ruc',
-            ]);
-
-        $currentCompanyId =
-            TenantContext::companyId();
+        $company = Company::query()
+            ->where('tenant_id', TenantContext::tenantId())
+            ->where('id', $companyId)
+            ->firstOrFail();
 
         return view(
             'priceList.index',
-            compact(
-                'companies',
-                'currentCompanyId'
-            )
+            compact('company')
         );
     }
 
-    public function getPriceLists($companyId)
+    public function getPriceLists()
     {
-        $company = $this->getCompanyForCurrentTenant(
-            $companyId
-        );
+        $companyId = TenantContext::companyId();
 
         $priceLists = PriceList::query()
-            ->where(
-                'company_id',
-                $company->id
-            )
+            ->where('company_id', $companyId)
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get([
-                'id',
-                'company_id',
-                'name',
-                'currency',
-                'is_default',
-                'is_active',
-            ]);
+            ->get();
 
         return response()->json([
             'data' => $priceLists,
         ]);
     }
 
-    private function getCompanyForCurrentTenant(int $companyId): Company
-    {
-        return Company::query()
-            ->where(
-                'tenant_id',
-                TenantContext::tenantId()
-            )
-            ->where(
-                'id',
-                $companyId
-            )
-            ->firstOrFail();
-    }
-
     public function store(Request $request)
     {
         $request->validate([
-            'company_id' => [
-                'required',
-                'integer',
-            ],
-
             'name' => [
                 'required',
                 'string',
@@ -105,16 +64,30 @@ class PriceListController extends Controller
                 'nullable',
                 'boolean',
             ],
+
+            'is_active' => [
+                'required',
+                'boolean',
+            ],
         ]);
 
-        $company = $this->getCompanyForCurrentTenant(
-            (int) $request->company_id
-        );
+        if (
+            (bool) $request->is_default &&
+            !(bool) $request->is_active
+        ) {
+            return response()->json([
+                'message' =>
+                    'Una lista predeterminada debe estar activa.',
+            ], 422);
+        }
+
+        $companyId = TenantContext::companyId();
+        $tenantId = TenantContext::tenantId();
 
         $exists = PriceList::query()
             ->where(
                 'company_id',
-                $company->id
+                $companyId
             )
             ->whereRaw(
                 'LOWER(name) = ?',
@@ -133,7 +106,7 @@ class PriceListController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($request, $company, &$priceList) {
+        DB::transaction(function () use ($request, $companyId, $tenantId, &$priceList) {
             $isDefault =
                 (bool) $request->is_default;
 
@@ -144,7 +117,7 @@ class PriceListController extends Controller
             $hasLists = PriceList::query()
                 ->where(
                     'company_id',
-                    $company->id
+                    $companyId
                 )
                 ->exists();
 
@@ -156,7 +129,7 @@ class PriceListController extends Controller
                 PriceList::query()
                     ->where(
                         'company_id',
-                        $company->id
+                        $companyId
                     )
                     ->update([
                         'is_default' => false,
@@ -165,10 +138,10 @@ class PriceListController extends Controller
 
             $priceList = PriceList::create([
                 'tenant_id' =>
-                    TenantContext::tenantId(),
+                    $tenantId,
 
                 'company_id' =>
-                    $company->id,
+                    $companyId,
 
                 'name' =>
                     strtoupper(
@@ -183,8 +156,7 @@ class PriceListController extends Controller
                 'is_default' =>
                     $isDefault,
 
-                'is_active' =>
-                    true,
+                'is_active' => (bool) $request->is_active,
             ]);
         });
 
@@ -268,6 +240,24 @@ class PriceListController extends Controller
                     ->update([
                         'is_default' => false,
                     ]);
+            }
+
+            if (
+                $priceList->is_default &&
+                !(bool) $request->is_active
+            ) {
+                return response()->json([
+                    'message' => 'No puede desactivar la lista predeterminada. Asigne primero otra lista como predeterminada.',
+                ], 422);
+            }
+
+            if (
+                (bool) $request->is_default &&
+                !(bool) $request->is_active
+            ) {
+                return response()->json([
+                    'message' => 'Una lista predeterminada debe estar activa.',
+                ], 422);
             }
 
             $priceList->update([
@@ -382,7 +372,7 @@ class PriceListController extends Controller
                 'full_name'
             )
 
-            ->paginate(15);
+            ->paginate(5);
 
         $materials->getCollection()
             ->transform(function ($material) {
@@ -434,6 +424,12 @@ class PriceListController extends Controller
             'prices.*.price' =>
                 'nullable|numeric|min:0',
         ]);
+
+        if (!$priceList->is_active) {
+            return response()->json([
+                'message' => 'La lista de precios está inactiva. Actívela antes de modificar sus precios.',
+            ], 422);
+        }
 
         $companyId =
             $priceList->company_id;
@@ -510,6 +506,301 @@ class PriceListController extends Controller
         return response()->json([
             'message' =>
                 'Precios guardados correctamente.',
+        ]);
+    }
+
+    public function getMaterialVariants(PriceList $priceList, Material $material) {
+        $this->validatePriceListTenant(
+            $priceList
+        );
+
+        $companyId =
+            TenantContext::companyId();
+
+        /*
+         * La PriceList debe pertenecer a la Company actual.
+         */
+        if (
+            (int) $priceList->company_id !==
+            (int) $companyId
+        ) {
+            abort(404);
+        }
+
+        /*
+         * El Material debe tener al menos un StockItem
+         * habilitado para esta Company.
+         */
+        $materialExists = Material::query()
+            ->where(
+                'id',
+                $material->id
+            )
+            ->whereHas(
+                'stockItems',
+                function ($query) use ($companyId) {
+                    $query
+                        ->where(
+                            'is_active',
+                            1
+                        )
+                        ->enabledForCompany(
+                            $companyId
+                        );
+                }
+            )
+            ->exists();
+
+        if (!$materialExists) {
+            abort(404);
+        }
+
+        /*
+         * Precio base del Material para esta PriceList.
+         */
+        $materialPrice =
+            PriceListMaterial::query()
+                ->where(
+                    'price_list_id',
+                    $priceList->id
+                )
+                ->where(
+                    'material_id',
+                    $material->id
+                )
+                ->first();
+
+        /*
+         * Solo StockItems habilitados para la Company actual.
+         */
+        $stockItems = StockItem::query()
+            ->with([
+                'variant'
+            ])
+            ->where(
+                'material_id',
+                $material->id
+            )
+            ->where(
+                'is_active',
+                1
+            )
+            ->enabledForCompany(
+                $companyId
+            )
+            ->orderBy(
+                'display_name'
+            )
+            ->get();
+
+        /*
+         * Overrides existentes.
+         */
+        $overrides =
+            PriceListItem::query()
+                ->where(
+                    'price_list_id',
+                    $priceList->id
+                )
+                ->whereIn(
+                    'stock_item_id',
+                    $stockItems->pluck('id')
+                )
+                ->get()
+                ->keyBy(
+                    'stock_item_id'
+                );
+
+        $basePrice =
+            $materialPrice
+                ? (float) $materialPrice->price
+                : null;
+
+        $data =
+            $stockItems->map(
+                function ($stockItem) use (
+                    $overrides,
+                    $basePrice
+                ) {
+                    $override =
+                        $overrides->get(
+                            $stockItem->id
+                        );
+
+                    return [
+                        'stock_item_id' =>
+                            $stockItem->id,
+
+                        'variant_id' =>
+                            $stockItem->variant_id,
+
+                        'name' =>
+                            optional(
+                                $stockItem->variant
+                            )->attribute_summary
+                                ?: $stockItem->display_name,
+
+                        'sku' =>
+                            $stockItem->sku,
+
+                        'barcode' =>
+                            $stockItem->barcode,
+
+                        'base_price' =>
+                            $basePrice,
+
+                        'override_price' =>
+                            $override
+                                ? (float) $override->price
+                                : null,
+
+                        'effective_price' =>
+                            $override
+                                ? (float) $override->price
+                                : $basePrice,
+
+                        'source' =>
+                            $override
+                                ? 'stock_item'
+                                : (
+                            $basePrice !== null
+                                ? 'material'
+                                : 'none'
+                            ),
+                    ];
+                }
+            );
+
+        return response()->json([
+            'material' => [
+                'id' =>
+                    $material->id,
+
+                'name' =>
+                    $material->full_name,
+
+                'base_price' =>
+                    $basePrice,
+            ],
+
+            'data' =>
+                $data,
+        ]);
+    }
+
+    public function saveMaterialVariants(Request $request, PriceList $priceList, Material $material) {
+        $this->validatePriceListTenant(
+            $priceList
+        );
+
+        $companyId =
+            TenantContext::companyId();
+
+        if (
+            (int) $priceList->company_id !==
+            (int) $companyId
+        ) {
+            abort(404);
+        }
+
+        $request->validate([
+            'items' =>
+                'required|array',
+
+            'items.*.stock_item_id' =>
+                'required|integer',
+
+            'items.*.price' =>
+                'nullable|numeric|min:0',
+        ]);
+
+        if (!$priceList->is_active) {
+            return response()->json([
+                'message' => 'La lista de precios está inactiva. Actívela antes de modificar sus precios.',
+            ], 422);
+        }
+
+        DB::transaction(
+            function () use (
+                $request,
+                $priceList,
+                $material,
+                $companyId
+            ) {
+                foreach (
+                    $request->items
+                    as $row
+                ) {
+                    /*
+                     * Seguridad:
+                     *
+                     * - StockItem pertenece al Material
+                     * - está activo
+                     * - está habilitado para Company actual
+                     */
+                    $stockItem =
+                        StockItem::query()
+                            ->where(
+                                'id',
+                                $row['stock_item_id']
+                            )
+                            ->where(
+                                'material_id',
+                                $material->id
+                            )
+                            ->where(
+                                'is_active',
+                                1
+                            )
+                            ->enabledForCompany(
+                                $companyId
+                            )
+                            ->firstOrFail();
+
+                    /*
+                     * Campo vacío:
+                     *
+                     * eliminar override
+                     * y volver a precio del Material.
+                     */
+                    if (
+                        $row['price'] === null ||
+                        $row['price'] === ''
+                    ) {
+                        PriceListItem::query()
+                            ->where(
+                                'price_list_id',
+                                $priceList->id
+                            )
+                            ->where(
+                                'stock_item_id',
+                                $stockItem->id
+                            )
+                            ->delete();
+
+                        continue;
+                    }
+
+                    PriceListItem::updateOrCreate(
+                        [
+                            'price_list_id' =>
+                                $priceList->id,
+
+                            'stock_item_id' =>
+                                $stockItem->id,
+                        ],
+                        [
+                            'price' =>
+                                $row['price'],
+                        ]
+                    );
+                }
+            }
+        );
+
+        return response()->json([
+            'message' =>
+                'Precios de variantes guardados correctamente.',
         ]);
     }
 }

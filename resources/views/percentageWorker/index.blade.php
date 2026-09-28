@@ -17,100 +17,119 @@
 @endsection
 
 @section('title')
-    Porcentajes de recursos humanos
+    Parámetros laborales
 @endsection
 
-@section('styles-plugins')
-    <!-- Datatables -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+    <h1 class="page-title">
+        Parámetros laborales
+    </h1>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de porcentajes</h5>
-    @can('create_percentageWorker')
-    <a href="{{ route('percentageWorker.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo porcentaje </a>
-    @endcan
+    <h5 class="card-title">
+        Listado de parámetros
+    </h5>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
+
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
+            <a href="{{ route('dashboard.principal') }}">
+                <i class="fa fa-home"></i>
+                Dashboard
+            </a>
         </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('percentageWorker.index') }}"><i class="fa fa-archive"></i> Porcentajes </a>
+
+        <li class="breadcrumb-item active">
+            Parámetros laborales
         </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
 
     </ol>
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
     <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+
+        <table class="table table-bordered table-hover">
+
             <thead>
             <tr>
-                <th>Nombre</th>
-                <th>Valor</th>
-                <th>Acciones</th>
+                <th>Parámetro</th>
+                <th width="180">Valor</th>
+                <th width="100" class="text-center">
+                    Acciones
+                </th>
             </tr>
             </thead>
+
             <tbody>
 
+            @forelse($porcentages as $percentage)
+
+                <tr>
+
+                    <td>
+                        @switch($percentage->name)
+
+                            @case('assign_family')
+                            Asignación familiar
+                            @break
+
+                            @case('essalud')
+                            EsSalud
+                            @break
+
+                            @case('rmv')
+                            Remuneración mínima vital
+                            @break
+
+                            @default
+                            {{ $percentage->name }}
+
+                        @endswitch
+                    </td>
+
+                    <td>
+                        {{ $percentage->value }}
+                    </td>
+
+                    <td class="text-center">
+
+                        <a
+                                href="{{ route(
+                                'platformPercentageWorker.edit',
+                                $percentage->id
+                            ) }}"
+                                class="btn btn-outline-primary btn-sm"
+                                title="Editar"
+                        >
+                            <i class="fas fa-edit"></i>
+                        </a>
+
+                    </td>
+
+                </tr>
+
+            @empty
+
+                <tr>
+                    <td
+                            colspan="3"
+                            class="text-center text-muted"
+                    >
+                        No existen parámetros configurados.
+                    </td>
+                </tr>
+
+            @endforelse
+
             </tbody>
+
         </table>
+
     </div>
-    @can('destroy_percentageWorker')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <form id="formDelete" data-url="{{ route('percentageWorker.destroy') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <p>¿Está seguro de eliminar este porcentaje?</p>
-                        <input type="hidden" id="percentage_id" name="percentage_id">
-                        <p id="name"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endcan
 
-@endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
-@endsection
-
-@section('scripts')
-    <script src="{{ asset('js/percentageWorker/index.js') }}"></script>
 @endsection

@@ -3,7 +3,7 @@ $(document).ready(function () {
     console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
-            url: "/dashboard/all/percentages/workers",
+            url: "/dashboard/plataforma/all/percentages/workers",
             dataSrc: 'data'
         },
         bAutoWidth: false,

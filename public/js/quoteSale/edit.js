@@ -154,28 +154,78 @@ function addConsumable() {
         return;
     }
 
-    let consumablePrice = parseFloat(consumable.list_price) || 0;
+    /*
+ * ============================================================
+ * SIN PRECIO CONFIGURADO
+ * ============================================================
+ */
 
-    if (consumablePrice <= 0) {
+    if (!consumable.has_price) {
+
+        toastr.error(
+            'El producto no tiene un precio configurado en la lista de precios "' +
+            (consumable.price_list_name || 'predeterminada') +
+            '".',
+            'Producto sin precio'
+        );
+
+        return;
+    }
+
+    /*
+     * ============================================================
+     * PRECIO CONFIGURADO
+     * ============================================================
+     */
+
+    const consumablePrice =
+        parseFloat(
+            consumable.list_price || 0
+        );
+
+    /*
+     * Precio 0 explícitamente configurado.
+     */
+    if (consumablePrice === 0) {
+
         $.confirm({
             icon: 'fas fa-exclamation-triangle',
             theme: 'modern',
             closeIcon: true,
             animation: 'zoom',
             type: 'orange',
+
             title: 'Precio en cero',
-            content: 'El precio de este producto es 0. ¿Procedemos con la venta?',
+
+            content:
+                'Este producto tiene un precio de venta configurado en 0. ' +
+                '¿Desea continuar con la cotización?',
+
             buttons: {
+
                 confirm: {
                     text: 'SÍ, CONTINUAR',
                     btnClass: 'btn-orange',
-                    action: function () {
-                        button.parent().parent().find('[data-cantidad]').val(0);
-                        $(".consumable_search").empty().trigger('change');
 
-                        showModalQuantityConsumable(render, consumable);
+                    action: function () {
+
+                        button
+                            .parent()
+                            .parent()
+                            .find('[data-cantidad]')
+                            .val(0);
+
+                        $(".consumable_search")
+                            .empty()
+                            .trigger('change');
+
+                        showModalQuantityConsumable(
+                            render,
+                            consumable
+                        );
                     }
                 },
+
                 cancel: {
                     text: 'CANCELAR'
                 }
@@ -722,18 +772,11 @@ function fillEquipments() {
         quote: quote_id,
         equipment: idEquipment,
         quantity: 1,
-        utility: $card.find('[data-utilityequipment]').val() || 0,
-        rent: $card.find('[data-rentequipment]').val() || 0,
-        letter: $card.find('[data-letterequipment]').val() || 0,
         total: subtotalWithIgv,
         description: "",
         detail: $card.find('[data-detailequipment]').val() || "",
-        materials: [],
         consumables: cRead.array,
-        electrics: [],
-        workforces: servicesRead.array,
-        tornos: [],
-        dias: []
+        workforces: servicesRead.array
     });
 
     //recalcQuoteTotalsFromDom();
@@ -1437,9 +1480,6 @@ function saveEquipmentEdit() {
                     // ===========================
                     // 1) Datos generales del equipo
                     // ===========================
-                    const utility = $card.find('[data-utilityequipment]').val() || 0;
-                    const rent    = $card.find('[data-rentequipment]').val() || 0;
-                    const letter  = $card.find('[data-letterequipment]').val() || 0;
                     const detail  = $card.find('[data-detailequipment]').val() || "";
 
                     // ===========================
@@ -1550,25 +1590,15 @@ function saveEquipmentEdit() {
                         quote: quoteId2,
                         equipment: idEquipment2,
                         quantity: 1,
-                        utility: utility,
-                        rent: rent,
-                        letter: letter,
-
-                        // ✅ real con IGV
                         total: totalFinalWithIgvReal,
-
                         description: "",
                         detail: detail,
-                        materials: [],
                         consumables: consumablesArray,
-                        electrics: [],
                         workforces: servicesArray,
                         discount_global: {
                             base: discountBaseReal,
                             meta: discountGlobalMeta
-                        },
-                        tornos: [],
-                        dias: []
+                        }
                     }];
 
                     // ===========================

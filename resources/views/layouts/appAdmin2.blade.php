@@ -679,21 +679,6 @@
                                     </li>
                                 @endcan
 
-                                @can('manage_priceListMaterial')
-                                    <li class="nav-item">
-                                        <a
-                                                href="{{ route('priceList.index') }}"
-                                                class="nav-link @yield('activePriceListMaterials')"
-                                        >
-                                            <i class="far fa-circle nav-icon"></i>
-
-                                            <p>
-                                                Precios por producto
-                                            </p>
-                                        </a>
-                                    </li>
-                                @endcan
-
                             </ul>
                         </li>
                     @endcan
