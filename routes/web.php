@@ -3678,6 +3678,10 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::get('parametros-laborales','PercentageWorkerController@index')->name('platformPercentageWorker.index');
         Route::get('parametros-laborales/{id}/editar','PercentageWorkerController@edit')->name('platformPercentageWorker.edit');
         Route::post('parametros-laborales/{id}/update','PercentageWorkerController@update')->name('platformPercentageWorker.update');
+
+        Route::get('tipos-impuesto','TypeTaxController@index')->name('platformTypeTax.index');
+        Route::post('tipos-impuesto','TypeTaxController@store')->name('platformTypeTax.store');
+        Route::post('tipos-impuesto/{id}/update','TypeTaxController@update')->name('platformTypeTax.update');
 });
 
 Route::prefix('store-web/')->group(function () {

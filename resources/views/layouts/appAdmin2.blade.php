@@ -414,6 +414,34 @@
                                 </ul>
                             </li>
                         @endcan
+
+                        <li class="nav-item @yield('openTypeTax')">
+                            <a href="#" class="nav-link @yield('activeTypeTax')">
+                                <i class="fas fa-percentage nav-icon"></i>
+
+                                <p>
+                                    Tipos de Impuesto
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+
+                            <ul class="nav nav-treeview">
+
+                                <li class="nav-item">
+                                    <a
+                                            href="{{ route('platformTypeTax.index') }}"
+                                            class="nav-link @yield('activeListTypeTax')"
+                                    >
+                                        <i class="far fa-dot-circle nav-icon text-warning"></i>
+
+                                        <p>
+                                            Listar tipos
+                                        </p>
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </li>
                     @endif
 
                     @can('enable_puntoVenta')
