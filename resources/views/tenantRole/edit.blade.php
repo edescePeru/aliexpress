@@ -1,5 +1,7 @@
 @extends('layouts.appAdmin2')
 
+@section('activePlatformTenantRoles', 'active')
+
 @section('title')
     Editar rol del Tenant
 @endsection
@@ -9,18 +11,17 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Roles por Tenant
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Editar rol de {{ $tenant->name }}</h1><p class="next-page-description">Actualiza el perfil conservando su alcance dentro del tenant.</p></div>
 @endsection
 
 @section('page-title')
 
-    <h5 class="card-title">
-        Editar rol:
-        {{ $role->description }}
-    </h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>{{ $role->description }}</strong><span>El tenant {{ $tenant->name }} permanece como límite contractual.</span></div></div>
 
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('platform.dashboard') }}">Superadministración</a></li><li class="breadcrumb-item"><a href="{{ route('tenantRole.index', ['tenant_id' => $tenant->id]) }}">Roles por tenant</a></li><li class="breadcrumb-item active" aria-current="page">Editar</li></ol>
 @endsection
 
 

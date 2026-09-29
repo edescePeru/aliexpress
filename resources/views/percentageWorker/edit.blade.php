@@ -21,24 +21,19 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Parámetros laborales
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Editar parámetro laboral</h1><p class="next-page-description">Actualiza el valor global conservando la clave contractual.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">
-        Editar parámetro
-    </h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración laboral</strong><span>El nombre del parámetro permanece de solo lectura.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
 
         <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}">
-                <i class="fa fa-home"></i>
-                Dashboard
+            <a href="{{ route('platform.dashboard') }}">
+                Superadministración
             </a>
         </li>
 

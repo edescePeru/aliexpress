@@ -1,180 +1,23 @@
 @extends('layouts.appAdmin2')
-
-@section('title')
-    Plantillas de Roles
-@endsection
-
-@section('styles-plugins')
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}" >
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}" >
-@endsection
-
-@section('styles')
-    <style>
-
-        .permission-groups-container {
-            max-height: 520px;
-            overflow-y: auto;
-            background: #fafafa;
-        }
-
-        .permission-module {
-            background: #ffffff;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-
-        .permission-module:last-child {
-            margin-bottom: 0;
-        }
-
-        .permission-module-header {
-            background: #f4f6f9;
-            border-bottom: 1px solid #dee2e6;
-            padding: 8px 12px;
-        }
-
-        .permission-module-body {
-            padding: 10px 12px;
-        }
-
-        .permission-module-title {
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .permission-item {
-            margin-bottom: 6px;
-        }
-
-        .permission-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .permission-code {
-            display: block;
-            color: #868e96;
-            font-size: 11px;
-            margin-left: 24px;
-        }
-
-        .permission-module-count {
-            font-size: 11px;
-        }
-
-    </style>
-@endsection
+@section('title', 'Plantillas de perfiles')
+@section('activePlatformRoleTemplates', 'active')
+@section('styles-plugins')<link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}"><link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">@endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Plantillas de perfiles
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Plantillas de perfiles</h1><p class="next-page-description">Administra el catálogo global de perfiles y permisos base.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">
-        Plantillas globales de Venti360
-    </h5>
-
-    <a href="{{ route('roleTemplate.create') }}" class="btn btn-outline-success btn-sm float-right" >
-        <i class="fa fa-plus"></i>
-        Nueva plantilla
-    </a>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Plantillas globales</strong><span>Configura perfiles reutilizables al provisionar tenants.</span></div><div class="next-toolbar-actions"><a href="{{ route('roleTemplate.create') }}" class="btn btn-primary btn-sm">Nueva plantilla</a></div></div>
 @endsection
+@section('page-breadcrumb')<ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('platform.dashboard') }}">Superadministración</a></li><li class="breadcrumb-item active" aria-current="page">Plantillas</li></ol>@endsection
 
 @section('content')
-
-    <div
-        id="role-template-app"
-
-        data-url-list="{{ route('roleTemplate.data') }}"
-
-        data-url-edit="{{ route( 'roleTemplate.edit', ':id' ) }}"
-
-        data-url-toggle="{{ route( 'roleTemplate.toggleStatus', ':id' ) }}"
-    >
-
-        <div class="row mb-3">
-
-            <div class="col-md-6">
-                <input
-                        type="text"
-                        id="searchRoleTemplate"
-                        class="form-control"
-                        placeholder="Buscar plantilla..."
-                >
-            </div>
-
-            <div class="col-md-2">
-                <select
-                        id="perPageRoleTemplate"
-                        class="form-control"
-                >
-                    <option value="10">
-                        10
-                    </option>
-
-                    <option value="20">
-                        20
-                    </option>
-
-                    <option value="50">
-                        50
-                    </option>
-                </select>
-            </div>
-
-        </div>
-
-        <div class="table-responsive">
-
-            <table
-                    class="table table-bordered table-hover"
-            >
-                <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Permisos</th>
-                    <th>Asignable Owner</th>
-                    <th>Estado</th>
-                    <th width="180">
-                        Acciones
-                    </th>
-                </tr>
-                </thead>
-
-                <tbody
-                        id="bodyRoleTemplates"
-                >
-                </tbody>
-
-            </table>
-
-        </div>
-
-        <div
-                id="paginationRoleTemplates"
-                class="d-flex justify-content-center"
-        ></div>
-
-    </div>
-
-
+<section id="role-template-app" class="next-operational-list" aria-label="Listado de plantillas de perfiles" data-url-list="{{ route('roleTemplate.data') }}" data-url-edit="{{ route('roleTemplate.edit', ':id') }}" data-url-toggle="{{ route('roleTemplate.toggleStatus', ':id') }}">
+    <div class="next-list-toolbar"><div class="next-list-search-row"><div class="next-list-search-control"><label class="sr-only" for="searchRoleTemplate">Buscar plantillas</label><input type="search" id="searchRoleTemplate" class="form-control" placeholder="Buscar plantilla"></div><div class="next-list-length"><label for="perPageRoleTemplate">Mostrar</label><select id="perPageRoleTemplate" class="form-control"><option>10</option><option>20</option><option>50</option></select></div></div></div>
+    <div class="next-list-summary"><div class="next-list-summary-copy"><strong>Plantillas disponibles</strong><span>ordenadas por registro reciente</span></div></div>
+    <div class="next-list-content"><div class="table-responsive" tabindex="0"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Código</th><th class="text-left">Nombre</th><th class="text-center">Permisos</th><th class="text-center">Asignable Owner</th><th class="text-center">Estado</th><th class="text-center" data-buttons>Acciones</th></tr></thead><tbody id="bodyRoleTemplates"></tbody></table></div></div>
+    <div class="next-list-pagination"><span class="next-list-page-context">Paginación de plantillas</span><div id="paginationRoleTemplates"></div></div>
+</section>
 @endsection
-
-
-@section('plugins')
-    <script
-            src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"
-    ></script>
-@endsection
-
-
-@section('scripts')
-    <script
-            src="{{ asset('js/roleTemplate/index.js') }}"
-    ></script>
-@endsection
+@section('plugins')<script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>@endsection
+@section('scripts')<script src="{{ asset('js/roleTemplate/index.js') }}"></script>@endsection

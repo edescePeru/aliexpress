@@ -1,5 +1,7 @@
 @extends('layouts.appAdmin2')
 
+@section('activePlatformRoleTemplates', 'active')
+
 @section('title')
     Nueva plantilla de perfil
 @endsection
@@ -9,16 +11,12 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Plantillas de perfiles
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Nueva plantilla de perfil</h1><p class="next-page-description">Define un perfil global reutilizable y su conjunto de permisos.</p></div>
 @endsection
 
 @section('page-title')
 
-    <h5 class="card-title">
-        Crear nueva plantilla
-    </h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de plantilla</strong><span>Selecciona únicamente los permisos que formarán parte del perfil base.</span></div></div>
 
 @endsection
 
@@ -29,10 +27,10 @@
         <li class="breadcrumb-item">
 
             <a
-                    href="{{ route('dashboard.principal') }}"
+                    href="{{ route('platform.dashboard') }}"
             >
                 <i class="fa fa-home"></i>
-                Dashboard
+                Superadministración
             </a>
 
         </li>

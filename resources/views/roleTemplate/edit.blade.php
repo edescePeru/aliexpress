@@ -1,5 +1,7 @@
 @extends('layouts.appAdmin2')
 
+@section('activePlatformRoleTemplates', 'active')
+
 @section('title')
     Editar plantilla de perfil
 @endsection
@@ -9,17 +11,12 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Plantillas de perfiles
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Editar plantilla de perfil</h1><p class="next-page-description">Actualiza la identidad y los permisos del perfil global.</p></div>
 @endsection
 
 @section('page-title')
 
-    <h5 class="card-title">
-        Editar plantilla:
-        {{ $template->name }}
-    </h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>{{ $template->name }}</strong><span>Los cambios se aplican mediante el contrato global existente.</span></div></div>
 
 @endsection
 
@@ -30,10 +27,9 @@
         <li class="breadcrumb-item">
 
             <a
-                    href="{{ route('dashboard.principal') }}"
+                    href="{{ route('platform.dashboard') }}"
             >
-                <i class="fa fa-home"></i>
-                Dashboard
+                Superadministración
             </a>
 
         </li>

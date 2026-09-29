@@ -140,11 +140,11 @@ $(function () {
                 html += `
                     <tr>
 
-                        <td>
+                        <td class="text-center">
                             ${template.id}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${escapeHtml(
                     template.code
                 )}
@@ -156,7 +156,7 @@ $(function () {
                 )}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             <span
                                 class="badge badge-info"
                             >
@@ -164,42 +164,22 @@ $(function () {
                             </span>
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${ownerBadge}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${statusBadge}
                         </td>
 
-                        <td>
-
-                            <a
-                                href="${urlEdit.replace(':id', template.id)}"
-                                class="btn btn-outline-primary btn-xs"
-                            >
-                                <i class="fas fa-edit"></i>
-                                Editar
-                            </a>
-
-                            <button
-                                type="button"
-                                class="
-                                    btn
-                                    ${toggleClass}
-                                    btn-xs
-                                    btn-toggle-template
-                                "
-                                data-id="${template.id}"
-                                data-active="${
-                    template.is_active
-                        ? 1
-                        : 0
-                    }"
-                            >
-                                ${toggleText}
-                            </button>
-
+                        <td class="text-center" data-buttons>
+                            <div class="dropdown next-row-actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones de ${escapeHtml(template.name)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                                <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                                    <a href="${urlEdit.replace(':id', template.id)}" class="dropdown-item"><i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar</span></a>
+                                    <button type="button" class="dropdown-item ${template.is_active ? 'next-row-action-danger' : ''} btn-toggle-template" data-id="${template.id}" data-active="${template.is_active ? 1 : 0}"><i class="fas ${template.is_active ? 'fa-ban' : 'fa-check'} next-row-action-item-icon" aria-hidden="true"></i><span>${toggleText}</span></button>
+                                </div>
+                            </div>
                         </td>
 
                     </tr>

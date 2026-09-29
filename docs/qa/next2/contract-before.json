@@ -1,0 +1,121 @@
+{
+  "phase": "before",
+  "expectedCount": 4,
+  "payloadBeforeDelete": {
+    "payload": [
+      {
+        "talla_id": "12",
+        "color_id": "1",
+        "sku": "QA-SKU-001",
+        "codigo_barras": "775000000001",
+        "stock_minimo": "2",
+        "stock_maximo": "12",
+        "is_active": 0,
+        "afecto_inventario": 1,
+        "pack": 0,
+        "cantidad_pack": 1,
+        "image_key": "variant_image_0"
+      },
+      {
+        "talla_id": "13",
+        "color_id": "1",
+        "sku": "MAT-2 TB-BLA",
+        "codigo_barras": "",
+        "stock_minimo": 0,
+        "stock_maximo": 0,
+        "is_active": 1,
+        "afecto_inventario": 1,
+        "pack": 0,
+        "cantidad_pack": 1,
+        "image_key": null
+      },
+      {
+        "talla_id": "12",
+        "color_id": "8",
+        "sku": "MAT-1 TB-CMO",
+        "codigo_barras": "",
+        "stock_minimo": 0,
+        "stock_maximo": 0,
+        "is_active": 1,
+        "afecto_inventario": 1,
+        "pack": 0,
+        "cantidad_pack": 1,
+        "image_key": null
+      },
+      {
+        "talla_id": "13",
+        "color_id": "8",
+        "sku": "MAT-2 TB-CMO",
+        "codigo_barras": "",
+        "stock_minimo": 0,
+        "stock_maximo": 0,
+        "is_active": 1,
+        "afecto_inventario": 1,
+        "pack": 0,
+        "cantidad_pack": 1,
+        "image_key": null
+      }
+    ],
+    "formDataKeys": [
+      "variant_image_0"
+    ]
+  },
+  "afterDeleteCount": 3,
+  "afterRegenerateCount": 4,
+  "responsive": [
+    {
+      "size": "1600x900",
+      "noGlobalOverflow": true,
+      "resultsLocalOverflow": false,
+      "resultsWidth": 1244,
+      "resultsScrollWidth": 1242,
+      "rowDisplay": "flex",
+      "sectionWidth": 1284,
+      "fileName": null
+    },
+    {
+      "size": "1280x720",
+      "noGlobalOverflow": true,
+      "resultsLocalOverflow": true,
+      "resultsWidth": 924,
+      "resultsScrollWidth": 1024,
+      "rowDisplay": "flex",
+      "sectionWidth": 964,
+      "fileName": null
+    },
+    {
+      "size": "1024x768",
+      "noGlobalOverflow": true,
+      "resultsLocalOverflow": true,
+      "resultsWidth": 668,
+      "resultsScrollWidth": 1024,
+      "rowDisplay": "flex",
+      "sectionWidth": 708,
+      "fileName": null
+    },
+    {
+      "size": "390x844",
+      "noGlobalOverflow": true,
+      "resultsLocalOverflow": true,
+      "resultsWidth": 324,
+      "resultsScrollWidth": 1024,
+      "rowDisplay": "flex",
+      "sectionWidth": 356,
+      "fileName": null
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "httpErrors": [
+    {
+      "status": 404,
+      "url": "http://127.0.0.1:8080/images/users/1.png"
+    },
+    {
+      "status": 404,
+      "url": "http://127.0.0.1:8080/images/users/1.png"
+    }
+  ]
+}
