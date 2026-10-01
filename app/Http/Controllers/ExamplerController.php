@@ -169,28 +169,36 @@ class ExamplerController extends Controller
 
         $exampler =
             Exampler::findOrFail(
-                $validated['exampler_id']
+                $validated[
+                'exampler_id'
+                ]
             );
+
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $hasMaterials =
+            Material::query()
+                ->where(
+                    'exampler_id',
+                    $exampler->id
+                )
+                ->exists();
+
+        if ($hasMaterials) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar el modelo porque está siendo utilizado por uno o más materiales.',
+            ], 422);
+        }
 
         DB::beginTransaction();
 
         try {
-
-            /*
-             * Material todavía no está migrado
-             * a TenantScope.
-             *
-             * Esta operación es aceptable por ahora
-             * porque $exampler ya fue validado
-             * dentro del Tenant actual.
-             */
-            Material::where(
-                'exampler_id',
-                $exampler->id
-            )->update([
-                'exampler_id' =>
-                    null,
-            ]);
 
             $exampler->delete();
 
@@ -282,7 +290,9 @@ class ExamplerController extends Controller
         Request $request
     ) {
         $ids =
-            $request->input('ids');
+            $request->input(
+                'ids'
+            );
 
         if (
             !$ids ||
@@ -306,6 +316,47 @@ class ExamplerController extends Controller
                 )
                 ->get();
 
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $examplerIds =
+            $examplers
+                ->pluck('id');
+
+        $usedExamplerIds =
+            Material::query()
+                ->whereIn(
+                    'exampler_id',
+                    $examplerIds
+                )
+                ->pluck(
+                    'exampler_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedExamplerIds->isNotEmpty()) {
+
+            $usedNames =
+                $examplers
+                    ->whereIn(
+                        'id',
+                        $usedExamplerIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar los modelos porque están siendo utilizados por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -314,15 +365,6 @@ class ExamplerController extends Controller
                 $examplers
                 as $exampler
             ) {
-
-                Material::where(
-                    'exampler_id',
-                    $exampler->id
-                )->update([
-                    'exampler_id' =>
-                        null,
-                ]);
-
                 $exampler->delete();
             }
 

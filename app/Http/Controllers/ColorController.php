@@ -6,6 +6,7 @@ use App\Color;
 use App\Http\Requests\DeleteColorRequest;
 use App\Http\Requests\StoreColorRequest;
 use App\Http\Requests\UpdateColorRequest;
+use App\Variant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -174,14 +175,21 @@ class ColorController extends Controller
             );
 
         /*
-         * No permitir eliminar colores
-         * que estén siendo utilizados
-         * por variantes.
+         * =========================================================
+         * VALIDAR USO EN VARIANT
+         * =========================================================
          */
-        if (
-        $color->variants()
-            ->exists()
-        ) {
+
+        $hasVariants =
+            Variant::query()
+                ->where(
+                    'color_id',
+                    $color->id
+                )
+                ->exists();
+
+        if ($hasVariants) {
+
             return response()->json([
                 'message' =>
                     'No se puede eliminar el color porque está siendo utilizado por una o más variantes.',
@@ -211,7 +219,7 @@ class ColorController extends Controller
         return response()->json([
             'message' =>
                 'Color eliminado con éxito.',
-        ]);
+        ], 200);
     }
 
 
@@ -332,25 +340,44 @@ class ColorController extends Controller
                 ->get();
 
         /*
-         * Si cualquiera está siendo utilizado,
-         * cancelamos toda la eliminación.
+         * =========================================================
+         * VALIDAR USO EN VARIANT
+         * =========================================================
          */
-        foreach (
-            $colors as $color
-        ) {
 
-            if (
-            $color->variants()
-                ->exists()
-            ) {
+        $colorIds =
+            $colors
+                ->pluck('id');
 
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar los colores seleccionados porque el color "' .
-                        $color->name .
-                        '" está siendo utilizado por una o más variantes.',
-                ], 422);
-            }
+        $usedColorIds =
+            Variant::query()
+                ->whereIn(
+                    'color_id',
+                    $colorIds
+                )
+                ->pluck(
+                    'color_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedColorIds->isNotEmpty()) {
+
+            $usedNames =
+                $colors
+                    ->whereIn(
+                        'id',
+                        $usedColorIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar los colores porque están siendo utilizados por variantes: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
         }
 
         DB::beginTransaction();
@@ -358,7 +385,8 @@ class ColorController extends Controller
         try {
 
             foreach (
-                $colors as $color
+                $colors
+                as $color
             ) {
                 $color->delete();
             }

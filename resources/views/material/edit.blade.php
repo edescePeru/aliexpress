@@ -210,6 +210,37 @@
                         <select id="perecible" name="perecible" class="form-control select2"><option></option><option value="s" {{ $selectedPerecible === 's' ? 'selected' : '' }}>SI</option><option value="n" {{ $selectedPerecible === 'n' ? 'selected' : '' }}>NO</option></select>
                     </div></div>
                 @endif
+                <div class="col-md-6 col-xl-3">
+                    <div class="form-group">
+                        <label for="type_tax_id">Tipo de impuesto <span class="badge badge-danger">(*)</span></label>
+
+                        <select id="type_tax_id" name="type_tax_id" class="form-control select2" style="width: 100%;" required>
+                            <option value=""> Seleccione</option>
+
+                            @foreach($typeTaxes as $typeTax)
+                                <option
+                                        value="{{ $typeTax->id }}"
+                                        {{
+                                            old(
+                                                'type_tax_id',
+                                                $material->type_tax_id
+                                            ) == $typeTax->id
+                                                ? 'selected'
+                                                : ''
+                                        }}
+                                >
+                                    {{ $typeTax->name }}
+                                    ({{ rtrim(rtrim(number_format($typeTax->tax, 4, '.', ''), '0'), '.') }}%)
+
+                                    @if(!$typeTax->is_active)
+                                        - INACTIVO
+                                    @endif
+                                </option>
+                            @endforeach
+
+                        </select>
+                    </div>
+                </div>
             </div>
             <div class="row next-generated-row"><div class="col-12"><div class="form-group">
                 <label for="name">Nombre completo</label>
@@ -980,6 +1011,13 @@
             });
 
             $('#perecible').select2({
+                placeholder:
+                    'Seleccione',
+                allowClear:
+                    true
+            });
+
+            $('#type_tax_id').select2({
                 placeholder:
                     'Seleccione',
                 allowClear:

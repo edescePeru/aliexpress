@@ -6,6 +6,7 @@ use App\Category;
 use App\Http\Requests\DeleteSubcategoryRequest;
 use App\Http\Requests\StoreSubcategoryRequest;
 use App\Http\Requests\UpdateSubcategoryRequest;
+use App\Material;
 use App\Subcategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -197,13 +198,81 @@ class SubcategoryController extends Controller
             $request->validated();
 
         $subcategory =
-            Subcategory::findOrFail(
-                $validated['subcategory_id']
-            );
+            Subcategory::with(
+                'materialTypes'
+            )
+                ->findOrFail(
+                    $validated[
+                    'subcategory_id'
+                    ]
+                );
+
+        /*
+         * =========================================================
+         * VALIDAR USO DIRECTO EN MATERIAL
+         * =========================================================
+         */
+
+        $hasMaterialsWithSubcategory =
+            Material::query()
+                ->where(
+                    'subcategory_id',
+                    $subcategory->id
+                )
+                ->exists();
+
+        if ($hasMaterialsWithSubcategory) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar la subcategoría porque está siendo utilizada por uno o más materiales.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR MATERIAL TYPES HIJOS
+         * =========================================================
+         */
+
+        $materialTypeIds =
+            $subcategory
+                ->materialTypes
+                ->pluck('id');
+
+        if ($materialTypeIds->isNotEmpty()) {
+
+            $hasMaterialsWithMaterialType =
+                Material::query()
+                    ->whereIn(
+                        'material_type_id',
+                        $materialTypeIds
+                    )
+                    ->exists();
+
+            if ($hasMaterialsWithMaterialType) {
+
+                return response()->json([
+                    'message' =>
+                        'No se puede eliminar la subcategoría porque uno o más de sus tipos de material están siendo utilizados por materiales.',
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
 
         try {
+
+            /*
+             * Si MaterialType usa SoftDeletes,
+             * eliminamos primero los hijos.
+             */
+            foreach (
+                $subcategory->materialTypes
+                as $materialType
+            ) {
+                $materialType->delete();
+            }
 
             $subcategory->delete();
 
@@ -329,7 +398,9 @@ class SubcategoryController extends Controller
         Request $request
     ) {
         $ids =
-            $request->input('ids');
+            $request->input(
+                'ids'
+            );
 
         if (
             !$ids ||
@@ -341,18 +412,98 @@ class SubcategoryController extends Controller
             ], 400);
         }
 
-        /*
-         * TenantScope elimina automáticamente
-         * de la consulta IDs pertenecientes
-         * a otros tenants.
-         */
         $subcategories =
-            Subcategory::query()
+            Subcategory::with(
+                'materialTypes'
+            )
                 ->whereIn(
                     'id',
                     $ids
                 )
                 ->get();
+
+        /*
+         * =========================================================
+         * VALIDAR USO DIRECTO DE SUBCATEGORIES
+         * =========================================================
+         */
+
+        $subcategoryIds =
+            $subcategories
+                ->pluck('id');
+
+        $usedSubcategoryIds =
+            Material::query()
+                ->whereIn(
+                    'subcategory_id',
+                    $subcategoryIds
+                )
+                ->pluck(
+                    'subcategory_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedSubcategoryIds->isNotEmpty()) {
+
+            $usedNames =
+                $subcategories
+                    ->whereIn(
+                        'id',
+                        $usedSubcategoryIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar las subcategorías porque están siendo utilizadas por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR MATERIAL TYPES HIJOS
+         * =========================================================
+         */
+
+        $materialTypeIds =
+            $subcategories
+                ->flatMap(
+                    function ($subcategory) {
+
+                        return $subcategory
+                            ->materialTypes
+                            ->pluck('id');
+                    }
+                )
+                ->filter()
+                ->unique();
+
+        if ($materialTypeIds->isNotEmpty()) {
+
+            $usedMaterialTypeIds =
+                Material::query()
+                    ->whereIn(
+                        'material_type_id',
+                        $materialTypeIds
+                    )
+                    ->pluck(
+                        'material_type_id'
+                    )
+                    ->filter()
+                    ->unique();
+
+            if ($usedMaterialTypeIds->isNotEmpty()) {
+
+                return response()->json([
+                    'message' =>
+                        'No se pueden eliminar las subcategorías porque uno o más de sus tipos de material están siendo utilizados por materiales.',
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
 
@@ -362,6 +513,14 @@ class SubcategoryController extends Controller
                 $subcategories
                 as $subcategory
             ) {
+
+                foreach (
+                    $subcategory->materialTypes
+                    as $materialType
+                ) {
+                    $materialType->delete();
+                }
+
                 $subcategory->delete();
             }
 

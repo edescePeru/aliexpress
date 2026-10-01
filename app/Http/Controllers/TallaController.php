@@ -6,6 +6,7 @@ use App\Http\Requests\DeleteTallaRequest;
 use App\Http\Requests\StoreTallaRequest;
 use App\Http\Requests\UpdateTallaRequest;
 use App\Talla;
+use App\Variant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -178,14 +179,21 @@ class TallaController extends Controller
             );
 
         /*
-         * Igual que Color:
-         * una Talla utilizada por Variant
-         * no debe desaparecer.
+         * =========================================================
+         * VALIDAR USO EN VARIANT
+         * =========================================================
          */
-        if (
-        $talla->variants()
-            ->exists()
-        ) {
+
+        $hasVariants =
+            Variant::query()
+                ->where(
+                    'talla_id',
+                    $talla->id
+                )
+                ->exists();
+
+        if ($hasVariants) {
+
             return response()->json([
                 'message' =>
                     'No se puede eliminar la talla porque está siendo utilizada por una o más variantes.',
@@ -215,7 +223,7 @@ class TallaController extends Controller
         return response()->json([
             'message' =>
                 'Talla eliminada con éxito.',
-        ]);
+        ], 200);
     }
 
 
@@ -322,23 +330,44 @@ class TallaController extends Controller
                 ->get();
 
         /*
-         * Evitamos eliminación parcial.
+         * =========================================================
+         * VALIDAR USO EN VARIANT
+         * =========================================================
          */
-        foreach (
-            $tallas as $talla
-        ) {
 
-            if (
-            $talla->variants()
-                ->exists()
-            ) {
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar las tallas seleccionadas porque "' .
-                        $talla->name .
-                        '" está siendo utilizada por una o más variantes.',
-                ], 422);
-            }
+        $tallaIds =
+            $tallas
+                ->pluck('id');
+
+        $usedTallaIds =
+            Variant::query()
+                ->whereIn(
+                    'talla_id',
+                    $tallaIds
+                )
+                ->pluck(
+                    'talla_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedTallaIds->isNotEmpty()) {
+
+            $usedNames =
+                $tallas
+                    ->whereIn(
+                        'id',
+                        $usedTallaIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar las tallas porque están siendo utilizadas por variantes: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
         }
 
         DB::beginTransaction();
@@ -346,7 +375,8 @@ class TallaController extends Controller
         try {
 
             foreach (
-                $tallas as $talla
+                $tallas
+                as $talla
             ) {
                 $talla->delete();
             }

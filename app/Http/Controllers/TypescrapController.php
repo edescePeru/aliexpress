@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DeleteTypeScrapRequest;
 use App\Http\Requests\StoreTypeScrapRequest;
 use App\Http\Requests\UpdateTypeScrapRequest;
+use App\Material;
 use App\Typescrap;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -154,13 +155,21 @@ class TypescrapController extends Controller
             );
 
         /*
-         * Evitamos eliminar un catálogo
-         * que todavía esté asociado a materiales.
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
          */
-        if (
-        $typeScrap->materials()
-            ->exists()
-        ) {
+
+        $hasMaterials =
+            Material::query()
+                ->where(
+                    'typescrap_id',
+                    $typeScrap->id
+                )
+                ->exists();
+
+        if ($hasMaterials) {
+
             return response()->json([
                 'message' =>
                     'No se puede eliminar el tipo de retacería porque está siendo utilizado por uno o más materiales.',
@@ -267,23 +276,44 @@ class TypescrapController extends Controller
                 ->get();
 
         /*
-         * No hacemos eliminación parcial.
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
          */
-        foreach (
-            $typescraps as $typeScrap
-        ) {
 
-            if (
-            $typeScrap->materials()
-                ->exists()
-            ) {
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar los tipos seleccionados porque "' .
-                        $typeScrap->name .
-                        '" está siendo utilizado por uno o más materiales.',
-                ], 422);
-            }
+        $typeScrapIds =
+            $typescraps
+                ->pluck('id');
+
+        $usedTypeScrapIds =
+            Material::query()
+                ->whereIn(
+                    'typescrap_id',
+                    $typeScrapIds
+                )
+                ->pluck(
+                    'typescrap_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedTypeScrapIds->isNotEmpty()) {
+
+            $usedNames =
+                $typescraps
+                    ->whereIn(
+                        'id',
+                        $usedTypeScrapIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar los tipos de retacería porque están siendo utilizados por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
         }
 
         DB::beginTransaction();
@@ -291,7 +321,8 @@ class TypescrapController extends Controller
         try {
 
             foreach (
-                $typescraps as $typeScrap
+                $typescraps
+                as $typeScrap
             ) {
                 $typeScrap->delete();
             }

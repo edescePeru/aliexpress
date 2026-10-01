@@ -7,6 +7,7 @@ use App\Subtype;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\TypeTax;
 
 class StoreMaterialRequest extends FormRequest
 {
@@ -123,8 +124,16 @@ class StoreMaterialRequest extends FormRequest
             ],
 
             'type_tax_id' => [
-                'nullable',
+                'required',
                 'integer',
+
+                Rule::exists('type_taxes', 'id')
+                    ->where(function ($query) {
+                        $query->where(
+                            'is_active',
+                            true
+                        );
+                    }),
             ],
 
             'perecible' => [
@@ -838,6 +847,15 @@ class StoreMaterialRequest extends FormRequest
 
             'perecible.in' =>
                 'El valor de :attribute no es válido.',
+
+            'type_tax_id.required' =>
+                'Debe seleccionar un tipo de impuesto.',
+
+            'type_tax_id.integer' =>
+                'El tipo de impuesto seleccionado no es válido.',
+
+            'type_tax_id.exists' =>
+                'El tipo de impuesto seleccionado no existe o se encuentra inactivo.',
         ];
     }
 
@@ -898,6 +916,9 @@ class StoreMaterialRequest extends FormRequest
 
             'perecible' =>
                 'perecible',
+
+            'type_tax_id' =>
+                'tipo de impuesto',
         ];
     }
 }

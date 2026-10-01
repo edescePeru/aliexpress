@@ -21,12 +21,15 @@ class EquipmentConsumable extends Model
         'material_presentation_id',
         'packs',
         'units_per_pack',
+        'type_tax_id',
+        'tax_rate',
     ];
 
     protected $casts = [
         'material_presentation_id' => 'integer',
         'packs' => 'integer',
         'units_per_pack' => 'integer',
+        'tax_rate' => 'decimal:4',
     ];
 
     public function equipment(){
@@ -52,6 +55,14 @@ class EquipmentConsumable extends Model
             QuoteStockLot::class,
             'quote_detail_id',
             'id'
+        );
+    }
+
+    public function typeTax()
+    {
+        return $this->belongsTo(
+            TypeTax::class,
+            'type_tax_id'
         );
     }
 }
