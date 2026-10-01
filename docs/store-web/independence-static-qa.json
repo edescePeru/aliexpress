@@ -1,0 +1,964 @@
+{
+  "phase": "REAL NEXT 9.6",
+  "hashes": [
+    {
+      "path": "public/store-web/css/bootstrap.min.css",
+      "sha256": "a98de7f79af22bd534296f9a1779bc76876282d7e55b6e65975b9946b31f5f5b"
+    },
+    {
+      "path": "public/store-web/css/elegant-icons.css",
+      "sha256": "49a7ba596bb0c4f37e4a92a94ae6ebc433882efdd54d629bd9ea705490b1a2cf"
+    },
+    {
+      "path": "public/store-web/css/font-awesome.min.css",
+      "sha256": "158d58072880824514a2464065f64f02db0bb5d1742bb015fa30efe6c5a1b1d3"
+    },
+    {
+      "path": "public/store-web/css/style.css",
+      "sha256": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431"
+    },
+    {
+      "path": "public/store-web/fonts/ElegantIcons.woff",
+      "sha256": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae"
+    },
+    {
+      "path": "public/store-web/fonts/fontawesome-webfont.woff2",
+      "sha256": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe"
+    },
+    {
+      "path": "public/store-web/fonts/Montserrat-OFL.txt",
+      "sha256": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e"
+    },
+    {
+      "path": "public/store-web/fonts/Montserrat-Variable.ttf",
+      "sha256": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7"
+    },
+    {
+      "path": "public/store-web/img/logo.png",
+      "sha256": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038"
+    },
+    {
+      "path": "public/store-web/img/product/details/product-1.jpg",
+      "sha256": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784"
+    },
+    {
+      "path": "public/store-web/img/product/details/product-2.jpg",
+      "sha256": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991"
+    },
+    {
+      "path": "public/store-web/img/product/details/product-3.jpg",
+      "sha256": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704"
+    },
+    {
+      "path": "public/store-web/img/product/details/product-4.jpg",
+      "sha256": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b"
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-1.jpg",
+      "sha256": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462"
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-2.jpg",
+      "sha256": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8"
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-3.jpg",
+      "sha256": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107"
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-4.jpg",
+      "sha256": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2"
+    },
+    {
+      "path": "public/store-web/img/product/product-1.jpg",
+      "sha256": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c"
+    },
+    {
+      "path": "public/store-web/img/product/product-2.jpg",
+      "sha256": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931"
+    },
+    {
+      "path": "public/store-web/img/product/product-3.jpg",
+      "sha256": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1"
+    },
+    {
+      "path": "public/store-web/img/product/product-4.jpg",
+      "sha256": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336"
+    },
+    {
+      "path": "public/store-web/img/product/product-5.jpg",
+      "sha256": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c"
+    },
+    {
+      "path": "public/store-web/img/product/product-6.jpg",
+      "sha256": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48"
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-1.jpg",
+      "sha256": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356"
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-2.jpg",
+      "sha256": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67"
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-3.jpg",
+      "sha256": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025"
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-4.jpg",
+      "sha256": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-1.jpg",
+      "sha256": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-2.jpg",
+      "sha256": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-3.jpg",
+      "sha256": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-4.jpg",
+      "sha256": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-5.jpg",
+      "sha256": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-6.jpg",
+      "sha256": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-7.jpg",
+      "sha256": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-8.jpg",
+      "sha256": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9"
+    },
+    {
+      "path": "public/store-web/img/shop/shop-9.jpg",
+      "sha256": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d"
+    },
+    {
+      "path": "public/store-web/js/catalog-main.js",
+      "sha256": "11df47a3cfc1126bdbaa9eae66f290eb7e8ff0895949f1647f09b1c5b4df35d6"
+    },
+    {
+      "path": "docs/store-web/vendor/REFERENCE-NOTICE.txt",
+      "sha256": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7"
+    },
+    {
+      "path": "resources/sass/store-web/style.scss",
+      "sha256": "4dccba30b33148f3ebf2a9c64f42aeca753c2e162fa93470f26af4121cbaad68"
+    },
+    {
+      "path": "resources/sass/store-web/_base.scss",
+      "sha256": "6a6495212f0665c1c710b71be4407b5e56ee8cb1e4b84b610c9f241979422a03"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-coherence.scss",
+      "sha256": "cd7b41e964a58aa527893714696d338159673809a7330e06532a52100249e627"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-filters.scss",
+      "sha256": "0d9823e2f2a52a4e8f51307edc919a3efbe80a46c470d2b756e781b6bdd1bbb5"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-home.scss",
+      "sha256": "00a101a5baec78b1f78f5fbeb8d67311c27bcf753ded89215052a817b480d2f7"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-mobile-menu.scss",
+      "sha256": "fb90679983050c13fc55079a368b152422d6c3a24f7dfa62752eba19d7dece61"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-product-detail.scss",
+      "sha256": "66bfe16a7b7d9a1a38453faacdc88142b16eed7ef5f600206a883fe00495c403"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-search.scss",
+      "sha256": "414dfccb80d556118aa9a79028df438ba73bbcc3ac34447c03112e003f6f143b"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-shop.scss",
+      "sha256": "37c90c062e2abbdd5b097b9c771fa0d69dece3090cc24fccd69ca1cecca5531e"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-theme-tester.scss",
+      "sha256": "93e6e36432376ab3286095c9a1e9ee61ca5b2b17ee0066cce53ad7a21f0211a7"
+    },
+    {
+      "path": "resources/sass/store-web/_catalog-theme.scss",
+      "sha256": "9581b05e7202112f0cc247b9f62a3e3bcecd40a77a235c4a9db314156a7553bf"
+    },
+    {
+      "path": "resources/sass/store-web/_header.scss",
+      "sha256": "bbfa05a6ecec847a4e1f09fe1011e0e561416056c67f91741c6138a3c0db3cdf"
+    },
+    {
+      "path": "resources/sass/store-web/_mixins.scss",
+      "sha256": "0f31be6abd2a0463c69fb981ac282f9acf4ff2ecfd47e0cf08181273a386ebb9"
+    },
+    {
+      "path": "resources/sass/store-web/_responsive.scss",
+      "sha256": "7f26e1d87cd4a9348f5ccb9b5110e09ff913c46c99b7f6ad8700113b6c4114ba"
+    },
+    {
+      "path": "resources/sass/store-web/_variable.scss",
+      "sha256": "89eff3c58cb386b100982add2924e987ae7075c0e531ca63a93aab9e1a8693ff"
+    },
+    {
+      "path": "public/store-web/img/no_image.png",
+      "sha256": "83a2b680abc7af87cfff7777d0756fadb9f9aecd5ebda5d34f8139668e0fc842"
+    }
+  ],
+  "legacy": [
+    {
+      "path": "public/shop/css/bootstrap.min.css",
+      "sha256": "6acb1d9fbb959d58b5d8121d38b112fce0db8a478a8c0292d4d1a6dd078cbb94",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/elegant-icons.css",
+      "sha256": "f6e91324274aef56f0b748df152b61d8b7e3c34bcc549ec89de46dbd597ef465",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/font-awesome.min.css",
+      "sha256": "820e169ce24824066d9973fd4b6561aae9dcd6dbef6435da905d5a1d6482997c",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/jquery-ui.min.css",
+      "sha256": "ca4df2bf400a42d8752e115f03366a90b2b4ed06b2da9ef429d41fda5f15705e",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/magnific-popup.css",
+      "sha256": "8a39832d7b97c4d8ad3b0b01445655ac6bb4a231b598ddf1d5d6250e64ef0ad3",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/owl.carousel.min.css",
+      "sha256": "062368677bcefd9495e8b320e0cf22c4faca9f1bc04666efeb9cd5307cd591a4",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/slicknav.min.css",
+      "sha256": "e70db408aa0bb9d4602dbb85f043a506b7ea06c185348503e6fb280472446c48",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/css/style.css",
+      "sha256": "0fda1aa9c7df41edb2f69e38a5b5ced9850650b199a4883ecc68eb956626b5cc",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/ElegantIcons.eot",
+      "sha256": "912b4fcc232e1f45d329e2a127bca4bdf3195d965a2abce223b068e3c3c7db6a",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/ElegantIcons.svg",
+      "sha256": "e6eaeca499952bdd2870134b1d17de49c5e79adc5aa1af5f898e9072bc6d8f4d",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/ElegantIcons.ttf",
+      "sha256": "7be552fcc35865c045cfafde15e7939c557cb88801a1abf461a4febc6d55fea0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/ElegantIcons.woff",
+      "sha256": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/fontawesome-webfont.eot",
+      "sha256": "7bfcab6db99d5cfbf1705ca0536ddc78585432cc5fa41bbd7ad0f009033b2979",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/fontawesome-webfont.svg",
+      "sha256": "fc378232f9dad500890aa9e0bdd030a53d2f317d517393a3b91400b4ddce4c7c",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/fontawesome-webfont.ttf",
+      "sha256": "aa58f33f239a0fb02f5c7a6c45c043d7a9ac9a093335806694ecd6d4edc0d6a8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/fontawesome-webfont.woff",
+      "sha256": "ba0c59deb5450f5cb41b3f93609ee2d0d995415877ddfa223e8a8a7533474f07",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/fontawesome-webfont.woff2",
+      "sha256": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/fonts/FontAwesome.otf",
+      "sha256": "444dd4366615ffc4a16d012b2fa90137065d3ccb410fa6fd5e4ddd7b5e4ffcd5",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/banner/banner-1.jpg",
+      "sha256": "6ba9cb340aa97f8bbc8fbc26f59eaf67ffbda88c444b9c2c186b0d8ba158353d",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/banner/banner-2.jpg",
+      "sha256": "a11b121658df81778d213c98742865a5599bbd496c02e6f35b3e427b3361e537",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/banner/banner-3.jpg",
+      "sha256": "cc1bc3abae1e34262411caaf783d76b186769f73f2e5499cc4ab1ac31ec7101f",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-1.jpg",
+      "sha256": "433701ddd9cb489a20ae155eb6504b33d95d75010542d734e428765c70010e9b",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-10.jpg",
+      "sha256": "d5382c8c016574a53fd55ababac8d8cb33c875be810d4dd6c04bc56ba7a9c461",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-2.jpg",
+      "sha256": "e5cce58d697b809fac2a3d5d97fafb9ae7986449510c7f784087043838245885",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-3.jpg",
+      "sha256": "66ac9fa71517172c10348a52752f6f30161a5b0df8497c37ef0434a0d4133b68",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-4.jpg",
+      "sha256": "1365d9a67ac5a5784622dfc0e6ccdc9436012afe5c97a5cda4d6a0126744fdbd",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-5.jpg",
+      "sha256": "61b11ca6a8c22aac34bc7984c17caffe88cd9fe9d8eed821638c0d032fa4fa51",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-6.jpg",
+      "sha256": "8977a7502fa119f6bf969c1ae47ccc03f77b8f51a84d8e5c31f94269d54234f3",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-7.jpg",
+      "sha256": "2c6cd495b8af74c4b6d676b8fd32279f8075915d3d4933a30d19f957d55a3d3b",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-8.jpg",
+      "sha256": "77c95e50468c66d609fc3602d6222067af5b844f7ecbd19317d9a5408c63330a",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/blog-9.jpg",
+      "sha256": "134437b9dc4d176eafa3e149ac440ebfd64f18d56670b8c5c6a5a7206ce37095",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/details/blog-details.jpg",
+      "sha256": "a16eb23028d74ab4d10aa7957ae77326c85af21b3c4b302d3ffc7ec871fe290e",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/details/comment-1.jpg",
+      "sha256": "1e8a7c1ae2d420e3f02e6d9a0797f1817c286a4c74ae0cca2a3fbf0a2854ceed",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/details/comment-2.jpg",
+      "sha256": "be2b99823302b39cbe1bf68f6e3d639736b915862508538da6e3712fefffafa8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/details/comment-3.jpg",
+      "sha256": "88737b9271e22a06cc07afc302a570f3ab70c9ac1552b54c4c51d141d83ee047",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/sidebar/fp-1.jpg",
+      "sha256": "7ba6b8b86f695f2ebd69d0db838d5579107a87bf5c512ba20f91eec4a620eba4",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/sidebar/fp-2.jpg",
+      "sha256": "85fd8458636cbbf42c2a9c4b397f9fc4e8ad919daf913b748fb73c489500ab32",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/blog/sidebar/fp-3.jpg",
+      "sha256": "d5f6c3b728d194dcd9e54f223cc343e94f72909be89f07016cce74495ad9d0d6",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/categories/category-1.jpg",
+      "sha256": "a8c8d1563b01d456e9054a30ed8958b9e68ae5d9651581ce738db66f40ddb545",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/categories/category-2.jpg",
+      "sha256": "ca2d9eb42c15d9b11f673b68a5134418e5631e748c62f47202f55ad30597f700",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/categories/category-3.jpg",
+      "sha256": "62a60d4bab094a2458d91d7eb04cd0e59491a1ba6453d7ad6cad3230aa05e7f0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/categories/category-4.jpg",
+      "sha256": "016588ae28f865dc04f9f7344d3a54cf954fda59937b8811d3e280dd0760ad09",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/categories/category-5.jpg",
+      "sha256": "20cac0b10761de27638df9f5cdcb589288c817fae8ee5dfd56d6ddcbda0ae876",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/discount.jpg",
+      "sha256": "183af1cbf7a15e871e561294a2847a0f715b809ed6c5f3ecd5a76e5652dd03d8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-1.jpg",
+      "sha256": "632dd636101ecced25685215fc8484895ab926e0cbe14991a18f897b9a7ed23f",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-2.jpg",
+      "sha256": "38a82397d4742379dfd6f24c193349a8c47c9792c796c32af654b3324e835d1b",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-3.jpg",
+      "sha256": "419e027cab0e15843de9c8b8732655b7ecf00737470d8be1c2d9328d0438f66b",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-4.jpg",
+      "sha256": "5959a116b198e6cdcea4689be91b43ae9b691462e83a19e2f0a9890046dd7657",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-5.jpg",
+      "sha256": "a8b7ba57ef6fb2d12b2a90d625e52419d96ace8b6a02e6692e49c78158337580",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/instagram/insta-6.jpg",
+      "sha256": "8b2715727f985c702a6d068f83380edef6695b2f67f5e52633ed3b3f4ea464c2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/logo.png",
+      "sha256": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/payment/payment-1.png",
+      "sha256": "67adcfcf27138febff3e9aaabc66281df0b3d03e51e597fe9743fa1f91e0b608",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/payment/payment-2.png",
+      "sha256": "30e4382da0f7b8b5b9babc335e7d38a96c4e0bf6d1514e9f85d68499c6fb18b8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/payment/payment-3.png",
+      "sha256": "e3ad0d99d1da98478d372ff99b5090a7addc016c483ef84e7271d3fcd76cecb5",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/payment/payment-4.png",
+      "sha256": "22adaed486a5a73c77038ed59c1f7e3bb94fb5489ec895f84fe21bb85b85a58c",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/payment/payment-5.png",
+      "sha256": "fe9494032b83cb07d2b8b161e9e0ba846e3be76f9059d37854ddb99c1213c6a0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/product-1.jpg",
+      "sha256": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/product-2.jpg",
+      "sha256": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/product-3.jpg",
+      "sha256": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/product-4.jpg",
+      "sha256": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/thumb-1.jpg",
+      "sha256": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/thumb-2.jpg",
+      "sha256": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/thumb-3.jpg",
+      "sha256": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/details/thumb-4.jpg",
+      "sha256": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-1.jpg",
+      "sha256": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-2.jpg",
+      "sha256": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-3.jpg",
+      "sha256": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-4.jpg",
+      "sha256": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-5.jpg",
+      "sha256": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-6.jpg",
+      "sha256": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-7.jpg",
+      "sha256": "a94e50ca933608513bde019e20fba78bd2bc388b30c09f74a60d2cbb9cb77af0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/product-8.jpg",
+      "sha256": "9248106317a9443dd7b2d988b5f2c77d71de9e4f9587984e5aecc384483e59ac",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/related/rp-1.jpg",
+      "sha256": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/related/rp-2.jpg",
+      "sha256": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/related/rp-3.jpg",
+      "sha256": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/product/related/rp-4.jpg",
+      "sha256": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-1.jpg",
+      "sha256": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-2.jpg",
+      "sha256": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-3.jpg",
+      "sha256": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-4.jpg",
+      "sha256": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-5.jpg",
+      "sha256": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-6.jpg",
+      "sha256": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-7.jpg",
+      "sha256": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-8.jpg",
+      "sha256": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop/shop-9.jpg",
+      "sha256": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop-cart/cp-1.jpg",
+      "sha256": "6614b4159f81350ed20359858eb9e45507402e4c70ae9bb05c71b5a0cbbe4f90",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop-cart/cp-2.jpg",
+      "sha256": "8757bfff67d37cb2e3d9712a52d8dabeb477d681bc5f68da157a49b6241a21fe",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop-cart/cp-3.jpg",
+      "sha256": "cd199cddd3db21e850174b3276e4679778e62c351b5b2364778c490365bfd0f0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/shop-cart/cp-4.jpg",
+      "sha256": "ef5c5dd12f0dd6defe6ac74e48797841544fadd4501703f4c9320a20dfa9e2f2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/bs-1.jpg",
+      "sha256": "cd199cddd3db21e850174b3276e4679778e62c351b5b2364778c490365bfd0f0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/bs-2.jpg",
+      "sha256": "8757bfff67d37cb2e3d9712a52d8dabeb477d681bc5f68da157a49b6241a21fe",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/bs-3.jpg",
+      "sha256": "c35f3b081cf50455b1e832c1651635d99528860ae7e4a0de68aa18a26abdc8d3",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/f-1.jpg",
+      "sha256": "873bd33961843cec0425db2c85a9736ac2923abf2e61594b71b1d6664fe5ae34",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/f-2.jpg",
+      "sha256": "6818ee14c04cb3b37eb39c3ac5af93f91f6daddc9c34117e11f33424ba27f7f2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/f-3.jpg",
+      "sha256": "8eec74b1bc6d18fd42402bf6654431874bbe01a6ca64fa337a2ec3de909d9f39",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/ht-1.jpg",
+      "sha256": "6614b4159f81350ed20359858eb9e45507402e4c70ae9bb05c71b5a0cbbe4f90",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/ht-2.jpg",
+      "sha256": "ca1c11c93f70bd6cbdf3c8352a940b8fd645e3378a8eb9cced953c7a307d97cb",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/img/trend/ht-3.jpg",
+      "sha256": "ef5c5dd12f0dd6defe6ac74e48797841544fadd4501703f4c9320a20dfa9e2f2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/bootstrap.min.js",
+      "sha256": "f071233d0cdf38c346fe9de519edeee181ea4406224fe0a840d51f7b151cdbd0",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery-3.3.1.min.js",
+      "sha256": "4fe68fa216176e6d1f4580e924bafecc9f519984ecc06b1a840a08b0d88c95de",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery-ui.min.js",
+      "sha256": "21cacca8e9eb98f1f32702b4176685f2f941af51ab5bc7cf88ccb5435a1bb080",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery.countdown.min.js",
+      "sha256": "7ec2d650b6a3924ac9e4b4e9d817431ef33b58c21c6c0f436f3b3fc611cdd06f",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery.magnific-popup.min.js",
+      "sha256": "b0a45cd5aed66e27bd8ee861d0e3b782c8e79849bde32f90f078b9f2451a36f2",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery.nicescroll.min.js",
+      "sha256": "90416a7cc6359148ba877ac607904a24a0c394efacbcd05f737c6df991b442d7",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/jquery.slicknav.js",
+      "sha256": "3270a65e159c0137e86581ec1dda734f4d3f83146433c3e767e6a3711a8cb21e",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/main.js",
+      "sha256": "80755e0b6b343618ffc697a639d91bb0276703f21c5446372c898f6323de5627",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/mixitup.min.js",
+      "sha256": "09eb05abace6c0167bbb78c547bc341eb221b41d4c1d24d45cfa8d8c1cc59fa9",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/shop/js/owl.carousel.min.js",
+      "sha256": "4e0781bdd2cbb5db04da3b5e059eeca34e325fabb893bee7457b5babf5b7c029",
+      "matchesHEAD": true
+    },
+    {
+      "path": "public/js/shop/catalogNoPrice.js",
+      "sha256": "f728a7b31fee901bfeea98862ed5faedccaf221489a4ca0d5e8fdc36ef6ff118",
+      "matchesHEAD": true
+    },
+    {
+      "path": "resources/views/layouts/appShop.blade.php",
+      "sha256": "10862af2efd6a44ed43df332997724636be507d21601936b6577a478e2d698bf",
+      "matchesHEAD": true
+    },
+    {
+      "path": "resources/views/shop/catalogNoPrice.blade.php",
+      "sha256": "95a573462a7edd83af8f1ae9d0158bf04c3c62a3081e7f1338446cc0331fd96e",
+      "matchesHEAD": true
+    },
+    {
+      "path": "resources/views/shop/detailCatalogNotPrice.blade.php",
+      "sha256": "e8a275874146a7a3f0112bd9a215e45184f237b1cd3f5423296d96655eeee0b8",
+      "matchesHEAD": true
+    },
+    {
+      "path": "routes/web.php",
+      "sha256": "f97ae0f1fd531fcef12d84caadccf46102628962f3cba9f5bd94d42771771963",
+      "matchesHEAD": true
+    },
+    {
+      "path": "app/Http/Controllers/StoreWebController.php",
+      "sha256": "5c3404f4a64c101d636d448c7e0bf2c9a627c42e09b12aa66cc2dc94cae21713",
+      "matchesHEAD": true
+    },
+    {
+      "path": "app/Scopes/TenantScope.php",
+      "sha256": "2dd0ef30f306dd32e20ae54134920a02eb263ba27d273b81840f6ce33f220e10",
+      "matchesHEAD": true
+    },
+    {
+      "path": "webpack.mix.js",
+      "sha256": "328bd6893f6cd5fc86f047ac65e8464e2bb4c5da0693b50dac9896217ffd52c9",
+      "matchesHEAD": true
+    }
+  ],
+  "runtimeReferences": [],
+  "fixtureImages": [
+    {
+      "path": "public/store-web/img/logo.png",
+      "classification": "APPROVED SHELL / LOGO FALLBACK",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/no_image.png",
+      "classification": "PERMANENT PRODUCT FALLBACK",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/product-1.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/product-2.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/product-3.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/product-4.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-1.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-2.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-3.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/details/thumb-4.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-1.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-2.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-3.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-4.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-5.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/product-6.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-1.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-2.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-3.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/product/related/rp-4.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-1.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-2.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-3.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-4.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-5.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-6.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-7.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-8.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    },
+    {
+      "path": "public/store-web/img/shop/shop-9.jpg",
+      "classification": "REQUIRED LOCAL PREVIEW FIXTURE",
+      "moveOutsidePublicNow": false
+    }
+  ],
+  "notices": [
+    {
+      "path": "public/store-web/fonts/Montserrat-OFL.txt",
+      "sha256": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e"
+    },
+    {
+      "path": "docs/store-web/vendor/REFERENCE-NOTICE.txt",
+      "sha256": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7"
+    }
+  ],
+  "styleHash": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431",
+  "safeAreaOccurrences": 10,
+  "status": "PASS"
+}

@@ -1,0 +1,1075 @@
+{
+  "environment": "PHP 7.3.33 / installed Laravel Blade / isolated fixture router; no application controllers or DB provider",
+  "rows": [
+    {
+      "page": "index",
+      "width": 320,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 1295,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 1295,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 375,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 1296,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 1296,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 390,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 1304,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 1304,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 576,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 1370,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 1370,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 767,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 1352,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 1352,
+        "columns": null,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 768,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 1437,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 1437,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 991,
+      "domEqual": true,
+      "differentPixels": 1,
+      "metrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 1496,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 1496,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "index",
+      "width": 992,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1500,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1500,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 1200,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1555,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1555,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "index",
+      "width": 1440,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 1604,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 1604,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x",
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 320,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 1796,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 1796,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 375,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 1939,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 1939,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 390,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 1978,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 1978,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 576,
+      "domEqual": true,
+      "differentPixels": 2,
+      "metrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 2464,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 2464,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "shop",
+      "width": 767,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 2961,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 2961,
+        "columns": 2,
+        "bottomNav": true,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 768,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 1581,
+        "columns": 3,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 1581,
+        "columns": 3,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 991,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 1806,
+        "columns": 3,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 1806,
+        "columns": 3,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 992,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1571,
+        "columns": 4,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1571,
+        "columns": 4,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 1200,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1163,
+        "columns": 5,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1163,
+        "columns": 5,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "shop",
+      "width": 1440,
+      "domEqual": true,
+      "differentPixels": 2,
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 1245,
+        "columns": 5,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 1245,
+        "columns": 5,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "product-details",
+      "width": 320,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 2298,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 320,
+        "scrollWidth": 320,
+        "height": 2298,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "product-details",
+      "width": 375,
+      "domEqual": true,
+      "differentPixels": 2,
+      "metrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 2319,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 375,
+        "scrollWidth": 375,
+        "height": 2319,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "product-details",
+      "width": 390,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 2317,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "height": 2317,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "product-details",
+      "width": 576,
+      "domEqual": true,
+      "differentPixels": 1,
+      "metrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 2395,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 576,
+        "scrollWidth": 576,
+        "height": 2395,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "product-details",
+      "width": 767,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 2562,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 767,
+        "scrollWidth": 767,
+        "height": 2562,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": true,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "product-details",
+      "width": 768,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 2602,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 768,
+        "scrollWidth": 768,
+        "height": 2602,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "product-details",
+      "width": 991,
+      "domEqual": true,
+      "differentPixels": 3,
+      "metrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 2818,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 991,
+        "scrollWidth": 991,
+        "height": 2818,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "product-details",
+      "width": 992,
+      "domEqual": true,
+      "differentPixels": 1,
+      "metrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1831,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 992,
+        "scrollWidth": 992,
+        "height": 1831,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    },
+    {
+      "page": "product-details",
+      "width": 1200,
+      "domEqual": true,
+      "differentPixels": 0,
+      "metrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1870,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1200,
+        "scrollWidth": 1200,
+        "height": 1870,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 0
+    },
+    {
+      "page": "product-details",
+      "width": 1440,
+      "domEqual": true,
+      "differentPixels": 4,
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 2036,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "referenceMetrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "height": 2036,
+        "columns": null,
+        "bottomNav": false,
+        "stickyCTA": false,
+        "missingImages": 0,
+        "font": true,
+        "snap": [
+          "x"
+        ],
+        "safeAreaRules": true
+      },
+      "materialDifferentPixels": 0,
+      "maxChannelDelta": 1
+    }
+  ],
+  "interactions": [
+    "Mobile menu: open/aria, Tab loop, Escape, focus restoration, scroll restoration PASS",
+    "Drawer mobile/desktop widths, open/apply-close/aria PASS; no data handler added",
+    "Inline search clear/focus PASS; submit remains visual-only",
+    "Gallery thumbnail/src/alt/counter/aria PASS",
+    "Reduced-motion media supported; CSS/behavior preserved",
+    "Real IDs and business endpoints denied by fixture router PASS"
+  ],
+  "errors": [],
+  "rasterPolicy": "Exact normalized DOM and zero pixels differing by more than one 8-bit channel level; raw differences retained."
+}

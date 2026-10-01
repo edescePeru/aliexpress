@@ -1,0 +1,270 @@
+{
+    "mode": "authenticated Laravel kernel sessions; READ ONLY transaction",
+    "tenants": {
+        "Gamarra": {
+            "products": [
+                {
+                    "id": 19,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                }
+            ],
+            "crossTenantDenied": true,
+            "contextSpoofIgnored": true
+        },
+        "EDESCE": {
+            "products": [
+                {
+                    "id": 12,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/12.png",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 18,
+                    "variants": 10,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 4,
+                    "colors": 3,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 15,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/15.webp",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 16,
+                    "variants": 12,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b2259b8cc3.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225a021d9.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225a32eb2.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225a64a8d.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225a94cdc.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225ac7891.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225b07ae5.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225b3b46c.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225b6a8fc.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225b9d30d.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225bcba09.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_16_6a3b225c07c4c.webp",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 4,
+                    "colors": 3,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 4,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/4.jpg",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 6,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 7,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 3,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 1,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/1.webp",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 2,
+                    "variants": 0,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/no_image.png",
+                            "exists": true
+                        }
+                    ],
+                    "sizes": 0,
+                    "colors": 0,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                },
+                {
+                    "id": 13,
+                    "variants": 8,
+                    "images": [
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdfecac48.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdfedb0e8.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdfee7a50.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdff033e4.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdff27147.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdff4bd25.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdfedb0e8.webp",
+                            "exists": false
+                        },
+                        {
+                            "path": "\/images\/material\/variants\/variant_13_69c1cdff4bd25.webp",
+                            "exists": false
+                        }
+                    ],
+                    "sizes": 4,
+                    "colors": 2,
+                    "priceVisible": true,
+                    "available": true,
+                    "whatsappConfigured": false
+                }
+            ],
+            "crossTenantDenied": true,
+            "contextSpoofIgnored": true
+        }
+    },
+    "status": "PASS"
+}

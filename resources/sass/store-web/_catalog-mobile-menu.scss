@@ -1,0 +1,111 @@
+/* Venti360 catalog: native mobile navigation. */
+.catalog-mobile-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear .25s;
+
+  &.active {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+
+    .catalog-mobile-menu__overlay { opacity: 1; }
+    .catalog-mobile-menu__panel { transform: translateX(0); }
+  }
+}
+
+.catalog-mobile-menu__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, .5);
+  opacity: 0;
+  transition: opacity .22s ease;
+}
+
+.catalog-mobile-menu__panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 300px;
+  max-width: 82vw;
+  padding: 90px 20px 30px 30px;
+  overflow-y: auto;
+  background: $catalog-surface;
+  box-shadow: 12px 0 30px rgba(15, 23, 42, .16);
+  transform: translateX(-100%);
+  transition: transform .25s ease;
+}
+
+.catalog-mobile-menu__close {
+  position: absolute;
+  top: 25px;
+  right: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid $catalog-border;
+  border-radius: 50%;
+  background: $catalog-surface;
+  color: $catalog-text;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.catalog-mobile-menu__logo {
+  display: block;
+  margin-bottom: 25px;
+
+  img { width: auto; max-width: 98px; max-height: 31px; }
+}
+
+.catalog-mobile-menu__nav {
+  display: flex;
+  flex-direction: column;
+
+  a {
+    padding: 9px 0;
+    color: $catalog-text;
+    font-size: 13px;
+    font-weight: 600;
+
+    &.active,
+    &:hover { color: $catalog-accent; }
+  }
+}
+
+.catalog-mobile-menu__close:focus-visible,
+.catalog-mobile-menu__nav a:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid $catalog-accent;
+  outline-offset: 2px;
+}
+
+.catalog-mobile-menu__trigger { font-family: inherit; cursor: pointer; }
+
+@media only screen and (max-width: 767px) {
+  .catalog-mobile-menu__panel {
+    width: min(82vw, 290px);
+    max-width: none;
+    padding: 74px 20px 28px;
+  }
+
+  .catalog-mobile-menu__close { top: 18px; right: 20px; }
+}
+
+@media only screen and (min-width: 992px) {
+  .catalog-mobile-menu { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-mobile-menu,
+  .catalog-mobile-menu__overlay,
+  .catalog-mobile-menu__panel { transition: none; }
+}

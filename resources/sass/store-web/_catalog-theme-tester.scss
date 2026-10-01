@@ -1,0 +1,169 @@
+/* Temporary visual development tool. Remove this module and its markup for production. */
+.catalog-theme-tester {
+  position: fixed;
+  right: 16px;
+  bottom: 20px;
+  z-index: 98;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.catalog-theme-tester__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, .16);
+  cursor: pointer;
+
+  svg { width: 20px; height: 20px; fill: currentColor; }
+}
+
+.catalog-theme-tester__panel {
+  position: absolute;
+  right: 0;
+  bottom: 52px;
+  width: 288px;
+  max-width: calc(100vw - 24px);
+  padding: 14px;
+  border: 1px solid #dbe1e8;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #202124;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, .2);
+
+  &[hidden] { display: none; }
+}
+
+.catalog-theme-tester__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  strong { font-size: 14px; font-weight: 700; }
+
+  button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+}
+
+.catalog-theme-tester__presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.catalog-theme-tester__preset {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &.active { border-color: #334155; background: #f8fafc; }
+}
+
+.catalog-theme-tester__swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 50%;
+}
+
+.catalog-theme-tester__swatch--blue { background: #2f6fed; }
+.catalog-theme-tester__swatch--purple { background: #7c3aed; }
+.catalog-theme-tester__swatch--pink { background: #e11d48; }
+.catalog-theme-tester__swatch--green { background: #16a34a; }
+.catalog-theme-tester__swatch--orange { background: #ea580c; }
+.catalog-theme-tester__swatch--dark { background: #1f2937; }
+
+.catalog-theme-tester__check { visibility: hidden; font-size: 12px; }
+.catalog-theme-tester__preset.active .catalog-theme-tester__check { visibility: visible; }
+
+.catalog-theme-tester__custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+
+  > span:last-child { display: flex; align-items: center; gap: 7px; }
+
+  input {
+    width: 34px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #ffffff;
+    cursor: pointer;
+  }
+
+  output { min-width: 48px; color: #64748b; font-size: 9px; text-transform: uppercase; }
+}
+
+.catalog-theme-tester__reset {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.catalog-theme-tester button:focus-visible,
+.catalog-theme-tester input:focus-visible {
+  outline: 2px solid #334155;
+  outline-offset: 2px;
+}
+
+@media only screen and (max-width: 767px) {
+  .catalog-page--home .catalog-theme-tester,
+  .catalog-page--shop .catalog-theme-tester {
+    right: 12px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
+  .catalog-page--detail .catalog-theme-tester {
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .catalog-theme-tester__toggle { transition: transform .2s ease, box-shadow .2s ease; }
+  .catalog-theme-tester__toggle:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(15, 23, 42, .2); }
+}

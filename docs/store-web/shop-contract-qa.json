@@ -1,0 +1,36 @@
+{
+  "phase": "REAL NEXT 9.4",
+  "transport": "Controlled responses only; authenticated bridge tested separately by kernel QA",
+  "requests": [
+    "/store-web/categories/data",
+    "/store-web/sizes/data",
+    "/store-web/colors/data",
+    "/store-web/products/data/1?category_id=&subcategory_id=&min_price=&max_price=&search=inicial",
+    "/store-web/products/data/2?category_id=&subcategory_id=&min_price=&max_price=&search=inicial",
+    "/store-web/products/data/1?category_id=11&subcategory_id=&min_price=&max_price=&search=inicial",
+    "/store-web/products/data/1?category_id=11&subcategory_id=111&min_price=&max_price=&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=&max_price=&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=&max_price=&size_ids%5B%5D=21&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=&max_price=&size_ids%5B%5D=21&size_ids%5B%5D=22&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=&max_price=&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=10&max_price=100&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=inicial",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=10&max_price=100&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=azul+%26+ni%C3%B1o",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=10&max_price=100&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=lenta",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=10&max_price=100&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=r%C3%A1pida",
+    "/store-web/products/data/1?category_id=12&subcategory_id=&min_price=10&max_price=100&size_ids%5B%5D=21&size_ids%5B%5D=22&color_ids%5B%5D=21&search=",
+    "/store-web/products/data/1?category_id=&subcategory_id=&min_price=&max_price=&search=",
+    "/store-web/products/data/1?category_id=&subcategory_id=&min_price=&max_price=&search=",
+    "/store-web/products/data/1?category_id=&subcategory_id=&min_price=&max_price=&search=",
+    "/store-web/categories/data",
+    "/store-web/sizes/data",
+    "/store-web/colors/data",
+    "/store-web/products/data/1?category_id=&subcategory_id=&min_price=&max_price=&search="
+  ],
+  "checks": [
+    "Exact card fields, literal text escaping, no invented badges/rating/discount, total PASS",
+    "Current GET endpoints, scalar category/subcategory, arrays sizes/colors, price cleaning, page reset PASS",
+    "Search encoding/clear, stale response protection, clear filters, Escape PASS",
+    "Empty/product error/facet error and backend price visibility flag PASS"
+  ],
+  "status": "PASS"
+}

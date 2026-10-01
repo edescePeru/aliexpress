@@ -1,0 +1,231 @@
+{
+  "deletionReady": "YES",
+  "deleted": false,
+  "onlyDirectory": "C:/wamp64/www/venti-adminlte-ui/aliexpress/project-catalog",
+  "files": [
+    {
+      "path": "project-catalog/css/bootstrap.min.css",
+      "sha256": "a98de7f79af22bd534296f9a1779bc76876282d7e55b6e65975b9946b31f5f5b"
+    },
+    {
+      "path": "project-catalog/css/elegant-icons.css",
+      "sha256": "49a7ba596bb0c4f37e4a92a94ae6ebc433882efdd54d629bd9ea705490b1a2cf"
+    },
+    {
+      "path": "project-catalog/css/font-awesome.min.css",
+      "sha256": "158d58072880824514a2464065f64f02db0bb5d1742bb015fa30efe6c5a1b1d3"
+    },
+    {
+      "path": "project-catalog/css/style.css",
+      "sha256": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431"
+    },
+    {
+      "path": "project-catalog/fonts/ElegantIcons.woff",
+      "sha256": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae"
+    },
+    {
+      "path": "project-catalog/fonts/fontawesome-webfont.woff2",
+      "sha256": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe"
+    },
+    {
+      "path": "project-catalog/fonts/Montserrat-OFL.txt",
+      "sha256": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e"
+    },
+    {
+      "path": "project-catalog/fonts/Montserrat-Variable.ttf",
+      "sha256": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7"
+    },
+    {
+      "path": "project-catalog/img/logo.png",
+      "sha256": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038"
+    },
+    {
+      "path": "project-catalog/img/product/details/product-1.jpg",
+      "sha256": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784"
+    },
+    {
+      "path": "project-catalog/img/product/details/product-2.jpg",
+      "sha256": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991"
+    },
+    {
+      "path": "project-catalog/img/product/details/product-3.jpg",
+      "sha256": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704"
+    },
+    {
+      "path": "project-catalog/img/product/details/product-4.jpg",
+      "sha256": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b"
+    },
+    {
+      "path": "project-catalog/img/product/details/thumb-1.jpg",
+      "sha256": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462"
+    },
+    {
+      "path": "project-catalog/img/product/details/thumb-2.jpg",
+      "sha256": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8"
+    },
+    {
+      "path": "project-catalog/img/product/details/thumb-3.jpg",
+      "sha256": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107"
+    },
+    {
+      "path": "project-catalog/img/product/details/thumb-4.jpg",
+      "sha256": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2"
+    },
+    {
+      "path": "project-catalog/img/product/product-1.jpg",
+      "sha256": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c"
+    },
+    {
+      "path": "project-catalog/img/product/product-2.jpg",
+      "sha256": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931"
+    },
+    {
+      "path": "project-catalog/img/product/product-3.jpg",
+      "sha256": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1"
+    },
+    {
+      "path": "project-catalog/img/product/product-4.jpg",
+      "sha256": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336"
+    },
+    {
+      "path": "project-catalog/img/product/product-5.jpg",
+      "sha256": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c"
+    },
+    {
+      "path": "project-catalog/img/product/product-6.jpg",
+      "sha256": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48"
+    },
+    {
+      "path": "project-catalog/img/product/related/rp-1.jpg",
+      "sha256": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356"
+    },
+    {
+      "path": "project-catalog/img/product/related/rp-2.jpg",
+      "sha256": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67"
+    },
+    {
+      "path": "project-catalog/img/product/related/rp-3.jpg",
+      "sha256": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025"
+    },
+    {
+      "path": "project-catalog/img/product/related/rp-4.jpg",
+      "sha256": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-1.jpg",
+      "sha256": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-2.jpg",
+      "sha256": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-3.jpg",
+      "sha256": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-4.jpg",
+      "sha256": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-5.jpg",
+      "sha256": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-6.jpg",
+      "sha256": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-7.jpg",
+      "sha256": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-8.jpg",
+      "sha256": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9"
+    },
+    {
+      "path": "project-catalog/img/shop/shop-9.jpg",
+      "sha256": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d"
+    },
+    {
+      "path": "project-catalog/index.html",
+      "sha256": "76b61ce1d73293c30aa2ac0757c193d9a6e36e3b0a28a62268456e4f186cd4be"
+    },
+    {
+      "path": "project-catalog/js/catalog-main.js",
+      "sha256": "92433d0e88cdacf89f637b20c25c265bfe7fc6f3d137dd6f1a5e642a5f7e87e7"
+    },
+    {
+      "path": "project-catalog/product-details.html",
+      "sha256": "cb21f65a8f8926facc8825c5a5bce065b90d550a6bd1d7f5f1942c54e9811950"
+    },
+    {
+      "path": "project-catalog/readme.txt",
+      "sha256": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7"
+    },
+    {
+      "path": "project-catalog/sass/style.scss",
+      "sha256": "4dccba30b33148f3ebf2a9c64f42aeca753c2e162fa93470f26af4121cbaad68"
+    },
+    {
+      "path": "project-catalog/sass/_base.scss",
+      "sha256": "6a6495212f0665c1c710b71be4407b5e56ee8cb1e4b84b610c9f241979422a03"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-coherence.scss",
+      "sha256": "cd7b41e964a58aa527893714696d338159673809a7330e06532a52100249e627"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-filters.scss",
+      "sha256": "0d9823e2f2a52a4e8f51307edc919a3efbe80a46c470d2b756e781b6bdd1bbb5"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-home.scss",
+      "sha256": "00a101a5baec78b1f78f5fbeb8d67311c27bcf753ded89215052a817b480d2f7"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-mobile-menu.scss",
+      "sha256": "fb90679983050c13fc55079a368b152422d6c3a24f7dfa62752eba19d7dece61"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-product-detail.scss",
+      "sha256": "66bfe16a7b7d9a1a38453faacdc88142b16eed7ef5f600206a883fe00495c403"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-search.scss",
+      "sha256": "414dfccb80d556118aa9a79028df438ba73bbcc3ac34447c03112e003f6f143b"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-shop.scss",
+      "sha256": "37c90c062e2abbdd5b097b9c771fa0d69dece3090cc24fccd69ca1cecca5531e"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-theme-tester.scss",
+      "sha256": "93e6e36432376ab3286095c9a1e9ee61ca5b2b17ee0066cce53ad7a21f0211a7"
+    },
+    {
+      "path": "project-catalog/sass/_catalog-theme.scss",
+      "sha256": "9581b05e7202112f0cc247b9f62a3e3bcecd40a77a235c4a9db314156a7553bf"
+    },
+    {
+      "path": "project-catalog/sass/_header.scss",
+      "sha256": "bbfa05a6ecec847a4e1f09fe1011e0e561416056c67f91741c6138a3c0db3cdf"
+    },
+    {
+      "path": "project-catalog/sass/_mixins.scss",
+      "sha256": "0f31be6abd2a0463c69fb981ac282f9acf4ff2ecfd47e0cf08181273a386ebb9"
+    },
+    {
+      "path": "project-catalog/sass/_responsive.scss",
+      "sha256": "7f26e1d87cd4a9348f5ccb9b5110e09ff913c46c99b7f6ad8700113b6c4114ba"
+    },
+    {
+      "path": "project-catalog/sass/_variable.scss",
+      "sha256": "89eff3c58cb386b100982add2924e987ae7075c0e531ca63a93aab9e1a8693ff"
+    },
+    {
+      "path": "project-catalog/shop.html",
+      "sha256": "ee8701390877ece6fe2368132a24371aece10b6e36854d1bdb395ae19235d74b"
+    }
+  ]
+}

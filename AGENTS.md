@@ -106,6 +106,32 @@ Use it only for:
 - surfaces;
 - shell behavior where compatible.
 
+# Store Web reference rule
+
+For Store Web integration, `project-catalog` is the frozen visual source of truth.
+
+The reference project lives in:
+
+`C:\wamp64\www\venti-adminlte-ui\aliexpress\project-catalog`
+
+For Store Web:
+
+- `aliexpress` remains the functional/backend source of truth.
+- `project-catalog` is the visual and mobile-first source of truth.
+- Do not redesign, reinterpret, simplify, normalize or restyle its frontend.
+- Preserve its layout, typography, spacing, cards, product detail, filters, responsive behavior and mobile-first interaction exactly unless a real backend contract makes an adaptation unavoidable.
+- Do not replace its responsive system with AdminLTE, Bootstrap or Venti Next patterns merely for consistency with the backoffice.
+- Any visual deviation from `project-catalog` must be explicitly justified by a real backend contract and approved by the user before implementation.
+- Backend integration should adapt data bindings, routes, Blade, AJAX and contracts around the approved frontend rather than reconstructing the frontend around the backend.
+
+The `project-catalog` directory is temporary.
+
+At the end of Store Web integration:
+
+- all required CSS, JavaScript, fonts and images must live in permanent project locations;
+- no Blade, CSS, JS or asset may reference `project-catalog`;
+- the complete Store Web must continue working after `project-catalog` is deleted.
+
 ---
 
 # No uncontrolled visual experimentation

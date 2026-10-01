@@ -1,0 +1,154 @@
+{
+  "mode": "Browser replay of actual authenticated kernel HTML/JSON; local asset origin normalized",
+  "rows": [
+    {
+      "label": "Gamarra",
+      "width": 320,
+      "scrollWidth": 320,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 375,
+      "scrollWidth": 375,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 390,
+      "scrollWidth": 390,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 576,
+      "scrollWidth": 576,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 767,
+      "scrollWidth": 767,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 768,
+      "scrollWidth": 768,
+      "columns": 3,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 991,
+      "scrollWidth": 991,
+      "columns": 3,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 992,
+      "scrollWidth": 992,
+      "columns": 4,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 1200,
+      "scrollWidth": 1200,
+      "columns": 5,
+      "missingImages": 0
+    },
+    {
+      "label": "Gamarra",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "columns": 5,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 320,
+      "scrollWidth": 320,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 375,
+      "scrollWidth": 375,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 390,
+      "scrollWidth": 390,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 576,
+      "scrollWidth": 576,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 767,
+      "scrollWidth": 767,
+      "columns": 2,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 768,
+      "scrollWidth": 768,
+      "columns": 3,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 991,
+      "scrollWidth": 991,
+      "columns": 3,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 992,
+      "scrollWidth": 992,
+      "columns": 4,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 1200,
+      "scrollWidth": 1200,
+      "columns": 5,
+      "missingImages": 0
+    },
+    {
+      "label": "EDESCE",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "columns": 5,
+      "missingImages": 0
+    }
+  ],
+  "errors": [],
+  "failedImages": [
+    "http://127.0.0.1:8080/images/material/12.png",
+    "http://127.0.0.1:8080/images/material/15.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_16_6a3b2259b8cc3.webp",
+    "http://127.0.0.1:8080/images/material/4.jpg",
+    "http://127.0.0.1:8080/images/material/1.webp"
+  ],
+  "status": "PASS WITH EXISTING ASSET GAPS"
+}

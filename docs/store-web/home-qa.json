@@ -1,0 +1,214 @@
+{
+  "phase": "REAL NEXT 9.3",
+  "rows": [
+    {
+      "width": 320,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 320,
+      "font": true,
+      "bottomNav": true,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": true
+        },
+        {
+          "type": "x",
+          "overflow": true
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 375,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 375,
+      "font": true,
+      "bottomNav": true,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": true
+        },
+        {
+          "type": "x",
+          "overflow": true
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 390,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 390,
+      "font": true,
+      "bottomNav": true,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": true
+        },
+        {
+          "type": "x",
+          "overflow": true
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 576,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 576,
+      "font": true,
+      "bottomNav": true,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": true
+        },
+        {
+          "type": "x",
+          "overflow": true
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 767,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 767,
+      "font": true,
+      "bottomNav": true,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": true
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 768,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 768,
+      "font": true,
+      "bottomNav": false,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": false
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 991,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 991,
+      "font": true,
+      "bottomNav": false,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": false
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 992,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 992,
+      "font": true,
+      "bottomNav": false,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": false
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 1200,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 1200,
+      "font": true,
+      "bottomNav": false,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": false
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    },
+    {
+      "width": 1440,
+      "raw": 0,
+      "material": 0,
+      "maxChannelDelta": 0,
+      "scrollWidth": 1440,
+      "font": true,
+      "bottomNav": false,
+      "snap": [
+        {
+          "type": "x",
+          "overflow": false
+        },
+        {
+          "type": "x",
+          "overflow": false
+        }
+      ],
+      "safeArea": true
+    }
+  ],
+  "referenceWarnings": [
+    "Reference-only implicit favicon.ico 404; not a runtime Home asset"
+  ],
+  "errors": [],
+  "businessRequests": [],
+  "interactions": [
+    "Inert socials/chips; carousel scroll; menu trap/Escape/focus; reduced-motion search focus/clear/empty/encoded submit; bottom nav/catalog and fixture detail PASS"
+  ],
+  "status": "PASS"
+}

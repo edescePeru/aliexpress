@@ -1,0 +1,2560 @@
+{
+  "phase": "REAL NEXT 9.2",
+  "base": "http://127.0.0.1:8080",
+  "rows": [
+    {
+      "uri": "inicio",
+      "width": 320,
+      "scrollWidth": 320,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 375,
+      "scrollWidth": 375,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 390,
+      "scrollWidth": 390,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 576,
+      "scrollWidth": 576,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 767,
+      "scrollWidth": 767,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 768,
+      "scrollWidth": 768,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 991,
+      "scrollWidth": 991,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 992,
+      "scrollWidth": 992,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 1200,
+      "scrollWidth": 1200,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "inicio",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 320,
+      "scrollWidth": 320,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 375,
+      "scrollWidth": 375,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 390,
+      "scrollWidth": 390,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 576,
+      "scrollWidth": 576,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 767,
+      "scrollWidth": 767,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": true,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 768,
+      "scrollWidth": 768,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 991,
+      "scrollWidth": 991,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 992,
+      "scrollWidth": 992,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 1200,
+      "scrollWidth": 1200,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "catalogo",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "product/999999999",
+      "width": 320,
+      "scrollWidth": 320,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": true
+    },
+    {
+      "uri": "product/999999999",
+      "width": 375,
+      "scrollWidth": 375,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": true
+    },
+    {
+      "uri": "product/999999999",
+      "width": 390,
+      "scrollWidth": 390,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": true
+    },
+    {
+      "uri": "product/999999999",
+      "width": 576,
+      "scrollWidth": 576,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": true
+    },
+    {
+      "uri": "product/999999999",
+      "width": 767,
+      "scrollWidth": 767,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": true
+    },
+    {
+      "uri": "product/999999999",
+      "width": 768,
+      "scrollWidth": 768,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "product/999999999",
+      "width": 991,
+      "scrollWidth": 991,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "product/999999999",
+      "width": 992,
+      "scrollWidth": 992,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "product/999999999",
+      "width": 1200,
+      "scrollWidth": 1200,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    },
+    {
+      "uri": "product/999999999",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "font": true,
+      "missingImages": 0,
+      "bottomNav": false,
+      "stickyCTA": false
+    }
+  ],
+  "errors": [],
+  "interactions": [
+    "Menu: open, focus loop, Escape and focus restoration PASS",
+    "Drawer mobile/desktop open and apply-close PASS",
+    "Gallery, bottom navigation and mobile CTA visibility PASS; commercial controls remain fixtures",
+    "Business endpoints and legacy aliases return 404 PASS"
+  ],
+  "assets": [
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/product-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/home-preview.js?v=real-next-9-3",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-6.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-5.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-8.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-7.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/shop/shop-9.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-data.js?v=real-next-9-4",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/bootstrap.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/font-awesome.min.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/elegant-icons.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/css/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/logo.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/thumb-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-1.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-2.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-3.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/related/rp-4.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/js/catalog-main.js?v=real-next-9-1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/Montserrat-Variable.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/ElegantIcons.woff",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/fonts/fontawesome-webfont.woff2?v=4.7.0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/store-web/img/product/details/product-2.jpg",
+      "status": 200
+    }
+  ],
+  "businessRequests": [],
+  "unchangedAssets": 54,
+  "status": "PASS"
+}

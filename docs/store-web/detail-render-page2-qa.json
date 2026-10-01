@@ -1,0 +1,240 @@
+{
+  "mode": "Browser replay: authenticated kernel HTML + explicitly synthetic edge cases",
+  "rows": [
+    {
+      "label": "EDESCE-2",
+      "width": 320,
+      "thumbnails": 1,
+      "scrollWidth": 320,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 375,
+      "thumbnails": 1,
+      "scrollWidth": 375,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 390,
+      "thumbnails": 1,
+      "scrollWidth": 390,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 576,
+      "thumbnails": 1,
+      "scrollWidth": 576,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 767,
+      "thumbnails": 1,
+      "scrollWidth": 767,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 768,
+      "thumbnails": 1,
+      "scrollWidth": 768,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 991,
+      "thumbnails": 1,
+      "scrollWidth": 991,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 992,
+      "thumbnails": 1,
+      "scrollWidth": 992,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 1200,
+      "thumbnails": 1,
+      "scrollWidth": 1200,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-2",
+      "width": 1440,
+      "thumbnails": 1,
+      "scrollWidth": 1440,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 320,
+      "thumbnails": 8,
+      "scrollWidth": 320,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 375,
+      "thumbnails": 8,
+      "scrollWidth": 375,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 390,
+      "thumbnails": 8,
+      "scrollWidth": 390,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 576,
+      "thumbnails": 8,
+      "scrollWidth": 576,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 767,
+      "thumbnails": 8,
+      "scrollWidth": 767,
+      "mobileCTA": true,
+      "inlineCTA": false,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 768,
+      "thumbnails": 8,
+      "scrollWidth": 768,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 991,
+      "thumbnails": 8,
+      "scrollWidth": 991,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "static",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 992,
+      "thumbnails": 8,
+      "scrollWidth": 992,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 1200,
+      "thumbnails": 8,
+      "scrollWidth": 1200,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    },
+    {
+      "label": "EDESCE-13",
+      "width": 1440,
+      "thumbnails": 8,
+      "scrollWidth": 1440,
+      "mobileCTA": false,
+      "inlineCTA": true,
+      "sticky": "sticky",
+      "font": true,
+      "disabledOptions": true
+    }
+  ],
+  "errors": [],
+  "missingImages": [
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdfecac48.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdfedb0e8.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdfee7a50.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdff033e4.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdff27147.webp",
+    "http://127.0.0.1:8080/images/material/variants/variant_13_69c1cdff4bd25.webp"
+  ],
+  "businessRequests": [],
+  "whatsapp": {
+    "captured": 0,
+    "sent": 0
+  },
+  "status": "PASS WITH DOCUMENTED IMAGE FALLBACKS"
+}

@@ -1,0 +1,17 @@
+{
+  "phase": "REAL NEXT 9.5",
+  "status": "STORE WEB PRODUCT DETAIL FRONTEND INTEGRATED — BACKEND CONTRACT TEMPORARY",
+  "php": {
+    "runtime": "7.3.33",
+    "tests": 10,
+    "assertions": 512
+  },
+  "visual": "PASS",
+  "realWidths": 120,
+  "syntheticWidths": 8,
+  "anonymousRegressionWidths": 30,
+  "styleHash": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431",
+  "backendChanges": [],
+  "businessWrites": 0,
+  "backendSync": "SW-01…SW-07 OPEN"
+}

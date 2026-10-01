@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="" tests="10" assertions="520" errors="0" warnings="0" failures="0" skipped="0" time="1.929719">
+    <testsuite name="Feature" tests="10" assertions="520" errors="0" warnings="0" failures="0" skipped="0" time="1.929719">
+      <testsuite name="Tests\Feature\StoreWebAuthenticatedLiveQaTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebAuthenticatedLiveQaTest.php" tests="1" assertions="61" errors="0" warnings="0" failures="0" skipped="0" time="0.618779">
+        <testcase name="test_gamarra_and_edesce_authenticated_sessions" class="Tests\Feature\StoreWebAuthenticatedLiveQaTest" classname="Tests.Feature.StoreWebAuthenticatedLiveQaTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebAuthenticatedLiveQaTest.php" line="13" assertions="61" time="0.618779"/>
+      </testsuite>
+      <testsuite name="Tests\Feature\StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" tests="7" assertions="114" errors="0" warnings="0" failures="0" skipped="0" time="0.684006">
+        <testcase name="test_local_preview_uses_fixtures_before_binding_or_controller" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="22" assertions="35" time="0.087554"/>
+        <testcase name="test_disabled_preview_fails_closed_even_with_query_parameters" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="32" assertions="10" time="0.094116"/>
+        <testcase name="test_home_search_navigation_and_fixture_slots_do_not_query_business_data" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="40" assertions="11" time="0.077663"/>
+        <testcase name="test_non_local_environments_cannot_enable_preview" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="55" assertions="30" time="0.129143"/>
+        <testcase name="test_data_endpoints_and_legacy_aliases_do_not_fall_through_in_preview" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="65" assertions="7" time="0.081995"/>
+        <testcase name="test_authenticated_bridge_requires_existing_valid_session_context" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="79" assertions="13" time="0.114124"/>
+        <testcase name="test_authenticated_bridge_rejects_inactive_or_unauthorized_context" class="Tests\Feature\StoreWebLocalPreviewTest" classname="Tests.Feature.StoreWebLocalPreviewTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebLocalPreviewTest.php" line="105" assertions="8" time="0.099411"/>
+      </testsuite>
+      <testsuite name="Tests\Feature\StoreWebProductDetailLiveQaTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebProductDetailLiveQaTest.php" tests="1" assertions="280" errors="0" warnings="0" failures="0" skipped="0" time="0.544092">
+        <testcase name="test_authenticated_details_and_cross_tenant_binding" class="Tests\Feature\StoreWebProductDetailLiveQaTest" classname="Tests.Feature.StoreWebProductDetailLiveQaTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebProductDetailLiveQaTest.php" line="13" assertions="280" time="0.544092"/>
+      </testsuite>
+      <testsuite name="Tests\Feature\StoreWebProductDetailTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebProductDetailTest.php" tests="1" assertions="65" errors="0" warnings="0" failures="0" skipped="0" time="0.082841">
+        <testcase name="test_real_presentation_uses_only_supplied_data_and_no_business_queries" class="Tests\Feature\StoreWebProductDetailTest" classname="Tests.Feature.StoreWebProductDetailTest" file="C:\wamp64\www\venti-adminlte-ui\aliexpress\tests\Feature\StoreWebProductDetailTest.php" line="11" assertions="65" time="0.082841"/>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

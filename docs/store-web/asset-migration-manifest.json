@@ -1,0 +1,383 @@
+{
+  "phase": "REAL NEXT 9.1",
+  "files": [
+    {
+      "source": "project-catalog/css/bootstrap.min.css",
+      "destination": "public/store-web/css/bootstrap.min.css",
+      "sourceHash": "a98de7f79af22bd534296f9a1779bc76876282d7e55b6e65975b9946b31f5f5b",
+      "copiedHash": "a98de7f79af22bd534296f9a1779bc76876282d7e55b6e65975b9946b31f5f5b",
+      "finalHash": "a98de7f79af22bd534296f9a1779bc76876282d7e55b6e65975b9946b31f5f5b"
+    },
+    {
+      "source": "project-catalog/css/elegant-icons.css",
+      "destination": "public/store-web/css/elegant-icons.css",
+      "sourceHash": "49a7ba596bb0c4f37e4a92a94ae6ebc433882efdd54d629bd9ea705490b1a2cf",
+      "copiedHash": "49a7ba596bb0c4f37e4a92a94ae6ebc433882efdd54d629bd9ea705490b1a2cf",
+      "finalHash": "49a7ba596bb0c4f37e4a92a94ae6ebc433882efdd54d629bd9ea705490b1a2cf"
+    },
+    {
+      "source": "project-catalog/css/font-awesome.min.css",
+      "destination": "public/store-web/css/font-awesome.min.css",
+      "sourceHash": "158d58072880824514a2464065f64f02db0bb5d1742bb015fa30efe6c5a1b1d3",
+      "copiedHash": "158d58072880824514a2464065f64f02db0bb5d1742bb015fa30efe6c5a1b1d3",
+      "finalHash": "158d58072880824514a2464065f64f02db0bb5d1742bb015fa30efe6c5a1b1d3"
+    },
+    {
+      "source": "project-catalog/css/style.css",
+      "destination": "public/store-web/css/style.css",
+      "sourceHash": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431",
+      "copiedHash": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431",
+      "finalHash": "eb43009f04a0298356f56781b9c128c5969fdb4ef9333f7fde05a508b57e1431"
+    },
+    {
+      "source": "project-catalog/fonts/ElegantIcons.woff",
+      "destination": "public/store-web/fonts/ElegantIcons.woff",
+      "sourceHash": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae",
+      "copiedHash": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae",
+      "finalHash": "be1825e52a0dc7df04df9322f62abe2a2f2a25d98aac186de0140dfc7f6bdcae"
+    },
+    {
+      "source": "project-catalog/fonts/fontawesome-webfont.woff2",
+      "destination": "public/store-web/fonts/fontawesome-webfont.woff2",
+      "sourceHash": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe",
+      "copiedHash": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe",
+      "finalHash": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe"
+    },
+    {
+      "source": "project-catalog/fonts/Montserrat-OFL.txt",
+      "destination": "public/store-web/fonts/Montserrat-OFL.txt",
+      "sourceHash": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e",
+      "copiedHash": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e",
+      "finalHash": "8b7141c03fa4f8d44e6345d5d4931709290f0f67875e452e95ac1fd3a027802e"
+    },
+    {
+      "source": "project-catalog/fonts/Montserrat-Variable.ttf",
+      "destination": "public/store-web/fonts/Montserrat-Variable.ttf",
+      "sourceHash": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7",
+      "copiedHash": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7",
+      "finalHash": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7"
+    },
+    {
+      "source": "project-catalog/img/logo.png",
+      "destination": "public/store-web/img/logo.png",
+      "sourceHash": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038",
+      "copiedHash": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038",
+      "finalHash": "956aef9e418b1dfff283a0cc26cd36f9775b856c425aebc1a05656942ec6e038"
+    },
+    {
+      "source": "project-catalog/img/product/details/product-1.jpg",
+      "destination": "public/store-web/img/product/details/product-1.jpg",
+      "sourceHash": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784",
+      "copiedHash": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784",
+      "finalHash": "2d76533921f82e5c97e9ea6abfbc456aad201bb19c9d5d7dfdff25ce0c857784"
+    },
+    {
+      "source": "project-catalog/img/product/details/product-2.jpg",
+      "destination": "public/store-web/img/product/details/product-2.jpg",
+      "sourceHash": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991",
+      "copiedHash": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991",
+      "finalHash": "3b49b19916fa886f45009af72166f392c3ce34227f7830947db2d3d355343991"
+    },
+    {
+      "source": "project-catalog/img/product/details/product-3.jpg",
+      "destination": "public/store-web/img/product/details/product-3.jpg",
+      "sourceHash": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704",
+      "copiedHash": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704",
+      "finalHash": "319400ec0afce8ff205bb546c243768984f635b9e61bcf3a54d7722fc8a6e704"
+    },
+    {
+      "source": "project-catalog/img/product/details/product-4.jpg",
+      "destination": "public/store-web/img/product/details/product-4.jpg",
+      "sourceHash": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b",
+      "copiedHash": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b",
+      "finalHash": "3bd9514bf23950b12056956f51a4939b2a6c93160c289539e1d448f119d39f3b"
+    },
+    {
+      "source": "project-catalog/img/product/details/thumb-1.jpg",
+      "destination": "public/store-web/img/product/details/thumb-1.jpg",
+      "sourceHash": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462",
+      "copiedHash": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462",
+      "finalHash": "5282789ce6f42aa89a909767c3c61ef3d0500c71b7b028d4360b20ed38544462"
+    },
+    {
+      "source": "project-catalog/img/product/details/thumb-2.jpg",
+      "destination": "public/store-web/img/product/details/thumb-2.jpg",
+      "sourceHash": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8",
+      "copiedHash": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8",
+      "finalHash": "0a2cbd492f74c14e2844b619f5870918cc8e3b0db8e6856fd91e4c12ae66dcd8"
+    },
+    {
+      "source": "project-catalog/img/product/details/thumb-3.jpg",
+      "destination": "public/store-web/img/product/details/thumb-3.jpg",
+      "sourceHash": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107",
+      "copiedHash": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107",
+      "finalHash": "c0fe674848bb9880a0bfdbb275bc6f31dc906bd19a21cf86d659a34bd77d8107"
+    },
+    {
+      "source": "project-catalog/img/product/details/thumb-4.jpg",
+      "destination": "public/store-web/img/product/details/thumb-4.jpg",
+      "sourceHash": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2",
+      "copiedHash": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2",
+      "finalHash": "827dbf7a84165d72064c78c4a82f0445c7de791f432d782d1db1c2ff0864f4c2"
+    },
+    {
+      "source": "project-catalog/img/product/product-1.jpg",
+      "destination": "public/store-web/img/product/product-1.jpg",
+      "sourceHash": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c",
+      "copiedHash": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c",
+      "finalHash": "1118222f94dd4f0a65b7fe523415256d08f25346f0f53057c67aa5a4cb6dcd7c"
+    },
+    {
+      "source": "project-catalog/img/product/product-2.jpg",
+      "destination": "public/store-web/img/product/product-2.jpg",
+      "sourceHash": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931",
+      "copiedHash": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931",
+      "finalHash": "0f53daa86cd9c478d58f2506633bdf583548ae98f3d1cbb7f0860105ed8e7931"
+    },
+    {
+      "source": "project-catalog/img/product/product-3.jpg",
+      "destination": "public/store-web/img/product/product-3.jpg",
+      "sourceHash": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1",
+      "copiedHash": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1",
+      "finalHash": "c5ffd182437efa17c0bf7f0c3cc67422607422ea7f8c5cfc4ece5d647131bea1"
+    },
+    {
+      "source": "project-catalog/img/product/product-4.jpg",
+      "destination": "public/store-web/img/product/product-4.jpg",
+      "sourceHash": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336",
+      "copiedHash": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336",
+      "finalHash": "18cf39b72e29a614de0bb91ef7573bce5d104613243f8b65d54a8b70d5fe1336"
+    },
+    {
+      "source": "project-catalog/img/product/product-5.jpg",
+      "destination": "public/store-web/img/product/product-5.jpg",
+      "sourceHash": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c",
+      "copiedHash": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c",
+      "finalHash": "b8421cab12c696ba2fdd56d7b6e7250fc917db32dfbca1262536897a1e9af52c"
+    },
+    {
+      "source": "project-catalog/img/product/product-6.jpg",
+      "destination": "public/store-web/img/product/product-6.jpg",
+      "sourceHash": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48",
+      "copiedHash": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48",
+      "finalHash": "b38b63605114aa516c7cb9e2f2ecbb85e1ebb4af212c574275a7a5dcd022ff48"
+    },
+    {
+      "source": "project-catalog/img/product/related/rp-1.jpg",
+      "destination": "public/store-web/img/product/related/rp-1.jpg",
+      "sourceHash": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356",
+      "copiedHash": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356",
+      "finalHash": "2a5504f95088884e6ce44ea498a4c306d452e9d4ed11faf8faf239455bd32356"
+    },
+    {
+      "source": "project-catalog/img/product/related/rp-2.jpg",
+      "destination": "public/store-web/img/product/related/rp-2.jpg",
+      "sourceHash": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67",
+      "copiedHash": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67",
+      "finalHash": "ea8641d4ef7bc1cd30d4f076032789a25b7965a9fa9184587c1e89dead227a67"
+    },
+    {
+      "source": "project-catalog/img/product/related/rp-3.jpg",
+      "destination": "public/store-web/img/product/related/rp-3.jpg",
+      "sourceHash": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025",
+      "copiedHash": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025",
+      "finalHash": "acb554f7124e5257c4126f745c4c84de5dbb7974cea18599eea0a75d1431f025"
+    },
+    {
+      "source": "project-catalog/img/product/related/rp-4.jpg",
+      "destination": "public/store-web/img/product/related/rp-4.jpg",
+      "sourceHash": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2",
+      "copiedHash": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2",
+      "finalHash": "657599c7357c3ba1dd7388acc8423944f63109339d351b993d7004e440d751c2"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-1.jpg",
+      "destination": "public/store-web/img/shop/shop-1.jpg",
+      "sourceHash": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35",
+      "copiedHash": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35",
+      "finalHash": "b7dfbaf325d5a2cb01404f900ccd2a6d4b6de9d8c44e8459c6a568fdb0786e35"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-2.jpg",
+      "destination": "public/store-web/img/shop/shop-2.jpg",
+      "sourceHash": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8",
+      "copiedHash": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8",
+      "finalHash": "c31ec15cbc70e5798a949fd0257caddb7e15fcc06690387a540b6f50a9677bd8"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-3.jpg",
+      "destination": "public/store-web/img/shop/shop-3.jpg",
+      "sourceHash": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab",
+      "copiedHash": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab",
+      "finalHash": "a13b2f9cc721932ee54aaf309453d33e0a9682aec3666dc6c0744b18cde0fbab"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-4.jpg",
+      "destination": "public/store-web/img/shop/shop-4.jpg",
+      "sourceHash": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3",
+      "copiedHash": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3",
+      "finalHash": "7c6ef6ae885aa3984b5fe017fff275d0c0e19a7b19140a28f419982fbd0968b3"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-5.jpg",
+      "destination": "public/store-web/img/shop/shop-5.jpg",
+      "sourceHash": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57",
+      "copiedHash": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57",
+      "finalHash": "99ad21e3523ba5c58b8f3e5c09291d53c1b019193240841a73c107489d8c8e57"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-6.jpg",
+      "destination": "public/store-web/img/shop/shop-6.jpg",
+      "sourceHash": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951",
+      "copiedHash": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951",
+      "finalHash": "27ae53086a691076f723b39c692f008e71717c0a0efbe33a82861bb201cd6951"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-7.jpg",
+      "destination": "public/store-web/img/shop/shop-7.jpg",
+      "sourceHash": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a",
+      "copiedHash": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a",
+      "finalHash": "6edea7f624efdd510dca362de6fdc7f3fd76ecd46748cbc4267295276d0ac63a"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-8.jpg",
+      "destination": "public/store-web/img/shop/shop-8.jpg",
+      "sourceHash": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9",
+      "copiedHash": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9",
+      "finalHash": "1d488508621e35111e500d79ba07e2bb97d329ed59b304cb39b8ef3115c637a9"
+    },
+    {
+      "source": "project-catalog/img/shop/shop-9.jpg",
+      "destination": "public/store-web/img/shop/shop-9.jpg",
+      "sourceHash": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d",
+      "copiedHash": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d",
+      "finalHash": "47b688f57f77c82c52c465025f782e00d6f9beb8865af068fa0cf75cae87977d"
+    },
+    {
+      "source": "project-catalog/js/catalog-main.js",
+      "destination": "public/store-web/js/catalog-main.js",
+      "sourceHash": "92433d0e88cdacf89f637b20c25c265bfe7fc6f3d137dd6f1a5e642a5f7e87e7",
+      "copiedHash": "92433d0e88cdacf89f637b20c25c265bfe7fc6f3d137dd6f1a5e642a5f7e87e7",
+      "finalHash": "11df47a3cfc1126bdbaa9eae66f290eb7e8ff0895949f1647f09b1c5b4df35d6"
+    },
+    {
+      "source": "project-catalog/readme.txt",
+      "destination": "docs/store-web/vendor/REFERENCE-NOTICE.txt",
+      "sourceHash": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7",
+      "copiedHash": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7",
+      "finalHash": "4b6ac20e8048f6aa28e840cad948ea04c8a7220c822dc6549109bcf8e90dc7c7"
+    },
+    {
+      "source": "project-catalog/sass/style.scss",
+      "destination": "resources/sass/store-web/style.scss",
+      "sourceHash": "4dccba30b33148f3ebf2a9c64f42aeca753c2e162fa93470f26af4121cbaad68",
+      "copiedHash": "4dccba30b33148f3ebf2a9c64f42aeca753c2e162fa93470f26af4121cbaad68",
+      "finalHash": "4dccba30b33148f3ebf2a9c64f42aeca753c2e162fa93470f26af4121cbaad68"
+    },
+    {
+      "source": "project-catalog/sass/_base.scss",
+      "destination": "resources/sass/store-web/_base.scss",
+      "sourceHash": "6a6495212f0665c1c710b71be4407b5e56ee8cb1e4b84b610c9f241979422a03",
+      "copiedHash": "6a6495212f0665c1c710b71be4407b5e56ee8cb1e4b84b610c9f241979422a03",
+      "finalHash": "6a6495212f0665c1c710b71be4407b5e56ee8cb1e4b84b610c9f241979422a03"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-coherence.scss",
+      "destination": "resources/sass/store-web/_catalog-coherence.scss",
+      "sourceHash": "cd7b41e964a58aa527893714696d338159673809a7330e06532a52100249e627",
+      "copiedHash": "cd7b41e964a58aa527893714696d338159673809a7330e06532a52100249e627",
+      "finalHash": "cd7b41e964a58aa527893714696d338159673809a7330e06532a52100249e627"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-filters.scss",
+      "destination": "resources/sass/store-web/_catalog-filters.scss",
+      "sourceHash": "0d9823e2f2a52a4e8f51307edc919a3efbe80a46c470d2b756e781b6bdd1bbb5",
+      "copiedHash": "0d9823e2f2a52a4e8f51307edc919a3efbe80a46c470d2b756e781b6bdd1bbb5",
+      "finalHash": "0d9823e2f2a52a4e8f51307edc919a3efbe80a46c470d2b756e781b6bdd1bbb5"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-home.scss",
+      "destination": "resources/sass/store-web/_catalog-home.scss",
+      "sourceHash": "00a101a5baec78b1f78f5fbeb8d67311c27bcf753ded89215052a817b480d2f7",
+      "copiedHash": "00a101a5baec78b1f78f5fbeb8d67311c27bcf753ded89215052a817b480d2f7",
+      "finalHash": "00a101a5baec78b1f78f5fbeb8d67311c27bcf753ded89215052a817b480d2f7"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-mobile-menu.scss",
+      "destination": "resources/sass/store-web/_catalog-mobile-menu.scss",
+      "sourceHash": "fb90679983050c13fc55079a368b152422d6c3a24f7dfa62752eba19d7dece61",
+      "copiedHash": "fb90679983050c13fc55079a368b152422d6c3a24f7dfa62752eba19d7dece61",
+      "finalHash": "fb90679983050c13fc55079a368b152422d6c3a24f7dfa62752eba19d7dece61"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-product-detail.scss",
+      "destination": "resources/sass/store-web/_catalog-product-detail.scss",
+      "sourceHash": "66bfe16a7b7d9a1a38453faacdc88142b16eed7ef5f600206a883fe00495c403",
+      "copiedHash": "66bfe16a7b7d9a1a38453faacdc88142b16eed7ef5f600206a883fe00495c403",
+      "finalHash": "66bfe16a7b7d9a1a38453faacdc88142b16eed7ef5f600206a883fe00495c403"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-search.scss",
+      "destination": "resources/sass/store-web/_catalog-search.scss",
+      "sourceHash": "414dfccb80d556118aa9a79028df438ba73bbcc3ac34447c03112e003f6f143b",
+      "copiedHash": "414dfccb80d556118aa9a79028df438ba73bbcc3ac34447c03112e003f6f143b",
+      "finalHash": "414dfccb80d556118aa9a79028df438ba73bbcc3ac34447c03112e003f6f143b"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-shop.scss",
+      "destination": "resources/sass/store-web/_catalog-shop.scss",
+      "sourceHash": "37c90c062e2abbdd5b097b9c771fa0d69dece3090cc24fccd69ca1cecca5531e",
+      "copiedHash": "37c90c062e2abbdd5b097b9c771fa0d69dece3090cc24fccd69ca1cecca5531e",
+      "finalHash": "37c90c062e2abbdd5b097b9c771fa0d69dece3090cc24fccd69ca1cecca5531e"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-theme-tester.scss",
+      "destination": "resources/sass/store-web/_catalog-theme-tester.scss",
+      "sourceHash": "93e6e36432376ab3286095c9a1e9ee61ca5b2b17ee0066cce53ad7a21f0211a7",
+      "copiedHash": "93e6e36432376ab3286095c9a1e9ee61ca5b2b17ee0066cce53ad7a21f0211a7",
+      "finalHash": "93e6e36432376ab3286095c9a1e9ee61ca5b2b17ee0066cce53ad7a21f0211a7"
+    },
+    {
+      "source": "project-catalog/sass/_catalog-theme.scss",
+      "destination": "resources/sass/store-web/_catalog-theme.scss",
+      "sourceHash": "9581b05e7202112f0cc247b9f62a3e3bcecd40a77a235c4a9db314156a7553bf",
+      "copiedHash": "9581b05e7202112f0cc247b9f62a3e3bcecd40a77a235c4a9db314156a7553bf",
+      "finalHash": "9581b05e7202112f0cc247b9f62a3e3bcecd40a77a235c4a9db314156a7553bf"
+    },
+    {
+      "source": "project-catalog/sass/_header.scss",
+      "destination": "resources/sass/store-web/_header.scss",
+      "sourceHash": "bbfa05a6ecec847a4e1f09fe1011e0e561416056c67f91741c6138a3c0db3cdf",
+      "copiedHash": "bbfa05a6ecec847a4e1f09fe1011e0e561416056c67f91741c6138a3c0db3cdf",
+      "finalHash": "bbfa05a6ecec847a4e1f09fe1011e0e561416056c67f91741c6138a3c0db3cdf"
+    },
+    {
+      "source": "project-catalog/sass/_mixins.scss",
+      "destination": "resources/sass/store-web/_mixins.scss",
+      "sourceHash": "0f31be6abd2a0463c69fb981ac282f9acf4ff2ecfd47e0cf08181273a386ebb9",
+      "copiedHash": "0f31be6abd2a0463c69fb981ac282f9acf4ff2ecfd47e0cf08181273a386ebb9",
+      "finalHash": "0f31be6abd2a0463c69fb981ac282f9acf4ff2ecfd47e0cf08181273a386ebb9"
+    },
+    {
+      "source": "project-catalog/sass/_responsive.scss",
+      "destination": "resources/sass/store-web/_responsive.scss",
+      "sourceHash": "7f26e1d87cd4a9348f5ccb9b5110e09ff913c46c99b7f6ad8700113b6c4114ba",
+      "copiedHash": "7f26e1d87cd4a9348f5ccb9b5110e09ff913c46c99b7f6ad8700113b6c4114ba",
+      "finalHash": "7f26e1d87cd4a9348f5ccb9b5110e09ff913c46c99b7f6ad8700113b6c4114ba"
+    },
+    {
+      "source": "project-catalog/sass/_variable.scss",
+      "destination": "resources/sass/store-web/_variable.scss",
+      "sourceHash": "89eff3c58cb386b100982add2924e987ae7075c0e531ca63a93aab9e1a8693ff",
+      "copiedHash": "89eff3c58cb386b100982add2924e987ae7075c0e531ca63a93aab9e1a8693ff",
+      "finalHash": "89eff3c58cb386b100982add2924e987ae7075c0e531ca63a93aab9e1a8693ff"
+    },
+    {
+      "source": "public/images/material/no_image.png",
+      "destination": "public/store-web/img/no_image.png",
+      "sourceHash": "83a2b680abc7af87cfff7777d0756fadb9f9aecd5ebda5d34f8139668e0fc842",
+      "copiedHash": "83a2b680abc7af87cfff7777d0756fadb9f9aecd5ebda5d34f8139668e0fc842",
+      "finalHash": "83a2b680abc7af87cfff7777d0756fadb9f9aecd5ebda5d34f8139668e0fc842"
+    }
+  ]
+}

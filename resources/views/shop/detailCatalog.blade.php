@@ -1,400 +1,106 @@
-@extends('layouts.appShop')
-
-@section('title')
-    Tienda Web
-@endsection
-
-@section('logotipo')
-    <a href="#"><img src="{{ asset('images/logo/'.$logotipoEmpresa) }}" alt="" width="80px" height="50px"></a>
-@endsection
-
-@section('logotipo2')
-    <a href="#"><img src="{{ asset('images/logo/'.$logotipoEmpresa) }}" alt="" width="80px" height="50px"></a>
-@endsection
-
-@section('styles')
-    <style>
-        .pagination__option a.active {
-            background: #ca1515;
-            color: #ffffff;
-            border-color: #ca1515;
-        }
-
-        .pagination-dots {
-            display: inline-block;
-            margin: 0 8px;
-            color: #666;
-        }
-
-        .whatsapp-icon {
-            color: #000000;
-            font-size: 20px;
-            line-height: 40px;
-        }
-
-        .whatsapp-icon:hover {
-            color: #ffffff;
-            font-size: 20px;
-            line-height: 40px;
-        }
-
-        .mfp-bg {
-            opacity: 0.8 !important;
-        }
-
-        .sidebar__all-products a.active,
-        .subcategory-filter.active,
-        .category-filter.active {
-            color: #ca1515;
-            font-weight: 600;
-        }
-
-        .price-input {
-            display: block !important;
-        }
-
-        .price-input p {
-            margin-bottom: 6px;
-        }
-
-        .price-values {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-
-        .price-values input {
-            width: 75px !important;
-            border: none;
-            padding: 0;
-            font-size: 14px;
-            color: #111;
-        }
-
-        .price-separator {
-            display: inline-block;
-            margin: 0 2px;
-        }
-
-        .btn-filter-price {
-            display: inline-block;
-            padding: 5px 12px;
-            border: 1px solid #ca1515;
-            color: #111;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .btn-filter-price:hover {
-            background: #ca1515;
-            color: #fff;
-        }
-
-        .product__details__widget {
-            padding-top: 0px !important;
-        }
-
-        .social-icon-tiktok {
-            width: 16px;
-            height: 16px;
-            object-fit: contain;
-            vertical-align: middle;
-        }
-    </style>
-@endsection
-
-@section('activeShop')
-    active
-@endsection
-
-@section('breadcrumb')
-    <div class="breadcrumb-option">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="breadcrumb__links">
-                        <a href="{{ route('store-web.catalog') }}">
-                            <i class="fa fa-home"></i> Home
-                        </a>
-
-                        @if($material->category)
-                            <a href="#">
-                                {{ $material->category->name ?? $material->category->description }}
-                            </a>
-                        @endif
-
-                        <span>{{ $material->full_name }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-@endsection
-
+{{-- REAL NEXT 9.5: authenticated local temporary contract; anonymous fixture remains isolated. --}}
+@extends('layouts.storeWeb', ['storeWebPage' => 'detail'])
+@php
+    if (!($storeWebFixture ?? false)) require resource_path('store-web/detail.php');
+@endphp
+@section('title', ($detailName ?? 'Producto de ejemplo') . ' | Catálogo')
+@section('description', 'Detalle público del producto')
+@section('keywords', 'catálogo, producto')
 @section('content')
-    <section class="product-details spad">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-6">
-                    <div class="product__details__pic">
-                        <div class="product__details__pic__left product__thumb nice-scroll">
-                            @foreach($images as $index => $image)
-                                <a class="pt {{ $index === 0 ? 'active' : '' }}" href="#product-{{ $index + 1 }}">
-                                    <img src="{{ $image['thumb'] }}" alt="{{ $image['label'] }}">
-                                </a>
-                            @endforeach
-                        </div>
-                        <div class="product__details__slider__content">
-                            <div class="product__details__pic__slider owl-carousel">
-                                @foreach($images as $index => $image)
-                                    <img data-hash="product-{{ $index + 1 }}"
-                                         class="product__big__img"
-                                         src="{{ $image['image'] }}"
-                                         alt="{{ $image['label'] }}">
-                                @endforeach
-                            </div>
-                        </div>
+@if(!($storeWebFixture ?? false))
+    @include('shop.partials.store-web.detail-real')
+@else
+<main class="catalog-product-detail">
+        <div class="catalog-container">
+            <a class="catalog-product-detail__back" href="{{ route('store-web.catalog') }}"><span class="arrow_left" aria-hidden="true"></span> Volver a productos</a>
+
+            <section class="catalog-product-detail__hero" aria-labelledby="product-title">
+                @include('shop.partials.store-web.gallery')
+
+
+                {{-- BIND REAL DATA: product summary. BACKEND CONTRACT NEEDED: variant selection/public description. --}}
+<div class="catalog-product-summary">
+                    <span class="catalog-product-summary__badge">Oferta</span>
+                    <h1 id="product-title">Producto de ejemplo</h1>
+                    <div class="catalog-product-summary__pricing">
+                        <strong>S/ 129.90</strong>
+                        <del>S/ 159.90</del>
                     </div>
+                    <span class="catalog-product-availability catalog-product-availability--available"><span aria-hidden="true"></span> Disponible</span>
+                    <p class="catalog-product-summary__intro">Una descripción breve del producto que permite conocer rápidamente sus principales beneficios y presentación.</p>
+
+                    <div class="catalog-product-variations" aria-label="Opciones del producto">
+                        <fieldset class="catalog-product-variation">
+                            <legend>Presentación</legend>
+                            <div>
+                                <input type="radio" name="presentation" id="presentation-1" checked><label for="presentation-1">Opción 1</label>
+                                <input type="radio" name="presentation" id="presentation-2"><label for="presentation-2">Opción 2</label>
+                                <input type="radio" name="presentation" id="presentation-3"><label for="presentation-3">Opción 3</label>
+                            </div>
+                        </fieldset>
+                        <fieldset class="catalog-product-variation">
+                            <legend>Otro atributo</legend>
+                            <div>
+                                <input type="radio" name="attribute" id="attribute-a" checked><label for="attribute-a">Variante A</label>
+                                <input type="radio" name="attribute" id="attribute-b"><label for="attribute-b">Variante B</label>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <button class="catalog-whatsapp-cta catalog-whatsapp-cta--inline" type="button" data-product-name="Producto de ejemplo" data-product-url="">
+                        <i class="fa fa-whatsapp" aria-hidden="true"></i><span>Consultar por WhatsApp</span>
+                    </button>
+                    <p class="catalog-product-summary__cta-note">El negocio responderá tu consulta directamente.</p>
                 </div>
-                <div class="col-lg-6">
-                    <div class="product__details__text">
-                        <h3>
-                            {{ $material->full_name }}
+            </section>
 
-                            @if($material->brand)
-                                <span>Marca: {{ $material->brand->name }}</span>
-                            @endif
-                        </h3>
+            <section class="catalog-product-detail-section" aria-labelledby="features-title">
+                <div class="catalog-product-detail-section__heading"><span>Información</span><h2 id="features-title">Características</h2></div>
+                <dl class="catalog-product-features">
+                    <div><dt>Marca</dt><dd>Ejemplo</dd></div>
+                    <div><dt>Código</dt><dd>PROD-001</dd></div>
+                    <div><dt>Presentación</dt><dd>Unidad</dd></div>
+                    <div><dt>Estado</dt><dd>Disponible</dd></div>
+                </dl>
+            </section>
 
-                        @if( $showPricesCatalogEmpresa == "s" )
-                        <div class="product__details__price">
-                            {{ $priceText }}
-                        </div>
-                        @endcan
-                        <p>
-                            Producto disponible en catálogo. Consulta por WhatsApp para confirmar disponibilidad, presentación y precio final.
-                        </p>
-
-                        <div class="product__details__widget">
-                            <ul>
-                                <li>
-                                    <span>Disponibilidad:</span>
-                                    <p>{{ $stockAvailable > 0 ? 'En stock' : 'Sin stock' }}</p>
-                                </li>
-
-                                <li>
-                                    <span>Colores disponibles:</span>
-
-                                    @if($colors->count())
-                                        <div class="color__checkbox">
-                                            @foreach($colors as $color)
-                                                <label title="{{ $color->name }}">
-                                                    <input type="radio" name="color__radio">
-                                                    <span class="checkmark"
-                                                          style="background: {{ $color->code ?: '#cccccc' }};border: 1px solid #333;"></span>
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <p>Único</p>
-                                    @endif
-                                </li>
-
-                                <li>
-                                    <span>Tallas disponibles:</span>
-
-                                    @if($sizes->count())
-                                        <div class="size__btn">
-                                            @foreach($sizes as $index => $size)
-                                                <label class="{{ $index === 0 ? 'active' : '' }}">
-                                                    <input type="radio" name="size_radio">
-                                                    {{ $size->short_name ?: $size->name }}
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <p>Única</p>
-                                    @endif
-                                </li>
-                            </ul>
-                        </div>
-
-                        {{--@if($material->presentations->count())
-                            <div class="product-presentations mt-4">
-                                <h5>Presentaciones disponibles</h5>
-
-                                <table class="table table-bordered table-sm mt-3">
-                                    <thead>
-                                    <tr>
-                                        <th>Presentación</th>
-                                        @if($showPresentationsEmpresa == "s")
-                                        <th>Precio</th>
-                                        @endif
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    @foreach($material->presentations as $presentation)
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $presentation->quantity }} unidades</strong>
-                                                <br>
-                                                <small>Equivale a {{ $presentation->quantity }} unidades</small>
-                                            </td>
-                                            @if($showPresentationsEmpresa == "s")
-                                            <td>S/. {{ number_format($presentation->price, 2) }}</td>
-                                            @endif
-                                        </tr>
-                                    @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @endif--}}
-                    </div>
+            <section class="catalog-product-detail-section" aria-labelledby="description-title">
+                <div class="catalog-product-detail-section__heading"><span>Acerca del producto</span><h2 id="description-title">Descripción</h2></div>
+                <div class="catalog-product-description">
+                    <p>Este contenido temporal permite presentar información más completa del producto de forma clara y directa. Aquí podrán explicarse sus usos, beneficios, materiales, recomendaciones o cualquier detalle relevante para la decisión del cliente.</p>
+                    <p>La estructura está preparada para productos de distintas industrias sin depender de atributos exclusivos de ropa, tecnología o alimentos.</p>
                 </div>
-                {{--<div class="col-lg-12">
-                    <div class="product__details__tab">
-                        <ul class="nav nav-tabs" role="tablist">
-                            <li class="nav-item">
-                                <a class="nav-link active" data-toggle="tab" href="#tabs-1" role="tab">Description</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-toggle="tab" href="#tabs-2" role="tab">Specification</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-toggle="tab" href="#tabs-3" role="tab">Reviews ( 2 )</a>
-                            </li>
-                        </ul>
-                        <div class="tab-content">
-                            <div class="tab-pane active" id="tabs-1" role="tabpanel">
-                                <h6>Description</h6>
-                                <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed
-                                    quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt loret.
-                                    Neque porro lorem quisquam est, qui dolorem ipsum quia dolor si. Nemo enim ipsam
-                                    voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed quia ipsu
-                                    consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Nulla
-                                    consequat massa quis enim.</p>
-                                <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget
-                                    dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes,
-                                    nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium
-                                    quis, sem.</p>
-                            </div>
-                            <div class="tab-pane" id="tabs-2" role="tabpanel">
-                                <h6>Specification</h6>
-                                <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed
-                                    quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt loret.
-                                    Neque porro lorem quisquam est, qui dolorem ipsum quia dolor si. Nemo enim ipsam
-                                    voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed quia ipsu
-                                    consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Nulla
-                                    consequat massa quis enim.</p>
-                                <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget
-                                    dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes,
-                                    nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium
-                                    quis, sem.</p>
-                            </div>
-                            <div class="tab-pane" id="tabs-3" role="tabpanel">
-                                <h6>Reviews ( 2 )</h6>
-                                <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed
-                                    quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt loret.
-                                    Neque porro lorem quisquam est, qui dolorem ipsum quia dolor si. Nemo enim ipsam
-                                    voluptatem quia voluptas sit aspernatur aut odit aut loret fugit, sed quia ipsu
-                                    consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Nulla
-                                    consequat massa quis enim.</p>
-                                <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget
-                                    dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes,
-                                    nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium
-                                    quis, sem.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>--}}
-            </div>
-        </div>
-    </section>
+            </section>
 
-    <!-- Search Begin -->
-    {{--<div class="search-model">
-        <div class="h-100 d-flex align-items-center justify-content-center">
-            <div class="search-close-switch">+</div>
-            <form class="search-model-form">
-                <input type="text" id="search-input" placeholder="Search here.....">
-            </form>
+            <section class="catalog-product-detail-section catalog-product-detail-section--related" aria-labelledby="related-title">
+{{-- BACKEND CONTRACT NEEDED: related products. --}}
+                <div class="catalog-product-detail-section__heading"><span>También puede interesarte</span><h2 id="related-title">Productos relacionados</h2></div>
+                <div class="catalog-related-list">
+                    <a class="catalog-related-card" href="{{ route('shop.product.show', ['material' => 'frontend-fixture']) }}"><div><img src="{{ asset('store-web/img/product/related/rp-1.jpg') }}" alt="Producto relacionado uno"></div><h3>Producto relacionado uno</h3><p>S/ 59.90</p></a>
+                    <a class="catalog-related-card" href="{{ route('shop.product.show', ['material' => 'frontend-fixture']) }}"><div><img src="{{ asset('store-web/img/product/related/rp-2.jpg') }}" alt="Producto relacionado dos"></div><h3>Producto relacionado dos</h3><p>S/ 49.90</p></a>
+                    <a class="catalog-related-card" href="{{ route('shop.product.show', ['material' => 'frontend-fixture']) }}"><div><img src="{{ asset('store-web/img/product/related/rp-3.jpg') }}" alt="Producto relacionado tres"></div><h3>Producto relacionado tres</h3><p>S/ 69.90</p></a>
+                    <a class="catalog-related-card" href="{{ route('shop.product.show', ['material' => 'frontend-fixture']) }}"><div><img src="{{ asset('store-web/img/product/related/rp-4.jpg') }}" alt="Producto relacionado cuatro"></div><h3>Producto relacionado cuatro</h3><p>S/ 39.90</p></a>
+                </div>
+            </section>
         </div>
-    </div>--}}
-    <!-- Search End -->
+    </main>
+@endif
 @endsection
-
-@section('description_footer')
-    <p>{{ $descriptionFooterEmpresa }}</p>
-@endsection
-
-@section('footer__newslatter')
-    <div class="footer__newslatter">
-        <h6>REDES SOCIALES</h6>
-
-        <div class="footer__social">
-            @if(!empty($socialNetworksEmpresa['facebook']))
-                <a href="{{ $socialNetworksEmpresa['facebook'] }}" target="_blank">
-                    <i class="fa fa-facebook"></i>
-                </a>
-            @endif
-
-            @if(!empty($socialNetworksEmpresa['twitter']))
-                <a href="{{ $socialNetworksEmpresa['twitter'] }}" target="_blank">
-                    <i class="fa fa-twitter"></i>
-                </a>
-            @endif
-
-            @if(!empty($socialNetworksEmpresa['youtube']))
-                <a href="{{ $socialNetworksEmpresa['youtube'] }}" target="_blank">
-                    <i class="fa fa-youtube-play"></i>
-                </a>
-            @endif
-
-            @if(!empty($socialNetworksEmpresa['instagram']))
-                <a href="{{ $socialNetworksEmpresa['instagram'] }}" target="_blank">
-                    <i class="fa fa-instagram"></i>
-                </a>
-            @endif
-
-            @if(!empty($socialNetworksEmpresa['pinterest']))
-                <a href="{{ $socialNetworksEmpresa['pinterest'] }}" target="_blank">
-                    <i class="fa fa-pinterest"></i>
-                </a>
-            @endif
-
-            @if(!empty($socialNetworksEmpresa['tiktok']))
-                <a href="{{ $socialNetworksEmpresa['tiktok'] }}" target="_blank">
-                    <img src="{{ asset('images/logo/tiktok.png') }}"
-                         alt="TikTok"
-                         class="social-icon-tiktok">
-                </a>
-            @endif
-        </div>
+@section('bottom')
+<div class="catalog-product-sticky-cta">
+    @if(!($storeWebFixture ?? false))
+        @include('shop.partials.store-web.detail-cta', ['inline' => false])
+    @else
+        <button class="catalog-whatsapp-cta" type="button" data-product-name="Producto de ejemplo" data-product-url="">
+            <i class="fa fa-whatsapp" aria-hidden="true"></i><span>Consultar por WhatsApp</span>
+        </button>
+    @endif
     </div>
-@endsection
-
-@section('plugins')
-
 @endsection
 
 @section('scripts')
-    <script>
-        window.APP_SHOP = {
-            URLS: {
-                PRODUCTS: "{{ route('shop.products.data', ':page') }}",
-                DEFAULT_IMAGE: "{{ asset('shop/img/no-image.png') }}",
-                CATEGORIES: "{{ route('shop.categories.data') }}",
-                SIZES: "{{ route('shop.sizes.data') }}",
-                COLORS: "{{ route('shop.colors.data') }}",
-                WHATSAPP: "https://wa.me/{{ $whatsappEmpresa }}",
-                CAN_SHOW_PRICES: "{{ $showPricesCatalogEmpresa }}",
-                CAN_SHOW_PRESENTATIONS: "{{ $showPresentationsEmpresa }}"
-            }
-        };
-    </script>
-    {{--<script src="{{ asset('js/shop/catalog.js') }}?v={{ time() }}"></script>--}}
-
+@if(!($storeWebFixture ?? false))
+<script type="application/json" id="store-web-detail-contract">@json($detailClientContract)</script>
+<script src="{{ asset('store-web/js/product-detail.js') }}?v=real-next-9-5" defer></script>
+@endif
 @endsection

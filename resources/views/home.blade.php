@@ -1,55 +1,31 @@
-<!-- Despues de iniciar sesion -->
-@extends('layouts.appLanding2')
+@extends('layouts.publicAccess')
 
-@section('title')
-    Inicio
-@endsection
+@section('title', 'Bienvenido | Venti360')
 
 @section('content')
-    <div class="card">
-        <div class="card-body login-card-body">
+    <header class="public-access-heading">
+        <h1 class="public-access-title">Bienvenido</h1>
+        <p class="public-access-user">{{ Auth::user()->name }}</p>
+    </header>
 
-            @guest
-                <h4 class="login-box-msg">Sistema interno</h4>
-            @else
-                <h4 class="login-box-msg">Bienvenido a la Intranet</h4>
-                <h4 class="login-box-msg">{{ Auth::user()->name }}</h4>
-            @endguest
-            <div class="row">
-                {{--<div class="col-md-12">
-                    <a href="https://www.sermeind.com.pe/" class="btn btn-primary btn-block">Regresar a la pagina principal</a>
-                </div>
-                <br><br>--}}
-                @guest
-                    <div class="col-md-12">
-                        <a href="{{ route('login') }}" class="btn btn-primary btn-block">Iniciar sesión</a>
-                    </div>
-                @else
-                    @can('access_dashboard')
-                        <div class="col-md-12">
-                            <a href="{{ route('dashboard.principal') }}" class="btn btn-success btn-block">Ir al Dashboard</a>
-                        </div>
+    <div class="public-access-actions">
+        @if (Auth::user()->isPlatformAdmin())
+            <a class="public-access-button public-access-button--primary" href="{{ route('platform.dashboard') }}">
+                Ir al dashboard
+            </a>
+        @else
+            @can('access_dashboard')
+                <a class="public-access-button public-access-button--primary" href="{{ route('dashboard.principal') }}">
+                    Ir al dashboard
+                </a>
+            @endcan
+        @endif
 
-                    @endcan
-                    <br><br>
-                    <div class="col-md-12">
-                        <a class="btn btn-danger btn-block" href="{{ route('logout') }}"
-                           onclick="event.preventDefault();
-                           document.getElementById('logout-form').submit();">
-                            <i class="fa fa-sign-out"></i>
-                            {{ __('Cerrar Sesión') }}
-                        </a>
-                        <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
-                            @csrf
-                        </form>
-                    </div>
-
-                @endguest
-            </div>
-
-        </div>
-        <!-- /.login-card-body -->
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button class="public-access-button public-access-button--secondary" type="submit">
+                Cerrar sesión
+            </button>
+        </form>
     </div>
-
-
 @endsection

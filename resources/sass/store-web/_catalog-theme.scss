@@ -1,0 +1,21 @@
+/*
+  Runtime theme for each Venti360 business.
+  Changing --catalog-primary is enough in modern browsers. Derived values keep
+  static fallbacks and can also be overridden independently by a future backend.
+*/
+.catalog-page {
+  --catalog-primary: #2f6fed;
+  --catalog-primary-contrast: #ffffff;
+
+  --catalog-primary-hover: #285dcc;
+  --catalog-primary-hover: color-mix(in srgb, var(--catalog-primary) 86%, #000000);
+
+  --catalog-primary-soft: #eef4ff;
+  --catalog-primary-soft: color-mix(in srgb, var(--catalog-primary) 10%, #ffffff);
+
+  --catalog-primary-dark: #1f3d78;
+  --catalog-primary-dark: color-mix(in srgb, var(--catalog-primary) 58%, #0f172a);
+
+  --catalog-primary-light: #72a2ff;
+  --catalog-primary-light: color-mix(in srgb, var(--catalog-primary) 58%, #ffffff);
+}

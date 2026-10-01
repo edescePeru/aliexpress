@@ -1,0 +1,98 @@
+{
+  "phase": "REAL NEXT 9.4",
+  "mode": "anonymous frozen preview vs approved shop.html",
+  "rows": [
+    {
+      "width": 320,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 320,
+      "columns": 2,
+      "font": true,
+      "bottomNav": true
+    },
+    {
+      "width": 375,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 375,
+      "columns": 2,
+      "font": true,
+      "bottomNav": true
+    },
+    {
+      "width": 390,
+      "raw": 1,
+      "material": 0,
+      "scrollWidth": 390,
+      "columns": 2,
+      "font": true,
+      "bottomNav": true
+    },
+    {
+      "width": 576,
+      "raw": 2,
+      "material": 0,
+      "scrollWidth": 576,
+      "columns": 2,
+      "font": true,
+      "bottomNav": true
+    },
+    {
+      "width": 767,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 767,
+      "columns": 2,
+      "font": true,
+      "bottomNav": true
+    },
+    {
+      "width": 768,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 768,
+      "columns": 3,
+      "font": true,
+      "bottomNav": false
+    },
+    {
+      "width": 991,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 991,
+      "columns": 3,
+      "font": true,
+      "bottomNav": false
+    },
+    {
+      "width": 992,
+      "raw": 2,
+      "material": 0,
+      "scrollWidth": 992,
+      "columns": 4,
+      "font": true,
+      "bottomNav": false
+    },
+    {
+      "width": 1200,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 1200,
+      "columns": 5,
+      "font": true,
+      "bottomNav": false
+    },
+    {
+      "width": 1440,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 1440,
+      "columns": 5,
+      "font": true,
+      "bottomNav": false
+    }
+  ],
+  "errors": [],
+  "status": "PASS"
+}

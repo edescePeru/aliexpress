@@ -1,0 +1,297 @@
+/*---------------------
+  Venti360 filter drawer
+-----------------------*/
+.catalog-filter-open { overflow: hidden !important; }
+
+.catalog-filter-trigger__count {
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: $catalog-accent;
+  color: $catalog-accent-contrast;
+  font-size: 9px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.catalog-filter-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear .24s;
+
+  &.active {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+
+    .catalog-filter-drawer__overlay { opacity: 1; }
+    .catalog-filter-drawer__panel { transform: translateX(0); }
+  }
+}
+
+.catalog-filter-drawer__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, .5);
+  opacity: 0;
+  transition: opacity .22s ease;
+}
+
+.catalog-filter-drawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: $catalog-background;
+  box-shadow: -12px 0 30px rgba(15, 23, 42, .16);
+  transform: translateX(100%);
+  transition: transform .24s ease;
+}
+
+.catalog-filter-drawer__header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 10px 14px;
+  border-bottom: 1px solid $catalog-border;
+  background: $catalog-surface;
+
+  h2 {
+    color: $catalog-text;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+}
+
+.catalog-filter-drawer__eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: $catalog-accent;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.catalog-filter-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid $catalog-border;
+  border-radius: 12px;
+  background: $catalog-surface;
+  color: $catalog-text;
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $catalog-accent;
+    color: $catalog-accent;
+    outline: none;
+  }
+}
+
+.catalog-filter-drawer__body {
+  min-height: 0;
+  padding: 12px 14px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.catalog-filter-drawer__intro {
+  margin: 0 0 10px;
+  color: $catalog-muted;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.catalog-filter-group {
+  border-bottom: 1px solid $catalog-border;
+  background: transparent;
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    color: $catalog-text;
+    font-size: 13px;
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+
+    &::-webkit-details-marker { display: none; }
+
+    > span:last-child {
+      color: $catalog-muted;
+      font-size: 18px;
+      transition: transform .2s ease;
+    }
+
+    &:focus-visible {
+      border-radius: 6px;
+      outline: 2px solid $catalog-accent;
+      outline-offset: 2px;
+    }
+  }
+
+  &[open] summary > span:last-child { transform: rotate(180deg); }
+}
+
+.catalog-filter-group__content { padding: 0 0 10px; }
+
+.catalog-filter-option {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  color: $catalog-text;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+
+  input {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    margin: 0 11px 0 0;
+    accent-color: $catalog-accent;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid $catalog-accent;
+      outline-offset: 2px;
+    }
+  }
+}
+
+.catalog-filter-price {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  > label {
+    min-width: 0;
+    margin: 0;
+
+    > span:first-child {
+      display: block;
+      margin-bottom: 6px;
+      color: $catalog-muted;
+      font-size: 10px;
+      font-weight: 600;
+    }
+  }
+}
+
+.catalog-filter-price__input {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid $catalog-border;
+  border-radius: 10px;
+  background: $catalog-surface;
+
+  > span {
+    flex: 0 0 auto;
+    padding-left: 11px;
+    color: $catalog-muted;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0 10px 0 6px;
+    border: 0;
+    background: transparent;
+    color: $catalog-text;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  &:focus-within {
+    border-color: $catalog-accent;
+    box-shadow: 0 0 0 3px $catalog-accent-soft;
+  }
+}
+
+.catalog-filter-drawer__footer {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
+  gap: 10px;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid $catalog-border;
+  background: $catalog-surface;
+  box-shadow: 0 -5px 18px rgba(15, 23, 42, .06);
+}
+
+.catalog-filter-clear,
+.catalog-filter-apply {
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $catalog-accent;
+    outline-offset: 2px;
+  }
+}
+
+.catalog-filter-clear {
+  border: 1px solid $catalog-border;
+  background: $catalog-surface;
+  color: $catalog-text;
+}
+
+.catalog-filter-apply {
+  border: 1px solid $catalog-accent;
+  background: $catalog-accent;
+  color: $catalog-accent-contrast;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $catalog-accent-hover;
+    background: $catalog-accent-hover;
+  }
+}
+
+@media only screen and (min-width: 768px) {
+  .catalog-filter-drawer__panel { width: 400px; max-width: 100%; }
+  .catalog-filter-drawer__header { padding-right: 18px; padding-left: 18px; }
+  .catalog-filter-drawer__body { padding-right: 18px; padding-left: 18px; }
+  .catalog-filter-drawer__footer { padding-right: 18px; padding-left: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-filter-drawer__overlay,
+  .catalog-filter-drawer__panel { transition: none; }
+}

@@ -1,0 +1,36 @@
+{
+    "mode": "LOCAL AUTHENTICATED BRIDGE — NON PRODUCTION",
+    "sessions": "Laravel actingAs + isolated in-memory sessions with existing authorized users\/memberships",
+    "database": "READ ONLY transaction; no business writes",
+    "tenants": [
+        {
+            "label": "Gamarra",
+            "tenant_id": 3,
+            "company_id": 3,
+            "firstPageCount": 1,
+            "total": 1,
+            "facets": {
+                "categories": 1,
+                "sizes": 0,
+                "colors": 0
+            },
+            "crossTenantIds": 0,
+            "queryContextSpoofIgnored": true
+        },
+        {
+            "label": "EDESCE",
+            "tenant_id": 1,
+            "company_id": 1,
+            "firstPageCount": 9,
+            "total": 11,
+            "facets": {
+                "categories": 5,
+                "sizes": 9,
+                "colors": 6
+            },
+            "crossTenantIds": 0,
+            "queryContextSpoofIgnored": true
+        }
+    ],
+    "status": "PASS"
+}

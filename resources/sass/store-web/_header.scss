@@ -1,0 +1,141 @@
+.header {
+  background: $white-color;
+  box-shadow: 0 5px 10px rgba(91, 91, 91, .1);
+}
+
+.header__logo {
+  padding: 26px 0;
+
+  a { display: inline-block; }
+}
+
+.header__menu {
+  padding: 30px 0 27px;
+
+  ul li {
+    position: relative;
+    display: inline-block;
+    margin-right: 40px;
+    list-style: none;
+
+    &:last-child { margin-right: 0; }
+
+    a {
+      position: relative;
+      display: block;
+      padding: 2px 0;
+      color: $heading-color;
+      font-size: 15px;
+      font-weight: 500;
+      text-transform: uppercase;
+
+      &::after {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: $catalog-accent;
+        content: '';
+        transform: scale(0);
+        transition: all .5s;
+      }
+    }
+
+    &.active a::after,
+    &:hover a::after { transform: scale(1); }
+  }
+}
+
+.header__right {
+  padding: 30px 0 27px;
+  text-align: right;
+}
+
+.canvas__open { display: none; }
+
+.catalog-header {
+  background: $catalog-surface;
+  border-bottom: 1px solid $catalog-border;
+  box-shadow: 0 2px 12px rgba(17, 24, 39, .05);
+
+  .catalog-header__main {
+    min-height: 64px;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .header__logo {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+
+    img { width: auto; max-height: 34px; }
+  }
+
+  .catalog-header__business-name {
+    margin-left: 12px;
+    color: $catalog-text;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .header__menu {
+    padding: 19px 0 17px;
+
+    ul li {
+      margin-right: 30px;
+
+      a {
+        color: $catalog-text;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: .02em;
+      }
+    }
+  }
+
+  .header__right { padding: 13px 0; }
+
+  .catalog-header__search-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid $catalog-border;
+    border-radius: 50%;
+    background: $catalog-surface;
+    color: $catalog-text;
+    cursor: pointer;
+  }
+}
+
+.header.catalog-header { padding-right: 0; padding-left: 0; }
+
+.catalog-search { padding: 0 0 12px; }
+
+.catalog-search__field {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid $catalog-border;
+  border-radius: $catalog-radius;
+  background: $catalog-background;
+  color: $catalog-muted;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+
+  .icon_search {
+    flex: 0 0 auto;
+    margin-right: 10px;
+    color: $catalog-text;
+    font-size: 17px;
+  }
+}
+
+.catalog-bottom-nav { display: none; }

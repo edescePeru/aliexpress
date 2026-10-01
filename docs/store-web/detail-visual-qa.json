@@ -1,0 +1,88 @@
+{
+  "phase": "REAL NEXT 9.5",
+  "mode": "anonymous frozen preview vs approved product-details.html",
+  "rows": [
+    {
+      "width": 320,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 320,
+      "font": true,
+      "mobileCTA": true
+    },
+    {
+      "width": 375,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 375,
+      "font": true,
+      "mobileCTA": true
+    },
+    {
+      "width": 390,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 390,
+      "font": true,
+      "mobileCTA": true
+    },
+    {
+      "width": 576,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 576,
+      "font": true,
+      "mobileCTA": true
+    },
+    {
+      "width": 767,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 767,
+      "font": true,
+      "mobileCTA": true
+    },
+    {
+      "width": 768,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 768,
+      "font": true,
+      "mobileCTA": false
+    },
+    {
+      "width": 991,
+      "raw": 0,
+      "material": 0,
+      "scrollWidth": 991,
+      "font": true,
+      "mobileCTA": false
+    },
+    {
+      "width": 992,
+      "raw": 1,
+      "material": 0,
+      "scrollWidth": 992,
+      "font": true,
+      "mobileCTA": false
+    },
+    {
+      "width": 1200,
+      "raw": 1,
+      "material": 0,
+      "scrollWidth": 1200,
+      "font": true,
+      "mobileCTA": false
+    },
+    {
+      "width": 1440,
+      "raw": 4,
+      "material": 0,
+      "scrollWidth": 1440,
+      "font": true,
+      "mobileCTA": false
+    }
+  ],
+  "errors": [],
+  "status": "PASS"
+}

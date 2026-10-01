@@ -1,0 +1,26 @@
+{
+  "protectedFiles": 172,
+  "protectedChanged": [],
+  "copyCount": 54,
+  "finalHashErrors": [],
+  "runtimeReferences": [],
+  "independence": [
+    {
+      "uri": "/store-web/inicio",
+      "status": 200,
+      "permanentAssetsChecked": 15
+    },
+    {
+      "uri": "/store-web/catalogo",
+      "status": 200,
+      "permanentAssetsChecked": 18
+    },
+    {
+      "uri": "/store-web/product/frontend-fixture",
+      "status": 200,
+      "permanentAssetsChecked": 21
+    }
+  ],
+  "referenceDisabledStatus": 404,
+  "pass": true
+}

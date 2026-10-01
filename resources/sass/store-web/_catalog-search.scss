@@ -1,0 +1,58 @@
+/* Venti360 catalog: inline visual search. */
+.catalog-search__form {
+  position: relative;
+  cursor: text;
+}
+
+.catalog-search__input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 38px 0 0;
+  border: 0;
+  background: transparent;
+  color: $catalog-text;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+
+  &::placeholder { color: $catalog-muted; opacity: 1; }
+  &:focus { outline: none; }
+  &::-webkit-search-cancel-button { appearance: none; }
+}
+
+.catalog-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: $catalog-muted;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+
+  &[hidden] { display: none; }
+  &:hover { background: $catalog-accent-soft; color: $catalog-accent; }
+  &:focus-visible { outline: 2px solid $catalog-accent; outline-offset: 1px; }
+}
+
+.catalog-search__form:focus-within {
+  border-color: $catalog-accent;
+  background: $catalog-surface;
+  box-shadow: 0 0 0 3px $catalog-accent-soft;
+}
+
+@media only screen and (min-width: 768px) {
+  .catalog-search__input { height: 42px; }
+}
