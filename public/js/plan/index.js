@@ -134,11 +134,11 @@ $(function () {
                 html += `
                     <tr>
 
-                        <td>
+                        <td class="text-center">
                             ${plan.id}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${escapeHtml(plan.code)}
                         </td>
 
@@ -146,49 +146,26 @@ $(function () {
                             ${escapeHtml(plan.name)}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${plan.max_active_users}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${plan.tenants_count}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${badge}
                         </td>
 
-                        <td>
-
-                            <button
-                                type="button"
-                                class="
-                                    btn
-                                    btn-outline-primary
-                                    btn-xs
-                                    btn-edit-plan
-                                "
-                                data-plan='${encodeURIComponent(
-                    JSON.stringify(plan)
-                )}'
-                            >
-                                <i class="fas fa-edit"></i>
-                            </button>
-
-                            <button
-                                type="button"
-                                class="
-                                    btn
-                                    ${toggleClass}
-                                    btn-xs
-                                    btn-toggle-plan
-                                "
-                                data-id="${plan.id}"
-                                data-active="${plan.is_active ? 1 : 0}"
-                            >
-                                ${toggleText}
-                            </button>
-
+                        <td class="text-center" data-buttons>
+                            <div class="dropdown next-row-actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones de ${escapeHtml(plan.name)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                                <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                                    <button type="button" class="dropdown-item btn-edit-plan" data-plan='${encodeURIComponent(JSON.stringify(plan))}'><i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar</span></button>
+                                    <button type="button" class="dropdown-item ${plan.is_active ? 'next-row-action-danger' : ''} btn-toggle-plan" data-id="${plan.id}" data-active="${plan.is_active ? 1 : 0}"><i class="fas ${plan.is_active ? 'fa-ban' : 'fa-check'} next-row-action-item-icon" aria-hidden="true"></i><span>${toggleText}</span></button>
+                                </div>
+                            </div>
                         </td>
 
                     </tr>

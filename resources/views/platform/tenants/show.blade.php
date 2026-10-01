@@ -8,6 +8,18 @@
     active
 @endsection
 
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">{{ $tenant->name }}</h1><p class="next-page-description">Tenant #{{ $tenant->id }} · administración de cuenta, owner y capacidad.</p></div>
+@endsection
+
+@section('page-title')
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Detalle del tenant</strong><span>Las acciones sensibles conservan su confirmación contractual.</span></div></div>
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('platform.dashboard') }}">Superadministración</a></li><li class="breadcrumb-item"><a href="{{ route('platformTenant.index') }}">Tenants</a></li><li class="breadcrumb-item active" aria-current="page">Detalle</li></ol>
+@endsection
+
 
 @section('content')
 

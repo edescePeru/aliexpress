@@ -8,6 +8,18 @@
     active
 @endsection
 
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Nuevo tenant</h1><p class="next-page-description">Provisiona una cuenta con su plan, empresa inicial y owner.</p></div>
+@endsection
+
+@section('page-title')
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Alta de tenant</strong><span>Los campos obligatorios se validan antes del aprovisionamiento.</span></div></div>
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('platform.dashboard') }}">Superadministración</a></li><li class="breadcrumb-item"><a href="{{ route('platformTenant.index') }}">Tenants</a></li><li class="breadcrumb-item active" aria-current="page">Nuevo</li></ol>
+@endsection
+
 
 @section('content')
 

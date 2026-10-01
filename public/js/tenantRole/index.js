@@ -201,11 +201,11 @@ $(function () {
 
                     <tr>
 
-                        <td>
+                        <td class="text-center">
                             ${role.id}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${escapeHtml(
                     role.name
                 )}
@@ -221,11 +221,11 @@ $(function () {
                             ${origin}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${typeBadge}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             <span
                                 class="badge badge-info"
                             >
@@ -233,49 +233,22 @@ $(function () {
                             </span>
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${ownerBadge}
                         </td>
 
-                        <td>
+                        <td class="text-center">
                             ${statusBadge}
                         </td>
 
-                        <td>
-
-                            <a
-                                href="${editUrl}"
-                                class="
-                                    btn
-                                    btn-outline-primary
-                                    btn-xs
-                                "
-                            >
-                                <i class="fas fa-edit"></i>
-                                Editar
-                            </a>
-
-                            <button
-                                type="button"
-
-                                class="
-                                    btn
-                                    ${toggleClass}
-                                    btn-xs
-                                    btn-toggle-role
-                                "
-
-                                data-id="${role.id}"
-
-                                data-active="${
-                    role.is_active
-                        ? 1
-                        : 0
-                    }"
-                            >
-                                ${toggleText}
-                            </button>
-
+                        <td class="text-center" data-buttons>
+                            <div class="dropdown next-row-actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones de ${escapeHtml(role.name)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                                <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                                    <a href="${editUrl}" class="dropdown-item"><i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar</span></a>
+                                    <button type="button" class="dropdown-item ${role.is_active ? 'next-row-action-danger' : ''} btn-toggle-role" data-id="${role.id}" data-active="${role.is_active ? 1 : 0}"><i class="fas ${role.is_active ? 'fa-ban' : 'fa-check'} next-row-action-item-icon" aria-hidden="true"></i><span>${toggleText}</span></button>
+                                </div>
+                            </div>
                         </td>
 
                     </tr>

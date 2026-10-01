@@ -1,5 +1,7 @@
 @extends('layouts.appAdmin2')
 
+@section('activePlatformTenantRoles', 'active')
+
 @section('title')
     Nuevo rol del Tenant
 @endsection
@@ -9,15 +11,15 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Roles por Tenant
-    </h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Venti360 · Plataforma</span><h1 class="page-title">Nuevo rol de {{ $tenant->name }}</h1><p class="next-page-description">Configura un perfil personalizado dentro del tenant seleccionado.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">
-        Nuevo rol personalizado
-    </h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Rol personalizado</strong><span>El alcance permanece limitado al tenant {{ $tenant->name }}.</span></div></div>
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('platform.dashboard') }}">Superadministración</a></li><li class="breadcrumb-item"><a href="{{ route('tenantRole.index', ['tenant_id' => $tenant->id]) }}">Roles por tenant</a></li><li class="breadcrumb-item active" aria-current="page">Nuevo</li></ol>
 @endsection
 
 @section('content')

@@ -357,7 +357,7 @@
                         <li class="nav-item">
                             <a
                                     href="{{ route('plan.index') }}"
-                                    class="nav-link"
+                                    class="nav-link @yield('activePlatformPlans')"
                             >
                                 <i class="nav-icon fas fa-layer-group"></i>
                                 <p>Planes</p>
@@ -367,7 +367,7 @@
                         <li class="nav-item">
                             <a
                                     href="{{ route('roleTemplate.index') }}"
-                                    class="nav-link"
+                                    class="nav-link @yield('activePlatformRoleTemplates')"
                             >
                                 <i class="nav-icon fas fa-user-tag"></i>
                                 <p>Plantillas de perfiles</p>
@@ -378,7 +378,7 @@
 
                             <a
                                     href="{{ route('tenantRole.index') }}"
-                                    class="nav-link"
+                                    class="nav-link @yield('activePlatformTenantRoles')"
                             >
 
                                 <i class="nav-icon fas fa-users-cog"></i>
@@ -423,7 +423,7 @@
                                 <a href="#" class="nav-link">
                                     <i class="far fa-list-alt nav-icon"></i>
                                     <p>
-                                        Parametros Laborales
+                                        Parámetros laborales
                                         <i class="right fas fa-angle-left"></i>
                                     </p>
                                 </a>

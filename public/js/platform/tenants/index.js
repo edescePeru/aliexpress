@@ -301,7 +301,7 @@ function renderTenants(
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
 
                         <strong>
                             ${escapeHtml(
@@ -321,7 +321,7 @@ function renderTenants(
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
                         ${tenant.companies_count}
                     </td>
 
@@ -333,35 +333,18 @@ function renderTenants(
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
                         ${status}
                     </td>
 
 
-                    <td
-                        class="text-center"
-                    >
-
-                        <a
-                            href="${showUrl}"
-                            class="
-                                btn
-                                btn-outline-primary
-                                btn-sm
-                            "
-                        >
-
-                            <i
-                                class="
-                                    fas
-                                    fa-eye
-                                "
-                            ></i>
-
-                            Ver
-
-                        </a>
-
+                    <td class="text-center" data-buttons>
+                        <div class="dropdown next-row-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones de ${escapeHtml(tenant.name)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                            <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                                <a href="${showUrl}" class="dropdown-item"><i class="fas fa-eye next-row-action-item-icon" aria-hidden="true"></i><span>Ver detalle</span></a>
+                            </div>
+                        </div>
                     </td>
 
                 </tr>

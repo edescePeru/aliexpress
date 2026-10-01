@@ -2859,6 +2859,10 @@ table.next-data-table .bootstrap-switch .bootstrap-switch-handle-off.bootstrap-s
     display: none;
   }
 
+  .next-page-toolbar-context-only .next-toolbar-context {
+    display: block;
+  }
+
   .next-toolbar-actions {
     flex: 1 1 auto;
   }

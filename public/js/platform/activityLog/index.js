@@ -322,13 +322,13 @@ function renderActivities(
             html += `
                 <tr>
 
-                    <td>
+                    <td class="text-center">
                         ${escapeHtml(
                 activity.id
             )}
                     </td>
 
-                    <td>
+                    <td class="text-center">
                         ${escapeHtml(
                 activity.created_at
                 || '-'
@@ -357,32 +357,13 @@ function renderActivities(
                         ${subject}
                     </td>
 
-                    <td
-                        class="text-center"
-                    >
-
-                        <button
-                            type="button"
-                            class="
-                                btn
-                                btn-outline-info
-                                btn-sm
-                            "
-                            data-view-activity="${
-                activity.id
-                }"
-                            title="Ver detalle"
-                        >
-
-                            <i
-                                class="
-                                    fas
-                                    fa-eye
-                                "
-                            ></i>
-
-                        </button>
-
+                    <td class="text-center" data-buttons>
+                        <div class="dropdown next-row-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones del evento ${escapeHtml(activity.id)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                            <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                                <button type="button" class="dropdown-item" data-view-activity="${activity.id}"><i class="fas fa-eye next-row-action-item-icon" aria-hidden="true"></i><span>Ver detalle</span></button>
+                            </div>
+                        </div>
                     </td>
 
                 </tr>
