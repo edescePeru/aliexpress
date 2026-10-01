@@ -177,11 +177,22 @@ class QuoteSaleController extends Controller
                 ->where('enable_status', 1)
                 ->get()
                 ->filter(function ($material) use ($search) {
-                    return stripos($material->code." ".$material->full_name, $search) !== false;
+
+                    $matchesMaterial = stripos(
+                            $material->code . ' ' . $material->full_name,
+                            $search
+                        ) !== false;
+
+                    $matchesSku = $material->stockItems->contains(function ($stockItem) use ($search) {
+                        return !empty($stockItem->sku)
+                            && stripos($stockItem->sku, $search) !== false;
+                    });
+
+                    return $matchesMaterial || $matchesSku;
                 });
 
             foreach ($materials as $material) {
-                // Si no tiene stock items, devolver opción legacy temporal
+
                 if ($material->stockItems->isEmpty()) {
                     $results->push([
                         'id' => 'material_' . $material->id,
@@ -194,13 +205,29 @@ class QuoteSaleController extends Controller
                         'code' => $material->code,
                         'stock_current' => $material->stock_current,
                     ]);
+
                     continue;
                 }
 
+                $matchesMaterial = stripos(
+                        $material->code . ' ' . $material->full_name,
+                        $search
+                    ) !== false;
+
                 foreach ($material->stockItems as $stockItem) {
+
+                    $matchesSku = !empty($stockItem->sku)
+                        && stripos($stockItem->sku, $search) !== false;
+
+                    // Si no coincide ni material ni SKU, no mostrar este stock item
+                    if (!$matchesMaterial && !$matchesSku) {
+                        continue;
+                    }
+
                     $variantText = $this->getVariantText($stockItem);
 
                     $text = $stockItem->display_name ?: $material->full_name;
+
                     if ($variantText) {
                         $text .= ' - ' . $variantText;
                     }
@@ -216,9 +243,16 @@ class QuoteSaleController extends Controller
                         'stock_item_id' => $stockItem->id,
                         'text' => $text,
                         'full_name' => $material->full_name,
-                        'display_name' => $material->code." ".$stockItem->display_name,
+
+                        'display_name' => trim(
+                            $material->code . ' ' .
+                            $stockItem->display_name .
+                            (!empty($stockItem->sku) ? ' | SKU: ' . $stockItem->sku : '')
+                        ),
+
                         'variant_text' => $variantText,
-                        'unit' => optional($stockItem->unitMeasure)->name ?: optional($material->unitMeasure)->name,
+                        'unit' => optional($stockItem->unitMeasure)->name
+                            ?: optional($material->unitMeasure)->name,
                         'code' => $material->code,
                         'sku' => $stockItem->sku,
                         'barcode' => $stockItem->barcode,
