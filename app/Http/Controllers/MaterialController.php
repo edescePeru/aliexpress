@@ -38,6 +38,7 @@ use App\Subtype;
 use App\Talla;
 use App\TipoVenta;
 use App\Typescrap;
+use App\TypeTax;
 use App\UnitMeasure;
 use App\Variant;
 use App\Warehouse;
@@ -220,6 +221,14 @@ class MaterialController extends Controller
          * → Subtype
          */
 
+        $typeTaxes = TypeTax::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
+        $defaultTypeTax = $typeTaxes
+            ->firstWhere('is_default', true);
 
         return view(
             'material.create',
@@ -233,7 +242,9 @@ class MaterialController extends Controller
                 'brands',
                 'typescraps',
                 'unitMeasures',
-                'colors'
+                'colors',
+                'typeTaxes',
+                'defaultTypeTax',
             )
         );
     }
@@ -849,6 +860,21 @@ class MaterialController extends Controller
                     $id
                 );
 
+        $typeTaxes = TypeTax::query()
+            ->where(function ($query) use ($material) {
+
+                $query->where('is_active', true);
+
+                if ($material->type_tax_id) {
+                    $query->orWhere(
+                        'id',
+                        $material->type_tax_id
+                    );
+                }
+            })
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
         /*
          * ============================================================
@@ -1314,7 +1340,8 @@ class MaterialController extends Controller
                 'subcategories',
                 'colors',
                 'tieneVariantes',
-                'variantesEdit'
+                'variantesEdit',
+                'typeTaxes',
             )
         );
     }

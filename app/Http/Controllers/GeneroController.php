@@ -6,6 +6,7 @@ use App\Genero;
 use App\Http\Requests\DeleteGeneroRequest;
 use App\Http\Requests\StoreGeneroRequest;
 use App\Http\Requests\UpdateGeneroRequest;
+use App\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -183,6 +184,28 @@ class GeneroController extends Controller
                 $validated['genero_id']
             );
 
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $hasMaterials =
+            Material::query()
+                ->where(
+                    'genero_id',
+                    $genero->id
+                )
+                ->exists();
+
+        if ($hasMaterials) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar el género porque está siendo utilizado por uno o más materiales.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -264,12 +287,54 @@ class GeneroController extends Controller
                 )
                 ->get();
 
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $generoIds =
+            $generos
+                ->pluck('id');
+
+        $usedGeneroIds =
+            Material::query()
+                ->whereIn(
+                    'genero_id',
+                    $generoIds
+                )
+                ->pluck(
+                    'genero_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedGeneroIds->isNotEmpty()) {
+
+            $usedNames =
+                $generos
+                    ->whereIn(
+                        'id',
+                        $usedGeneroIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar los géneros porque están siendo utilizados por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
 
             foreach (
-                $generos as $genero
+                $generos
+                as $genero
             ) {
                 $genero->delete();
             }

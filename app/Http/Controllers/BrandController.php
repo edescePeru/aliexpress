@@ -151,45 +151,91 @@ class BrandController extends Controller
         ], 200);
     }
 
-    public function destroy(DeleteBrandRequest $request)
-    {
-        $validated = $request->validated();
+    public function destroy(
+        DeleteBrandRequest $request
+    ) {
+        $validated =
+            $request->validated();
 
         /*
-         * También protegido por TenantScope.
+         * Brand está protegida por TenantScope.
          */
-        $brand = Brand::findOrFail(
-            $validated['brand_id']
-        );
+        $brand =
+            Brand::with(
+                'examplers'
+            )
+                ->findOrFail(
+                    $validated[
+                    'brand_id'
+                    ]
+                );
+
+        /*
+         * =========================================================
+         * VALIDAR USO DIRECTO DE BRAND EN MATERIAL
+         * =========================================================
+         */
+
+        $hasMaterialsWithBrand =
+            Material::query()
+                ->where(
+                    'brand_id',
+                    $brand->id
+                )
+                ->exists();
+
+        if ($hasMaterialsWithBrand) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar la marca porque está siendo utilizada por uno o más materiales.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR USO DE EXAMPLERS EN MATERIAL
+         * =========================================================
+         */
+
+        $examplerIds =
+            $brand
+                ->examplers
+                ->pluck('id');
+
+        if ($examplerIds->isNotEmpty()) {
+
+            $hasMaterialsWithExampler =
+                Material::query()
+                    ->whereIn(
+                        'exampler_id',
+                        $examplerIds
+                    )
+                    ->exists();
+
+            if ($hasMaterialsWithExampler) {
+
+                return response()->json([
+                    'message' =>
+                        'No se puede eliminar la marca porque uno o más de sus modelos están siendo utilizados por materiales.',
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
 
         try {
 
-            $examplers =
-                $brand->examplers;
-
+            /*
+             * Nadie utiliza la Brand ni sus Examplers.
+             *
+             * Podemos hacer soft delete de los hijos
+             * y posteriormente de la Brand.
+             */
             foreach (
-                $examplers as $exampler
+                $brand->examplers
+                as $exampler
             ) {
-
-                /*
-                 * Material todavía no ha sido migrado
-                 * a TenantScope.
-                 *
-                 * Esta consulta se mantiene por ahora
-                 * porque exampler_id pertenece a un
-                 * Exampler obtenido desde una Brand
-                 * previamente validada por TenantScope.
-                 */
-                Material::where(
-                    'exampler_id',
-                    $exampler->id
-                )->update([
-                    'exampler_id' =>
-                        null,
-                ]);
-
                 $exampler->delete();
             }
 
@@ -307,11 +353,13 @@ class BrandController extends Controller
         return $array;
     }
 
-    public function deleteMultiple(Request $request)
-    {
-        $ids = $request->input(
-            'ids'
-        );
+    public function deleteMultiple(
+        Request $request
+    ) {
+        $ids =
+            $request->input(
+                'ids'
+            );
 
         if (
             !$ids ||
@@ -325,41 +373,114 @@ class BrandController extends Controller
         }
 
         /*
-         * TenantScope actúa aquí.
-         *
-         * IDs pertenecientes a otros tenants
-         * simplemente no serán encontrados.
+         * TenantScope actúa automáticamente.
          */
-        $brands = Brand::query()
-            ->whereIn(
-                'id',
-                $ids
+        $brands =
+            Brand::with(
+                'examplers'
             )
-            ->get();
+                ->whereIn(
+                    'id',
+                    $ids
+                )
+                ->get();
+
+        /*
+         * =========================================================
+         * VALIDAR USO DIRECTO DE BRANDS
+         * =========================================================
+         */
+
+        $brandIds =
+            $brands
+                ->pluck('id');
+
+        $usedBrandIds =
+            Material::query()
+                ->whereIn(
+                    'brand_id',
+                    $brandIds
+                )
+                ->pluck(
+                    'brand_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedBrandIds->isNotEmpty()) {
+
+            $usedNames =
+                $brands
+                    ->whereIn(
+                        'id',
+                        $usedBrandIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar las marcas porque están siendo utilizadas por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR USO DE EXAMPLERS
+         * =========================================================
+         */
+
+        $examplerIds =
+            $brands
+                ->flatMap(
+                    function ($brand) {
+
+                        return $brand
+                            ->examplers
+                            ->pluck('id');
+                    }
+                )
+                ->filter()
+                ->unique();
+
+        if ($examplerIds->isNotEmpty()) {
+
+            $usedExamplerIds =
+                Material::query()
+                    ->whereIn(
+                        'exampler_id',
+                        $examplerIds
+                    )
+                    ->pluck(
+                        'exampler_id'
+                    )
+                    ->filter()
+                    ->unique();
+
+            if ($usedExamplerIds->isNotEmpty()) {
+
+                return response()->json([
+                    'message' =>
+                        'No se pueden eliminar las marcas porque uno o más de sus modelos están siendo utilizados por materiales.',
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
 
         try {
 
             foreach (
-                $brands as $brand
+                $brands
+                as $brand
             ) {
 
-                $examplers =
-                    $brand->examplers;
-
                 foreach (
-                    $examplers as $exampler
+                    $brand->examplers
+                    as $exampler
                 ) {
-
-                    Material::where(
-                        'exampler_id',
-                        $exampler->id
-                    )->update([
-                        'exampler_id' =>
-                            null,
-                    ]);
-
                     $exampler->delete();
                 }
 

@@ -51,6 +51,8 @@ class Quote extends Model
         'discount_type',
         'discount_input_mode',
         'discount_input_value',
+        'exonerada',
+        'inafecta',
         'gravada',
         'igv_total',
         'total_importe',

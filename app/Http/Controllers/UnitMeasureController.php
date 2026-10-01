@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DeleteUnitMeasureRequest;
 use App\Http\Requests\StoreUnitMeasureRequest;
 use App\Http\Requests\UpdateUnitMeasureRequest;
+use App\Material;
+use App\StockItem;
 use App\UnitMeasure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -171,6 +173,50 @@ class UnitMeasureController extends Controller
                 ]
             );
 
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $hasMaterials =
+            Material::query()
+                ->where(
+                    'unit_measure_id',
+                    $unitMeasure->id
+                )
+                ->exists();
+
+        if ($hasMaterials) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar la unidad de medida porque está siendo utilizada por uno o más materiales.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR USO EN STOCK ITEM
+         * =========================================================
+         */
+
+        $hasStockItems =
+            StockItem::query()
+                ->where(
+                    'unit_measure_id',
+                    $unitMeasure->id
+                )
+                ->exists();
+
+        if ($hasStockItems) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar la unidad de medida porque está siendo utilizada por uno o más productos.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -280,6 +326,84 @@ class UnitMeasureController extends Controller
                 )
                 ->get();
 
+        $unitMeasureIds =
+            $unitMeasures
+                ->pluck('id');
+
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $usedInMaterialIds =
+            Material::query()
+                ->whereIn(
+                    'unit_measure_id',
+                    $unitMeasureIds
+                )
+                ->pluck(
+                    'unit_measure_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedInMaterialIds->isNotEmpty()) {
+
+            $usedNames =
+                $unitMeasures
+                    ->whereIn(
+                        'id',
+                        $usedInMaterialIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar las unidades de medida porque están siendo utilizadas por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
+        /*
+         * =========================================================
+         * VALIDAR USO EN STOCK ITEM
+         * =========================================================
+         */
+
+        $usedInStockItemIds =
+            StockItem::query()
+                ->whereIn(
+                    'unit_measure_id',
+                    $unitMeasureIds
+                )
+                ->pluck(
+                    'unit_measure_id'
+                )
+                ->filter()
+                ->unique();
+
+        if ($usedInStockItemIds->isNotEmpty()) {
+
+            $usedNames =
+                $unitMeasures
+                    ->whereIn(
+                        'id',
+                        $usedInStockItemIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar las unidades de medida porque están siendo utilizadas por productos: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -288,7 +412,6 @@ class UnitMeasureController extends Controller
                 $unitMeasures
                 as $unitMeasure
             ) {
-
                 $unitMeasure->delete();
             }
 

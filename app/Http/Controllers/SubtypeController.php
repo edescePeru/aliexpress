@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DeleteSubtypeRequest;
 use App\Http\Requests\StoreSubtypeRequest;
 use App\Http\Requests\UpdateSubtypeRequest;
+use App\Material;
 use App\MaterialType;
 use App\Subtype;
 use Illuminate\Http\Request;
@@ -172,6 +173,26 @@ class SubtypeController extends Controller
                 'subtype_id'
                 ]
             );
+
+        /*
+         * No permitir eliminar si algún Material
+         * utiliza este Subtype.
+         */
+        $hasMaterials =
+            Material::query()
+                ->where(
+                    'subtype_id',
+                    $subtype->id
+                )
+                ->exists();
+
+        if ($hasMaterials) {
+
+            return response()->json([
+                'message' =>
+                    'No se puede eliminar el subtipo porque está siendo utilizado por uno o más materiales.',
+            ], 422);
+        }
 
         DB::beginTransaction();
 
@@ -355,6 +376,41 @@ class SubtypeController extends Controller
                     $ids
                 )
                 ->get();
+
+        /*
+         * =========================================================
+         * VALIDAR USO EN MATERIAL
+         * =========================================================
+         */
+
+        $usedSubtypeIds =
+            Material::query()
+                ->whereIn(
+                    'subtype_id',
+                    $subtypes->pluck('id')
+                )
+                ->pluck('subtype_id')
+                ->filter()
+                ->unique();
+
+        if ($usedSubtypeIds->isNotEmpty()) {
+
+            $usedNames =
+                $subtypes
+                    ->whereIn(
+                        'id',
+                        $usedSubtypeIds
+                    )
+                    ->pluck('name')
+                    ->implode(', ');
+
+            return response()->json([
+                'message' =>
+                    'No se pueden eliminar los subtipos porque están siendo utilizados por materiales: ' .
+                    $usedNames .
+                    '.',
+            ], 422);
+        }
 
         DB::beginTransaction();
 

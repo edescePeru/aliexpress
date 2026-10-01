@@ -9,6 +9,7 @@ use App\MaterialType;
 use App\StockItem;
 use App\Subtype;
 use App\Talla;
+use App\TypeTax;
 use App\Variant;
 use App\Warehouse;
 use App\Support\TenantContext;
@@ -281,8 +282,9 @@ class UpdateMaterialRequest extends FormRequest
             ],
 
             'type_tax_id' => [
-                'nullable',
+                'required',
                 'integer',
+                'exists:type_taxes,id',
             ],
 
 
@@ -430,6 +432,57 @@ class UpdateMaterialRequest extends FormRequest
                 return;
             }
 
+            /*
+             * ========================================================
+             * TYPE TAX
+             * ========================================================
+             *
+             * Regla:
+             *
+             * - Si conserva el TypeTax actual, permitimos que esté
+             *   inactivo porque puede tratarse de información histórica.
+             *
+             * - Si cambia el TypeTax, el nuevo debe estar activo.
+            */
+
+            $typeTaxId =
+                $this->input(
+                    'type_tax_id'
+                );
+
+            if ($typeTaxId) {
+
+                $typeTax =
+                    TypeTax::query()
+                        ->where(
+                            'id',
+                            $typeTaxId
+                        )
+                        ->first();
+
+                if (!$typeTax) {
+
+                    $validator
+                        ->errors()
+                        ->add(
+                            'type_tax_id',
+                            'El tipo de impuesto seleccionado no existe.'
+                        );
+
+                } elseif (
+                    (int) $typeTaxId !==
+                    (int) $material->type_tax_id &&
+                    !$typeTax->is_active
+                ) {
+
+                    $validator
+                        ->errors()
+                        ->add(
+                            'type_tax_id',
+                            'El nuevo tipo de impuesto seleccionado se encuentra inactivo.'
+                        );
+                }
+            }
 
             /*
              * ========================================================
@@ -1785,6 +1838,15 @@ class UpdateMaterialRequest extends FormRequest
 
             'perecible.in' =>
                 'El valor de :attribute no es válido.',
+
+            'type_tax_id.required' =>
+                'Debe seleccionar un tipo de impuesto.',
+
+            'type_tax_id.integer' =>
+                'El tipo de impuesto seleccionado no es válido.',
+
+            'type_tax_id.exists' =>
+                'El tipo de impuesto seleccionado no existe.',
         ];
     }
 
@@ -1846,6 +1908,9 @@ class UpdateMaterialRequest extends FormRequest
 
             'perecible' =>
                 'perecible',
+
+            'type_tax_id' =>
+                'tipo de impuesto',
         ];
     }
 }

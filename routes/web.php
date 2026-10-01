@@ -526,7 +526,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:destroy_materialType');
         Route::get('/get/types/{subcategory_id}', 'MaterialTypeController@getTypesBySubCategory')
             ->middleware('permission:list_materialType');
-        Route::post('/materialtype/delete-multiple', 'MaterialTypeController@deleteMultiple');
+        Route::post('/materialtype/delete-multiple', 'MaterialTypeController@deleteMultiple')
+            ->middleware('permission:destroy_materialType');
 
         //SUB TYPE
         Route::get('/all/subtypes', 'SubtypeController@getSubTypes')
@@ -550,7 +551,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('subtype.destroy')
             ->middleware('permission:destroy_subType');
         Route::get('/get/subtypes/{type_id}', 'SubtypeController@getSubTypesByType');
-        Route::post('/subtype/delete-multiple', 'SubtypeController@deleteMultiple');
+        Route::post('/subtype/delete-multiple', 'SubtypeController@deleteMultiple')
+            ->middleware('permission:destroy_subType');
 
 
         //CATEGORY
@@ -575,7 +577,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('category.destroy')
             ->middleware('permission:destroy_category');
         Route::get('/get/subcategories/{category_id}', 'CategoryController@getSubcategoryByCategory');
-        Route::post('/category/delete-multiple', 'CategoryController@deleteMultiple');
+        Route::post('/category/delete-multiple', 'CategoryController@deleteMultiple')
+            ->middleware('permission:destroy_category');
 
 
         //SUBCATEGORY
@@ -602,7 +605,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('subcategory/destroy', 'SubcategoryController@destroy')
             ->name('subcategory.destroy')
             ->middleware('permission:destroy_subcategory');
-        Route::post('/subcategory/delete-multiple', 'SubcategoryController@deleteMultiple');
+        Route::post('/subcategory/delete-multiple', 'SubcategoryController@deleteMultiple')
+            ->middleware('permission:destroy_subcategory');
 
 
         //CATEGORY INVOICES
@@ -648,7 +652,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('exampler/destroy', 'ExamplerController@destroy')
             ->name('exampler.destroy')
             ->middleware('permission:destroy_exampler');
-        Route::post('/exampler/delete-multiple', 'ExamplerController@deleteMultiple');
+        Route::post('/exampler/delete-multiple', 'ExamplerController@deleteMultiple')
+            ->middleware('permission:destroy_exampler');
 
 
         //BRAND
@@ -673,7 +678,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('brand.destroy')
             ->middleware('permission:destroy_brand');
         Route::get('/get/exampler/{brand_id}', 'BrandController@getJsonBrands');
-        Route::post('/brand/delete-multiple', 'BrandController@deleteMultiple');
+        Route::post('/brand/delete-multiple', 'BrandController@deleteMultiple')
+            ->middleware('permission:destroy_brand');
 
         //CEDULA
         Route::get('/all/warrants', 'WarrantController@getWarrants')
@@ -740,7 +746,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('typescrap/destroy', 'TypescrapController@destroy')
             ->name('typescrap.destroy')
             ->middleware('permission:destroy_typeScrap');
-        Route::post('/typescrap/delete-multiple', 'TypescrapController@deleteMultiple');
+        Route::post('/typescrap/delete-multiple', 'TypescrapController@deleteMultiple')
+            ->middleware('permission:destroy_typeScrap');
 
 
         //UNITMEASURE
@@ -764,7 +771,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('unitmeasure/destroy', 'UnitMeasureController@destroy')
             ->name('unitmeasure.destroy')
             ->middleware('permission:destroy_unitMeasure');
-        Route::post('/unitmeasure/delete-multiple', 'UnitMeasureController@deleteMultiple');
+        Route::post('/unitmeasure/delete-multiple', 'UnitMeasureController@deleteMultiple')
+            ->middleware('permission:destroy_unitMeasure');
 
 
         //GENEROS
@@ -3678,6 +3686,10 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::get('parametros-laborales','PercentageWorkerController@index')->name('platformPercentageWorker.index');
         Route::get('parametros-laborales/{id}/editar','PercentageWorkerController@edit')->name('platformPercentageWorker.edit');
         Route::post('parametros-laborales/{id}/update','PercentageWorkerController@update')->name('platformPercentageWorker.update');
+
+        Route::get('tipos-impuesto','TypeTaxController@index')->name('platformTypeTax.index');
+        Route::post('tipos-impuesto','TypeTaxController@store')->name('platformTypeTax.store');
+        Route::post('tipos-impuesto/{id}/update','TypeTaxController@update')->name('platformTypeTax.update');
 });
 
 Route::prefix('store-web/')->group(function () {
