@@ -1595,28 +1595,59 @@ class MaterialController extends Controller
         $rotation = $request->input('rotation');
         $isPack = $request->input('isPack');
 
-        $query = Material::with('category:id,name', 'materialType:id,name','unitMeasure:id,name','subcategory:id,name','subType:id,name','exampler:id,name','brand:id,name','warrant:id,name','quality:id,name','typeScrap:id,name')
+        $query = Material::with([
+            'category:id,name',
+            'materialType:id,name',
+            'unitMeasure:id,name',
+            'subcategory:id,name',
+            'subType:id,name',
+            'exampler:id,name',
+            'brand:id,name',
+            'warrant:id,name',
+            'quality:id,name',
+            'typeScrap:id,name',
+
+            // Lo necesitamos para obtener el SKU
+            'stockItems:id,material_id,sku',
+        ])
+            ->withCount('variants')
             ->where('enable_status', 1)
-            /*->where('category_id', '<>', 8)*/
-            /*->orderBy('rotation', "desc")*/
             ->orderBy('id');
 
         // Aplicar filtros si se proporcionan
         if ($description != "") {
-            // Convertir la cadena de búsqueda en un array de palabras clave
-            $keywords = explode(' ', $description);
 
-            // Construir la consulta para buscar todas las palabras clave en el campo full_name
-            $query->where(function ($query) use ($keywords) {
-                foreach ($keywords as $keyword) {
-                    $query->where('full_name', 'LIKE', '%' . $keyword . '%');
-                }
+            $description = trim($description);
+
+            $keywords = preg_split('/\s+/', $description);
+
+            $query->where(function ($query) use ($keywords, $description) {
+
+                // Buscar por descripción/nombre del material
+                $query->where(function ($subQuery) use ($keywords) {
+
+                    foreach ($keywords as $keyword) {
+                        $subQuery->where(
+                            'full_name',
+                            'LIKE',
+                            '%' . $keyword . '%'
+                        );
+                    }
+
+                })
+
+                    // O buscar por SKU de cualquier StockItem del material
+                    ->orWhereHas('stockItems', function ($stockQuery) use ($description) {
+
+                        $stockQuery->where(
+                            'sku',
+                            'LIKE',
+                            '%' . $description . '%'
+                        );
+
+                    });
+
             });
-
-            // Asegurarse de que todas las palabras clave estén presentes en la descripción
-            foreach ($keywords as $keyword) {
-                $query->where('full_name', 'LIKE', '%' . $keyword . '%');
-            }
         }
 
         if ($code != "") {
@@ -1700,11 +1731,25 @@ class MaterialController extends Controller
                 $rotacion = '<span class="badge bg-danger text-md">BAJA</span>';
             }
 
-            $variants = Variant::where('material_id', $material->id)->count();
+            $stockItemsCount = $material->stockItems->count();
+
+            if ($stockItemsCount === 1) {
+
+                $sku = $material->stockItems->first()->sku;
+
+            } elseif ($stockItemsCount > 1) {
+
+                $sku = 'TIENE VARIANTES';
+
+            } else {
+
+                $sku = '';
+            }
 
             array_push($array, [
                 "id" => $material->id,
                 "codigo" => $material->code,
+                "sku" => $sku,
                 "descripcion" => $material->full_name,
                 "medida" => $material->measure,
                 "unidad_medida" => ($material->unitMeasure == null) ? '':$material->unitMeasure->name,
@@ -1728,7 +1773,7 @@ class MaterialController extends Controller
                 "rotation" => $rotacion,
                 "update_price" => $material->state_update_price,
                 "isPack" => $material->isPack,
-                "has_variants" => ($variants > 0) ? 1:0
+                "has_variants" => $material->variants_count > 0 ? 1 : 0,
             ]);
         }
 

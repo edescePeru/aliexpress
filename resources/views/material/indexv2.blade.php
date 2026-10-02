@@ -263,26 +263,30 @@
             <label class="custom-control-label" for="customSwitch1">Código</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="descripcion" class="custom-control-input" id="customSwitch2">
-            <label class="custom-control-label" for="customSwitch2">Descripcion</label>
+            <input type="checkbox" checked data-column="sku" class="custom-control-input" id="customSwitch2">
+            <label class="custom-control-label" for="customSwitch2">SKU</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="unidad_medida" class="custom-control-input" id="customSwitch3">
-            <label class="custom-control-label" for="customSwitch3">Unidad Medida</label>
+            <input type="checkbox" checked data-column="descripcion" class="custom-control-input" id="customSwitch3">
+            <label class="custom-control-label" for="customSwitch3">Descripcion</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch4">
-            <label class="custom-control-label" for="customSwitch4">Stock Actual</label>
+            <input type="checkbox" checked data-column="unidad_medida" class="custom-control-input" id="customSwitch4">
+            <label class="custom-control-label" for="customSwitch4">Unidad Medida</label>
+        </div>
+        <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+            <input type="checkbox" checked data-column="stock_actual" class="custom-control-input" id="customSwitch5">
+            <label class="custom-control-label" for="customSwitch5">Stock Actual</label>
         </div>
 
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_min" class="custom-control-input" id="customSwitch5">
-            <label class="custom-control-label" for="customSwitch5">Stock Minimo</label>
+            <input type="checkbox" checked data-column="stock_min" class="custom-control-input" id="customSwitch6">
+            <label class="custom-control-label" for="customSwitch6">Stock Minimo</label>
         </div>
 
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="stock_max" class="custom-control-input" id="customSwitch6">
-            <label class="custom-control-label" for="customSwitch6">Stock Maximo</label>
+            <input type="checkbox" checked data-column="stock_max" class="custom-control-input" id="customSwitch7">
+            <label class="custom-control-label" for="customSwitch7">Stock Maximo</label>
         </div>
         {{--<div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
             <input type="checkbox" checked data-column="precio_unitario" class="custom-control-input" id="customSwitch5">
@@ -293,28 +297,28 @@
             <label class="custom-control-label" for="customSwitch6">Precio Venta</label>
         </div>--}}
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch7">
-            <label class="custom-control-label" for="customSwitch7">Categoría</label>
+            <input type="checkbox" checked data-column="categoria" class="custom-control-input" id="customSwitch8">
+            <label class="custom-control-label" for="customSwitch8">Categoría</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="sub_categoria" class="custom-control-input" id="customSwitch8">
-            <label class="custom-control-label" for="customSwitch8">SubCategoría</label>
+            <input type="checkbox" checked data-column="sub_categoria" class="custom-control-input" id="customSwitch9">
+            <label class="custom-control-label" for="customSwitch9">SubCategoría</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="marca" class="custom-control-input" id="customSwitch9">
-            <label class="custom-control-label" for="customSwitch9">Marca</label>
+            <input type="checkbox" checked data-column="marca" class="custom-control-input" id="customSwitch10">
+            <label class="custom-control-label" for="customSwitch10">Marca</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="modelo" class="custom-control-input" id="customSwitch10">
-            <label class="custom-control-label" for="customSwitch10">Modelo</label>
+            <input type="checkbox" checked data-column="modelo" class="custom-control-input" id="customSwitch11">
+            <label class="custom-control-label" for="customSwitch11">Modelo</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="imagen" class="custom-control-input" id="customSwitch11">
-            <label class="custom-control-label" for="customSwitch11">Imagen</label>
+            <input type="checkbox" checked data-column="imagen" class="custom-control-input" id="customSwitch12">
+            <label class="custom-control-label" for="customSwitch12">Imagen</label>
         </div>
         <div class="col-md-2 custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-            <input type="checkbox" checked data-column="rotation" class="custom-control-input" id="customSwitch12">
-            <label class="custom-control-label" for="customSwitch12">Rotación</label>
+            <input type="checkbox" checked data-column="rotation" class="custom-control-input" id="customSwitch13">
+            <label class="custom-control-label" for="customSwitch13">Rotación</label>
         </div>
     </div>
 
@@ -360,6 +364,7 @@
     <template id="item-header">
         <tr class="normal-title">
             <th data-column="codigo" data-codigo>Código</th>
+            <th data-column="sku" data-sku>SKU</th>
             <th data-column="descripcion" data-descripcion>Descripcion</th>
             <th data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
             <th data-column="stock_actual" data-stock_actual>Stock Actual</th>
@@ -410,6 +415,7 @@
     <template id="item-table">
         <tr>
             <td data-column="codigo" data-codigo></td>
+            <td data-column="sku" data-sku></td>
             <td data-column="descripcion" data-descripcion></td>
             <td data-column="unidad_medida" data-unidad_medida></td>
             <td data-column="stock_actual" data-stock_actual></td>
@@ -442,7 +448,7 @@
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="22" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="23" align="center">No se ha encontrado ningún dato</td>
         </tr>
     </template>
 

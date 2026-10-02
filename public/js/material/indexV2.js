@@ -1749,6 +1749,7 @@ function renderDataTable(data, activeColumns) {
 
     // Llenar los datos en cada celda según el objeto de datos
     clone.querySelector("[data-codigo]").innerHTML = data.codigo;
+    clone.querySelector("[data-sku]").innerHTML = data.sku;
     if ( data.update_price == 1 )
     {
         clone.querySelector("[data-descripcion]").innerHTML = '<p class="text-blue">'+data.descripcion+'</p>';
