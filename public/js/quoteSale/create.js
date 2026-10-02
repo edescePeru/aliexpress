@@ -2,7 +2,6 @@ let $consumables = [];
 let $equipments = [];
 
 var $permissions;
-var $igv;
 
 var $formCreate;
 var $selectCustomer;
@@ -25,10 +24,6 @@ $(document).ready(function () {
 
     $permissions = JSON.parse(
         $('#permissions').val() || '[]'
-    );
-
-    $igv = parseFloat(
-        $('#igv').val() || 18
     );
 
     $formCreate = $('#formCreate');
@@ -1860,6 +1855,21 @@ function renderTemplateConsumable(
             '[data-consumableId]'
         );
 
+    const typeTaxId =
+        parseInt(
+            consumable.type_tax_id || 0
+        );
+
+    const taxRate =
+        parseFloat(
+            consumable.tax_rate || 0
+        );
+
+    const taxCode =
+        String(
+            consumable.tax_code || ''
+        );
+
     const $unit =
         $clone.find(
             '[data-consumableUnit]'
@@ -1906,6 +1916,21 @@ function renderTemplateConsumable(
     $id.attr(
         'data-consumableid',
         consumable.id
+    );
+
+    $id.attr(
+        'data-type_tax_id',
+        typeTaxId
+    );
+
+    $id.attr(
+        'data-tax_rate',
+        taxRate
+    );
+
+    $id.attr(
+        'data-tax_code',
+        taxCode
     );
 
     $id.attr(
@@ -2001,7 +2026,7 @@ function renderTemplateConsumable(
 
         const valorUnitario =
             pricePack /
-            getFactor($igv);
+            getFactor(taxRate);
 
         const importe =
             pricePack *
@@ -2077,7 +2102,7 @@ function renderTemplateConsumable(
 
         const valorUnitario =
             unitPrice /
-            getFactor($igv);
+            getFactor(taxRate);
 
         const importe =
             unitPrice *
@@ -2321,9 +2346,24 @@ function calculateTotalC(
             || 0
         );
 
+    const taxElement =
+        row.querySelector(
+            '[data-consumableId]'
+        );
+
+    const taxRate =
+        taxElement
+            ? parseFloat(
+            taxElement.getAttribute(
+                'data-tax_rate'
+            )
+            || 0
+            )
+            : 0;
+
     const valorUnitario =
         price /
-        getFactor($igv);
+        getFactor(taxRate);
 
     const importe =
         qty *
@@ -2617,8 +2657,16 @@ function calculateServiceRow(
         price = 0;
     }
 
+    const defaultTax =
+        window.APP_QUOTE.DEFAULT_TAX || {};
+
+    const taxRate =
+        parseFloat(
+            defaultTax.tax_rate || 0
+        );
+
     const factor =
-        getFactor($igv);
+        getFactor(taxRate);
 
     const valorUnitario =
         factor > 0
@@ -2660,6 +2708,9 @@ function readServicesFromDom(
 
     let sumAll = 0;
     let sumBillable = 0;
+
+    const defaultTax =
+        window.APP_QUOTE.DEFAULT_TAX || {};
 
     $services.each(
         function () {
@@ -2762,7 +2813,16 @@ function readServicesFromDom(
                 importe,
 
                 billable:
-                billable
+                billable,
+
+                type_tax_id:
+                    parseInt(defaultTax.type_tax_id || 0),
+
+                tax_rate:
+                    parseFloat(defaultTax.tax_rate || 0),
+
+                tax_code:
+                    String(defaultTax.tax_code || ''),
             });
 
             sumAll =
@@ -3018,6 +3078,30 @@ function readConsumablesFromDom(
                     id:
                     stockItemId,
 
+                    type_tax_id:
+                        parseInt(
+                            $id.attr(
+                                'data-type_tax_id'
+                            )
+                            || 0
+                        ),
+
+                    tax_rate:
+                        parseFloat(
+                            $id.attr(
+                                'data-tax_rate'
+                            )
+                            || 0
+                        ),
+
+                    tax_code:
+                        String(
+                            $id.attr(
+                                'data-tax_code'
+                            )
+                            || ''
+                        ),
+
                     description:
                         $row
                             .find(
@@ -3170,24 +3254,18 @@ function readConsumablesFromDom(
 
 function calculateQuoteTotals(
     consumables,
-    servicesBillableTotal,
-    promotionDiscount
+    services
 ) {
 
-    const igvPct =
-        parseFloat(
-            $igv || 18
-        );
+    const lines = [];
 
-    const factor =
-        getFactor(
-            igvPct
-        );
+    /*
+     * ============================================================
+     * PRODUCTOS
+     * ============================================================
+     */
 
-    let productsWithIgv =
-        0;
-
-    consumables.forEach(
+    (consumables || []).forEach(
         function (item) {
 
             const quantity =
@@ -3204,218 +3282,368 @@ function calculateQuoteTotals(
                     0
                 );
 
-            const lineTotal =
+            const promotionDiscount =
+                Number(
+                    item.discount || 0
+                );
+
+            let total =
                 round10(
                     quantity *
                     price
                 );
 
-            productsWithIgv =
+            total =
                 round10(
-                    productsWithIgv +
-                    lineTotal
+                    total -
+                    promotionDiscount
                 );
+
+            if (total < 0) {
+                total = 0;
+            }
+
+            lines.push({
+                type_tax_id:
+                    parseInt(
+                        item.type_tax_id || 0
+                    ),
+
+                tax_rate:
+                    parseFloat(
+                        item.tax_rate || 0
+                    ),
+
+                tax_code:
+                    String(
+                        item.tax_code || ''
+                    ),
+
+                total:
+                total
+            });
         }
     );
 
-    productsWithIgv =
+
+    /*
+     * ============================================================
+     * SERVICIOS FACTURABLES
+     * ============================================================
+     */
+
+    (services || []).forEach(
+        function (item) {
+
+            if (
+                parseInt(
+                    item.billable || 0
+                ) !== 1
+            ) {
+                return;
+            }
+
+            const total =
+                round10(
+                    Number(
+                        item.importe
+                    )
+                    ||
+                    (
+                        Number(
+                            item.quantity || 0
+                        )
+                        *
+                        Number(
+                            item.price || 0
+                        )
+                    )
+                );
+
+            lines.push({
+                type_tax_id:
+                    parseInt(
+                        item.type_tax_id || 0
+                    ),
+
+                tax_rate:
+                    parseFloat(
+                        item.tax_rate || 0
+                    ),
+
+                tax_code:
+                    String(
+                        item.tax_code || ''
+                    ),
+
+                total:
+                total
+            });
+        }
+    );
+
+
+    /*
+     * ============================================================
+     * SUBTOTAL
+     * ============================================================
+     */
+
+    const subtotal =
         round10(
-            productsWithIgv -
-            (
-                Number(
-                    promotionDiscount
-                )
-                || 0
+            lines.reduce(
+                function (
+                    total,
+                    line
+                ) {
+                    return (
+                        total +
+                        Number(
+                            line.total || 0
+                        )
+                    );
+                },
+                0
             )
         );
 
-    if (
-        productsWithIgv < 0
-    ) {
-        productsWithIgv = 0;
-    }
 
-    const servicesWithIgv =
-        round10(
-            Number(
-                servicesBillableTotal
-            )
-            || 0
-        );
-
-    const subtotalWithIgv =
-        round10(
-            productsWithIgv +
-            servicesWithIgv
-        );
-
-    const discountWithIgv =
-        round10(
-            computeDiscountWithIgv(
-                subtotalWithIgv,
-                igvPct
-            )
-        );
-
-    let totalWithIgv =
-        round10(
-            subtotalWithIgv -
-            discountWithIgv
-        );
-
-    if (
-        totalWithIgv < 0
-    ) {
-        totalWithIgv = 0;
-    }
-
-    let base =
-        round10(
-            totalWithIgv /
-            factor
-        );
-
-    if (base < 0) {
-        base = 0;
-    }
-
-    const igv =
-        round10(
-            totalWithIgv -
-            base
-        );
-
-    const discountBase =
-        round10(
-            discountWithIgv /
-            factor
-        );
-
-    return {
-        subtotal_with_igv:
-        subtotalWithIgv,
-
-        discount_with_igv:
-        discountWithIgv,
-
-        discount_base:
-        discountBase,
-
-        base:
-        base,
-
-        igv:
-        igv,
-
-        total:
-        totalWithIgv,
-
-        igv_pct:
-        igvPct,
-
-        factor:
-        factor
-    };
-}
-
-
-function computeDiscountWithIgv(
-    subtotalWithIgv,
-    igvPct
-) {
+    /*
+     * ============================================================
+     * DESCUENTO GLOBAL
+     * ============================================================
+     */
 
     const $discount =
         $('#discountSection');
 
-    const type =
+    const discountType =
         $discount.attr(
             'data-discount_type'
         )
         || 'amount';
 
-    const mode =
-        $discount.attr(
-            'data-discount_input_mode'
-        )
-        || 'without_igv';
-
-    const value =
-        parseFloat(
-            $discount.attr(
-                'data-discount_value'
+    const discountValue =
+        Math.max(
+            0,
+            parseFloat(
+                $discount.attr(
+                    'data-discount_value'
+                )
+                || 0
             )
-            || 0
         );
 
-    if (
-        !value ||
-        value <= 0
-    ) {
-        return 0;
-    }
-
-    const factor =
-        getFactor(
-            igvPct
-        );
-
-    let discountWithIgv =
-        0;
+    let discountTotal = 0;
 
     if (
-        type === 'amount'
+        subtotal > 0 &&
+        discountValue > 0
     ) {
-
-        discountWithIgv =
-            mode === 'with_igv'
-                ? value
-                : value * factor;
-
-    } else {
-
-        const percentage =
-            value / 100;
 
         if (
-            mode === 'with_igv'
+            discountType ===
+            'percent'
         ) {
 
-            discountWithIgv =
-                subtotalWithIgv *
-                percentage;
+            const percentage =
+                Math.min(
+                    discountValue,
+                    100
+                );
+
+            discountTotal =
+                round10(
+                    subtotal *
+                    (
+                        percentage /
+                        100
+                    )
+                );
 
         } else {
 
-            const base =
-                subtotalWithIgv /
-                factor;
-
-            discountWithIgv =
-                (
-                    base *
-                    percentage
-                ) *
-                factor;
+            discountTotal =
+                round10(
+                    Math.min(
+                        discountValue,
+                        subtotal
+                    )
+                );
         }
     }
 
-    discountWithIgv =
-        round10(
-            discountWithIgv
-        );
 
-    if (
-        discountWithIgv >
-        subtotalWithIgv
-    ) {
+    /*
+     * ============================================================
+     * DISTRIBUIR DESCUENTO Y CALCULAR IMPUESTOS
+     * ============================================================
+     */
 
-        discountWithIgv =
-            subtotalWithIgv;
-    }
+    let gravada = 0;
+    let exonerada = 0;
+    let inafecta = 0;
+    let igv = 0;
+    let totalImporte = 0;
 
-    return (
-        discountWithIgv
+    let distributedDiscount = 0;
+
+    lines.forEach(
+        function (
+            line,
+            index
+        ) {
+
+            const lineTotal =
+                Number(
+                    line.total || 0
+                );
+
+            let lineDiscount = 0;
+
+            if (
+                discountTotal > 0 &&
+                subtotal > 0
+            ) {
+
+                if (
+                    index ===
+                    lines.length - 1
+                ) {
+
+                    lineDiscount =
+                        round10(
+                            discountTotal -
+                            distributedDiscount
+                        );
+
+                } else {
+
+                    lineDiscount =
+                        round10(
+                            discountTotal *
+                            (
+                                lineTotal /
+                                subtotal
+                            )
+                        );
+
+                    distributedDiscount =
+                        round10(
+                            distributedDiscount +
+                            lineDiscount
+                        );
+                }
+            }
+
+            let finalLine =
+                round10(
+                    lineTotal -
+                    lineDiscount
+                );
+
+            if (finalLine < 0) {
+                finalLine = 0;
+            }
+
+            const taxRate =
+                parseFloat(
+                    line.tax_rate || 0
+                );
+
+            const taxCode =
+                String(
+                    line.tax_code || ''
+                )
+                    .trim()
+                    .toUpperCase();
+
+            if (
+                taxCode ===
+                'EXONERADO'
+            ) {
+
+                exonerada =
+                    round10(
+                        exonerada +
+                        finalLine
+                    );
+
+            } else if (
+                taxCode ===
+                'INAFECTO'
+            ) {
+
+                inafecta =
+                    round10(
+                        inafecta +
+                        finalLine
+                    );
+
+            } else {
+
+                const factor =
+                    getFactor(
+                        taxRate
+                    );
+
+                const base =
+                    factor > 0
+                        ? round10(
+                        finalLine /
+                        factor
+                        )
+                        : 0;
+
+                const lineTax =
+                    round10(
+                        finalLine -
+                        base
+                    );
+
+                gravada =
+                    round10(
+                        gravada +
+                        base
+                    );
+
+                igv =
+                    round10(
+                        igv +
+                        lineTax
+                    );
+            }
+
+            totalImporte =
+                round10(
+                    totalImporte +
+                    finalLine
+                );
+        }
     );
+
+    return {
+        subtotal:
+        subtotal,
+
+        discount_total:
+        discountTotal,
+
+        gravada:
+        gravada,
+
+        exonerada:
+        exonerada,
+
+        inafecta:
+        inafecta,
+
+        igv:
+        igv,
+
+        total:
+        totalImporte
+    };
 }
 
 
@@ -3426,23 +3654,45 @@ function updateQuoteSummary(
     $('#descuento')
         .html(
             moneyRound(
-                totals.discount_base
+                totals.discount_total
             ).toFixed(2)
         )
         .attr(
             'data-descuento_real',
-            totals.discount_base
+            totals.discount_total
         );
 
     $('#gravada')
         .html(
             moneyRound(
-                totals.base
+                totals.gravada
             ).toFixed(2)
         )
         .attr(
             'data-gravada_real',
-            totals.base
+            totals.gravada
+        );
+
+    $('#exonerada')
+        .html(
+            moneyRound(
+                totals.exonerada
+            ).toFixed(2)
+        )
+        .attr(
+            'data-exonerada_real',
+            totals.exonerada
+        );
+
+    $('#inafecta')
+        .html(
+            moneyRound(
+                totals.inafecta
+            ).toFixed(2)
+        )
+        .attr(
+            'data-inafecta_real',
+            totals.inafecta
         );
 
     $('#igv_total')
@@ -3703,9 +3953,7 @@ function buildEquipmentFromCard(
     const totals =
         calculateQuoteTotals(
             consumables,
-            servicesRead.sum_billable,
-            consumableRead
-                .promotion_discount
+            servicesRead.array
         );
 
     updateQuoteSummary(
@@ -3742,27 +3990,6 @@ function buildEquipmentFromCard(
         workforces:
         servicesRead.array,
 
-        discount_global: {
-            base:
-            totals.discount_base,
-
-            meta: {
-                subtotal_with_igv:
-                totals.subtotal_with_igv,
-
-                discount_with_igv:
-                totals.discount_with_igv,
-
-                discount_base:
-                totals.discount_base,
-
-                igv_pct:
-                totals.igv_pct,
-
-                factor:
-                totals.factor
-            }
-        }
     };
 }
 
@@ -3987,62 +4214,6 @@ function storeQuote(
             $equipments
         )
     );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Totales reales
-    |--------------------------------------------------------------------------
-    */
-
-    const descuentoReal =
-        $('#descuento')
-            .attr(
-                'data-descuento_real'
-            )
-        || '0';
-
-    const gravadaReal =
-        $('#gravada')
-            .attr(
-                'data-gravada_real'
-            )
-        || '0';
-
-    const igvReal =
-        $('#igv_total')
-            .attr(
-                'data-igv_total_real'
-            )
-        || '0';
-
-    const totalReal =
-        $('#total_importe')
-            .attr(
-                'data-total_importe_real'
-            )
-        || '0';
-
-    form.append(
-        'descuentoReal',
-        descuentoReal
-    );
-
-    form.append(
-        'gravadaReal',
-        gravadaReal
-    );
-
-    form.append(
-        'igvReal',
-        igvReal
-    );
-
-    form.append(
-        'totalReal',
-        totalReal
-    );
-
 
     /*
     |--------------------------------------------------------------------------

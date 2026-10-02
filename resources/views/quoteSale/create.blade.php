@@ -391,13 +391,6 @@
 
                     <div class="card-body">
 
-                        {{-- IGV vigente --}}
-                        <input
-                                type="hidden"
-                                id="igv"
-                                value="{{ $igv }}"
-                        >
-
                         <div
                                 class="col-md-12"
                                 style="display: none"
@@ -633,7 +626,7 @@
                                             <div class="form-group">
 
                                                 <label for="price">
-                                                    Precio C/IGV
+                                                    Precio de venta
                                                     <span class="right badge badge-danger">
                                                         (*)
                                                     </span>
@@ -1117,15 +1110,43 @@
                                             id="gravada"
                                             data-gravada_real
                                             class="align-right"
-                                    >
-                                        0.00
-                                    </span>
+                                    >0.00</span>
                                 </td>
                             </tr>
 
                             <tr>
                                 <th style="width:50%">
-                                    IGV {{ $igv }}%:
+                                    EXONERADA:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+                                    <span
+                                            id="exonerada"
+                                            data-exonerada_real
+                                            class="align-right"
+                                    >0.00</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th style="width:50%">
+                                    INAFECTA:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+                                    <span
+                                            id="inafecta"
+                                            data-inafecta_real
+                                            class="align-right"
+                                    >0.00</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th style="width:50%">
+                                    IGV:
                                 </th>
 
                                 <td>
@@ -1134,9 +1155,7 @@
                                             id="igv_total"
                                             data-igv_total_real
                                             class="align-right"
-                                    >
-                                        0.00
-                                    </span>
+                                    >0.00</span>
                                 </td>
                             </tr>
 
@@ -1151,9 +1170,7 @@
                                             id="total_importe"
                                             data-total_importe_real
                                             class="align-right"
-                                    >
-                                        0.00
-                                    </span>
+                                    >0.00</span>
                                 </td>
                             </tr>
 
@@ -2131,7 +2148,16 @@
                 'quotes.stock-items.available-items',
                 ':stockItemId'
             ) }}";
+        window.APP_QUOTE.DEFAULT_TAX = {
+            type_tax_id:
+            {{ (int) $defaultTax['type_tax_id'] }},
 
+            tax_rate:
+            {{ (float) $defaultTax['tax_rate'] }},
+
+            tax_code:
+            @json($defaultTax['code'])
+        };
     </script>
 
     <script
