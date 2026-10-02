@@ -129,7 +129,7 @@
             <div class="col-md-12">
                 <!-- Barra de búsqueda -->
                 <div class="input-group">
-                    <input type="text" id="description" class="form-control" placeholder="Descripción del material..." autocomplete="off">
+                    <input type="text" id="description" class="form-control" placeholder="Descripción/SKU del material..." autocomplete="off">
                     <div class="input-group-append ">
                         <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
                         <a href="#" id="btnBusquedaAvanzada" class="vertical-center ml-3 mt-2">Búsqueda Avanzada</a>
