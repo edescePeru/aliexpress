@@ -885,7 +885,7 @@
                                     class="card-body"
                                     id="discountSection"
                                     data-discount_type="amount"
-                                    data-discount_input_mode="without_igv"
+                                    data-discount_input_mode="with_igv"
                                     data-discount_value="0"
                             >
 
@@ -972,7 +972,6 @@
                                                         name="discount_input_mode"
                                                         id="discount_mode_without"
                                                         value="without_igv"
-                                                        checked
                                                 >
 
                                                 <label for="discount_mode_without">
@@ -988,6 +987,7 @@
                                                         name="discount_input_mode"
                                                         id="discount_mode_with"
                                                         value="with_igv"
+                                                        checked
                                                 >
 
                                                 <label for="discount_mode_with">
@@ -1021,9 +1021,10 @@
                                         class="alert alert-warning mt-2 mb-0"
                                         style="font-size: 12px;"
                                 >
-                                    El descuento se aplicará recién al confirmar/guardar.
-                                    En facturación, el descuento afecta la base imponible
-                                    (SIN IGV).
+                                    El descuento se aplicará al confirmar la cotización.
+                                    Si selecciona <strong>CON IGV</strong>, se descontará del total final.
+                                    Si selecciona <strong>SIN IGV</strong>, se aplicará sobre la base gravada
+                                    y se recalculará el impuesto.
                                 </div>
 
                             </div>
@@ -1782,7 +1783,7 @@
                             >
 
                             <small class="text-muted">
-                                Esto agrega en unidad usando el precio base del producto.
+                                Esto agrega en unidad usando el precio de venta configurado del producto.
                             </small>
 
                         </div>

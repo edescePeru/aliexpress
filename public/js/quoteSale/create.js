@@ -503,7 +503,7 @@ $(document).ready(function () {
                 .prop('checked', true)
                 .trigger('change');
 
-            $('#discount_mode_without')
+            $('#discount_mode_with')
                 .prop('checked', true)
                 .trigger('change');
 
@@ -3263,6 +3263,11 @@ function calculateQuoteTotals(
      * ============================================================
      * PRODUCTOS
      * ============================================================
+     *
+     * El precio es precio FINAL.
+     *
+     * Las promociones legacy NO participan
+     * en el cálculo tributario.
      */
 
     (consumables || []).forEach(
@@ -3282,21 +3287,10 @@ function calculateQuoteTotals(
                     0
                 );
 
-            const promotionDiscount =
-                Number(
-                    item.discount || 0
-                );
-
             let total =
                 round10(
                     quantity *
                     price
-                );
-
-            total =
-                round10(
-                    total -
-                    promotionDiscount
                 );
 
             if (total < 0) {
@@ -3320,7 +3314,16 @@ function calculateQuoteTotals(
                     ),
 
                 total:
-                total
+                total,
+
+                total_after_discount:
+                total,
+
+                discount_applied:
+                    0,
+
+                discount_base_applied:
+                    0
             });
         }
     );
@@ -3377,10 +3380,148 @@ function calculateQuoteTotals(
                     ),
 
                 total:
-                total
+                total,
+
+                total_after_discount:
+                total,
+
+                discount_applied:
+                    0,
+
+                discount_base_applied:
+                    0
             });
         }
     );
+
+
+    /*
+     * ============================================================
+     * CLASIFICACIÓN TRIBUTARIA
+     * ============================================================
+     */
+
+    for (
+        let index = 0;
+        index < lines.length;
+        index++
+    ) {
+
+        const line =
+            lines[index];
+
+        const taxCode =
+            String(
+                line.tax_code || ''
+            )
+                .trim()
+                .toUpperCase();
+
+        const taxRate =
+            parseFloat(
+                line.tax_rate || 0
+            );
+
+        let category = null;
+
+        /*
+         * IGV_*:
+         *
+         * IGV_18
+         * IGV_10
+         * etc.
+         */
+        if (
+            taxCode.indexOf(
+                'IGV_'
+            ) === 0
+        ) {
+
+            category =
+                'gravada';
+
+        } else if (
+            taxCode ===
+            'EXONERADO'
+        ) {
+
+            category =
+                'exonerada';
+
+        } else if (
+            taxCode ===
+            'INAFECTO'
+        ) {
+
+            category =
+                'inafecta';
+        }
+
+        /*
+         * Igual que backend:
+         * no asumir silenciosamente un tipo.
+         */
+        if (!category) {
+
+            return {
+                error:
+                    true,
+
+                message:
+                    'El tipo de impuesto "' +
+                    taxCode +
+                    '" no tiene una clasificación tributaria soportada.'
+            };
+        }
+
+        line.tax_code =
+            taxCode;
+
+        line.category =
+            category;
+
+        /*
+         * Base original.
+         */
+        if (
+            category ===
+            'gravada'
+        ) {
+
+            const factor =
+                getFactor(
+                    taxRate
+                );
+
+            if (factor <= 0) {
+
+                return {
+                    error:
+                        true,
+
+                    message:
+                        'Se encontró un factor tributario inválido.'
+                };
+            }
+
+            line.base_before_discount =
+                round10(
+                    line.total /
+                    factor
+                );
+
+        } else {
+
+            /*
+             * Exonerado e inafecto:
+             * no contienen impuesto.
+             */
+            line.base_before_discount =
+                round10(
+                    line.total
+                );
+        }
+    }
 
 
     /*
@@ -3396,6 +3537,7 @@ function calculateQuoteTotals(
                     total,
                     line
                 ) {
+
                     return (
                         total +
                         Number(
@@ -3410,7 +3552,7 @@ function calculateQuoteTotals(
 
     /*
      * ============================================================
-     * DESCUENTO GLOBAL
+     * CONFIGURACIÓN DEL DESCUENTO
      * ============================================================
      */
 
@@ -3423,6 +3565,12 @@ function calculateQuoteTotals(
         )
         || 'amount';
 
+    const discountMode =
+        $discount.attr(
+            'data-discount_input_mode'
+        )
+        || 'with_igv';
+
     const discountValue =
         Math.max(
             0,
@@ -3434,133 +3582,565 @@ function calculateQuoteTotals(
             )
         );
 
-    let discountTotal = 0;
+
+    if (
+        discountType !== 'amount' &&
+        discountType !== 'percent'
+    ) {
+
+        return {
+            error:
+                true,
+
+            message:
+                'El tipo de descuento no es válido.'
+        };
+    }
+
+
+    if (
+        discountMode !== 'with_igv' &&
+        discountMode !== 'without_igv'
+    ) {
+
+        return {
+            error:
+                true,
+
+            message:
+                'El modo de descuento no es válido.'
+        };
+    }
+
+
+    /*
+     * ============================================================
+     * APLICAR DESCUENTO
+     * ============================================================
+     */
+
+    let discountBaseTotal = 0;
+
+    let discountGrossTotal = 0;
+
 
     if (
         subtotal > 0 &&
         discountValue > 0
     ) {
 
+        /*
+         * ========================================================
+         * CON IGV
+         * ========================================================
+         *
+         * El descuento se aplica directamente
+         * sobre el total final.
+         *
+         * Ejemplo:
+         *
+         * Total      60
+         * Descuento  10
+         * Total      50
+         */
+
         if (
-            discountType ===
-            'percent'
+            discountMode ===
+            'with_igv'
         ) {
 
-            const percentage =
-                Math.min(
-                    discountValue,
-                    100
-                );
+            if (
+                discountType ===
+                'percent'
+            ) {
 
-            discountTotal =
-                round10(
-                    subtotal *
-                    (
-                        percentage /
+                const percentage =
+                    Math.min(
+                        discountValue,
                         100
-                    )
-                );
+                    );
+
+                discountGrossTotal =
+                    round10(
+                        subtotal *
+                        (
+                            percentage /
+                            100
+                        )
+                    );
+
+            } else {
+
+                discountGrossTotal =
+                    round10(
+                        Math.min(
+                            discountValue,
+                            subtotal
+                        )
+                    );
+            }
+
+
+            /*
+             * Distribuir proporcionalmente entre
+             * TODAS las líneas.
+             */
+
+            let distributed =
+                0;
+
+            const lastIndex =
+                lines.length - 1;
+
+
+            lines.forEach(
+                function (
+                    line,
+                    index
+                ) {
+
+                    let lineDiscount =
+                        0;
+
+
+                    if (
+                        index ===
+                        lastIndex
+                    ) {
+
+                        lineDiscount =
+                            round10(
+                                discountGrossTotal -
+                                distributed
+                            );
+
+                    } else {
+
+                        const ratio =
+                            subtotal > 0
+                                ? (
+                                    line.total /
+                                    subtotal
+                                )
+                                : 0;
+
+                        lineDiscount =
+                            round10(
+                                discountGrossTotal *
+                                ratio
+                            );
+
+                        distributed =
+                            round10(
+                                distributed +
+                                lineDiscount
+                            );
+                    }
+
+
+                    if (
+                        lineDiscount >
+                        line.total
+                    ) {
+
+                        lineDiscount =
+                            line.total;
+                    }
+
+
+                    line.discount_applied =
+                        lineDiscount;
+
+                    line.total_after_discount =
+                        round10(
+                            line.total -
+                            lineDiscount
+                        );
+                }
+            );
+
+
+            /*
+             * ========================================================
+             * SIN IGV
+             * ========================================================
+             *
+             * El descuento se aplica exclusivamente
+             * sobre la BASE GRAVADA.
+             *
+             * Exonerado e inafecto no cambian.
+             */
 
         } else {
 
-            discountTotal =
-                round10(
-                    Math.min(
-                        discountValue,
-                        subtotal
-                    )
+            let gravadaBaseSubtotal =
+                0;
+
+
+            lines.forEach(
+                function (line) {
+
+                    if (
+                        line.category !==
+                        'gravada'
+                    ) {
+                        return;
+                    }
+
+
+                    gravadaBaseSubtotal =
+                        round10(
+                            gravadaBaseSubtotal +
+                            line.base_before_discount
+                        );
+                }
+            );
+
+
+            if (
+                gravadaBaseSubtotal > 0
+            ) {
+
+                /*
+                 * Resolver descuento sobre base.
+                 */
+
+                if (
+                    discountType ===
+                    'percent'
+                ) {
+
+                    const percentage =
+                        Math.min(
+                            discountValue,
+                            100
+                        );
+
+                    discountBaseTotal =
+                        round10(
+                            gravadaBaseSubtotal *
+                            (
+                                percentage /
+                                100
+                            )
+                        );
+
+                } else {
+
+                    discountBaseTotal =
+                        round10(
+                            Math.min(
+                                discountValue,
+                                gravadaBaseSubtotal
+                            )
+                        );
+                }
+
+
+                /*
+                 * Identificar solamente líneas gravadas.
+                 */
+
+                const gravadaIndexes =
+                    [];
+
+
+                lines.forEach(
+                    function (
+                        line,
+                        index
+                    ) {
+
+                        if (
+                            line.category ===
+                            'gravada'
+                        ) {
+
+                            gravadaIndexes.push(
+                                index
+                            );
+                        }
+                    }
                 );
+
+
+                let distributedBase =
+                    0;
+
+                const lastGravadaIndex =
+                    gravadaIndexes.length > 0
+                        ? gravadaIndexes[
+                        gravadaIndexes.length - 1
+                            ]
+                        : -1;
+
+
+                gravadaIndexes.forEach(
+                    function (index) {
+
+                        const line =
+                            lines[index];
+
+                        const baseBefore =
+                            line.base_before_discount;
+
+                        let lineBaseDiscount =
+                            0;
+
+
+                        if (
+                            index ===
+                            lastGravadaIndex
+                        ) {
+
+                            lineBaseDiscount =
+                                round10(
+                                    discountBaseTotal -
+                                    distributedBase
+                                );
+
+                        } else {
+
+                            const ratio =
+                                gravadaBaseSubtotal > 0
+                                    ? (
+                                        baseBefore /
+                                        gravadaBaseSubtotal
+                                    )
+                                    : 0;
+
+                            lineBaseDiscount =
+                                round10(
+                                    discountBaseTotal *
+                                    ratio
+                                );
+
+                            distributedBase =
+                                round10(
+                                    distributedBase +
+                                    lineBaseDiscount
+                                );
+                        }
+
+
+                        if (
+                            lineBaseDiscount >
+                            baseBefore
+                        ) {
+
+                            lineBaseDiscount =
+                                baseBefore;
+                        }
+
+
+                        const baseAfter =
+                            round10(
+                                baseBefore -
+                                lineBaseDiscount
+                            );
+
+
+                        line.discount_base_applied =
+                            lineBaseDiscount;
+
+                        line.base_after_discount =
+                            baseAfter;
+                    }
+                );
+            }
         }
     }
 
 
     /*
      * ============================================================
-     * DISTRIBUIR DESCUENTO Y CALCULAR IMPUESTOS
+     * RESULTADOS TRIBUTARIOS
      * ============================================================
      */
 
     let gravada = 0;
+
     let exonerada = 0;
+
     let inafecta = 0;
+
     let igv = 0;
+
     let totalImporte = 0;
 
-    let distributedDiscount = 0;
+    /*
+     * En CON IGV:
+     *
+     * sirve para obtener lo que mostraremos como
+     * DESCUENTO (-).
+     */
+    let discountBaseEquivalent =
+        0;
+
 
     lines.forEach(
-        function (
-            line,
-            index
-        ) {
+        function (line) {
 
-            const lineTotal =
-                Number(
-                    line.total || 0
-                );
-
-            let lineDiscount = 0;
-
-            if (
-                discountTotal > 0 &&
-                subtotal > 0
-            ) {
-
-                if (
-                    index ===
-                    lines.length - 1
-                ) {
-
-                    lineDiscount =
-                        round10(
-                            discountTotal -
-                            distributedDiscount
-                        );
-
-                } else {
-
-                    lineDiscount =
-                        round10(
-                            discountTotal *
-                            (
-                                lineTotal /
-                                subtotal
-                            )
-                        );
-
-                    distributedDiscount =
-                        round10(
-                            distributedDiscount +
-                            lineDiscount
-                        );
-                }
-            }
-
-            let finalLine =
-                round10(
-                    lineTotal -
-                    lineDiscount
-                );
-
-            if (finalLine < 0) {
-                finalLine = 0;
-            }
+            const category =
+                line.category;
 
             const taxRate =
                 parseFloat(
                     line.tax_rate || 0
                 );
 
-            const taxCode =
-                String(
-                    line.tax_code || ''
-                )
-                    .trim()
-                    .toUpperCase();
+            let finalLine =
+                round10(
+                    line.total_after_discount
+                );
+
 
             if (
-                taxCode ===
-                'EXONERADO'
+                finalLine < 0
+            ) {
+                finalLine = 0;
+            }
+
+
+            /*
+             * ====================================================
+             * GRAVADA
+             * ====================================================
+             */
+
+            if (
+                category ===
+                'gravada'
+            ) {
+
+                const factor =
+                    getFactor(
+                        taxRate
+                    );
+
+                let base = 0;
+
+                let lineTax = 0;
+
+
+                /*
+                 * SIN IGV:
+                 *
+                 * ya tenemos la base final.
+                 */
+                if (
+                    typeof
+                        line.base_after_discount
+                    !==
+                    'undefined'
+                ) {
+
+                    base =
+                        round10(
+                            line.base_after_discount
+                        );
+
+                    lineTax =
+                        round10(
+                            base *
+                            (
+                                taxRate /
+                                100
+                            )
+                        );
+
+                    finalLine =
+                        round10(
+                            base +
+                            lineTax
+                        );
+
+                    line.total_after_discount =
+                        finalLine;
+
+                    /*
+                     * CON IGV:
+                     *
+                     * obtenemos la nueva base
+                     * desde el total final.
+                     */
+
+                } else {
+
+                    base =
+                        factor > 0
+                            ? round10(
+                            finalLine /
+                            factor
+                            )
+                            : 0;
+
+                    lineTax =
+                        round10(
+                            finalLine -
+                            base
+                        );
+                }
+
+
+                gravada =
+                    round10(
+                        gravada +
+                        base
+                    );
+
+
+                igv =
+                    round10(
+                        igv +
+                        lineTax
+                    );
+
+
+                /*
+                 * CON IGV:
+                 *
+                 * DESCUENTO (-) muestra el equivalente
+                 * del descuento sobre la base.
+                 */
+
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
+
+                    let baseDiscount =
+                        round10(
+                            line.base_before_discount -
+                            base
+                        );
+
+
+                    if (
+                        baseDiscount < 0
+                    ) {
+
+                        baseDiscount = 0;
+                    }
+
+
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            baseDiscount
+                        );
+                }
+
+
+                /*
+                 * ====================================================
+                 * EXONERADA
+                 * ====================================================
+                 */
+
+            } else if (
+                category ===
+                'exonerada'
             ) {
 
                 exonerada =
@@ -3569,9 +4149,36 @@ function calculateQuoteTotals(
                         finalLine
                     );
 
+
+                /*
+                 * Sin impuesto:
+                 * descuento bruto = descuento base.
+                 */
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
+
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            (
+                                line.total -
+                                finalLine
+                            )
+                        );
+                }
+
+
+                /*
+                 * ====================================================
+                 * INAFECTA
+                 * ====================================================
+                 */
+
             } else if (
-                taxCode ===
-                'INAFECTO'
+                category ===
+                'inafecta'
             ) {
 
                 inafecta =
@@ -3580,39 +4187,23 @@ function calculateQuoteTotals(
                         finalLine
                     );
 
-            } else {
 
-                const factor =
-                    getFactor(
-                        taxRate
-                    );
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
 
-                const base =
-                    factor > 0
-                        ? round10(
-                        finalLine /
-                        factor
-                        )
-                        : 0;
-
-                const lineTax =
-                    round10(
-                        finalLine -
-                        base
-                    );
-
-                gravada =
-                    round10(
-                        gravada +
-                        base
-                    );
-
-                igv =
-                    round10(
-                        igv +
-                        lineTax
-                    );
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            (
+                                line.total -
+                                finalLine
+                            )
+                        );
+                }
             }
+
 
             totalImporte =
                 round10(
@@ -3622,12 +4213,59 @@ function calculateQuoteTotals(
         }
     );
 
+
+    /*
+     * ============================================================
+     * DESCUENTO MOSTRADO
+     * ============================================================
+     *
+     * Debe representar lo mismo que Quote.descuento:
+     *
+     * WITH IGV:
+     * equivalente del descuento en base.
+     *
+     * WITHOUT IGV:
+     * descuento aplicado directamente a la base.
+     */
+
+    const discountTotal =
+        discountMode ===
+        'with_igv'
+            ? round10(
+            discountBaseEquivalent
+            )
+            : round10(
+            discountBaseTotal
+            );
+
+
+    /*
+     * ============================================================
+     * RESULTADO
+     * ============================================================
+     */
+
     return {
+        error:
+            false,
+
         subtotal:
         subtotal,
 
         discount_total:
         discountTotal,
+
+        /*
+         * Solo informativo.
+         *
+         * Representa cuánto bajó realmente
+         * el total comercial.
+         */
+        discount_gross_total:
+            round10(
+                subtotal -
+                totalImporte
+            ),
 
         gravada:
         gravada,
@@ -3642,10 +4280,12 @@ function calculateQuoteTotals(
         igv,
 
         total:
-        totalImporte
+        totalImporte,
+
+        lines:
+        lines
     };
 }
-
 
 function updateQuoteSummary(
     totals
@@ -3956,6 +4596,21 @@ function buildEquipmentFromCard(
             servicesRead.array
         );
 
+    if (
+        !totals ||
+        totals.error
+    ) {
+
+        toastr.error(
+            totals && totals.message
+                ? totals.message
+                : 'No se pudieron calcular los totales tributarios.',
+            'Error'
+        );
+
+        return null;
+    }
+
     updateQuoteSummary(
         totals
     );
@@ -4237,7 +4892,7 @@ function storeQuote(
         $discount.attr(
             'data-discount_input_mode'
         )
-        || 'without_igv'
+        || 'with_igv'
     );
 
     form.set(

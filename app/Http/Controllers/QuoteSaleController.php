@@ -373,71 +373,108 @@ class QuoteSaleController extends Controller
 
     public function getMaterialTotals()
     {
-        $companyId = TenantContext::companyId();
+        $companyId =
+            TenantContext::companyId();
+
+        /*
+         * ============================================================
+         * SERVICIOS
+         * ============================================================
+         */
 
         /** @var PriceResolverService $priceResolver */
-        $priceResolver = app(
-            PriceResolverService::class
-        );
+        $priceResolver =
+            app(
+                PriceResolverService::class
+            );
 
-        $stockItems = StockItem::query()
-            ->with([
-                'material' => function ($query) {
-                    $query->with([
-                        'unitMeasure',
-                        'typeScrap',
-                    ]);
-                },
+        /** @var TypeTaxResolverService $typeTaxResolver */
+        $typeTaxResolver =
+            app(
+                TypeTaxResolverService::class
+            );
 
-                'variant:id,material_id,attribute_summary,talla_id,color_id',
+        /*
+         * ============================================================
+         * STOCKITEMS DISPONIBLES PARA LA COMPANY ACTUAL
+         * ============================================================
+         */
 
-                'variant.talla:id,name,short_name',
+        $stockItems =
+            StockItem::query()
+                ->with([
+                    'material' =>
+                        function ($query) {
 
-                'variant.color:id,name,short_name',
+                            $query->with([
+                                'unitMeasure',
+                                'typeScrap',
+                            ]);
+                        },
 
-                'unitMeasure:id,name',
+                    'variant:id,material_id,attribute_summary,talla_id,color_id',
 
-                /*
-                 * Inventario únicamente de la Company actual.
-                 */
-                'inventoryLevels' => function ($query) use ($companyId) {
-                    $query
-                        ->where(
-                            'company_id',
+                    'variant.talla:id,name,short_name',
+
+                    'variant.color:id,name,short_name',
+
+                    'unitMeasure:id,name',
+
+                    /*
+                     * Inventario únicamente
+                     * de la Company actual.
+                     */
+                    'inventoryLevels' =>
+                        function ($query) use (
                             $companyId
-                        )
-                        ->select([
-                            'id',
-                            'company_id',
-                            'stock_item_id',
-                            'qty_on_hand',
-                            'qty_reserved',
-                        ]);
-                },
-            ])
-            ->where(
-                'is_active',
-                true
-            )
-            ->enabledForCompany(
-                $companyId
-            )
-            ->whereHas('material', function ($query) {
-                $query->where(
-                    'enable_status',
-                    1
-                );
-            })
-            ->orderBy(
-                'display_name',
-                'asc'
-            )
-            ->get();
+                        ) {
+
+                            $query
+                                ->where(
+                                    'company_id',
+                                    $companyId
+                                )
+                                ->select([
+                                    'id',
+                                    'company_id',
+                                    'stock_item_id',
+                                    'qty_on_hand',
+                                    'qty_reserved',
+                                ]);
+                        },
+                ])
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->enabledForCompany(
+                    $companyId
+                )
+                ->whereHas(
+                    'material',
+                    function ($query) {
+
+                        $query->where(
+                            'enable_status',
+                            1
+                        );
+                    }
+                )
+                ->orderBy(
+                    'display_name',
+                    'asc'
+                )
+                ->get();
 
         $array = [];
 
-        foreach ($stockItems as $stockItem) {
-            $material = $stockItem->material;
+        foreach (
+            $stockItems
+            as $stockItem
+        ) {
+
+            $material =
+                $stockItem->material;
 
             if (!$material) {
                 continue;
@@ -449,15 +486,19 @@ class QuoteSaleController extends Controller
              * ============================================================
              */
 
-            $variantText = $this->getVariantText(
-                $stockItem
-            );
+            $variantText =
+                $this->getVariantText(
+                    $stockItem
+                );
 
             $fullDescription =
-                $stockItem->display_name
-                    ?: $material->full_name;
+                $stockItem
+                    ->display_name
+                    ?: $material
+                    ->full_name;
 
             if ($variantText) {
+
                 $fullDescription .=
                     ' - ' .
                     $variantText;
@@ -469,26 +510,39 @@ class QuoteSaleController extends Controller
              * ============================================================
              */
 
-            $stockCurrent = (float) $stockItem
-                ->inventoryLevels
-                ->sum(function ($level) {
-                    return (float) (
-                        $level->qty_on_hand
-                        ?? 0
-                    );
-                });
+            $stockCurrent =
+                (float)
+                $stockItem
+                    ->inventoryLevels
+                    ->sum(
+                        function ($level) {
 
-            $stockReserved = (float) $stockItem
-                ->inventoryLevels
-                ->sum(function ($level) {
-                    return (float) (
-                        $level->qty_reserved
-                        ?? 0
+                            return (float) (
+                                $level
+                                    ->qty_on_hand
+                                ?? 0
+                            );
+                        }
                     );
-                });
+
+            $stockReserved =
+                (float)
+                $stockItem
+                    ->inventoryLevels
+                    ->sum(
+                        function ($level) {
+
+                            return (float) (
+                                $level
+                                    ->qty_reserved
+                                ?? 0
+                            );
+                        }
+                    );
 
             $stockAvailable =
-                $stockCurrent -
+                $stockCurrent
+                -
                 $stockReserved;
 
             /*
@@ -501,6 +555,11 @@ class QuoteSaleController extends Controller
              * 1. PriceListItem
              * 2. PriceListMaterial
              * 3. null = sin precio
+             *
+             * IMPORTANTE:
+             *
+             * El precio devuelto es precio final
+             * con impuesto incluido cuando corresponda.
              */
 
             $priceData =
@@ -511,33 +570,59 @@ class QuoteSaleController extends Controller
                     );
 
             $listPrice =
-                $priceData['price'];
+                $priceData[
+                'price'
+                ];
 
             /*
-             * Para compatibilidad con create.js todavía enviamos
-             * list_price numérico.
+             * Para compatibilidad con create.js
+             * seguimos enviando list_price numérico.
              *
-             * Pero además enviamos has_price/source para distinguir:
+             * Pero has_price nos permite diferenciar:
              *
              * precio 0 válido
+             *
              * vs
-             * producto sin precio.
+             *
+             * producto sin precio configurado.
              */
+
             $hasPrice =
                 $listPrice !== null;
 
             /*
              * ============================================================
-             * Metadata tributaria
+             * METADATA TRIBUTARIA
              * ============================================================
-            */
+             *
+             * Cada producto obtiene su impuesto
+             * directamente desde el Material.
+             *
+             * Esto permite que dentro de una misma
+             * cotización existan:
+             *
+             * - IGV
+             * - Exonerados
+             * - Inafectos
+             */
+
             $taxData =
                 $typeTaxResolver
                     ->resolveMaterialWithSource(
-                        $stockItem->material
+                        $material
                     );
 
+            /*
+             * ============================================================
+             * RESPONSE
+             * ============================================================
+             */
+
             $array[] = [
+
+                /*
+                 * Identidad.
+                 */
                 'id' =>
                     $stockItem->id,
 
@@ -550,25 +635,37 @@ class QuoteSaleController extends Controller
                 'stock_item_id' =>
                     $stockItem->id,
 
+                /*
+                 * Descripción.
+                 */
                 'full_description' =>
                     $fullDescription,
 
                 'display_name' =>
-                    $stockItem->display_name,
+                    $stockItem
+                        ->display_name,
 
                 'variant_text' =>
                     $variantText,
 
+                /*
+                 * Unidad.
+                 */
                 'unit' =>
                     optional(
-                        $stockItem->unitMeasure
+                        $stockItem
+                            ->unitMeasure
                     )->name
                         ?:
                         optional(
-                            $material->unitMeasure
+                            $material
+                                ->unitMeasure
                         )->name
                             ?: '',
 
+                /*
+                 * Códigos.
+                 */
                 'code' =>
                     $material->code,
 
@@ -578,41 +675,69 @@ class QuoteSaleController extends Controller
                 'barcode' =>
                     $stockItem->barcode,
 
+                /*
+                 * Metadata Material.
+                 */
                 'type_scrap' =>
-                    $material->typeScrap,
+                    $material
+                        ->typeScrap,
 
                 'tipo_venta_id' =>
-                    $material->tipo_venta_id,
+                    $material
+                        ->tipo_venta_id,
 
                 'unit_measure' =>
-                    $stockItem->unitMeasure
-                        ?: $material->unitMeasure,
+                    $stockItem
+                        ->unitMeasure
+                        ?:
+                        $material
+                            ->unitMeasure,
 
                 /*
-                 * Precio efectivo.
+                 * ========================================================
+                 * PRECIO
+                 * ========================================================
                  */
+
                 'list_price' =>
                     $hasPrice
-                        ? (float) $listPrice
+                        ? (float)
+                    $listPrice
                         : 0,
 
-                /*
-                 * Metadata útil para UI y debug.
-                 */
                 'has_price' =>
                     $hasPrice,
 
                 'price_source' =>
-                    $priceData['source'],
+                    $priceData[
+                    'source'
+                    ],
 
                 'price_list_id' =>
-                    $priceData['price_list_id'],
+                    $priceData[
+                    'price_list_id'
+                    ],
 
                 'price_list_name' =>
-                    $priceData['price_list_name'],
+                    $priceData[
+                    'price_list_name'
+                    ],
+
+                /*
+                 * ========================================================
+                 * ESTADO
+                 * ========================================================
+                 */
 
                 'enable_status' =>
-                    $material->enable_status,
+                    $material
+                        ->enable_status,
+
+                /*
+                 * ========================================================
+                 * INVENTARIO
+                 * ========================================================
+                 */
 
                 'stock_current' =>
                     $stockCurrent,
@@ -623,17 +748,40 @@ class QuoteSaleController extends Controller
                 'stock_available' =>
                     $stockAvailable,
 
+                /*
+                 * Legacy.
+                 */
                 'state_update_price' =>
-                    $material->state_update_price,
+                    $material
+                        ->state_update_price,
+
+                /*
+                 * ========================================================
+                 * TRIBUTACIÓN
+                 * ========================================================
+                 *
+                 * El frontend utiliza estos datos únicamente
+                 * para previsualizar los cálculos.
+                 *
+                 * El backend sigue siendo la autoridad.
+                 */
 
                 'type_tax_id' =>
-                    $taxData['type_tax_id'],
+                    (int)
+                    $taxData[
+                    'type_tax_id'
+                    ],
 
                 'tax_rate' =>
-                    (float) $taxData['tax_rate'],
+                    (float)
+                    $taxData[
+                    'tax_rate'
+                    ],
 
                 'tax_code' =>
-                    $taxData['code'],
+                    $taxData[
+                    'code'
+                    ],
             ];
         }
 
@@ -849,21 +997,31 @@ class QuoteSaleController extends Controller
          * ============================================================
          */
 
-        $unitMeasures = UnitMeasure::all();
+        $unitMeasures =
+            UnitMeasure::all();
 
         /*
          * Customer es Tenant-level.
-         * BelongsToTenant ya se encarga del aislamiento por Tenant.
+         *
+         * BelongsToTenant ya se encarga
+         * del aislamiento por Tenant.
          */
-        $customers = Customer::query()
-            ->orderBy('business_name', 'asc')
-            ->get();
+        $customers =
+            Customer::query()
+                ->orderBy(
+                    'business_name',
+                    'asc'
+                )
+                ->get();
 
         /*
          * Servicios adicionales disponibles.
          */
-        $workforces = Workforce::with('unitMeasure')
-            ->get();
+        $workforces =
+            Workforce::with(
+                'unitMeasure'
+            )
+                ->get();
 
         /*
          * ============================================================
@@ -876,7 +1034,12 @@ class QuoteSaleController extends Controller
          * después de crear la Quote y conocer su ID real.
          */
 
-        $maxId = (Quote::max('id') ?? 0) + 1;
+        $maxId =
+            (
+                Quote::max('id')
+                ?? 0
+            )
+            + 1;
 
         $codeQuote =
             'COT-' .
@@ -893,9 +1056,13 @@ class QuoteSaleController extends Controller
          * ============================================================
          */
 
-        $paymentDeadlines = PaymentDeadline::query()
-            ->where('type', 'quotes')
-            ->get();
+        $paymentDeadlines =
+            PaymentDeadline::query()
+                ->where(
+                    'type',
+                    'quotes'
+                )
+                ->get();
 
         /*
          * ============================================================
@@ -903,40 +1070,56 @@ class QuoteSaleController extends Controller
          * ============================================================
          */
 
-        $currency = app(
-            SettingService::class
-        )->get('finance.base_currency');
+        $currency =
+            app(
+                SettingService::class
+            )->get(
+                'finance.base_currency'
+            );
+
+        /*
+         * ============================================================
+         * IMPUESTO DEFAULT
+         * ============================================================
+         *
+         * Se utiliza principalmente para servicios,
+         * porque estos no pertenecen a un Material.
+         *
+         * Los productos resolverán su TypeTax
+         * individualmente desde su Material.
+         */
+
+        /** @var TypeTaxResolverService $typeTaxResolver */
+        $typeTaxResolver =
+            app(
+                TypeTaxResolverService::class
+            );
+
+        $defaultTax =
+            $typeTaxResolver
+                ->resolveWithSource();
 
         /*
          * ============================================================
          * AUDITORÍA
          * ============================================================
-        */
+         */
 
         $end =
-            microtime(true) -
+            microtime(true)
+            -
             $begin;
 
         Audit::create([
-            'user_id' => $user->id,
-            'action' => 'Crear cotizacion VISTA',
-            'time' => $end
+            'user_id' =>
+                $user->id,
+
+            'action' =>
+                'Crear cotizacion VISTA',
+
+            'time' =>
+                $end,
         ]);
-
-        /*
-         * ============================================================
-         * IGV
-         * ============================================================
-        */
-
-        /** @var TypeTaxResolverService $typeTaxResolver */
-        $typeTaxResolver = app(
-            TypeTaxResolverService::class
-        );
-
-        $defaultTax =
-            $typeTaxResolver
-                ->resolveWithSource();
 
         /*
          * ============================================================
@@ -1623,6 +1806,11 @@ class QuoteSaleController extends Controller
                     ($equipmentData->detail ?? '')
                         ?: '',
 
+                /*
+                 * Regla funcional:
+                 * una cotización siempre tiene un único Equipment
+                 * con quantity = 1.
+                 */
                 'quantity' => 1,
 
                 'utility' =>
@@ -1660,7 +1848,7 @@ class QuoteSaleController extends Controller
 
             /*
              * ========================================================
-             * SERVICIO DE RESERVA
+             * SERVICIOS
              * ========================================================
              */
 
@@ -1774,7 +1962,7 @@ class QuoteSaleController extends Controller
                  * - tax_rate
                  *
                  * aunque posteriormente cambie el Material.
-                */
+                 */
 
                 $taxData =
                     $typeTaxResolver
@@ -1862,6 +2050,10 @@ class QuoteSaleController extends Controller
                         );
                     }
 
+                    /*
+                     * El precio de presentación ya es precio final
+                     * con el impuesto correspondiente incluido.
+                     */
                     $priceReal =
                         (float) $presentation->price;
 
@@ -1895,6 +2087,9 @@ class QuoteSaleController extends Controller
                         );
                     }
 
+                    /*
+                     * El precio resuelto también es precio final.
+                     */
                     $priceData =
                         $priceResolver
                             ->resolveWithSource(
@@ -1911,6 +2106,18 @@ class QuoteSaleController extends Controller
                     $priceReal =
                         (float) $priceData['price'];
                 }
+
+                /*
+                 * ====================================================
+                 * CÁLCULOS MONETARIOS
+                 * ====================================================
+                 *
+                 * priceReal:
+                 * precio final, impuesto incluido cuando corresponda.
+                 *
+                 * valorUnitarioReal:
+                 * valor sin impuesto en líneas gravadas.
+                 */
 
                 $taxRate =
                     (float) $taxData['tax_rate'];
@@ -1933,13 +2140,18 @@ class QuoteSaleController extends Controller
                         10
                     );
 
+                /*
+                 * frontQty:
+                 *
+                 * presentación → packs
+                 * unidad       → unidades
+                 */
                 $importeReal =
                     round(
                         (float) $frontQty *
                         (float) $priceReal,
                         10
                     );
-
 
                 if (
                     (float) $priceReal < 0 ||
@@ -1964,7 +2176,11 @@ class QuoteSaleController extends Controller
                         $c->selected_item_ids
                         ?? [];
 
-                    if ( is_string($rawSelectedItemIds)) {
+                    if (
+                    is_string(
+                        $rawSelectedItemIds
+                    )
+                    ) {
 
                         $decodedItemIds =
                             json_decode(
@@ -1980,7 +2196,11 @@ class QuoteSaleController extends Controller
                                 : [];
                     }
 
-                    if ( !is_array($rawSelectedItemIds) ) {
+                    if (
+                    !is_array(
+                        $rawSelectedItemIds
+                    )
+                    ) {
                         $rawSelectedItemIds = [];
                     }
 
@@ -2001,21 +2221,39 @@ class QuoteSaleController extends Controller
                             ->values()
                             ->toArray();
 
-                    if (empty($selectedItemIds)
+                    if (
+                    empty(
+                    $selectedItemIds
+                    )
                     ) {
                         throw new \RuntimeException(
                             "Debe seleccionar los ítems físicos para {$stockItem->display_name}."
                         );
                     }
 
-                    if ( count($selectedItemIds) !== count(array_unique($selectedItemIds) )
+                    if (
+                        count(
+                            $selectedItemIds
+                        )
+                        !==
+                        count(
+                            array_unique(
+                                $selectedItemIds
+                            )
+                        )
                     ) {
                         throw new \RuntimeException(
                             "Se detectaron ítems repetidos en {$stockItem->display_name}."
                         );
                     }
 
-                    if ( (int) $requestedUnits !== count($selectedItemIds) ) {
+                    if (
+                        (int) $requestedUnits
+                        !==
+                        count(
+                            $selectedItemIds
+                        )
+                    ) {
                         throw new \RuntimeException(
                             "La cantidad de ítems seleccionados no coincide con la cantidad requerida para {$stockItem->display_name}. " .
                             "Requerido: {$requestedUnits}. " .
@@ -2050,17 +2288,20 @@ class QuoteSaleController extends Controller
                     );
                 }
 
-                /*
-                 * Al superar la validación anterior,
-                 * necesariamente existe stock.
-                 */
                 $availability = 'Completo';
                 $state = 'En compra';
 
                 /*
                  * ====================================================
-                 * EQUIPMENT CONSUMABLE
+                 * PROMOCIÓN LEGACY
                  * ====================================================
+                 *
+                 * Se conserva por compatibilidad.
+                 *
+                 * IMPORTANTE:
+                 * este valor NO participa en QuoteTaxCalculatorService.
+                 * El descuento funcional de la cotización es únicamente
+                 * el descuento global.
                  */
 
                 $promotionDiscount =
@@ -2080,6 +2321,12 @@ class QuoteSaleController extends Controller
                         "El descuento de {$stockItem->display_name} no puede superar el importe de la línea."
                     );
                 }
+
+                /*
+                 * ====================================================
+                 * EQUIPMENT CONSUMABLE
+                 * ====================================================
+                 */
 
                 $equipmentConsumable =
                     EquipmentConsumable::create([
@@ -2108,26 +2355,40 @@ class QuoteSaleController extends Controller
 
                         /*
                          * Snapshot tributario.
-                        */
-
+                         */
                         'type_tax_id' =>
                             $taxData['type_tax_id'],
 
                         'tax_rate' =>
                             $taxData['tax_rate'],
 
+                        /*
+                         * Cantidad física real que afecta inventario.
+                         */
                         'quantity' =>
                             $requestedUnits,
 
+                        /*
+                         * Precio final de venta.
+                         */
                         'price' =>
                             $priceReal,
 
+                        /*
+                         * Valor sin impuesto cuando corresponda.
+                         */
                         'valor_unitario' =>
                             $valorUnitarioReal,
 
+                        /*
+                         * Importe final de la línea.
+                         */
                         'total' =>
                             $importeReal,
 
+                        /*
+                         * Metadata legacy de promociones.
+                         */
                         'discount' =>
                             $promotionDiscount,
 
@@ -2145,31 +2406,34 @@ class QuoteSaleController extends Controller
                             $unitsPerPack,
                     ]);
 
-                $lineTotal =
-                    (float) $importeReal;
-
-                $lineTotalAfterPromotion =
-                    round(
-                        $lineTotal -
-                        $promotionDiscount,
-                        10
-                    );
+                /*
+                 * ====================================================
+                 * LÍNEA TRIBUTARIA
+                 * ====================================================
+                 *
+                 * MUY IMPORTANTE:
+                 *
+                 * El QuoteTaxCalculatorService recibe el importe COMPLETO
+                 * de la línea.
+                 *
+                 * NO descontamos promotionDiscount aquí.
+                 *
+                 * El único descuento funcional que afecta los totales
+                 * tributarios es el descuento global de Quote.
+                 */
 
                 $productTaxLines[] = [
                     'type_tax_id' =>
-                        (int) $equipmentConsumable->type_tax_id,
+                        (int) $equipmentConsumable
+                            ->type_tax_id,
 
                     'tax_rate' =>
-                        (float) $equipmentConsumable->tax_rate,
+                        (float) $equipmentConsumable
+                            ->tax_rate,
 
-                    /*
-                     * La promoción afecta primero a la propia línea.
-                     *
-                     * El descuento global de Quote se aplica después.
-                     */
                     'total' =>
                         round(
-                            $lineTotalAfterPromotion,
+                            (float) $importeReal,
                             10
                         ),
                 ];
@@ -2218,6 +2482,10 @@ class QuoteSaleController extends Controller
                  * ====================================================
                  * PROMOCIÓN CON LÍMITE
                  * ====================================================
+                 *
+                 * Legacy.
+                 * Continúa controlando consumo/límite de la promoción,
+                 * pero no modifica la línea tributaria de TAX-01.
                  */
 
                 if (
@@ -2363,7 +2631,13 @@ class QuoteSaleController extends Controller
                         ->billable
                         : 1;
 
-                if (!in_array($billable,[0, 1],true)) {
+                if (
+                !in_array(
+                    $billable,
+                    [0, 1],
+                    true
+                )
+                ) {
                     throw new \RuntimeException(
                         'Uno de los servicios contiene un estado de facturación inválido.'
                     );
@@ -2390,6 +2664,10 @@ class QuoteSaleController extends Controller
                     );
                 }
 
+                /*
+                 * El precio del servicio también representa
+                 * precio final de venta.
+                 */
                 $workforceTotal =
                     round(
                         $workforceQuantity *
@@ -2424,6 +2702,10 @@ class QuoteSaleController extends Controller
                         'billable' =>
                             $billable,
 
+                        /*
+                         * Los servicios usan el TypeTax default
+                         * vigente al crear la cotización.
+                         */
                         'type_tax_id' =>
                             $defaultTax['type_tax_id'],
 
@@ -2431,23 +2713,34 @@ class QuoteSaleController extends Controller
                             $defaultTax['tax_rate'],
                     ]);
 
+                /*
+                 * Solo servicios facturables afectan
+                 * los totales de Quote.
+                 */
                 if ($billable === 1) {
 
                     $serviceTaxLines[] = [
                         'type_tax_id' =>
-                            (int) $equipmentWorkforce->type_tax_id,
+                            (int) $equipmentWorkforce
+                                ->type_tax_id,
 
                         'tax_rate' =>
-                            (float) $equipmentWorkforce->tax_rate,
+                            (float) $equipmentWorkforce
+                                ->tax_rate,
 
                         'total' =>
                             round(
-                                (float) $equipmentWorkforce->total,
+                                (float) $equipmentWorkforce
+                                    ->total,
                                 10
                             ),
                     ];
                 }
 
+                /*
+                 * Equipment.total conserva la semántica legacy
+                 * y suma todos los servicios.
+                 */
                 $totalWorkforces +=
                     (float)
                     $equipmentWorkforce
@@ -2458,6 +2751,8 @@ class QuoteSaleController extends Controller
              * ========================================================
              * TOTAL DEL EQUIPMENT
              * ========================================================
+             *
+             * quantity siempre es 1.
              */
 
             $totalEquipment =
@@ -2472,6 +2767,25 @@ class QuoteSaleController extends Controller
                 $totalEquipment;
 
             $equipment->save();
+
+            /*
+             * ========================================================
+             * TOTALES TRIBUTARIOS DE QUOTE
+             * ========================================================
+             *
+             * QuoteTaxCalculatorService es la autoridad.
+             *
+             * Los precios de las líneas ya incluyen
+             * su impuesto cuando corresponda.
+             *
+             * discount_input_mode:
+             *
+             * with_igv:
+             *     el valor ingresado afecta el total final.
+             *
+             * without_igv:
+             *     el valor ingresado afecta la base gravada.
+             */
 
             $taxTotals =
                 $taxCalculator->calculate(
@@ -2498,17 +2812,44 @@ class QuoteSaleController extends Controller
                     ]
                 );
 
-            $quote->descuento = $taxTotals['discount_total'];
+            /*
+             * Quote.descuento:
+             *
+             * with_igv:
+             *     equivalente de descuento en base.
+             *
+             * without_igv:
+             *     descuento aplicado directamente a la base.
+             */
+            $quote->descuento =
+                $taxTotals[
+                'discount_total'
+                ];
 
-            $quote->gravada = $taxTotals['gravada'];
+            $quote->gravada =
+                $taxTotals[
+                'gravada'
+                ];
 
-            $quote->exonerada = $taxTotals['exonerada'];
+            $quote->exonerada =
+                $taxTotals[
+                'exonerada'
+                ];
 
-            $quote->inafecta = $taxTotals['inafecta'];
+            $quote->inafecta =
+                $taxTotals[
+                'inafecta'
+                ];
 
-            $quote->igv_total = $taxTotals['igv_total'];
+            $quote->igv_total =
+                $taxTotals[
+                'igv_total'
+                ];
 
-            $quote->total_importe = $taxTotals['total_importe'];
+            $quote->total_importe =
+                $taxTotals[
+                'total_importe'
+                ];
 
             $quote->save();
 
@@ -2644,6 +2985,7 @@ class QuoteSaleController extends Controller
                 $companyId,
                 $tenantId
             ) {
+
                 $begin = microtime(true);
 
                 /*
@@ -2657,8 +2999,14 @@ class QuoteSaleController extends Controller
                  */
 
                 $originalQuote = Quote::query()
-                    ->where('id', $quote->id)
-                    ->where('company_id', $companyId)
+                    ->where(
+                        'id',
+                        $quote->id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
                     ->with([
                         'equipments.consumables.material',
                         'equipments.consumables.stockItem',
@@ -2671,7 +3019,10 @@ class QuoteSaleController extends Controller
                  * Solamente una cotización marcada para recotizar
                  * puede utilizar esta operación.
                  */
-                if ($originalQuote->state !== 'requote') {
+                if (
+                    $originalQuote->state
+                    !== 'requote'
+                ) {
                     throw new \Exception(
                         'La cotización seleccionada no está disponible para recotización.'
                     );
@@ -2704,13 +3055,21 @@ class QuoteSaleController extends Controller
                  * ==========================================================
                  */
 
-                if ($originalQuote->equipments->isEmpty()) {
+                if (
+                $originalQuote
+                    ->equipments
+                    ->isEmpty()
+                ) {
                     throw new \Exception(
                         'La cotización no contiene productos para recotizar.'
                     );
                 }
 
-                if ($originalQuote->equipments->count() > 1) {
+                if (
+                    $originalQuote
+                        ->equipments
+                        ->count() > 1
+                ) {
                     throw new \Exception(
                         'La cotización contiene más de un grupo de productos y no puede recotizarse automáticamente.'
                     );
@@ -2726,9 +3085,15 @@ class QuoteSaleController extends Controller
                  * a seleccionar las unidades específicas.
                  */
 
-                foreach ($originalQuote->equipments as $equipment) {
+                foreach (
+                    $originalQuote->equipments
+                    as $equipment
+                ) {
 
-                    foreach ($equipment->consumables as $consumable) {
+                    foreach (
+                        $equipment->consumables
+                        as $consumable
+                    ) {
 
                         if (!$consumable->material) {
                             throw new \Exception(
@@ -2737,9 +3102,11 @@ class QuoteSaleController extends Controller
                         }
 
                         if (
-                            (int) $consumable
+                            (int)
+                            $consumable
                                 ->material
-                                ->tipo_venta_id === 3
+                                ->tipo_venta_id
+                            === 3
                         ) {
                             throw new \Exception(
                                 'La cotización contiene productos con ítems físicos y no puede recotizarse automáticamente.'
@@ -2748,12 +3115,15 @@ class QuoteSaleController extends Controller
 
                         if (
                         empty(
-                        $consumable->stock_item_id
+                        $consumable
+                            ->stock_item_id
                         )
                         ) {
                             throw new \Exception(
                                 'El producto "' .
-                                $consumable->material->full_name .
+                                $consumable
+                                    ->material
+                                    ->full_name .
                                 '" no tiene un StockItem asociado y no puede recotizarse automáticamente.'
                             );
                         }
@@ -2764,7 +3134,7 @@ class QuoteSaleController extends Controller
                  * ==========================================================
                  * 4. REDONDEO INTERNO
                  * ==========================================================
-                */
+                 */
 
                 $round10 = function ($value) {
                     return round(
@@ -2793,63 +3163,87 @@ class QuoteSaleController extends Controller
                      * con índice unique.
                      */
                     'code' =>
-                        'TMP-' . Str::uuid(),
+                        'TMP-' .
+                        Str::uuid(),
 
                     'renewed_from_quote_id' =>
                         $originalQuote->id,
 
                     'description_quote' =>
-                        $originalQuote->description_quote,
+                        $originalQuote
+                            ->description_quote,
 
                     'observations' =>
-                        $originalQuote->observations,
+                        $originalQuote
+                            ->observations,
 
                     'date_quote' =>
                         Carbon::now(),
 
                     'date_validate' =>
-                        Carbon::now()->addDays(5),
+                        Carbon::now()
+                            ->addDays(5),
 
                     'way_to_pay' =>
-                        $originalQuote->way_to_pay,
+                        $originalQuote
+                            ->way_to_pay,
 
                     'delivery_time' =>
-                        $originalQuote->delivery_time,
+                        $originalQuote
+                            ->delivery_time,
 
                     'customer_id' =>
-                        $originalQuote->customer_id,
+                        $originalQuote
+                            ->customer_id,
 
                     'contact_id' =>
-                        $originalQuote->contact_id,
+                        $originalQuote
+                            ->contact_id,
 
                     'payment_deadline_id' =>
-                        $originalQuote->payment_deadline_id,
+                        $originalQuote
+                            ->payment_deadline_id,
 
                     'state' =>
                         'created',
 
                     'currency_invoice' =>
-                        $originalQuote->currency_invoice,
+                        $originalQuote
+                            ->currency_invoice,
 
                     /*
                      * Se conserva la configuración del descuento,
                      * pero los importes se recalculan.
                      */
                     'discount_type' =>
-                        $originalQuote->discount_type,
+                        $originalQuote
+                            ->discount_type,
 
                     'discount_input_mode' =>
-                        $originalQuote->discount_input_mode,
+                        $originalQuote
+                            ->discount_input_mode,
 
                     'discount_input_value' =>
-                        $originalQuote->discount_input_value,
+                        $originalQuote
+                            ->discount_input_value,
 
-                    'descuento' => 0,
-                    'gravada' => 0,
-                    'exonerada' => 0,
-                    'inafecta' => 0,
-                    'igv_total' => 0,
-                    'total_importe' => 0,
+                    'descuento' =>
+                        0,
+
+                    'gravada' =>
+                        0,
+
+                    'exonerada' =>
+                        0,
+
+                    'inafecta' =>
+                        0,
+
+                    'igv_total' =>
+                        0,
+
+                    'total_importe' =>
+                        0,
                 ]);
 
                 /*
@@ -2901,8 +3295,7 @@ class QuoteSaleController extends Controller
                 );
 
                 /*
-                 * Totales que reproducen el comportamiento
-                 * actual del frontend.
+                 * Líneas que utilizará QuoteTaxCalculatorService.
                  */
                 $productTaxLines = [];
                 $serviceTaxLines = [];
@@ -2924,28 +3317,44 @@ class QuoteSaleController extends Controller
                                 $renewQuote->id,
 
                             'description' =>
-                                $originalEquipment->description
+                                $originalEquipment
+                                    ->description
                                     ?: '',
 
                             'detail' =>
-                                $originalEquipment->detail
+                                $originalEquipment
+                                    ->detail
                                     ?: '',
 
-                            'quantity' => 1,
+                            /*
+                             * Regla funcional actual:
+                             * siempre existe un único Equipment
+                             * y su quantity siempre es 1.
+                             */
+                            'quantity' =>
+                                1,
 
                             /*
                              * Legacy.
-                             * Ya no forman parte del cálculo actual.
                              */
-                            'utility' => 0,
-                            'rent' => 0,
-                            'letter' => 0,
+                            'utility' =>
+                                0,
 
-                            'total' => 0,
+                            'rent' =>
+                                0,
+
+                            'letter' =>
+                                0,
+
+                            'total' =>
+                                0,
                         ]);
 
-                    $totalConsumablesForEquipment = 0;
-                    $totalWorkforcesForEquipment = 0;
+                    $totalConsumablesForEquipment =
+                        0;
+
+                    $totalWorkforcesForEquipment =
+                        0;
 
                     /*
                      * ======================================================
@@ -2954,7 +3363,8 @@ class QuoteSaleController extends Controller
                      */
 
                     foreach (
-                        $originalEquipment->consumables
+                        $originalEquipment
+                            ->consumables
                         as $originalConsumable
                     ) {
 
@@ -2966,23 +3376,24 @@ class QuoteSaleController extends Controller
                          * - habilitado comercialmente para Company
                          */
 
-                        $stockItem = StockItem::query()
-                            ->with([
-                                'material',
-                            ])
-                            ->where(
-                                'id',
-                                $originalConsumable
-                                    ->stock_item_id
-                            )
-                            ->where(
-                                'is_active',
-                                true
-                            )
-                            ->enabledForCompany(
-                                $companyId
-                            )
-                            ->first();
+                        $stockItem =
+                            StockItem::query()
+                                ->with([
+                                    'material',
+                                ])
+                                ->where(
+                                    'id',
+                                    $originalConsumable
+                                        ->stock_item_id
+                                )
+                                ->where(
+                                    'is_active',
+                                    true
+                                )
+                                ->enabledForCompany(
+                                    $companyId
+                                )
+                                ->first();
 
                         if (!$stockItem) {
                             throw new \Exception(
@@ -3004,10 +3415,14 @@ class QuoteSaleController extends Controller
                          * IMPUESTO ACTUAL PARA LA NUEVA RECOTIZACIÓN
                          * ==================================================
                          *
-                         * La recotización es una nueva operación.
-                         * Por eso toma la configuración tributaria actual
-                         * del Material y genera un snapshot nuevo.
-                        */
+                         * Renew es una operación nueva.
+                         *
+                         * Por eso NO conserva el snapshot tributario
+                         * anterior.
+                         *
+                         * Obtiene el TypeTax actual del Material y
+                         * genera un nuevo snapshot.
+                         */
 
                         $taxData =
                             $typeTaxResolver
@@ -3020,9 +3435,11 @@ class QuoteSaleController extends Controller
                          * cambió desde la cotización original.
                          */
                         if (
-                            (int) $stockItem
+                            (int)
+                            $stockItem
                                 ->material
-                                ->tipo_venta_id === 3
+                                ->tipo_venta_id
+                            === 3
                         ) {
                             throw new \Exception(
                                 'El producto "' .
@@ -3034,12 +3451,13 @@ class QuoteSaleController extends Controller
                         }
 
                         /*
-                         * No modificamos la cantidad solicitada
-                         * originalmente.
+                         * No modificamos la cantidad física
+                         * solicitada originalmente.
                          */
 
                         $requestedUnits =
-                            (float) $originalConsumable
+                            (float)
+                            $originalConsumable
                                 ->quantity;
 
                         if ($requestedUnits <= 0) {
@@ -3064,8 +3482,16 @@ class QuoteSaleController extends Controller
                             $originalConsumable
                                 ->units_per_pack;
 
-                        $currentPrice = null;
+                        $currentPrice =
+                            null;
 
+                        /*
+                         * Cantidad comercial utilizada para
+                         * calcular el importe:
+                         *
+                         * - unidad       → requestedUnits
+                         * - presentación → packs
+                         */
                         $lineQuantityForPrice =
                             $requestedUnits;
 
@@ -3073,9 +3499,6 @@ class QuoteSaleController extends Controller
                          * ==================================================
                          * PRODUCTO CON PRESENTACIÓN
                          * ==================================================
-                         *
-                         * Conservamos la lógica actual:
-                         * una presentación posee su precio propio.
                          */
 
                         if (!empty($presentationId)) {
@@ -3088,7 +3511,8 @@ class QuoteSaleController extends Controller
                                     )
                                     ->where(
                                         'material_id',
-                                        $stockItem->material_id
+                                        $stockItem
+                                            ->material_id
                                     )
                                     ->where(
                                         'active',
@@ -3122,12 +3546,19 @@ class QuoteSaleController extends Controller
                             }
 
                             /*
-                             * Si la presentación cambió su cantidad,
-                             * no alteramos silenciosamente lo solicitado.
+                             * Si cambió la cantidad que contiene
+                             * la presentación, detenemos Renew.
+                             *
+                             * No reinterpretamos silenciosamente
+                             * la cantidad física original.
                              */
                             if (
-                                (int) $presentation->quantity !==
-                                (int) $unitsPerPack
+                                (int)
+                                $presentation
+                                    ->quantity
+                                !==
+                                (int)
+                                $unitsPerPack
                             ) {
                                 throw new \Exception(
                                     'La presentación del producto "' .
@@ -3138,8 +3569,16 @@ class QuoteSaleController extends Controller
                                 );
                             }
 
+                            /*
+                             * Precio vigente de la presentación.
+                             *
+                             * Es precio final de venta y contiene
+                             * impuesto cuando corresponda.
+                             */
                             $currentPrice =
-                                (float) $presentation->price;
+                                (float)
+                                $presentation
+                                    ->price;
 
                             $lineQuantityForPrice =
                                 (float) $packs;
@@ -3156,9 +3595,6 @@ class QuoteSaleController extends Controller
                              * 1. PriceListItem
                              * 2. PriceListMaterial
                              * 3. null = sin precio
-                             *
-                             * Siempre sobre la PriceList default activa
-                             * de la Company actual.
                              */
 
                             $priceData =
@@ -3169,7 +3605,8 @@ class QuoteSaleController extends Controller
                                     );
 
                             if (
-                                $priceData['price'] === null
+                                $priceData['price']
+                                === null
                             ) {
                                 throw new \Exception(
                                     'El producto "' .
@@ -3179,8 +3616,14 @@ class QuoteSaleController extends Controller
                                 );
                             }
 
+                            /*
+                             * Precio vigente final.
+                             */
                             $currentPrice =
-                                (float) $priceData['price'];
+                                (float)
+                                $priceData[
+                                'price'
+                                ];
                         }
 
                         /*
@@ -3201,7 +3644,11 @@ class QuoteSaleController extends Controller
                         }
 
                         /*
-                         * Precio con IGV y valor unitario sin IGV.
+                         * ==================================================
+                         * CÁLCULOS MONETARIOS
+                         * ==================================================
+                         *
+                         * El precio ya es precio FINAL.
                          */
 
                         $priceReal =
@@ -3210,23 +3657,34 @@ class QuoteSaleController extends Controller
                             );
 
                         $taxRate =
-                            (float) $taxData[
+                            (float)
+                            $taxData[
                             'tax_rate'
                             ];
 
                         $taxFactor =
                             1 + (
-                                $taxRate / 100
+                                $taxRate /
+                                100
                             );
 
                         if ($taxFactor <= 0) {
                             throw new \RuntimeException(
                                 'El factor tributario del producto "' .
-                                $stockItem->display_name .
+                                $stockItem
+                                    ->display_name .
                                 '" es inválido.'
                             );
                         }
 
+                        /*
+                         * En gravados:
+                         * extraemos la base del precio final.
+                         *
+                         * En exonerado/inafecto:
+                         * tax_rate = 0
+                         * factor = 1.
+                         */
                         $valorUnitarioReal =
                             $round10(
                                 $priceReal /
@@ -3248,7 +3706,8 @@ class QuoteSaleController extends Controller
                         $available =
                             $reservationService
                                 ->getAvailableStockByStockItem(
-                                    (int) $stockItem->id
+                                    (int)
+                                    $stockItem->id
                                 );
 
                         if (
@@ -3271,31 +3730,54 @@ class QuoteSaleController extends Controller
 
                         /*
                          * ==================================================
-                         * CREAR NUEVO CONSUMABLE
+                         * PROMOCIÓN LEGACY
                          * ==================================================
+                         *
+                         * Conservamos metadata histórica por
+                         * compatibilidad.
+                         *
+                         * MUY IMPORTANTE:
+                         *
+                         * Este descuento NO participa en
+                         * QuoteTaxCalculatorService.
+                         *
+                         * El descuento funcional de la Quote
+                         * es exclusivamente el descuento global.
                          */
 
                         $promotionDiscount =
                             (float) (
-                            $originalConsumable->discount
+                            $originalConsumable
+                                ->discount
                                 ?: 0
                             );
 
                         if ($promotionDiscount < 0) {
                             throw new \RuntimeException(
                                 'El descuento promocional del producto "' .
-                                $stockItem->display_name .
+                                $stockItem
+                                    ->display_name .
                                 '" es inválido.'
                             );
                         }
 
-                        if ($promotionDiscount > $importeReal) {
+                        if (
+                            $promotionDiscount >
+                            $importeReal
+                        ) {
                             throw new \RuntimeException(
                                 'El descuento promocional del producto "' .
-                                $stockItem->display_name .
+                                $stockItem
+                                    ->display_name .
                                 '" supera el nuevo importe de la línea.'
                             );
                         }
+
+                        /*
+                         * ==================================================
+                         * CREAR NUEVO CONSUMABLE
+                         * ==================================================
+                         */
 
                         $renewConsumable =
                             EquipmentConsumable::create([
@@ -3303,38 +3785,51 @@ class QuoteSaleController extends Controller
                                     $renewEquipment->id,
 
                                 'material_id' =>
-                                    $stockItem->material_id,
+                                    $stockItem
+                                        ->material_id,
 
                                 'stock_item_id' =>
                                     $stockItem->id,
 
                                 /*
                                  * Nuevo snapshot tributario.
-                                */
+                                 */
                                 'type_tax_id' =>
-                                    $taxData['type_tax_id'],
+                                    $taxData[
+                                    'type_tax_id'
+                                    ],
 
                                 'tax_rate' =>
-                                    $taxData['tax_rate'],
+                                    $taxData[
+                                    'tax_rate'
+                                    ],
 
                                 /*
-                                 * Cantidad real solicitada.
+                                 * Cantidad física real.
                                  */
                                 'quantity' =>
                                     $requestedUnits,
 
+                                /*
+                                 * Precio final vigente.
+                                 */
                                 'price' =>
                                     $priceReal,
 
+                                /*
+                                 * Base unitaria cuando corresponda.
+                                 */
                                 'valor_unitario' =>
                                     $valorUnitarioReal,
 
+                                /*
+                                 * Importe final de la línea.
+                                 */
                                 'total' =>
                                     $importeReal,
 
                                 /*
-                                 * Conservamos metadata de promoción
-                                 * existente por compatibilidad.
+                                 * Metadata legacy.
                                  */
                                 'discount' =>
                                     $promotionDiscount,
@@ -3359,23 +3854,34 @@ class QuoteSaleController extends Controller
                                     'Completo',
                             ]);
 
-                        $lineTotalAfterPromotion =
-                            $round10(
-                                $importeReal -
-                                $promotionDiscount
-                            );
+                        /*
+                         * ==================================================
+                         * LÍNEA TRIBUTARIA
+                         * ==================================================
+                         *
+                         * IMPORTANTE:
+                         *
+                         * El motor tributario recibe el importe
+                         * COMPLETO de la línea.
+                         *
+                         * NO descontamos promotionDiscount.
+                         */
 
                         $productTaxLines[] = [
                             'type_tax_id' =>
-                                (int) $renewConsumable
+                                (int)
+                                $renewConsumable
                                     ->type_tax_id,
 
                             'tax_rate' =>
-                                (float) $renewConsumable
+                                (float)
+                                $renewConsumable
                                     ->tax_rate,
 
                             'total' =>
-                                $lineTotalAfterPromotion,
+                                $round10(
+                                    $importeReal
+                                ),
                         ];
 
                         /*
@@ -3386,27 +3892,38 @@ class QuoteSaleController extends Controller
 
                         $reservationService
                             ->reserveForQuoteDetail(
-                                (int) $renewQuote->id,
-                                (int) $renewConsumable->id,
-                                (int) $stockItem->id,
+                                (int)
+                                $renewQuote->id,
+
+                                (int)
+                                $renewConsumable->id,
+
+                                (int)
+                                $stockItem->id,
+
                                 $requestedUnits
                             );
 
                         /*
-                         * Totales del Equipment.
+                         * Equipment.total conserva
+                         * el importe comercial de productos.
                          */
                         $totalConsumablesForEquipment =
                             $round10(
                                 $totalConsumablesForEquipment +
                                 $importeReal
                             );
-
                     }
 
                     /*
                      * ======================================================
                      * 6.2. SERVICIOS ADICIONALES
                      * ======================================================
+                     *
+                     * Renew es una operación nueva:
+                     *
+                     * los servicios reciben el TypeTax default
+                     * vigente al momento de recotizar.
                      */
 
                     $defaultTax =
@@ -3414,7 +3931,8 @@ class QuoteSaleController extends Controller
                             ->resolveWithSource();
 
                     foreach (
-                        $originalEquipment->workforces
+                        $originalEquipment
+                            ->workforces
                         as $originalWorkforce
                     ) {
 
@@ -3423,7 +3941,8 @@ class QuoteSaleController extends Controller
                                 $originalWorkforce
                                     ->billable
                             )
-                                ? (int) $originalWorkforce
+                                ? (int)
+                            $originalWorkforce
                                 ->billable
                                 : 1;
 
@@ -3440,10 +3959,14 @@ class QuoteSaleController extends Controller
                         }
 
                         $workforcePrice =
-                            (float) $originalWorkforce->price;
+                            (float)
+                            $originalWorkforce
+                                ->price;
 
                         $workforceQuantity =
-                            (float) $originalWorkforce->quantity;
+                            (float)
+                            $originalWorkforce
+                                ->quantity;
 
                         if (
                             $workforcePrice < 0 ||
@@ -3454,6 +3977,11 @@ class QuoteSaleController extends Controller
                             );
                         }
 
+                        /*
+                         * Recalculamos siempre.
+                         *
+                         * No confiamos en total histórico.
+                         */
                         $workforceTotal =
                             $round10(
                                 $workforcePrice *
@@ -3487,39 +4015,54 @@ class QuoteSaleController extends Controller
                                 'billable' =>
                                     $billable,
 
+                                /*
+                                 * Snapshot tributario nuevo.
+                                 */
                                 'type_tax_id' =>
-                                    $defaultTax['type_tax_id'],
+                                    $defaultTax[
+                                    'type_tax_id'
+                                    ],
 
                                 'tax_rate' =>
-                                    $defaultTax['tax_rate'],
+                                    $defaultTax[
+                                    'tax_rate'
+                                    ],
                             ]);
 
                         /*
-                         * Equipment.total suma todos los servicios.
+                         * Equipment.total conserva la semántica
+                         * legacy y suma todos los servicios.
                          */
                         $totalWorkforcesForEquipment =
                             $round10(
                                 $totalWorkforcesForEquipment +
-                                (float) $renewWorkforce->total
+                                (float)
+                                $renewWorkforce
+                                    ->total
                             );
 
                         /*
-                         * total_importe solo incluye facturables.
+                         * Solo servicios facturables afectan Quote.
                          */
                         if ($billable === 1) {
 
                             $serviceTaxLines[] = [
                                 'type_tax_id' =>
-                                    (int) $renewWorkforce
+                                    (int)
+                                    $renewWorkforce
                                         ->type_tax_id,
 
                                 'tax_rate' =>
-                                    (float) $renewWorkforce
+                                    (float)
+                                    $renewWorkforce
                                         ->tax_rate,
 
                                 'total' =>
-                                    (float) $renewWorkforce
-                                        ->total,
+                                    $round10(
+                                        (float)
+                                        $renewWorkforce
+                                            ->total
+                                    ),
                             ];
                         }
                     }
@@ -3528,6 +4071,8 @@ class QuoteSaleController extends Controller
                      * ======================================================
                      * 6.3. TOTAL EQUIPMENT
                      * ======================================================
+                     *
+                     * quantity siempre es 1.
                      */
 
                     $totalEquipment =
@@ -3535,8 +4080,10 @@ class QuoteSaleController extends Controller
                             (
                                 $totalConsumablesForEquipment +
                                 $totalWorkforcesForEquipment
-                            ) *
-                            (float) $renewEquipment
+                            )
+                            *
+                            (float)
+                            $renewEquipment
                                 ->quantity
                         );
 
@@ -3547,10 +4094,18 @@ class QuoteSaleController extends Controller
                 }
 
                 /*
- * ==========================================================
- * 7. RECALCULAR TOTALES TRIBUTARIOS
- * ==========================================================
- */
+                 * ==========================================================
+                 * 7. RECALCULAR TOTALES TRIBUTARIOS
+                 * ==========================================================
+                 *
+                 * QuoteTaxCalculatorService es la autoridad.
+                 *
+                 * WITH_IGV:
+                 * el descuento se aplica sobre el total final.
+                 *
+                 * WITHOUT_IGV:
+                 * el descuento se aplica sobre la base gravada.
+                 */
 
                 $taxTotals =
                     $taxCalculator
@@ -3559,11 +4114,13 @@ class QuoteSaleController extends Controller
                             $serviceTaxLines,
                             [
                                 'type' =>
-                                    $renewQuote->discount_type
+                                    $renewQuote
+                                        ->discount_type
                                         ?: 'amount',
 
                                 'mode' =>
-                                    $renewQuote->discount_input_mode
+                                    $renewQuote
+                                        ->discount_input_mode
                                         ?: 'without_igv',
 
                                 'value' =>
@@ -3574,6 +4131,16 @@ class QuoteSaleController extends Controller
                                     ),
                             ]
                         );
+
+                /*
+                 * Quote.descuento:
+                 *
+                 * with_igv:
+                 * equivalente de descuento en base.
+                 *
+                 * without_igv:
+                 * descuento aplicado a la base.
+                 */
 
                 $renewQuote->descuento =
                     $taxTotals[
@@ -3638,21 +4205,22 @@ class QuoteSaleController extends Controller
                 /*
                  * Evitar notificar usuarios de otros Tenants.
                  *
-                 * Los nombres de roles siguen siendo legacy
-                 * y pueden revisarse después en QUOTE-NOTIF-01.
+                 * QUOTE-NOTIF-01:
+                 * los nombres de roles siguen siendo legacy.
                  */
 
-                $users = User::query()
-                    ->where(
-                        'tenant_id',
-                        $tenantId
-                    )
-                    ->role([
-                        'admin',
-                        'principal',
-                        'logistic',
-                    ])
-                    ->get();
+                $users =
+                    User::query()
+                        ->where(
+                            'tenant_id',
+                            $tenantId
+                        )
+                        ->role([
+                            'admin',
+                            'principal',
+                            'logistic',
+                        ])
+                        ->get();
 
                 foreach (
                     $users
@@ -3700,7 +4268,8 @@ class QuoteSaleController extends Controller
                  */
 
                 $end =
-                    microtime(true) -
+                    microtime(true)
+                    -
                     $begin;
 
                 Audit::create([
@@ -5736,7 +6305,11 @@ class QuoteSaleController extends Controller
         }
     }
 
-    public function updateEquipmentOfQuote(Request $request, $id_equipment, $id_quote) {
+    public function updateEquipmentOfQuote(
+        Request $request,
+        $id_equipment,
+        $id_quote
+    ) {
         $begin = microtime(true);
 
         $companyId = TenantContext::companyId();
@@ -5744,6 +6317,7 @@ class QuoteSaleController extends Controller
         DB::beginTransaction();
 
         try {
+
             /** @var QuoteStockReservationService $reservationService */
             $reservationService = app(
                 QuoteStockReservationService::class
@@ -5771,8 +6345,14 @@ class QuoteSaleController extends Controller
              */
 
             $quote = Quote::query()
-                ->where('id', $id_quote)
-                ->where('company_id', $companyId)
+                ->where(
+                    'id',
+                    $id_quote
+                )
+                ->where(
+                    'company_id',
+                    $companyId
+                )
                 ->firstOrFail();
 
             /*
@@ -5782,47 +6362,78 @@ class QuoteSaleController extends Controller
              */
 
             $customerId =
-                $request->get('customer_id');
+                $request->get(
+                    'customer_id'
+                );
 
             $contactId =
-                $request->get('contact_id');
+                $request->get(
+                    'contact_id'
+                );
 
             if ($customerId) {
                 Customer::query()
-                    ->where('id', $customerId)
+                    ->where(
+                        'id',
+                        $customerId
+                    )
                     ->firstOrFail();
             }
 
             if ($contactId) {
                 ContactName::query()
-                    ->where('id', $contactId)
-                    ->where('customer_id', $customerId)
+                    ->where(
+                        'id',
+                        $contactId
+                    )
+                    ->where(
+                        'customer_id',
+                        $customerId
+                    )
                     ->firstOrFail();
             }
 
             $paymentDeadlineId =
-                $request->get('payment_deadline');
+                $request->get(
+                    'payment_deadline'
+                );
 
             if ($paymentDeadlineId) {
                 PaymentDeadline::query()
-                    ->where('id', $paymentDeadlineId)
-                    ->where('type', 'quotes')
+                    ->where(
+                        'id',
+                        $paymentDeadlineId
+                    )
+                    ->where(
+                        'type',
+                        'quotes'
+                    )
                     ->firstOrFail();
             }
 
-            $dateQuote = $request->get('date_quote')
-                ? Carbon::createFromFormat(
-                    'd/m/Y',
-                    $request->get('date_quote')
+            $dateQuote =
+                $request->get(
+                    'date_quote'
                 )
-                : null;
+                    ? Carbon::createFromFormat(
+                    'd/m/Y',
+                    $request->get(
+                        'date_quote'
+                    )
+                )
+                    : null;
 
-            $dateValidate = $request->get('date_validate')
-                ? Carbon::createFromFormat(
-                    'd/m/Y',
-                    $request->get('date_validate')
+            $dateValidate =
+                $request->get(
+                    'date_validate'
                 )
-                : null;
+                    ? Carbon::createFromFormat(
+                    'd/m/Y',
+                    $request->get(
+                        'date_validate'
+                    )
+                )
+                    : null;
 
             /*
              * =========================================================
@@ -5832,10 +6443,14 @@ class QuoteSaleController extends Controller
 
             $quote->update([
                 'description_quote' =>
-                    $request->get('descriptionQuote'),
+                    $request->get(
+                        'descriptionQuote'
+                    ),
 
                 'code' =>
-                    $request->get('codeQuote'),
+                    $request->get(
+                        'codeQuote'
+                    ),
 
                 'date_quote' =>
                     $dateQuote,
@@ -5844,22 +6459,34 @@ class QuoteSaleController extends Controller
                     $dateValidate,
 
                 'way_to_pay' =>
-                    $request->get('way_to_pay') ?? '',
+                    $request->get(
+                        'way_to_pay'
+                    )
+                    ?? '',
 
                 'delivery_time' =>
-                    $request->get('delivery_time') ?? '',
+                    $request->get(
+                        'delivery_time'
+                    )
+                    ?? '',
 
                 'customer_id' =>
-                    $customerId ?: null,
+                    $customerId
+                        ?: null,
 
                 'contact_id' =>
-                    $contactId ?: null,
+                    $contactId
+                        ?: null,
 
                 'payment_deadline_id' =>
-                    $paymentDeadlineId ?: null,
+                    $paymentDeadlineId
+                        ?: null,
 
                 'observations' =>
-                    $request->get('observations') ?? '',
+                    $request->get(
+                        'observations'
+                    )
+                    ?? '',
             ]);
 
             /*
@@ -5868,15 +6495,26 @@ class QuoteSaleController extends Controller
              * =========================================================
              */
 
-            $equipmentQuote = Equipment::query()
-                ->where('id', $id_equipment)
-                ->where('quote_id', $quote->id)
-                ->firstOrFail();
+            $equipmentQuote =
+                Equipment::query()
+                    ->where(
+                        'id',
+                        $id_equipment
+                    )
+                    ->where(
+                        'quote_id',
+                        $quote->id
+                    )
+                    ->firstOrFail();
 
             /*
              * =========================================================
-             * 5) TOTALES GENERALES
+             * 5) CONFIGURACIÓN DEL DESCUENTO GLOBAL
              * =========================================================
+             *
+             * Los totales no se aceptan desde frontend.
+             *
+             * QuoteTaxCalculatorService los recalcula al final.
              */
 
             $quote->discount_type =
@@ -5909,14 +6547,18 @@ class QuoteSaleController extends Controller
 
             /*
              * =========================================================
-             * SNAPSHOTS TRIBUTARIOS ANTERIORES
+             * SNAPSHOTS ANTERIORES DE PRODUCTOS
              * =========================================================
              *
-             * Edit reconstruye físicamente los EquipmentConsumable.
+             * Edit reconstruye físicamente EquipmentConsumable.
              *
-             * Por eso debemos conservar el snapshot tributario de las
-             * líneas existentes antes de eliminarlas.
-            */
+             * Una línea existente debe conservar:
+             *
+             * - TypeTax histórico
+             * - tax_rate histórico
+             * - precio histórico
+             * - metadata legacy de promoción
+             */
 
             $consumableSnapshots = [];
 
@@ -5924,30 +6566,41 @@ class QuoteSaleController extends Controller
                 $equipmentQuote->consumables
                 as $consumable
             ) {
+
                 $consumableSnapshots[
                 (int) $consumable->id
                 ] = [
                     'type_tax_id' =>
-                        $consumable->type_tax_id,
+                        $consumable
+                            ->type_tax_id,
 
                     'tax_rate' =>
-                        $consumable->tax_rate,
+                        $consumable
+                            ->tax_rate,
 
                     'price' =>
-                        $consumable->price,
+                        $consumable
+                            ->price,
 
                     'discount' =>
-                        $consumable->discount,
+                        $consumable
+                            ->discount,
 
                     'type_promo' =>
-                        $consumable->type_promo,
+                        $consumable
+                            ->type_promo,
                 ];
             }
+
+            /*
+             * Liberar reservas y eliminar líneas anteriores.
+             */
 
             foreach (
                 $equipmentQuote->consumables
                 as $consumable
             ) {
+
                 $reservationService
                     ->releaseReservationsByQuoteDetail(
                         (int) $quote->id,
@@ -5957,20 +6610,29 @@ class QuoteSaleController extends Controller
                 $consumable->delete();
             }
 
+            /*
+             * =========================================================
+             * SNAPSHOTS ANTERIORES DE SERVICIOS
+             * =========================================================
+             */
+
             $workforceSnapshots = [];
 
             foreach (
                 $equipmentQuote->workforces
                 as $workforce
             ) {
+
                 $workforceSnapshots[
                 (int) $workforce->id
                 ] = [
                     'type_tax_id' =>
-                        $workforce->type_tax_id,
+                        $workforce
+                            ->type_tax_id,
 
                     'tax_rate' =>
-                        $workforce->tax_rate,
+                        $workforce
+                            ->tax_rate,
                 ];
             }
 
@@ -5993,8 +6655,12 @@ class QuoteSaleController extends Controller
                 );
 
             if (
-                !is_array($equipments) ||
-                count($equipments) === 0
+                !is_array(
+                    $equipments
+                ) ||
+                count(
+                    $equipments
+                ) === 0
             ) {
                 throw new \Exception(
                     'No se recibió la información de la cotización.'
@@ -6002,7 +6668,8 @@ class QuoteSaleController extends Controller
             }
 
             /*
-             * Actualmente trabajamos con un solo Equipment.
+             * Regla actual:
+             * exactamente un Equipment.
              */
             $equip =
                 $equipments[0];
@@ -6014,24 +6681,36 @@ class QuoteSaleController extends Controller
              */
 
             $equipmentQuote->description =
-                $equip['description'] ?? '';
+                $equip[
+                'description'
+                ]
+                ?? '';
 
             $equipmentQuote->detail =
-                $equip['detail'] ?? '';
+                $equip[
+                'detail'
+                ]
+                ?? '';
 
+            /*
+             * Regla funcional:
+             * Equipment.quantity siempre es 1.
+             */
             $equipmentQuote->quantity = 1;
 
             /*
              * utility / rent / letter ya no forman parte
              * del flujo funcional moderno.
              *
-             * Se mantienen en 0 únicamente por compatibilidad
-             * con columnas legacy.
+             * Se mantienen en 0 por compatibilidad legacy.
              */
             $equipmentQuote->utility = 0;
             $equipmentQuote->rent = 0;
             $equipmentQuote->letter = 0;
 
+            /*
+             * Se recalculará al final.
+             */
             $equipmentQuote->total = 0;
 
             $equipmentQuote->save();
@@ -6043,7 +6722,10 @@ class QuoteSaleController extends Controller
              */
 
             $consumables =
-                $equip['consumables'] ?? [];
+                $equip[
+                'consumables'
+                ]
+                ?? [];
 
             @bcscale(10);
 
@@ -6053,50 +6735,69 @@ class QuoteSaleController extends Controller
             $totalConsumable = 0;
             $totalWorkforces = 0;
 
-            foreach ($consumables as $c) {
+            foreach (
+                $consumables
+                as $c
+            ) {
 
                 /*
-                 * En la lógica moderna:
-                 *
-                 * stock_item_id es la identidad real del producto.
+                 * stock_item_id es la identidad real moderna.
                  */
-                $stockItemId = (int) (
-                    $c['stock_item_id']
-                    ?? $c['stockItemId']
-                    ?? $c['id']
-                    ?? 0
-                );
 
-                if ($stockItemId <= 0) {
+                $stockItemId =
+                    (int) (
+                        $c[
+                        'stock_item_id'
+                        ]
+                        ??
+                        $c[
+                        'stockItemId'
+                        ]
+                        ??
+                        $c[
+                        'id'
+                        ]
+                        ??
+                        0
+                    );
+
+                if (
+                    $stockItemId <= 0
+                ) {
                     throw new \Exception(
                         'No se pudo identificar el producto seleccionado.'
                     );
                 }
 
                 /*
-                 * CRÍTICO:
-                 * El StockItem debe:
+                 * =====================================================
+                 * VALIDAR STOCKITEM
+                 * =====================================================
                  *
-                 * - pertenecer al Tenant actual por BelongsToTenant
+                 * Debe:
+                 *
+                 * - pertenecer al Tenant actual
                  * - estar activo
-                 * - estar habilitado comercialmente para esta Company
+                 * - estar habilitado para la Company actual
                  */
-                $stockItem = StockItem::query()
-                    ->with([
-                        'material',
-                    ])
-                    ->where(
-                        'id',
-                        $stockItemId
-                    )
-                    ->where(
-                        'is_active',
-                        1
-                    )
-                    ->enabledForCompany(
-                        $companyId
-                    )
-                    ->first();
+
+                $stockItem =
+                    StockItem::query()
+                        ->with([
+                            'material',
+                        ])
+                        ->where(
+                            'id',
+                            $stockItemId
+                        )
+                        ->where(
+                            'is_active',
+                            1
+                        )
+                        ->enabledForCompany(
+                            $companyId
+                        )
+                        ->first();
 
                 if (!$stockItem) {
                     throw new \Exception(
@@ -6104,7 +6805,9 @@ class QuoteSaleController extends Controller
                     );
                 }
 
-                if (!$stockItem->material) {
+                if (
+                !$stockItem->material
+                ) {
                     throw new \Exception(
                         "El StockItem {$stockItemId} no tiene material asociado."
                     );
@@ -6124,17 +6827,21 @@ class QuoteSaleController extends Controller
 
                 $isItemeable =
                     (int) (
-                        $material->tipo_venta_id ?? 0
+                        $material
+                            ->tipo_venta_id
+                        ?? 0
                     ) === 3;
 
                 /*
                  * =====================================================
-                 * PRESENTACIÓN / UNIDADES
+                 * PRESENTACIÓN
                  * =====================================================
                  */
 
                 $presentationId =
-                    $c['presentation_id']
+                    $c[
+                    'presentation_id'
+                    ]
                     ?? null;
 
                 /*
@@ -6144,13 +6851,15 @@ class QuoteSaleController extends Controller
                  *
                  * equipment_consumable_id:
                  *
-                 * > 0  = línea que ya existía en la cotización.
-                 * 0    = producto agregado ahora durante Edit.
+                 * > 0 = línea preexistente.
+                 * 0   = línea agregada durante Edit.
                  */
 
                 $equipmentConsumableId =
                     (int) (
-                        $c['equipment_consumable_id']
+                        $c[
+                        'equipment_consumable_id'
+                        ]
                         ?? 0
                     );
 
@@ -6159,13 +6868,14 @@ class QuoteSaleController extends Controller
                         ? (
                         $consumableSnapshots[
                         $equipmentConsumableId
-                        ] ?? null
+                        ]
+                        ?? null
                     )
                         : null;
 
                 /*
-                 * Si el frontend manda un ID histórico que no corresponde
-                 * a esta Quote, no hacemos fallback silencioso.
+                 * Si se declaró una línea histórica pero el ID
+                 * no pertenece a esta Quote, no hacemos fallback.
                  */
                 if (
                     $equipmentConsumableId > 0 &&
@@ -6180,34 +6890,38 @@ class QuoteSaleController extends Controller
                  * =====================================================
                  * SNAPSHOT TRIBUTARIO
                  * =====================================================
+                 *
+                 * Línea existente:
+                 * conservar TypeTax histórico.
+                 *
+                 * Línea nueva:
+                 * tomar TypeTax actual del Material.
                  */
 
                 if (
                     $existingSnapshot &&
-                    $existingSnapshot['type_tax_id'] &&
-                    $existingSnapshot['tax_rate'] !== null
+                    $existingSnapshot[
+                    'type_tax_id'
+                    ] &&
+                    $existingSnapshot[
+                    'tax_rate'
+                    ] !== null
                 ) {
 
-                    /*
-                     * Línea existente:
-                     * conservar impuesto histórico.
-                     */
                     $typeTaxId =
-                        (int) $existingSnapshot[
+                        (int)
+                        $existingSnapshot[
                         'type_tax_id'
                         ];
 
                     $taxRate =
-                        (float) $existingSnapshot[
+                        (float)
+                        $existingSnapshot[
                         'tax_rate'
                         ];
 
                 } else {
 
-                    /*
-                     * Línea nueva:
-                     * tomar impuesto actual del Material.
-                     */
                     $taxData =
                         $typeTaxResolver
                             ->resolveMaterialWithSource(
@@ -6215,28 +6929,45 @@ class QuoteSaleController extends Controller
                             );
 
                     $typeTaxId =
-                        (int) $taxData[
+                        (int)
+                        $taxData[
                         'type_tax_id'
                         ];
 
                     $taxRate =
-                        (float) $taxData[
+                        (float)
+                        $taxData[
                         'tax_rate'
                         ];
                 }
+
+                /*
+                 * =====================================================
+                 * PRESENTACIÓN / UNIDADES FÍSICAS
+                 * =====================================================
+                 */
 
                 $packs = null;
                 $unitsPerPack = null;
                 $requestedUnits = 0;
 
-                if (!empty($presentationId)) {
+                if (
+                !empty(
+                $presentationId
+                )
+                ) {
 
                     $packs =
                         (int) (
-                            $c['quantity'] ?? 0
+                            $c[
+                            'quantity'
+                            ]
+                            ?? 0
                         );
 
-                    if ($packs < 1) {
+                    if (
+                        $packs < 1
+                    ) {
                         throw new \Exception(
                             "Cantidad de paquetes inválida para {$stockItem->display_name}."
                         );
@@ -6265,9 +6996,13 @@ class QuoteSaleController extends Controller
                     }
 
                     $unitsPerPack =
-                        (int) $presentation->quantity;
+                        (int)
+                        $presentation
+                            ->quantity;
 
-                    if ($unitsPerPack < 1) {
+                    if (
+                        $unitsPerPack < 1
+                    ) {
                         throw new \Exception(
                             "La presentación tiene una cantidad inválida para {$stockItem->display_name}."
                         );
@@ -6283,12 +7018,20 @@ class QuoteSaleController extends Controller
 
                     $requestedUnits =
                         (float) (
-                            $c['units_equivalent']
-                            ?? $c['quantity']
-                            ?? 0
+                            $c[
+                            'units_equivalent'
+                            ]
+                            ??
+                            $c[
+                            'quantity'
+                            ]
+                            ??
+                            0
                         );
 
-                    if ($requestedUnits <= 0) {
+                    if (
+                        $requestedUnits <= 0
+                    ) {
                         throw new \Exception(
                             "Cantidad inválida para {$stockItem->display_name}."
                         );
@@ -6299,30 +7042,37 @@ class QuoteSaleController extends Controller
                  * =====================================================
                  * PRECIO
                  * =====================================================
-                */
+                 *
+                 * Línea histórica:
+                 * conserva precio histórico.
+                 *
+                 * Línea nueva:
+                 * obtiene precio vigente.
+                 */
 
                 if ($existingSnapshot) {
 
-                    /*
-                     * Línea existente:
-                     * conservar precio histórico.
-                     */
                     $priceReal =
-                        (float) $existingSnapshot[
+                        (float)
+                        $existingSnapshot[
                         'price'
                         ];
 
                 } else {
 
-                    /*
-                     * Línea nueva:
-                     * usar precio actual.
-                     */
+                    if (
+                    !empty(
+                    $presentationId
+                    )
+                    ) {
 
-                    if (!empty($presentationId)) {
-
+                        /*
+                         * Precio final de la presentación.
+                         */
                         $priceReal =
-                            (float) $presentation->price;
+                            (float)
+                            $presentation
+                                ->price;
 
                     } else {
 
@@ -6333,29 +7083,58 @@ class QuoteSaleController extends Controller
                                     $companyId
                                 );
 
-                        if ($priceData['price'] === null) {
+                        if (
+                            $priceData[
+                            'price'
+                            ] === null
+                        ) {
                             throw new \RuntimeException(
                                 "El producto {$stockItem->display_name} no tiene un precio configurado en la lista predeterminada."
                             );
                         }
 
+                        /*
+                         * Precio final vigente.
+                         */
                         $priceReal =
-                            (float) $priceData['price'];
+                            (float)
+                            $priceData[
+                            'price'
+                            ];
                     }
                 }
 
-                if ($priceReal < 0) {
+                if (
+                    $priceReal < 0
+                ) {
                     throw new \RuntimeException(
                         "El precio de {$stockItem->display_name} es inválido."
                     );
                 }
 
+                /*
+                 * =====================================================
+                 * CÁLCULOS MONETARIOS
+                 * =====================================================
+                 *
+                 * priceReal representa precio final.
+                 *
+                 * En gravados:
+                 * valorUnitarioReal extrae la base.
+                 *
+                 * En exonerados / inafectos:
+                 * taxRate = 0, factor = 1.
+                 */
+
                 $taxFactor =
                     1 + (
-                        $taxRate / 100
+                        $taxRate /
+                        100
                     );
 
-                if ($taxFactor <= 0) {
+                if (
+                    $taxFactor <= 0
+                ) {
                     throw new \RuntimeException(
                         "El factor tributario de {$stockItem->display_name} es inválido."
                     );
@@ -6372,20 +7151,27 @@ class QuoteSaleController extends Controller
                  * quantity del UI:
                  *
                  * presentación → packs
-                 * unidad → unidades
+                 * unidad       → unidades
                  */
                 $frontQty =
                     (float) (
-                        $c['quantity']
+                        $c[
+                        'quantity'
+                        ]
                         ?? 0
                     );
 
-                if ($frontQty <= 0) {
+                if (
+                    $frontQty <= 0
+                ) {
                     throw new \RuntimeException(
                         "Cantidad inválida para {$stockItem->display_name}."
                     );
                 }
 
+                /*
+                 * Importe comercial final de la línea.
+                 */
                 $importeReal =
                     round(
                         $frontQty *
@@ -6404,7 +7190,9 @@ class QuoteSaleController extends Controller
                 if ($isItemeable) {
 
                     $rawSelectedItemIds =
-                        $c['selected_item_ids']
+                        $c[
+                        'selected_item_ids'
+                        ]
                         ?? [];
 
                     if (
@@ -6412,6 +7200,7 @@ class QuoteSaleController extends Controller
                         $rawSelectedItemIds
                     )
                     ) {
+
                         $decodedIds =
                             json_decode(
                                 $rawSelectedItemIds,
@@ -6419,7 +7208,9 @@ class QuoteSaleController extends Controller
                             );
 
                         $rawSelectedItemIds =
-                            is_array($decodedIds)
+                            is_array(
+                                $decodedIds
+                            )
                                 ? $decodedIds
                                 : [];
                     }
@@ -6436,12 +7227,16 @@ class QuoteSaleController extends Controller
                         collect(
                             $rawSelectedItemIds
                         )
-                            ->map(function ($itemId) {
-                                return (int) $itemId;
-                            })
-                            ->filter(function ($itemId) {
-                                return $itemId > 0;
-                            })
+                            ->map(
+                                function ($itemId) {
+                                    return (int) $itemId;
+                                }
+                            )
+                            ->filter(
+                                function ($itemId) {
+                                    return $itemId > 0;
+                                }
+                            )
                             ->values()
                             ->toArray();
 
@@ -6458,7 +7253,8 @@ class QuoteSaleController extends Controller
                     if (
                         count(
                             $selectedItemIds
-                        ) !==
+                        )
+                        !==
                         count(
                             array_unique(
                                 $selectedItemIds
@@ -6471,7 +7267,8 @@ class QuoteSaleController extends Controller
                     }
 
                     if (
-                        (int) $requestedUnits !==
+                        (int) $requestedUnits
+                        !==
                         count(
                             $selectedItemIds
                         )
@@ -6480,7 +7277,9 @@ class QuoteSaleController extends Controller
                             "La cantidad de ítems seleccionados no coincide con la cantidad requerida para {$material->full_name}. " .
                             "Requerido: {$requestedUnits}. " .
                             "Seleccionados: " .
-                            count($selectedItemIds) .
+                            count(
+                                $selectedItemIds
+                            ) .
                             '.'
                         );
                     }
@@ -6488,11 +7287,8 @@ class QuoteSaleController extends Controller
 
                 /*
                  * =====================================================
-                 * VALIDAR STOCK DISPONIBLE
+                 * VALIDAR STOCK
                  * =====================================================
-                 *
-                 * QuoteStockReservationService ya trabaja
-                 * contra la Company actual.
                  */
 
                 $available =
@@ -6514,21 +7310,23 @@ class QuoteSaleController extends Controller
 
                 /*
                  * =====================================================
-                 * CREAR EQUIPMENT CONSUMABLE
-                 * =====================================================
-                 */
-
-                /*
-                 * =====================================================
-                 * PROMOCIÓN / DESCUENTO DE LÍNEA
+                 * PROMOCIÓN LEGACY
                  * =====================================================
                  *
-                 * Línea existente:
-                 * conserva la promoción histórica.
+                 * Línea histórica:
+                 * conserva metadata histórica.
                  *
                  * Línea nueva:
-                 * utiliza lo enviado por el flujo actual.
-                */
+                 * utiliza metadata del flujo actual.
+                 *
+                 * IMPORTANTE:
+                 *
+                 * promotionDiscount NO participa en
+                 * QuoteTaxCalculatorService.
+                 *
+                 * El descuento funcional de la Quote
+                 * es exclusivamente el descuento global.
+                 */
 
                 if ($existingSnapshot) {
 
@@ -6550,16 +7348,22 @@ class QuoteSaleController extends Controller
 
                     $promotionDiscount =
                         (float) (
-                            $c['discount']
+                            $c[
+                            'discount'
+                            ]
                             ?? 0
                         );
 
                     $typePromo =
-                        $c['type_promo']
+                        $c[
+                        'type_promo'
+                        ]
                         ?? null;
                 }
 
-                if ($promotionDiscount < 0) {
+                if (
+                    $promotionDiscount < 0
+                ) {
                     throw new \RuntimeException(
                         "El descuento de {$stockItem->display_name} es inválido."
                     );
@@ -6574,6 +7378,12 @@ class QuoteSaleController extends Controller
                     );
                 }
 
+                /*
+                 * =====================================================
+                 * CREAR EQUIPMENT CONSUMABLE
+                 * =====================================================
+                 */
+
                 $equipmentConsumable =
                     EquipmentConsumable::create([
                         'equipment_id' =>
@@ -6587,7 +7397,7 @@ class QuoteSaleController extends Controller
 
                         /*
                          * Snapshot tributario.
-                        */
+                         */
                         'type_tax_id' =>
                             $typeTaxId,
 
@@ -6603,18 +7413,34 @@ class QuoteSaleController extends Controller
                         'units_per_pack' =>
                             $unitsPerPack,
 
+                        /*
+                         * Cantidad física real.
+                         */
                         'quantity' =>
-                            (float) $requestedUnits,
+                            (float)
+                            $requestedUnits,
 
+                        /*
+                         * Precio final.
+                         */
                         'price' =>
                             $priceReal,
 
+                        /*
+                         * Valor sin impuesto cuando corresponda.
+                         */
                         'valor_unitario' =>
                             $valorUnitarioReal,
 
+                        /*
+                         * Importe final completo de la línea.
+                         */
                         'total' =>
                             $importeReal,
 
+                        /*
+                         * Metadata legacy.
+                         */
                         'discount' =>
                             $promotionDiscount,
 
@@ -6628,28 +7454,45 @@ class QuoteSaleController extends Controller
                             'En compra',
                     ]);
 
-                $lineTotalAfterPromotion =
-                    round(
-                        $importeReal -
-                        $promotionDiscount,
-                        10
-                    );
+                /*
+                 * =====================================================
+                 * LÍNEA TRIBUTARIA
+                 * =====================================================
+                 *
+                 * IMPORTANTE:
+                 *
+                 * Enviamos el importe COMPLETO.
+                 *
+                 * NO hacemos:
+                 *
+                 * importeReal - promotionDiscount
+                 *
+                 * El único descuento tributario funcional
+                 * es el descuento global.
+                 */
 
                 $productTaxLines[] = [
                     'type_tax_id' =>
-                        (int) $equipmentConsumable
+                        (int)
+                        $equipmentConsumable
                             ->type_tax_id,
 
                     'tax_rate' =>
-                        (float) $equipmentConsumable
+                        (float)
+                        $equipmentConsumable
                             ->tax_rate,
 
                     'total' =>
-                        $lineTotalAfterPromotion,
+                        round(
+                            (float)
+                            $importeReal,
+                            10
+                        ),
                 ];
 
                 $totalConsumable +=
-                    (float) $importeReal;
+                    (float)
+                    $importeReal;
 
                 /*
                  * =====================================================
@@ -6661,9 +7504,15 @@ class QuoteSaleController extends Controller
 
                     $reservationService
                         ->reserveItemeableForQuoteDetail(
-                            (int) $quote->id,
-                            (int) $equipmentConsumable->id,
-                            (int) $stockItemId,
+                            (int)
+                            $quote->id,
+
+                            (int)
+                            $equipmentConsumable->id,
+
+                            (int)
+                            $stockItemId,
+
                             $selectedItemIds
                         );
 
@@ -6671,10 +7520,17 @@ class QuoteSaleController extends Controller
 
                     $reservationService
                         ->reserveForQuoteDetail(
-                            (int) $quote->id,
-                            (int) $equipmentConsumable->id,
-                            (int) $stockItemId,
-                            (float) $requestedUnits
+                            (int)
+                            $quote->id,
+
+                            (int)
+                            $equipmentConsumable->id,
+
+                            (int)
+                            $stockItemId,
+
+                            (float)
+                            $requestedUnits
                         );
                 }
             }
@@ -6690,16 +7546,33 @@ class QuoteSaleController extends Controller
                     ->resolveWithSource();
 
             $workforces =
-                $equip['workforces'] ?? [];
+                $equip[
+                'workforces'
+                ]
+                ?? [];
 
             foreach (
                 $workforces
-                as $index => $workforce
+                as $workforce
             ) {
+
+                /*
+                 * =====================================================
+                 * SNAPSHOT DEL SERVICIO
+                 * =====================================================
+                 *
+                 * Servicio existente:
+                 * conserva TypeTax histórico.
+                 *
+                 * Servicio nuevo:
+                 * usa TypeTax default vigente.
+                 */
 
                 $workforceId =
                     (int) (
-                        $workforce['id']
+                        $workforce[
+                        'id'
+                        ]
                         ?? 0
                     );
 
@@ -6708,44 +7581,71 @@ class QuoteSaleController extends Controller
                         ? (
                         $workforceSnapshots[
                         $workforceId
-                        ] ?? null
+                        ]
+                        ?? null
                     )
                         : null;
 
                 if (
+                    $workforceId > 0 &&
+                    !$workforceSnapshot
+                ) {
+                    throw new \RuntimeException(
+                        'No se pudo identificar uno de los servicios originales de la cotización.'
+                    );
+                }
+
+                if (
                     $workforceSnapshot &&
-                    $workforceSnapshot['type_tax_id'] &&
-                    $workforceSnapshot['tax_rate'] !== null
+                    $workforceSnapshot[
+                    'type_tax_id'
+                    ] &&
+                    $workforceSnapshot[
+                    'tax_rate'
+                    ] !== null
                 ) {
 
                     $workforceTypeTaxId =
-                        (int) $workforceSnapshot[
+                        (int)
+                        $workforceSnapshot[
                         'type_tax_id'
                         ];
 
                     $workforceTaxRate =
-                        (float) $workforceSnapshot[
+                        (float)
+                        $workforceSnapshot[
                         'tax_rate'
                         ];
 
                 } else {
 
                     $workforceTypeTaxId =
-                        (int) $defaultTax[
+                        (int)
+                        $defaultTax[
                         'type_tax_id'
                         ];
 
                     $workforceTaxRate =
-                        (float) $defaultTax[
+                        (float)
+                        $defaultTax[
                         'tax_rate'
                         ];
                 }
 
+                /*
+                 * =====================================================
+                 * DATOS DEL SERVICIO
+                 * =====================================================
+                 */
+
                 $billable =
                     isset(
-                        $workforce['billable']
+                        $workforce[
+                        'billable'
+                        ]
                     )
-                        ? (int) $workforce[
+                        ? (int)
+                    $workforce[
                     'billable'
                     ]
                         : 1;
@@ -6764,13 +7664,17 @@ class QuoteSaleController extends Controller
 
                 $workforceQuantity =
                     (float) (
-                        $workforce['quantity']
+                        $workforce[
+                        'quantity'
+                        ]
                         ?? 0
                     );
 
                 $workforcePrice =
                     (float) (
-                        $workforce['price']
+                        $workforce[
+                        'price'
+                        ]
                         ?? 0
                     );
 
@@ -6783,6 +7687,9 @@ class QuoteSaleController extends Controller
                     );
                 }
 
+                /*
+                 * Recalcular importe.
+                 */
                 $workforceTotal =
                     round(
                         $workforceQuantity *
@@ -6796,7 +7703,9 @@ class QuoteSaleController extends Controller
                             $equipmentQuote->id,
 
                         'description' =>
-                            $workforce['description']
+                            $workforce[
+                            'description'
+                            ]
                             ?? '',
 
                         'price' =>
@@ -6809,7 +7718,9 @@ class QuoteSaleController extends Controller
                             $workforceTotal,
 
                         'unit' =>
-                            $workforce['unit']
+                            $workforce[
+                            'unit'
+                            ]
                             ?? '',
 
                         'billable' =>
@@ -6822,26 +7733,51 @@ class QuoteSaleController extends Controller
                             $workforceTaxRate,
                     ]);
 
-                if ($billable === 1) {
+                /*
+                 * Solo servicios facturables afectan Quote.
+                 */
+                if (
+                    $billable === 1
+                ) {
 
                     $serviceTaxLines[] = [
                         'type_tax_id' =>
-                            (int) $equipmentWorkforce
+                            (int)
+                            $equipmentWorkforce
                                 ->type_tax_id,
 
                         'tax_rate' =>
-                            (float) $equipmentWorkforce
+                            (float)
+                            $equipmentWorkforce
                                 ->tax_rate,
 
                         'total' =>
-                            (float) $equipmentWorkforce
-                                ->total,
+                            round(
+                                (float)
+                                $equipmentWorkforce
+                                    ->total,
+                                10
+                            ),
                     ];
                 }
 
+                /*
+                 * Equipment.total conserva la semántica legacy
+                 * y suma todos los servicios.
+                 */
                 $totalWorkforces +=
-                    (float) $equipmentWorkforce->total;
+                    (float)
+                    $equipmentWorkforce
+                        ->total;
             }
+
+            /*
+             * =========================================================
+             * TOTAL DEL EQUIPMENT
+             * =========================================================
+             *
+             * quantity siempre es 1.
+             */
 
             $equipmentQuote->total =
                 round(
@@ -6850,11 +7786,27 @@ class QuoteSaleController extends Controller
                         $totalWorkforces
                     )
                     *
-                    (float) $equipmentQuote->quantity,
+                    (float)
+                    $equipmentQuote
+                        ->quantity,
                     10
                 );
 
             $equipmentQuote->save();
+
+            /*
+             * =========================================================
+             * TOTALES TRIBUTARIOS
+             * =========================================================
+             *
+             * QuoteTaxCalculatorService es la autoridad.
+             *
+             * with_igv:
+             * descuento sobre precio final.
+             *
+             * without_igv:
+             * descuento sobre base gravada.
+             */
 
             $taxTotals =
                 $taxCalculator
@@ -6863,11 +7815,13 @@ class QuoteSaleController extends Controller
                         $serviceTaxLines,
                         [
                             'type' =>
-                                $quote->discount_type
+                                $quote
+                                    ->discount_type
                                     ?: 'amount',
 
                             'mode' =>
-                                $quote->discount_input_mode
+                                $quote
+                                    ->discount_input_mode
                                     ?: 'without_igv',
 
                             'value' =>
@@ -6878,6 +7832,16 @@ class QuoteSaleController extends Controller
                                 ),
                         ]
                     );
+
+            /*
+             * Quote.descuento conserva la semántica visual:
+             *
+             * with_igv:
+             * equivalente del descuento en base.
+             *
+             * without_igv:
+             * descuento aplicado a la base.
+             */
 
             $quote->descuento =
                 $taxTotals[
@@ -6925,7 +7889,9 @@ class QuoteSaleController extends Controller
                     'Modificar equipo de cotizacion (EDIT)',
 
                 'time' =>
-                    microtime(true) - $begin,
+                    microtime(true)
+                    -
+                    $begin,
             ]);
 
             DB::commit();
