@@ -206,7 +206,6 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group row">
-                            <input type="hidden" name="" id="igv" value="{{ $igv }}">
                             <div class="col-md-12" style="display: none">
                                 <label for="description">Detalles de cotización <span class="right badge badge-danger">(*)</span></label>
                                 <textarea class="textarea_edit" data-detailequipment placeholder="Place some text here"
@@ -345,11 +344,25 @@
                                                         data-consumableid debe ser stock_item_id.
                                                         En creación también se usa el ID del StockItem.
                                                     --}}
-                                                    <input type="hidden"
-                                                           data-consumableid="{{ $consumable->stock_item_id }}"
-                                                           data-is_itemeable="{{ $isItemeable ? 1 : 0 }}"
-                                                           data-selected_item_ids='@json($selectedItemIds)'
-                                                           data-selected_items_text="{{ $selectedItemsText }}">
+                                                    <input
+                                                            type="hidden"
+
+                                                            data-consumableid="{{ $consumable->stock_item_id }}"
+
+                                                            data-equipment_consumable_id="{{ $consumable->id }}"
+
+                                                            data-type_tax_id="{{ $consumable->type_tax_id }}"
+
+                                                            data-tax_rate="{{ $consumable->tax_rate }}"
+
+                                                            data-tax_code="{{ optional($consumable->typeTax)->code }}"
+
+                                                            data-is_itemeable="{{ $isItemeable ? 1 : 0 }}"
+
+                                                            data-selected_item_ids='@json($selectedItemIds)'
+
+                                                            data-selected_items_text="{{ $selectedItemsText }}"
+                                                    >
 
                                                     <input type="hidden"
                                                            data-stock_item_id="{{ $consumable->stock_item_id }}">
@@ -501,7 +514,7 @@
                                     @can('showPrices_quote')
                                         <div class="col-md-2">
                                             <div class="form-group">
-                                                <label for="price">Precio C/IGV <span class="right badge badge-danger">(*)</span></label>
+                                                <label for="price">Precio de venta <span class="right badge badge-danger">(*)</span></label>
                                                 <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="0" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                                 this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
                                                 ">
@@ -564,11 +577,42 @@
                                     @foreach($equipment->workforces as $workforce)
                                         @php
                                             $qty = (float) $workforce->quantity;
-                                            $pu  = (float) $workforce->price; // P/U con IGV
-                                            $vu  = $pu / (1 + ($igv/100));     // V/U sin IGV
-                                            $imp = (float) $workforce->total;
 
-                                            $qtyFmt = rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.');
+                                            /*
+                                             * Precio final del servicio.
+                                             */
+                                            $pu = (float) $workforce->price;
+
+                                            /*
+                                             * Snapshot tributario histórico del servicio.
+                                             */
+                                            $serviceTaxRate =
+                                                (float) ($workforce->tax_rate ?? 0);
+
+                                            $serviceTaxFactor =
+                                                1 + ($serviceTaxRate / 100);
+
+                                            $vu =
+                                                $serviceTaxFactor > 0
+                                                    ? $pu / $serviceTaxFactor
+                                                    : 0;
+
+                                            $imp =
+                                                (float) $workforce->total;
+
+                                            $qtyFmt =
+                                                rtrim(
+                                                    rtrim(
+                                                        number_format(
+                                                            $qty,
+                                                            2,
+                                                            '.',
+                                                            ''
+                                                        ),
+                                                        '0'
+                                                    ),
+                                                    '.'
+                                                );
                                         @endphp
 
                                         <div class="row" data-serviceRow>
@@ -576,7 +620,19 @@
                                                 <div class="form-group">
                                                     <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm"
                                                            value="{{ $workforce->description }}" data-serviceDescription>
-                                                    <input type="hidden" data-serviceId value="{{ $workforce->id }}">
+                                                    <input
+                                                            type="hidden"
+
+                                                            data-serviceId
+
+                                                            value="{{ $workforce->id }}"
+
+                                                            data-type_tax_id="{{ $workforce->type_tax_id }}"
+
+                                                            data-tax_rate="{{ $workforce->tax_rate }}"
+
+                                                            data-tax_code="{{ optional($workforce->typeTax)->code }}"
+                                                    >
                                                 </div>
                                             </div>
 
@@ -655,7 +711,7 @@
 
                             <div class="card-body" id="discountSection"
                                  data-discount_type="{{ $quote->discount_type ?? 'amount' }}"
-                                 data-discount_input_mode="{{ $quote->discount_input_mode ?? 'without_igv' }}"
+                                 data-discount_input_mode="{{ $quote->discount_input_mode ?? 'with_igv' }}"
                                  data-discount_value="{{ $quote->discount_input_value ?? 0 }}">
 
                                 <div class="row">
@@ -700,14 +756,14 @@
                                                 <input type="radio" name="discount_input_mode"
                                                        id="discount_mode_without"
                                                        value="without_igv"
-                                                        {{ ($quote->discount_input_mode ?? 'without_igv') === 'without_igv' ? 'checked' : '' }}>
+                                                        {{ ($quote->discount_input_mode ?? 'with_igv') === 'without_igv' ? 'checked' : '' }}>
                                                 <label for="discount_mode_without">SIN IGV (base)</label>
                                             </div>
                                             <div class="icheck-primary d-inline ml-3">
                                                 <input type="radio" name="discount_input_mode"
                                                        id="discount_mode_with"
                                                        value="with_igv"
-                                                        {{ ($quote->discount_input_mode ?? '') === 'with_igv' ? 'checked' : '' }}>
+                                                        {{ ($quote->discount_input_mode ?? 'with_igv') === 'with_igv' ? 'checked' : '' }}>
                                                 <label for="discount_mode_with">CON IGV (del total)</label>
                                             </div>
                                         </div>
@@ -755,22 +811,103 @@
 
                     <div class="table-responsive">
                         <table class="table">
+
                             <tr>
-                                <th style="width:50%">DESCUENTO (-): </th>
-                                <td>{{ $currency}} <span id="descuento" data-descuento_real="{{ $quote->descuento }}" class="align-right">{{ round($quote->descuento, 2) }}</span></td>
+                                <th style="width:50%">
+                                    DESCUENTO (-):
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="descuento"
+                                            data-descuento_real="{{ $quote->descuento }}"
+                                            class="align-right"
+                                    >{{ round($quote->descuento, 2) }}</span>
+                                </td>
                             </tr>
+
                             <tr>
-                                <th style="width:50%">GRAVADA: </th>
-                                <td>{{ $currency}} <span id="gravada" data-gravada_real="{{ $quote->gravada }}" class="align-right">{{ round($quote->gravada, 2) }}</span></td>
+                                <th style="width:50%">
+                                    GRAVADA:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="gravada"
+                                            data-gravada_real="{{ $quote->gravada }}"
+                                            class="align-right"
+                                    >{{ round($quote->gravada, 2) }}</span>
+                                </td>
                             </tr>
+
                             <tr>
-                                <th style="width:50%">IGV {{ $igv }}%: </th>
-                                <td>{{ $currency}} <span id="igv_total" data-igv_total_real="{{ $quote->igv_total }}" class="align-right">{{ round($quote->igv_total, 2) }}</span></td>
+                                <th style="width:50%">
+                                    EXONERADA:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="exonerada"
+                                            data-exonerada_real="{{ $quote->exonerada }}"
+                                            class="align-right"
+                                    >{{ round($quote->exonerada, 2) }}</span>
+                                </td>
                             </tr>
+
                             <tr>
-                                <th style="width:50%">TOTAL: </th>
-                                <td>{{ $currency}} <span id="total_importe" data-total_importe_real="{{ $quote->total_importe }}" class="align-right">{{ round($quote->total_importe, 2) }}</span></td>
+                                <th style="width:50%">
+                                    INAFECTA:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="inafecta"
+                                            data-inafecta_real="{{ $quote->inafecta }}"
+                                            class="align-right"
+                                    >{{ round($quote->inafecta, 2) }}</span>
+                                </td>
                             </tr>
+
+                            <tr>
+                                <th style="width:50%">
+                                    IGV:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="igv_total"
+                                            data-igv_total_real="{{ $quote->igv_total }}"
+                                            class="align-right"
+                                    >{{ round($quote->igv_total, 2) }}</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th style="width:50%">
+                                    TOTAL:
+                                </th>
+
+                                <td>
+                                    {{ $currency }}
+
+                                    <span
+                                            id="total_importe"
+                                            data-total_importe_real="{{ $quote->total_importe }}"
+                                            class="align-right"
+                                    >{{ round($quote->total_importe, 2) }}</span>
+                                </td>
+                            </tr>
+
                         </table>
                     </div>
                 </div>
@@ -790,6 +927,7 @@
 
                     {{-- se leen por attr() --}}
                     <input type="hidden" data-consumableid>
+                    <input type="hidden" data-equipment_consumable_id>
                     <input type="hidden" data-stock_item_id>
                     <input type="hidden" data-descuento>
                     <input type="hidden" data-type_promotion>
@@ -933,7 +1071,7 @@
                         <div class="col-md-6">
                             <label for="c_quantity_total">Cantidad (Unidad)</label>
                             <input type="number" min="0" step="0.01" class="form-control" id="c_quantity_total" value="0">
-                            <small class="text-muted">Esto agrega en unidad usando el precio base del producto.</small>
+                            <small class="text-muted">Esto agrega en unidad usando el precio de venta configurado del producto.</small>
                         </div>
                         <div class="col-md-6">
                             <label>Stock disponible (unidades)</label>
@@ -1261,11 +1399,31 @@
     </script>
 
     <script>
-        window.APP_QUOTE = window.APP_QUOTE || {};
-        window.APP_QUOTE.URLS = window.APP_QUOTE.URLS || {};
+
+        window.APP_QUOTE =
+            window.APP_QUOTE || {};
+
+        window.APP_QUOTE.URLS =
+            window.APP_QUOTE.URLS || {};
 
         window.APP_QUOTE.URLS.AVAILABLE_ITEMS =
-            "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
+            "{{ route(
+            'quotes.stock-items.available-items',
+            ':stockItemId'
+        ) }}";
+
+        window.APP_QUOTE.DEFAULT_TAX = {
+
+            type_tax_id:
+            {{ (int) $defaultTax['type_tax_id'] }},
+
+            tax_rate:
+            {{ (float) $defaultTax['tax_rate'] }},
+
+            tax_code:
+            @json($defaultTax['code'])
+        };
+
     </script>
 
     <script src="{{ asset('js/quoteSale/edit.js') }}?v={{ time() }}"></script>

@@ -10,7 +10,6 @@
 let $consumables = [];
 let $equipments = [];
 let $permissions = [];
-let $igv = $("#igv").val();
 
 var $modalConsumableQty = $('#modalQuantityConsumable');
 var $currentConsumableRender = null;
@@ -46,76 +45,1116 @@ function round2(num) {
     return Math.round((parseFloat(num || 0) + Number.EPSILON) * 100) / 100;
 }
 
-/* =======================================
-   Descuento global: utilidades (FIX 0.01)
-   - Calcula descuento "con IGV" y "en base"
-   - según type (amount|percent) y mode (with_igv|without_igv)
-   ======================================= */
-function computeDiscountWithIgv(subtotalWithIgv, igvPct) {
-    const $d = $('#discountSection');
-    if ($d.length === 0) return 0;
+/*
+|--------------------------------------------------------------------------
+| CALCULAR COTIZACIÓN
+|--------------------------------------------------------------------------
+*/
 
-    const type = ($d.attr('data-discount_type') || 'amount');           // amount | percent
-    const mode = ($d.attr('data-discount_input_mode') || 'without_igv'); // with_igv | without_igv
-    const value = parseFloat($d.attr('data-discount_value') || 0);
+function calculateQuoteTotals(
+    consumables,
+    services
+) {
 
-    if (!value || value <= 0) return 0;
+    const lines = [];
 
-    const factor = 1 + (igvPct / 100);
+    /*
+     * ============================================================
+     * PRODUCTOS
+     * ============================================================
+     *
+     * El precio es precio FINAL.
+     *
+     * Las promociones legacy NO participan
+     * en el cálculo tributario.
+     */
 
-    let discWithIgv = 0;
+    (consumables || []).forEach(
+        function (item) {
 
-    if (type === 'amount') {
-        // monto ingresado puede ser con o sin IGV
-        discWithIgv = (mode === 'with_igv') ? value : moneyRound(value * factor);
-    } else {
-        // porcentaje sobre total con IGV o sobre base sin IGV
-        const pct = value / 100;
-        if (mode === 'with_igv') {
-            discWithIgv = moneyRound(subtotalWithIgv * pct);
+            const quantity =
+                Number(
+                    item.quantity || 0
+                );
+
+            const price =
+                Number(
+                    item.priceReal
+                    ??
+                    item.price
+                    ??
+                    0
+                );
+
+            let total =
+                round10(
+                    quantity *
+                    price
+                );
+
+            if (total < 0) {
+                total = 0;
+            }
+
+            lines.push({
+                type_tax_id:
+                    parseInt(
+                        item.type_tax_id || 0
+                    ),
+
+                tax_rate:
+                    parseFloat(
+                        item.tax_rate || 0
+                    ),
+
+                tax_code:
+                    String(
+                        item.tax_code || ''
+                    ),
+
+                total:
+                total,
+
+                total_after_discount:
+                total,
+
+                discount_applied:
+                    0,
+
+                discount_base_applied:
+                    0
+            });
+        }
+    );
+
+
+    /*
+     * ============================================================
+     * SERVICIOS FACTURABLES
+     * ============================================================
+     */
+
+    (services || []).forEach(
+        function (item) {
+
+            if (
+                parseInt(
+                    item.billable || 0
+                ) !== 1
+            ) {
+                return;
+            }
+
+            const total =
+                round10(
+                    Number(
+                        item.importe
+                    )
+                    ||
+                    (
+                        Number(
+                            item.quantity || 0
+                        )
+                        *
+                        Number(
+                            item.price || 0
+                        )
+                    )
+                );
+
+            lines.push({
+                type_tax_id:
+                    parseInt(
+                        item.type_tax_id || 0
+                    ),
+
+                tax_rate:
+                    parseFloat(
+                        item.tax_rate || 0
+                    ),
+
+                tax_code:
+                    String(
+                        item.tax_code || ''
+                    ),
+
+                total:
+                total,
+
+                total_after_discount:
+                total,
+
+                discount_applied:
+                    0,
+
+                discount_base_applied:
+                    0
+            });
+        }
+    );
+
+
+    /*
+     * ============================================================
+     * CLASIFICACIÓN TRIBUTARIA
+     * ============================================================
+     */
+
+    for (
+        let index = 0;
+        index < lines.length;
+        index++
+    ) {
+
+        const line =
+            lines[index];
+
+        const taxCode =
+            String(
+                line.tax_code || ''
+            )
+                .trim()
+                .toUpperCase();
+
+        const taxRate =
+            parseFloat(
+                line.tax_rate || 0
+            );
+
+        let category = null;
+
+        /*
+         * IGV_*:
+         *
+         * IGV_18
+         * IGV_10
+         * etc.
+         */
+        if (
+            taxCode.indexOf(
+                'IGV_'
+            ) === 0
+        ) {
+
+            category =
+                'gravada';
+
+        } else if (
+            taxCode ===
+            'EXONERADO'
+        ) {
+
+            category =
+                'exonerada';
+
+        } else if (
+            taxCode ===
+            'INAFECTO'
+        ) {
+
+            category =
+                'inafecta';
+        }
+
+        /*
+         * Igual que backend:
+         * no asumir silenciosamente un tipo.
+         */
+        if (!category) {
+
+            return {
+                error:
+                    true,
+
+                message:
+                    'El tipo de impuesto "' +
+                    taxCode +
+                    '" no tiene una clasificación tributaria soportada.'
+            };
+        }
+
+        line.tax_code =
+            taxCode;
+
+        line.category =
+            category;
+
+        /*
+         * Base original.
+         */
+        if (
+            category ===
+            'gravada'
+        ) {
+
+            const factor =
+                getFactor(
+                    taxRate
+                );
+
+            if (factor <= 0) {
+
+                return {
+                    error:
+                        true,
+
+                    message:
+                        'Se encontró un factor tributario inválido.'
+                };
+            }
+
+            line.base_before_discount =
+                round10(
+                    line.total /
+                    factor
+                );
+
         } else {
-            const baseSubtotal = subtotalWithIgv / factor;
-            discWithIgv = moneyRound((baseSubtotal * pct) * factor);
+
+            /*
+             * Exonerado e inafecto:
+             * no contienen impuesto.
+             */
+            line.base_before_discount =
+                round10(
+                    line.total
+                );
         }
     }
 
-    // no permitir superar el subtotal
-    if (discWithIgv > subtotalWithIgv) discWithIgv = subtotalWithIgv;
 
-    return moneyRound(discWithIgv);
-}
+    /*
+     * ============================================================
+     * SUBTOTAL
+     * ============================================================
+     */
 
-function computeDiscountBaseFromWithIgv(discountWithIgv, igvPct) {
-    const factor = 1 + (igvPct / 100);
-    // descuento base TRUNC (consistente con base truncada)
-    return divTrunc2(discountWithIgv, factor);
-}
+    const subtotal =
+        round10(
+            lines.reduce(
+                function (
+                    total,
+                    line
+                ) {
 
-/* ======================================================
-   Reglas finales de totales (FIX 0.01):
-   1) totalFinal = round(subtotalWithIgv - discountWithIgv)
-   2) baseFinal = TRUNC(totalFinal / 1.18)
-   3) igvFinal  = round(totalFinal - baseFinal)
-   ====================================================== */
-function computeTotals(subtotalWithIgv) {
-    const igvPct = parseFloat($igv || 18);
-    const factor = 1 + (igvPct / 100);
+                    return (
+                        total +
+                        Number(
+                            line.total || 0
+                        )
+                    );
+                },
+                0
+            )
+        );
 
-    const discountWithIgv = computeDiscountWithIgv(subtotalWithIgv, igvPct);
-    const totalFinal = moneyRound(subtotalWithIgv - discountWithIgv);
 
-    const baseFinal = divTrunc2(totalFinal, factor);
-    const igvFinal = moneyRound(totalFinal - baseFinal);
+    /*
+     * ============================================================
+     * CONFIGURACIÓN DEL DESCUENTO
+     * ============================================================
+     */
 
-    const discountBase = computeDiscountBaseFromWithIgv(discountWithIgv, igvPct);
+    const $discount =
+        $('#discountSection');
+
+    const discountType =
+        $discount.attr(
+            'data-discount_type'
+        )
+        || 'amount';
+
+    const discountMode =
+        $discount.attr(
+            'data-discount_input_mode'
+        )
+        || 'with_igv';
+
+    const discountValue =
+        Math.max(
+            0,
+            parseFloat(
+                $discount.attr(
+                    'data-discount_value'
+                )
+                || 0
+            )
+        );
+
+
+    if (
+        discountType !== 'amount' &&
+        discountType !== 'percent'
+    ) {
+
+        return {
+            error:
+                true,
+
+            message:
+                'El tipo de descuento no es válido.'
+        };
+    }
+
+
+    if (
+        discountMode !== 'with_igv' &&
+        discountMode !== 'without_igv'
+    ) {
+
+        return {
+            error:
+                true,
+
+            message:
+                'El modo de descuento no es válido.'
+        };
+    }
+
+
+    /*
+     * ============================================================
+     * APLICAR DESCUENTO
+     * ============================================================
+     */
+
+    let discountBaseTotal = 0;
+
+    let discountGrossTotal = 0;
+
+
+    if (
+        subtotal > 0 &&
+        discountValue > 0
+    ) {
+
+        /*
+         * ========================================================
+         * CON IGV
+         * ========================================================
+         *
+         * El descuento se aplica directamente
+         * sobre el total final.
+         *
+         * Ejemplo:
+         *
+         * Total      60
+         * Descuento  10
+         * Total      50
+         */
+
+        if (
+            discountMode ===
+            'with_igv'
+        ) {
+
+            if (
+                discountType ===
+                'percent'
+            ) {
+
+                const percentage =
+                    Math.min(
+                        discountValue,
+                        100
+                    );
+
+                discountGrossTotal =
+                    round10(
+                        subtotal *
+                        (
+                            percentage /
+                            100
+                        )
+                    );
+
+            } else {
+
+                discountGrossTotal =
+                    round10(
+                        Math.min(
+                            discountValue,
+                            subtotal
+                        )
+                    );
+            }
+
+
+            /*
+             * Distribuir proporcionalmente entre
+             * TODAS las líneas.
+             */
+
+            let distributed =
+                0;
+
+            const lastIndex =
+                lines.length - 1;
+
+
+            lines.forEach(
+                function (
+                    line,
+                    index
+                ) {
+
+                    let lineDiscount =
+                        0;
+
+
+                    if (
+                        index ===
+                        lastIndex
+                    ) {
+
+                        lineDiscount =
+                            round10(
+                                discountGrossTotal -
+                                distributed
+                            );
+
+                    } else {
+
+                        const ratio =
+                            subtotal > 0
+                                ? (
+                                    line.total /
+                                    subtotal
+                                )
+                                : 0;
+
+                        lineDiscount =
+                            round10(
+                                discountGrossTotal *
+                                ratio
+                            );
+
+                        distributed =
+                            round10(
+                                distributed +
+                                lineDiscount
+                            );
+                    }
+
+
+                    if (
+                        lineDiscount >
+                        line.total
+                    ) {
+
+                        lineDiscount =
+                            line.total;
+                    }
+
+
+                    line.discount_applied =
+                        lineDiscount;
+
+                    line.total_after_discount =
+                        round10(
+                            line.total -
+                            lineDiscount
+                        );
+                }
+            );
+
+
+            /*
+             * ========================================================
+             * SIN IGV
+             * ========================================================
+             *
+             * El descuento se aplica exclusivamente
+             * sobre la BASE GRAVADA.
+             *
+             * Exonerado e inafecto no cambian.
+             */
+
+        } else {
+
+            let gravadaBaseSubtotal =
+                0;
+
+
+            lines.forEach(
+                function (line) {
+
+                    if (
+                        line.category !==
+                        'gravada'
+                    ) {
+                        return;
+                    }
+
+
+                    gravadaBaseSubtotal =
+                        round10(
+                            gravadaBaseSubtotal +
+                            line.base_before_discount
+                        );
+                }
+            );
+
+
+            if (
+                gravadaBaseSubtotal > 0
+            ) {
+
+                /*
+                 * Resolver descuento sobre base.
+                 */
+
+                if (
+                    discountType ===
+                    'percent'
+                ) {
+
+                    const percentage =
+                        Math.min(
+                            discountValue,
+                            100
+                        );
+
+                    discountBaseTotal =
+                        round10(
+                            gravadaBaseSubtotal *
+                            (
+                                percentage /
+                                100
+                            )
+                        );
+
+                } else {
+
+                    discountBaseTotal =
+                        round10(
+                            Math.min(
+                                discountValue,
+                                gravadaBaseSubtotal
+                            )
+                        );
+                }
+
+
+                /*
+                 * Identificar solamente líneas gravadas.
+                 */
+
+                const gravadaIndexes =
+                    [];
+
+
+                lines.forEach(
+                    function (
+                        line,
+                        index
+                    ) {
+
+                        if (
+                            line.category ===
+                            'gravada'
+                        ) {
+
+                            gravadaIndexes.push(
+                                index
+                            );
+                        }
+                    }
+                );
+
+
+                let distributedBase =
+                    0;
+
+                const lastGravadaIndex =
+                    gravadaIndexes.length > 0
+                        ? gravadaIndexes[
+                        gravadaIndexes.length - 1
+                            ]
+                        : -1;
+
+
+                gravadaIndexes.forEach(
+                    function (index) {
+
+                        const line =
+                            lines[index];
+
+                        const baseBefore =
+                            line.base_before_discount;
+
+                        let lineBaseDiscount =
+                            0;
+
+
+                        if (
+                            index ===
+                            lastGravadaIndex
+                        ) {
+
+                            lineBaseDiscount =
+                                round10(
+                                    discountBaseTotal -
+                                    distributedBase
+                                );
+
+                        } else {
+
+                            const ratio =
+                                gravadaBaseSubtotal > 0
+                                    ? (
+                                        baseBefore /
+                                        gravadaBaseSubtotal
+                                    )
+                                    : 0;
+
+                            lineBaseDiscount =
+                                round10(
+                                    discountBaseTotal *
+                                    ratio
+                                );
+
+                            distributedBase =
+                                round10(
+                                    distributedBase +
+                                    lineBaseDiscount
+                                );
+                        }
+
+
+                        if (
+                            lineBaseDiscount >
+                            baseBefore
+                        ) {
+
+                            lineBaseDiscount =
+                                baseBefore;
+                        }
+
+
+                        const baseAfter =
+                            round10(
+                                baseBefore -
+                                lineBaseDiscount
+                            );
+
+
+                        line.discount_base_applied =
+                            lineBaseDiscount;
+
+                        line.base_after_discount =
+                            baseAfter;
+                    }
+                );
+            }
+        }
+    }
+
+
+    /*
+     * ============================================================
+     * RESULTADOS TRIBUTARIOS
+     * ============================================================
+     */
+
+    let gravada = 0;
+
+    let exonerada = 0;
+
+    let inafecta = 0;
+
+    let igv = 0;
+
+    let totalImporte = 0;
+
+    /*
+     * En CON IGV:
+     *
+     * sirve para obtener lo que mostraremos como
+     * DESCUENTO (-).
+     */
+    let discountBaseEquivalent =
+        0;
+
+
+    lines.forEach(
+        function (line) {
+
+            const category =
+                line.category;
+
+            const taxRate =
+                parseFloat(
+                    line.tax_rate || 0
+                );
+
+            let finalLine =
+                round10(
+                    line.total_after_discount
+                );
+
+
+            if (
+                finalLine < 0
+            ) {
+                finalLine = 0;
+            }
+
+
+            /*
+             * ====================================================
+             * GRAVADA
+             * ====================================================
+             */
+
+            if (
+                category ===
+                'gravada'
+            ) {
+
+                const factor =
+                    getFactor(
+                        taxRate
+                    );
+
+                let base = 0;
+
+                let lineTax = 0;
+
+
+                /*
+                 * SIN IGV:
+                 *
+                 * ya tenemos la base final.
+                 */
+                if (
+                    typeof
+                        line.base_after_discount
+                    !==
+                    'undefined'
+                ) {
+
+                    base =
+                        round10(
+                            line.base_after_discount
+                        );
+
+                    lineTax =
+                        round10(
+                            base *
+                            (
+                                taxRate /
+                                100
+                            )
+                        );
+
+                    finalLine =
+                        round10(
+                            base +
+                            lineTax
+                        );
+
+                    line.total_after_discount =
+                        finalLine;
+
+                    /*
+                     * CON IGV:
+                     *
+                     * obtenemos la nueva base
+                     * desde el total final.
+                     */
+
+                } else {
+
+                    base =
+                        factor > 0
+                            ? round10(
+                            finalLine /
+                            factor
+                            )
+                            : 0;
+
+                    lineTax =
+                        round10(
+                            finalLine -
+                            base
+                        );
+                }
+
+
+                gravada =
+                    round10(
+                        gravada +
+                        base
+                    );
+
+
+                igv =
+                    round10(
+                        igv +
+                        lineTax
+                    );
+
+
+                /*
+                 * CON IGV:
+                 *
+                 * DESCUENTO (-) muestra el equivalente
+                 * del descuento sobre la base.
+                 */
+
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
+
+                    let baseDiscount =
+                        round10(
+                            line.base_before_discount -
+                            base
+                        );
+
+
+                    if (
+                        baseDiscount < 0
+                    ) {
+
+                        baseDiscount = 0;
+                    }
+
+
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            baseDiscount
+                        );
+                }
+
+
+                /*
+                 * ====================================================
+                 * EXONERADA
+                 * ====================================================
+                 */
+
+            } else if (
+                category ===
+                'exonerada'
+            ) {
+
+                exonerada =
+                    round10(
+                        exonerada +
+                        finalLine
+                    );
+
+
+                /*
+                 * Sin impuesto:
+                 * descuento bruto = descuento base.
+                 */
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
+
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            (
+                                line.total -
+                                finalLine
+                            )
+                        );
+                }
+
+
+                /*
+                 * ====================================================
+                 * INAFECTA
+                 * ====================================================
+                 */
+
+            } else if (
+                category ===
+                'inafecta'
+            ) {
+
+                inafecta =
+                    round10(
+                        inafecta +
+                        finalLine
+                    );
+
+
+                if (
+                    discountMode ===
+                    'with_igv'
+                ) {
+
+                    discountBaseEquivalent =
+                        round10(
+                            discountBaseEquivalent +
+                            (
+                                line.total -
+                                finalLine
+                            )
+                        );
+                }
+            }
+
+
+            totalImporte =
+                round10(
+                    totalImporte +
+                    finalLine
+                );
+        }
+    );
+
+
+    /*
+     * ============================================================
+     * DESCUENTO MOSTRADO
+     * ============================================================
+     *
+     * Debe representar lo mismo que Quote.descuento:
+     *
+     * WITH IGV:
+     * equivalente del descuento en base.
+     *
+     * WITHOUT IGV:
+     * descuento aplicado directamente a la base.
+     */
+
+    const discountTotal =
+        discountMode ===
+        'with_igv'
+            ? round10(
+            discountBaseEquivalent
+            )
+            : round10(
+            discountBaseTotal
+            );
+
+
+    /*
+     * ============================================================
+     * RESULTADO
+     * ============================================================
+     */
 
     return {
-        discountWithIgv,
-        discountBase,
-        baseFinal,
-        igvFinal,
-        totalFinal
+        error:
+            false,
+
+        subtotal:
+        subtotal,
+
+        discount_total:
+        discountTotal,
+
+        /*
+         * Solo informativo.
+         *
+         * Representa cuánto bajó realmente
+         * el total comercial.
+         */
+        discount_gross_total:
+            round10(
+                subtotal -
+                totalImporte
+            ),
+
+        gravada:
+        gravada,
+
+        exonerada:
+        exonerada,
+
+        inafecta:
+        inafecta,
+
+        igv:
+        igv,
+
+        total:
+        totalImporte,
+
+        lines:
+        lines
     };
+}
+
+function updateQuoteSummary(
+    totals
+) {
+
+    $('#descuento')
+        .html(
+            moneyRound(
+                totals.discount_total
+            ).toFixed(2)
+        )
+        .attr(
+            'data-descuento_real',
+            totals.discount_total
+        );
+
+    $('#gravada')
+        .html(
+            moneyRound(
+                totals.gravada
+            ).toFixed(2)
+        )
+        .attr(
+            'data-gravada_real',
+            totals.gravada
+        );
+
+    $('#exonerada')
+        .html(
+            moneyRound(
+                totals.exonerada
+            ).toFixed(2)
+        )
+        .attr(
+            'data-exonerada_real',
+            totals.exonerada
+        );
+
+    $('#inafecta')
+        .html(
+            moneyRound(
+                totals.inafecta
+            ).toFixed(2)
+        )
+        .attr(
+            'data-inafecta_real',
+            totals.inafecta
+        );
+
+    $('#igv_total')
+        .html(
+            moneyRound(
+                totals.igv
+            ).toFixed(2)
+        )
+        .attr(
+            'data-igv_total_real',
+            totals.igv
+        );
+
+    $('#total_importe')
+        .html(
+            moneyRound(
+                totals.total
+            ).toFixed(2)
+        )
+        .attr(
+            'data-total_importe_real',
+            totals.total
+        );
 }
 
 /* =========================
@@ -355,9 +1394,31 @@ function renderTemplateConsumable(
         .find('[data-consumablePrice]')
         .attr('data-consumable_price_real', parseFloat(pricePU).toFixed(10));
 
-    const igvPct = parseFloat($igv || 18);
-    const igvFactor = 1 + (igvPct / 100);
-    const valorUnitario = parseFloat(pricePU) / igvFactor;
+    const typeTaxId =
+        parseInt(
+            consumable.type_tax_id || 0
+        );
+
+    const taxRate =
+        parseFloat(
+            consumable.tax_rate || 0
+        );
+
+    const taxCode =
+        String(
+            consumable.tax_code || ''
+        );
+
+    const taxFactor =
+        getFactor(
+            taxRate
+        );
+
+    const valorUnitario =
+        taxFactor > 0
+            ? parseFloat(pricePU) /
+            taxFactor
+            : 0;
 
     clone.querySelector("[data-consumableValor]").value = valorUnitario.toFixed(2);
 
@@ -376,6 +1437,10 @@ function renderTemplateConsumable(
     const $consumableId = $(clone).find('[data-consumableId]');
 
     $consumableId.attr('data-consumableid', consumable.id);
+    $consumableId.attr('data-equipment_consumable_id', 0);
+    $consumableId.attr('data-type_tax_id', typeTaxId);
+    $consumableId.attr('data-tax_rate', taxRate);
+    $consumableId.attr('data-tax_code', taxCode);
     $consumableId.attr('data-is_itemeable', isItemeable ? '1' : '0');
     $consumableId.attr('data-selected_item_ids', JSON.stringify(selectedItemIds));
     $consumableId.attr('data-selected_items_text', selectedItemsText);
@@ -566,6 +1631,10 @@ function readConsumablesFromDom($card) {
              */
             id: stockItemId,
             stock_item_id: stockItemId,
+            equipment_consumable_id: parseInt($consumableId.attr('data-equipment_consumable_id') || 0),
+            type_tax_id: parseInt($consumableId.attr('data-type_tax_id') || 0),
+            tax_rate: parseFloat($consumableId.attr('data-tax_rate') || 0),
+            tax_code: String($consumableId.attr('data-tax_code') || ''),
             description: description,
             unit: unit,
             quantity: quantity,
@@ -626,7 +1695,28 @@ function readServicesFromDom($container) {
 
         const billable = $row.find('[data-serviceBillable]').is(':checked') ? 1 : 0;
 
-        arr.push({ description: desc, unit, quantity: qty, valor: vu, price: pu, importe: imp, billable });
+        const $serviceId =
+            $row.find(
+                '[data-serviceId]'
+            );
+
+        const defaultTax =
+            window.APP_QUOTE.DEFAULT_TAX
+            || {};
+
+        arr.push({
+            id: parseInt($serviceId.val() || 0),
+            description: desc,
+            unit: unit,
+            quantity: qty,
+            valor: vu,
+            price: pu,
+            importe: imp,
+            billable: billable,
+            type_tax_id: parseInt($serviceId.attr('data-type_tax_id') ?? defaultTax.type_tax_id ?? 0),
+            tax_rate: parseFloat($serviceId.attr('data-tax_rate') ?? defaultTax.tax_rate ?? 0),
+            tax_code: String($serviceId.attr('data-tax_code') ?? defaultTax.tax_code ?? '')
+        });
 
         sumAll += (parseFloat(imp) || 0);
         if (billable === 1) sumBillable += (parseFloat(imp) || 0);
@@ -643,91 +1733,307 @@ function readServicesFromDom($container) {
    Recalcular totales en vista
    ========================= */
 function recalcQuoteTotalsFromDom() {
-    const $card = getMainEquipCard();
-    if ($card.length === 0) return;
+    const $card =
+        getMainEquipCard();
 
-    const cRead = readConsumablesFromDom($card);
-    const servicesRead = readServicesFromDom($card.find('[data-bodyService]'));
+    if (
+        $card.length === 0
+    ) {
+        return;
+    }
 
-    const subtotalConsumables = moneyRound((cRead.sum_importe || 0) - (cRead.sum_promos || 0));
-    const subtotalWithIgv = moneyRound(subtotalConsumables + (servicesRead.sum_billable || 0));
+    const cRead =
+        readConsumablesFromDom(
+            $card
+        );
 
-    const totals = computeTotals(subtotalWithIgv);
+    const servicesRead =
+        readServicesFromDom(
+            $card.find(
+                '[data-bodyService]'
+            )
+        );
 
-    // UI muestra descuento BASE (como venías guardando en Quote)
-    $('#descuento').html(totals.discountBase.toFixed(2));
-    $('#gravada').html(totals.baseFinal.toFixed(2));
-    $('#igv_total').html(totals.igvFinal.toFixed(2));
-    $('#total_importe').html(totals.totalFinal.toFixed(2));
+    const totals =
+        calculateQuoteTotals(
+            cRead.array,
+            servicesRead.array
+        );
 
-    $('#descuento').attr('data-descuento_real', totals.discountBase);
-    $('#gravada').attr('data-gravada_real', totals.baseFinal);
-    $('#igv_total').attr('data-igv_total_real', totals.igvFinal);
-    $('#total_importe').attr('data-total_importe_real', totals.totalFinal);
+    if (
+        !totals ||
+        totals.error
+    ) {
 
+        toastr.error(
+            totals && totals.message
+                ? totals.message
+                : 'No se pudieron calcular los totales tributarios.',
+            'Error'
+        );
+
+        return;
+    }
+
+    updateQuoteSummary(
+        totals
+    );
 }
 
 /* =========================
    Servicios: recalcular fila
    ========================= */
 function calculateServiceRow(row) {
-    const $row = $(row);
 
-    let qty = parseFloat($row.find('[data-serviceQuantity]').val() || 0);
-    if (isNaN(qty) || qty < 0) qty = 0;
+    const $row =
+        $(row);
 
-    let pu = parseFloat($row.find('[data-servicePU]').val() || 0);
-    if (isNaN(pu) || pu < 0) pu = 0;
+    let qty =
+        parseFloat(
+            $row
+                .find(
+                    '[data-serviceQuantity]'
+                )
+                .val()
+            || 0
+        );
 
-    const igvPct = parseFloat($igv || 18);
-    const igvFactor = 1 + (igvPct / 100);
+    let pu =
+        parseFloat(
+            $row
+                .find(
+                    '[data-servicePU]'
+                )
+                .val()
+            || 0
+        );
 
-    const vu = (igvFactor > 0) ? (pu / igvFactor) : 0;
-    const importe = qty * pu;
+    if (
+        isNaN(qty) ||
+        qty < 0
+    ) {
+        qty = 0;
+    }
 
-    $row.find('[data-serviceVU]').val(vu.toFixed(2));
-    $row.find('[data-serviceImporte]').val(importe.toFixed(2));
+    if (
+        isNaN(pu) ||
+        pu < 0
+    ) {
+        pu = 0;
+    }
+
+    const $serviceId =
+        $row.find(
+            '[data-serviceId]'
+        );
+
+    const defaultTax =
+        window.APP_QUOTE.DEFAULT_TAX
+        || {};
+
+    /*
+     * Servicio histórico:
+     * toma su snapshot.
+     *
+     * Servicio nuevo:
+     * toma DEFAULT_TAX.
+     */
+    const taxRate =
+        parseFloat(
+            $serviceId.attr(
+                'data-tax_rate'
+            )
+            ??
+            defaultTax.tax_rate
+            ??
+            0
+        );
+
+    const factor =
+        getFactor(
+            taxRate
+        );
+
+    const vu =
+        factor > 0
+            ? pu /
+            factor
+            : 0;
+
+    const importe =
+        qty *
+        pu;
+
+    $row
+        .find(
+            '[data-serviceVU]'
+        )
+        .val(
+            vu.toFixed(2)
+        );
+
+    $row
+        .find(
+            '[data-serviceImporte]'
+        )
+        .val(
+            importe.toFixed(2)
+        );
 }
 
 /* =========================
    Consumables: recalcular fila
    ========================= */
 function calculateTotalC(input) {
-    const row = input.closest('.row');
-    if (!row) return;
 
-    let qty = parseFloat(input.value || 0);
-    if (isNaN(qty) || qty < 0) qty = 0;
+    const row =
+        input.closest(
+            '[data-consumableRow]'
+        );
 
-    const igvPct = parseFloat($igv || 18);
-    const igvFactor = 1 + (igvPct / 100);
-
-    const elPrice = row.querySelector('[data-consumablePrice]');
-    const elValor = row.querySelector('[data-consumableValor]');
-    const elImporte = row.querySelector('[data-consumableImporte]');
-
-    if (!elPrice || !elValor || !elImporte) return;
-
-    const pricePU = parseFloat(elPrice.value || 0);
-    const importe = qty * pricePU;
-
-    elImporte.value = importe.toFixed(2);
-    elValor.value = (pricePU / igvFactor).toFixed(2);
-
-    const unitsPerPackEl = row.querySelector('[data-units_per_pack]');
-    const unitsEqEl = row.querySelector('[data-units_equivalent]');
-
-    const unitsPerPack = unitsPerPackEl ? parseFloat(unitsPerPackEl.getAttribute('data-units_per_pack') || 0) : 0;
-
-    if (unitsPerPack > 0 && unitsEqEl) {
-        qty = Math.floor(qty);
-        input.value = qty;
-
-        const unitsEquivalent = qty * unitsPerPack;
-        unitsEqEl.setAttribute('data-units_equivalent', unitsEquivalent);
-    } else if (unitsEqEl) {
-        unitsEqEl.setAttribute('data-units_equivalent', qty);
+    if (!row) {
+        return;
     }
+
+    let qty =
+        parseFloat(
+            input.value || 0
+        );
+
+    if (
+        isNaN(qty) ||
+        qty < 0
+    ) {
+        qty = 0;
+    }
+
+    const elPrice =
+        row.querySelector(
+            '[data-consumablePrice]'
+        );
+
+    const elValor =
+        row.querySelector(
+            '[data-consumableValor]'
+        );
+
+    const elImporte =
+        row.querySelector(
+            '[data-consumableImporte]'
+        );
+
+    const taxElement =
+        row.querySelector(
+            '[data-consumableid]'
+        );
+
+    if (
+        !elPrice ||
+        !elValor ||
+        !elImporte
+    ) {
+        return;
+    }
+
+    const taxRate =
+        taxElement
+            ? parseFloat(
+            taxElement.getAttribute(
+                'data-tax_rate'
+            )
+            || 0
+            )
+            : 0;
+
+    const taxFactor =
+        getFactor(
+            taxRate
+        );
+
+    const pricePU =
+        parseFloat(
+            elPrice.value || 0
+        );
+
+    /*
+     * Presentación:
+     * quantity visible = packs.
+     */
+    const unitsPerPackEl =
+        row.querySelector(
+            '[data-units_per_pack]'
+        );
+
+    const unitsEqEl =
+        row.querySelector(
+            '[data-units_equivalent]'
+        );
+
+    const unitsPerPack =
+        unitsPerPackEl
+            ? parseFloat(
+            unitsPerPackEl.getAttribute(
+                'data-units_per_pack'
+            )
+            || 0
+            )
+            : 0;
+
+    if (
+        unitsPerPack > 0
+    ) {
+
+        qty =
+            Math.floor(
+                qty
+            );
+
+        if (qty < 0) {
+            qty = 0;
+        }
+
+        input.value =
+            qty;
+
+        if (unitsEqEl) {
+
+            unitsEqEl.setAttribute(
+                'data-units_equivalent',
+                qty *
+                unitsPerPack
+            );
+        }
+
+    } else if (
+        unitsEqEl
+    ) {
+
+        unitsEqEl.setAttribute(
+            'data-units_equivalent',
+            qty
+        );
+    }
+
+    const valorUnitario =
+        taxFactor > 0
+            ? pricePU /
+            taxFactor
+            : 0;
+
+    const importe =
+        qty *
+        pricePU;
+
+    elImporte.value =
+        importe.toFixed(2);
+
+    elValor.value =
+        valorUnitario.toFixed(2);
+
+    $(elValor).attr(
+        'data-consumable_valor_real',
+        valorUnitario.toFixed(10)
+    );
 
     onQuoteChanged();
 }
@@ -738,7 +2044,7 @@ function calculateTotalC(input) {
 function syncDiscountSectionFromUI() {
     const $d = $('#discountSection');
     const type = $('input[name="discount_type"]:checked').val() || 'amount';
-    const mode = $('input[name="discount_input_mode"]:checked').val() || 'without_igv';
+    const mode = $('input[name="discount_input_mode"]:checked').val() || 'with_igv';
     let val = parseFloat($('#discount_value').val() || 0);
     if (isNaN(val) || val < 0) val = 0;
 
@@ -824,6 +2130,17 @@ function addService() {
 
     clone.querySelector('[data-serviceDescription]').value = desc;
     clone.querySelector('[data-serviceId]').value = '';
+
+    const defaultTax =
+        window.APP_QUOTE.DEFAULT_TAX
+        || {};
+
+    $(clone)
+        .find('[data-serviceId]')
+        .attr('data-type_tax_id', parseInt(defaultTax.type_tax_id || 0))
+        .attr('data-tax_rate', parseFloat(defaultTax.tax_rate || 0))
+        .attr('data-tax_code', String(defaultTax.tax_code || ''));
+
     clone.querySelector('[data-serviceUnit]').value = unitText;
     clone.querySelector('[data-serviceQuantity]').value = qty.toFixed(2);
     clone.querySelector('[data-servicePU]').value = pu.toFixed(2);
@@ -1137,7 +2454,6 @@ function selectItemByScannedCode() {
    ========================= */
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val() || '[]');
-    $igv = parseFloat($('#igv').val() || 18);
 
     $("#element_loader").LoadingOverlay("show", { background: "rgba(61, 215, 239, 0.4)" });
 
@@ -1198,7 +2514,7 @@ $(document).ready(function () {
 
     $('#btn-clear-discount').on('click', function () {
         $('#discount_type_amount').prop('checked', true);
-        $('#discount_mode_without').prop('checked', true);
+        $('#discount_mode_with').prop('checked', true);
         $('#discount_value').val(0);
         syncDiscountSectionFromUI();
     });
@@ -1509,78 +2825,79 @@ function saveEquipmentEdit() {
                     const servicesArray = servicesRead.array;
                     const servicesSumAll = servicesRead.sum_all; // con IGV
                     const servicesSumBillable = servicesRead.sum_billable;
-                    // ===========================
-                    // 4) Totales con 10 dec (reales)
-                    // ===========================
-                    const igvPct = parseFloat($igv) || 18;
-                    const factor = getFactor(igvPct);
 
-                    // productos con IGV: quantity * priceReal (priceReal es pack/unidad según corresponda)
-                    let subtotalConsumablesWithIgvReal = 0;
-                    for (let i = 0; i < consumablesArray.length; i++) {
-                        const qty = Number(consumablesArray[i].quantity) || 0;
-                        const priceReal = Number(consumablesArray[i].priceReal ?? consumablesArray[i].price) || 0;
-                        subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal + round10(qty * priceReal));
+                    // ===========================
+                    // 4) TOTALES TRIBUTARIOS
+                    // ===========================
+
+                    const totals =
+                        calculateQuoteTotals(
+                            consumablesArray,
+                            servicesArray
+                        );
+
+                    if (
+                        !totals ||
+                        totals.error
+                    ) {
+
+                        $("#element_loader")
+                            .LoadingOverlay(
+                                "hide",
+                                true
+                            );
+
+                        toastr.error(
+                            totals && totals.message
+                                ? totals.message
+                                : 'No se pudieron calcular los totales tributarios.',
+                            'Error'
+                        );
+
+                        return false;
                     }
 
-                    console.log('DEBUG prices', consumablesArray.map(x => ({
-                        desc: x.description,
-                        qty: x.quantity,
-                        price: x.price,
-                        priceReal: x.priceReal
-                    })));
+                    updateQuoteSummary(
+                        totals
+                    );
 
-                    // promos por ítem (si ya no usan, será 0)
-                    subtotalConsumablesWithIgvReal = round10(subtotalConsumablesWithIgvReal - (Number(descuentoPromos) || 0));
-                    if (subtotalConsumablesWithIgvReal < 0) subtotalConsumablesWithIgvReal = 0;
-
-                    const servicesWithIgvReal = round10(Number(servicesSumBillable) || 0);
-                    const subtotalWithIgvReal = round10(subtotalConsumablesWithIgvReal + servicesWithIgvReal);
-
-                    // descuento global con IGV (tu función)
-                    const discountWithIgvReal = round10(computeDiscountWithIgv(subtotalWithIgvReal, igvPct));
-
-                    // total final con IGV
-                    let totalFinalWithIgvReal = round10(subtotalWithIgvReal - discountWithIgvReal);
-                    if (totalFinalWithIgvReal < 0) totalFinalWithIgvReal = 0;
-
-                    // base + igv
-                    let baseFinalReal = round10(totalFinalWithIgvReal / factor);
-                    if (baseFinalReal < 0) baseFinalReal = 0;
-
-                    const igvFinalReal = round10(totalFinalWithIgvReal - baseFinalReal);
-
-                    // descuento en base (sin igv) para guardar y UI
-                    const discountBaseReal = round10(discountWithIgvReal / factor);
 
                     // ===========================
-                    // 5) UI (2 dec) + data reales
+                    // 5) META DESCUENTO
                     // ===========================
-                    $('#descuento').html(moneyRound(discountBaseReal).toFixed(2));
-                    $('#gravada').html(moneyRound(baseFinalReal).toFixed(2));
-                    $('#igv_total').html(moneyRound(igvFinalReal).toFixed(2));
-                    $('#total_importe').html(moneyRound(totalFinalWithIgvReal).toFixed(2));
 
-                    $('#descuento').attr('data-descuento_real', discountBaseReal);
-                    $('#gravada').attr('data-gravada_real', baseFinalReal);
-                    $('#igv_total').attr('data-igv_total_real', igvFinalReal);
-                    $('#total_importe').attr('data-total_importe_real', totalFinalWithIgvReal);
+                    const $d =
+                        $('#discountSection');
 
-                    // ===========================
-                    // 6) Meta descuento (igual que tenías)
-                    // ===========================
-                    const $d = $('#discountSection');
-                    const discount_type = $d.attr('data-discount_type') || $('input[name="discount_type"]:checked').val() || 'amount';
-                    const discount_input_mode = $d.attr('data-discount_input_mode') || $('input[name="discount_input_mode"]:checked').val() || 'without_igv';
-                    const discount_input_value = $d.attr('data-discount_value') || $('#discount_value').val() || '0';
+                    const discount_type =
+                        $d.attr(
+                            'data-discount_type'
+                        )
+                        ||
+                        $('input[name="discount_type"]:checked')
+                            .val()
+                        ||
+                        'amount';
 
-                    const discountGlobalMeta = {
-                        subtotal_with_igv: subtotalWithIgvReal,
-                        discount_with_igv: discountWithIgvReal,
-                        discount_base: discountBaseReal,
-                        igv_pct: igvPct,
-                        factor: factor
-                    };
+                    const discount_input_mode =
+                        $d.attr(
+                            'data-discount_input_mode'
+                        )
+                        ||
+                        $('input[name="discount_input_mode"]:checked')
+                            .val()
+                        ||
+                        'with_igv';
+
+                    const discount_input_value =
+                        $d.attr(
+                            'data-discount_value'
+                        )
+                        ||
+                        $('#discount_value')
+                            .val()
+                        ||
+                        '0';
 
                     // ===========================
                     // 7) Payload equipo (1 item) - con reales
@@ -1590,15 +2907,12 @@ function saveEquipmentEdit() {
                         quote: quoteId2,
                         equipment: idEquipment2,
                         quantity: 1,
-                        total: totalFinalWithIgvReal,
+                        total: totals.total,
                         description: "",
                         detail: detail,
                         consumables: consumablesArray,
                         workforces: servicesArray,
-                        discount_global: {
-                            base: discountBaseReal,
-                            meta: discountGlobalMeta
-                        }
+
                     }];
 
                     // ===========================
@@ -1622,12 +2936,6 @@ function saveEquipmentEdit() {
                             observations: $("#observations").val(),
 
                             equipment: equipmentPayload,
-
-                            // ✅ Totales quote en REAL (10 dec)
-                            descuento: discountBaseReal,
-                            gravada: baseFinalReal,
-                            igv_total: igvFinalReal,
-                            total_importe: totalFinalWithIgvReal,
 
                             // meta descuento (por si lo rehidratas en edit)
                             discount_type: discount_type,

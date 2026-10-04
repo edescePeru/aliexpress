@@ -5219,14 +5219,15 @@ class QuoteSaleController extends Controller
             'finance.base_currency'
         );
 
-        $dataIgv = PorcentageQuote::where(
-            'name',
-            'igv'
-        )->first();
+        /** @var TypeTaxResolverService $typeTaxResolver */
+        $typeTaxResolver =
+            app(
+                TypeTaxResolverService::class
+            );
 
-        $igv = $dataIgv
-            ? $dataIgv->value
-            : 18;
+        $defaultTax =
+            $typeTaxResolver
+                ->resolveWithSource();
 
         $end = microtime(true) - $begin;
 
@@ -5247,7 +5248,7 @@ class QuoteSaleController extends Controller
                 'paymentDeadlines',
                 'images',
                 'currency',
-                'igv'
+                'defaultTax'
             )
         );
     }
