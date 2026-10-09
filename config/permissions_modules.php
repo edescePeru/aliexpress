@@ -115,4 +115,6 @@ return [
     'companySetting' => 'CONFIGURACIONES DE LA EMPRESA',
 
     'priceListMaterial' => 'LISTAS DE PRECIOS',
+
+    'workforce' => 'SERVICIOS PREDETERMINADOS'
 ];

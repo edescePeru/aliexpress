@@ -205,6 +205,64 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 )
                     ->middleware('permission:edit_companySetting')
                     ->name('companySetting.update');
+
+                /*
+                  * ============================================================
+                  * CONFIGURACIONES DE SERVICIOS PARA COTIZACIONES POR DEFECTO
+                  * ============================================================
+                */
+
+                Route::prefix('workforces-default')
+                    ->group(function () {
+
+                        Route::get(
+                            '/',
+                            'WorkforceController@index'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.index'
+                        );
+
+                        Route::get(
+                            '/data',
+                            'WorkforceController@getData'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.data'
+                        );
+
+                        Route::post(
+                            '/',
+                            'WorkforceController@store'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.store'
+                        );
+
+                        Route::get(
+                            '/{id}/edit',
+                            'WorkforceController@edit'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.edit'
+                        );
+
+                        Route::put(
+                            '/{id}',
+                            'WorkforceController@update'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.update'
+                        );
+
+                        Route::delete(
+                            '/{id}',
+                            'WorkforceController@destroy'
+                        )->middleware('permission:manage_workforce')
+                            ->name(
+                            'workforce.destroy'
+                        );
+                    });
             });
 
         /*Route::get(

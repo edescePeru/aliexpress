@@ -12,6 +12,18 @@
     const urlUpdate = $form.data('url_update');
     const urlToggle = $form.data('url_toggle');
 
+    const permissions =
+        JSON.parse(
+            $('#permissions').val()
+            || '{}'
+        );
+
+    const canEdit =
+        !!permissions.can_edit;
+
+    const canToggle =
+        !!permissions.can_toggle;
+
     let currentPage = 1;
 
     function csrf() {
@@ -40,7 +52,7 @@
         $('#st_code').val('');
         $('#st_name').val('');
         $('#st_position').val(0);
-        $('#st_is_active').prop('checked', true);
+
 
         // nuevos
         $('#st_is_deferred').prop('checked', false);
@@ -55,7 +67,6 @@
         $('#st_code').val(item.code || '');
         $('#st_name').val(item.name || '');
         $('#st_position').val(item.position !== null && item.position !== undefined ? item.position : 0);
-        $('#st_is_active').prop('checked', !!item.is_active);
 
         // nuevos
         $('#st_is_deferred').prop('checked', !!item.is_deferred);
@@ -64,19 +75,73 @@
     }
 
     function renderButtons(item) {
-        const container = document.createElement('div');
-        container.className = 'btn-group';
 
-        const btnEditTpl = document.querySelector('#template-btn-edit');
-        const btnEdit = btnEditTpl.content.cloneNode(true).querySelector('button');
-        btnEdit.dataset.item = JSON.stringify(item);
-        container.appendChild(btnEdit);
+        const container =
+            document.createElement(
+                'div'
+            );
 
-        const btnToggleTpl = document.querySelector('#template-btn-toggle');
-        const btnToggle = btnToggleTpl.content.cloneNode(true).querySelector('button');
-        btnToggle.dataset.id = item.id;
-        btnToggle.dataset.active = item.is_active ? '1' : '0';
-        container.appendChild(btnToggle);
+        container.className =
+            'btn-group';
+
+        /*
+         * Editar.
+         */
+        if (canEdit) {
+
+            const btnEditTpl =
+                document.querySelector(
+                    '#template-btn-edit'
+                );
+
+            const btnEdit =
+                btnEditTpl
+                    .content
+                    .cloneNode(true)
+                    .querySelector(
+                        'button'
+                    );
+
+            btnEdit.dataset.item =
+                JSON.stringify(
+                    item
+                );
+
+            container.appendChild(
+                btnEdit
+            );
+        }
+
+        /*
+         * Activar / desactivar.
+         */
+        if (canToggle) {
+
+            const btnToggleTpl =
+                document.querySelector(
+                    '#template-btn-toggle'
+                );
+
+            const btnToggle =
+                btnToggleTpl
+                    .content
+                    .cloneNode(true)
+                    .querySelector(
+                        'button'
+                    );
+
+            btnToggle.dataset.id =
+                item.id;
+
+            btnToggle.dataset.active =
+                item.is_active
+                    ? '1'
+                    : '0';
+
+            container.appendChild(
+                btnToggle
+            );
+        }
 
         return container;
     }
@@ -85,7 +150,7 @@
         const tpl = document.querySelector('#item-table').content.cloneNode(true);
 
         tpl.querySelector('[data-id]').textContent = item.id;
-        tpl.querySelector('[data-scope]').textContent = item.cash_box_id === null ? 'GLOBAL' : item.cash_box_name;
+        tpl.querySelector('[data-scope]').textContent = item.scope_label || 'Toda la empresa';
         tpl.querySelector('[data-code]').textContent = item.code;
         tpl.querySelector('[data-name]').textContent = item.name;
 
@@ -238,7 +303,6 @@
             code: normalizeCode($('#st_code').val()),
             name: ($('#st_name').val() || '').trim(),
             position: $('#st_position').val() || 0,
-            is_active: $('#st_is_active').is(':checked') ? 1 : 0,
 
             // nuevos
             is_deferred: $('#st_is_deferred').is(':checked') ? 1 : 0,

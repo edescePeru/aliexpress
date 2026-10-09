@@ -2946,9 +2946,134 @@ function saveEquipmentEdit() {
                         processData: false,
                         contentType: 'application/json; charset=utf-8',
                         success: function (data) {
-                            // si tienes funciones de "clean state" para edit
-                            if (typeof setClean === 'function') setClean();
-                            $.alert(data.message || 'Equipo guardado con éxito.');
+                            /*
+    * =========================================================
+    * SINCRONIZAR IDs DE PRODUCTOS RECREADOS
+    * =========================================================
+    *
+    * updateEquipmentOfQuote elimina y vuelve a crear
+    * EquipmentConsumable.
+    *
+    * Por eso debemos reemplazar en el DOM el ID histórico
+    * anterior por el ID recién generado.
+    */
+
+                            const consumableSync =
+                                data.sync &&
+                                Array.isArray(
+                                    data.sync.consumables
+                                )
+                                    ? data.sync.consumables
+                                    : [];
+
+                            const $consumableRows =
+                                $('[data-equip]')
+                                    .first()
+                                    .find(
+                                        '[data-consumableRow]'
+                                    );
+
+                            $consumableRows.each(
+                                function (index) {
+
+                                    const syncItem =
+                                        consumableSync[index];
+
+                                    if (!syncItem) {
+                                        return;
+                                    }
+
+                                    $(this)
+                                        .find(
+                                            '[data-consumableid], [data-consumableId]'
+                                        )
+                                        .first()
+                                        .attr(
+                                            'data-equipment_consumable_id',
+                                            syncItem.id
+                                        );
+                                }
+                            );
+
+
+                            /*
+                             * =========================================================
+                             * SINCRONIZAR IDs DE SERVICIOS RECREADOS
+                             * =========================================================
+                             */
+
+                            const workforceSync =
+                                data.sync &&
+                                Array.isArray(
+                                    data.sync.workforces
+                                )
+                                    ? data.sync.workforces
+                                    : [];
+
+                            const $serviceRows =
+                                $('[data-equip]')
+                                    .first()
+                                    .find(
+                                        '[data-serviceRow]'
+                                    );
+
+                            $serviceRows.each(
+                                function (index) {
+
+                                    const syncItem =
+                                        workforceSync[index];
+
+                                    if (!syncItem) {
+                                        return;
+                                    }
+
+                                    /*
+                                     * En servicios el ID está almacenado
+                                     * como value del hidden data-serviceId.
+                                     */
+                                    $(this)
+                                        .find(
+                                            '[data-serviceId]'
+                                        )
+                                        .val(
+                                            syncItem.id
+                                        );
+                                }
+                            );
+
+
+                            /*
+                             * Ya tenemos los IDs nuevos en el DOM.
+                             */
+                            if (
+                                typeof setClean ===
+                                'function'
+                            ) {
+                                setClean();
+                            }
+
+
+                            $.alert({
+                                title:
+                                    'Cotización actualizada',
+
+                                content:
+                                    data.message ||
+                                    'Equipo guardado con éxito.',
+
+                                type:
+                                    'green',
+
+                                buttons: {
+                                    ok: {
+                                        text:
+                                            'Aceptar',
+
+                                        btnClass:
+                                            'btn-success'
+                                    }
+                                }
+                            });
                         },
                         error: function (xhr) {
                             const msg = xhr.responseJSON?.message || 'Error al guardar.';

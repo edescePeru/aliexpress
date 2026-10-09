@@ -834,25 +834,7 @@
                                 </li>
                             @endcan
 
-                            {{-- NUEVO: Cajas --}}
-                            @can('list_cashBox')
-                                <li class="nav-item">
-                                    <a href="{{ route('cashBox.index') }}" class="nav-link @yield('activeCashBox')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Cajas</p>
-                                    </a>
-                                </li>
-                            @endcan
 
-                            {{-- NUEVO: Subtipos --}}
-                            @can('list_cashBoxSubtype')
-                                <li class="nav-item">
-                                    <a href="{{ route('cashBoxSubtype.index') }}" class="nav-link @yield('activeCashBoxSubtype')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Subtipos bancarios</p>
-                                    </a>
-                                </li>
-                            @endcan
 
                             @can('listUser_configUserWeb')
                                 <li class="nav-item">
@@ -902,15 +884,53 @@
                     @endcan
 
                     @can('list_companySetting')
-                        <li class="nav-item">
-                            <a href="{{ route('companySetting.index') }}" class="nav-link {{ request()->routeIs('companySetting.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-cogs"></i>
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_companySetting'))
+                            <li class="nav-item">
+                                <a href="{{ route('companySetting.index') }}" class="nav-link {{ request()->routeIs('companySetting.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-cogs"></i>
 
-                                <p>
-                                    Configuraciones
-                                </p>
+                                    <p>
+                                        Configuraciones
+                                    </p>
+                                </a>
+                            </li>
+                        @endif
+                    @endcan
+                    @can('manage_workforce')
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('manage_workforce'))
+                        <li class="nav-item">
+
+                            <a href="{{ route('workforce.index') }}" class="nav-link{{ request()->routeIs('workforce.*') ? 'active' : ''}}">
+                                <i class="nav-icon fas fa-concierge-bell"></i>
+                                <p>Servicios</p>
+                            </a>
+
+                        </li>
+                        @endif
+                    @endcan
+
+                    {{-- NUEVO: Cajas --}}
+                    @can('list_cashBox')
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_cashBox'))
+                        <li class="nav-item">
+                            <a href="{{ route('cashBox.index') }}" class="nav-link @yield('activeCashBox')">
+                                <i class="nav-icon fas fa-cash-register"></i>
+                                <p>Cajas</p>
                             </a>
                         </li>
+                        @endif
+                    @endcan
+
+                    {{-- NUEVO: Subtipos --}}
+                    @can('list_cashBoxSubtype')
+                        @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_cashBoxSubtype'))
+                        <li class="nav-item">
+                            <a href="{{ route('cashBoxSubtype.index') }}" class="nav-link @yield('activeCashBoxSubtype')">
+                                <i class="nav-icon fas fa-tags"></i>
+                                <p>Subtipos bancarios</p>
+                            </a>
+                        </li>
+                        @endif
                     @endcan
 
                     @canany(['list_customer', 'list_contactName', 'list_supplier'])

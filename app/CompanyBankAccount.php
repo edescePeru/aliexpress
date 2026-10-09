@@ -47,4 +47,12 @@ class CompanyBankAccount extends Model
             'bank_id'
         );
     }
+
+    public function cashBoxes()
+    {
+        return $this->hasMany(
+            CashBox::class,
+            'company_bank_account_id'
+        );
+    }
 }

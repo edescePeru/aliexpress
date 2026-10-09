@@ -6,6 +6,8 @@ use App\CashBox;
 use App\CashBoxSubtype;
 use App\CashMovement;
 use App\CashRegister;
+use App\CashSettlement;
+use App\Support\TenantContext;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -470,245 +472,976 @@ class CashRegisterController extends Controller
 
     public function open(Request $request)
     {
-        $data = $request->validate(
-            [
-                'cash_box_id'      => 'required|exists:cash_boxes,id',
-                'opening_balance'  => 'nullable|numeric|min:0',
-            ],
-            [
-                // cash_box_id
-                'cash_box_id.required' => 'Debe seleccionar una caja.',
-                'cash_box_id.exists'  => 'La caja seleccionada no es válida o no existe.',
+        DB::beginTransaction();
 
-                // opening_balance
-                'opening_balance.numeric' => 'El saldo inicial debe ser un valor numérico.',
-                'opening_balance.min'     => 'El saldo inicial no puede ser negativo.',
-            ],
-            [
-                // Nombres amigables (opcional pero recomendado)
-                'cash_box_id'     => 'caja',
-                'opening_balance' => 'saldo inicial',
-            ]
-        );
+        try {
 
-        $userId = auth()->id();
-        $cashBox = CashBox::findOrFail($data['cash_box_id']);
+            /*
+             * =========================================================
+             * 1. CONTEXTO ACTUAL
+             * =========================================================
+             */
 
-        // Si ya existe una sesión abierta para ese usuario y esa caja, devolverla (idempotente)
-        $existing = CashRegister::where('user_id', $userId)
-            ->where('cash_box_id', $cashBox->id)
-            ->where('status', 1)
-            ->first();
+            $tenantId =
+                TenantContext::tenantId();
 
-        if ($existing) {
-            return response()->json([
-                'message' => 'Ya tienes una sesión abierta en esta caja.',
-                'cash_register_id' => $existing->id,
-                'cash_box_id' => $cashBox->id,
-            ]);
-        }
+            $companyId =
+                TenantContext::companyId();
 
-        // opening_balance: solo efectivo normalmente
-        $openingBalance = 0.00;
-        if ($cashBox->type === 'cash') {
-            $openingBalance = isset($data['opening_balance']) ? (float)$data['opening_balance'] : 0.00;
-        }
+            $branchId =
+                TenantContext::branchId();
 
-        $now = Carbon::now();
+            $userId =
+                Auth::id();
 
-        // Compatibilidad con tu campo viejo type (opcional pero útil mientras conviven)
-        $legacyType = ($cashBox->type === 'cash') ? 'efectivo' : 'bancario';
+            /*
+             * =========================================================
+             * 2. VALIDAR PAYLOAD
+             * =========================================================
+             */
 
-        $cr = CashRegister::create([
-            'cash_box_id' => $cashBox->id,
-            'user_id' => $userId,
+            $data =
+                $request->validate(
+                    [
+                        'cash_box_id' =>
+                            'required|integer',
 
-            'type' => $legacyType, // opcional
+                        'opening_balance' =>
+                            'nullable|numeric|min:0',
+                    ],
+                    [
+                        'cash_box_id.required' =>
+                            'Debe seleccionar una caja.',
 
-            'opening_balance' => $openingBalance,
-            'current_balance' => $openingBalance,
+                        'cash_box_id.integer' =>
+                            'La caja seleccionada no es válida.',
 
-            'closing_balance' => 0,
-            'total_sales' => 0,
-            'total_incomes' => 0,
-            'total_expenses' => 0,
+                        'opening_balance.numeric' =>
+                            'El saldo inicial debe ser un valor numérico.',
 
-            'opening_time' => $now,
-            'closing_time' => null,
-            'status' => 1,
-        ]);
+                        'opening_balance.min' =>
+                            'El saldo inicial no puede ser negativo.',
+                    ],
+                    [
+                        'cash_box_id' =>
+                            'caja',
 
-        if ( $openingBalance > 0 )
-        {
-            $regularize = 1;
-            CashMovement::create([
-                'cash_register_id'     => $cr->id,
-                'type'                 => 'income',
-                'amount'               => $openingBalance,
-                'description'          => 'Caja chica',
-                'observation'          => 'Balance inicial',
-                'cash_box_subtype_id'  => null,
-                'regularize'           => $regularize,
-            ]);
+                        'opening_balance' =>
+                            'saldo inicial',
+                    ]
+                );
 
-            if ($regularize == 1) {
-                $cr->total_incomes   = (float)$cr->total_incomes + $openingBalance;
-                $cr->save();
+            /*
+             * =========================================================
+             * 3. RESOLVER CASHBOX DE FORMA SEGURA
+             * =========================================================
+             *
+             * BelongsToTenant protege Tenant.
+             *
+             * Company se valida explícitamente.
+             *
+             * Branch:
+             *
+             * - branch_id NULL:
+             *   CashBox disponible para toda la Company.
+             *
+             * - branch_id = branch actual:
+             *   CashBox específica de esta sucursal.
+             *
+             * - branch_id de otra sucursal:
+             *   no puede utilizarse.
+             */
+
+            $cashBox =
+                CashBox::query()
+                    ->where(
+                        'id',
+                        (int) $data['cash_box_id']
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->where(
+                        function ($query) use (
+                            $branchId
+                        ) {
+
+                            $query
+                                ->whereNull(
+                                    'branch_id'
+                                )
+                                ->orWhere(
+                                    'branch_id',
+                                    $branchId
+                                );
+                        }
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if (!$cashBox) {
+
+                throw ValidationException::withMessages([
+                    'cash_box_id' => [
+                        'La caja seleccionada no está disponible para la empresa y sucursal actual.'
+                    ],
+                ]);
             }
+
+            /*
+             * =========================================================
+             * 4. VALIDAR SESIÓN ABIERTA EXISTENTE
+             * =========================================================
+             *
+             * Un usuario sí puede tener, por ejemplo:
+             *
+             * - Efectivo abierto
+             * - BCP abierto
+             * - Interbank abierto
+             *
+             * al mismo tiempo.
+             *
+             * Lo que no permitimos es dos sesiones abiertas
+             * del mismo usuario sobre la misma CashBox
+             * en la misma Branch.
+             */
+
+            $existing =
+                CashRegister::query()
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'branch_id',
+                        $branchId
+                    )
+                    ->where(
+                        'cash_box_id',
+                        $cashBox->id
+                    )
+                    ->where(
+                        'user_id',
+                        $userId
+                    )
+                    ->where(
+                        'status',
+                        1
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if ($existing) {
+
+                DB::commit();
+
+                return response()->json([
+                    'message' =>
+                        'Ya tienes una sesión abierta en esta caja.',
+
+                    'cash_register_id' =>
+                        $existing->id,
+
+                    'cash_box_id' =>
+                        $cashBox->id,
+                ], 200);
+            }
+
+            /*
+             * =========================================================
+             * 5. SALDO DE APERTURA
+             * =========================================================
+             *
+             * Por ahora conservamos tu regla:
+             *
+             * cash:
+             * puede recibir saldo inicial.
+             *
+             * bank / other:
+             * inicia en 0.
+             *
+             * IMPORTANTE:
+             *
+             * opening_balance NO se registra como CashMovement.
+             *
+             * No es un ingreso del negocio.
+             * Es el saldo con el que inicia la sesión.
+             */
+
+            $openingBalance =
+                0.00;
+
+            if (
+                $cashBox->type ===
+                'cash'
+            ) {
+
+                $openingBalance =
+                    isset(
+                        $data[
+                        'opening_balance'
+                        ]
+                    )
+                        ? round(
+                        (float)
+                        $data[
+                        'opening_balance'
+                        ],
+                        2
+                    )
+                        : 0.00;
+            }
+
+            /*
+             * =========================================================
+             * 6. TYPE LEGACY
+             * =========================================================
+             *
+             * CashRegister.type queda temporalmente
+             * únicamente por compatibilidad.
+             *
+             * La fuente moderna es:
+             *
+             * CashRegister -> CashBox -> type
+             */
+
+            $legacyType =
+                $cashBox->type ===
+                'cash'
+                    ? 'efectivo'
+                    : 'bancario';
+
+            /*
+             * =========================================================
+             * 7. CREAR SESIÓN
+             * =========================================================
+             */
+
+            $cashRegister =
+                CashRegister::create([
+                    /*
+                     * BelongsToTenant también puede asignarlo
+                     * automáticamente, pero lo dejamos explícito
+                     * porque estamos construyendo una entidad
+                     * financiera sensible.
+                     */
+                    'tenant_id' =>
+                        $tenantId,
+
+                    'company_id' =>
+                        $companyId,
+
+                    'branch_id' =>
+                        $branchId,
+
+                    'cash_box_id' =>
+                        $cashBox->id,
+
+                    'user_id' =>
+                        $userId,
+
+                    /*
+                     * Legacy temporal.
+                     */
+                    'type' =>
+                        $legacyType,
+
+                    /*
+                     * Saldos.
+                     */
+                    'opening_balance' =>
+                        $openingBalance,
+
+                    'current_balance' =>
+                        $openingBalance,
+
+                    'closing_balance' =>
+                        0,
+
+                    /*
+                     * Acumuladores operativos.
+                     *
+                     * El opening_balance NO cuenta como income.
+                     */
+                    'total_sales' =>
+                        0,
+
+                    'total_incomes' =>
+                        0,
+
+                    'total_expenses' =>
+                        0,
+
+                    /*
+                     * Sesión.
+                     */
+                    'opening_time' =>
+                        Carbon::now(
+                            'America/Lima'
+                        ),
+
+                    'closing_time' =>
+                        null,
+
+                    'status' =>
+                        1,
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' =>
+                    'Sesión iniciada correctamente.',
+
+                'cash_register_id' =>
+                    $cashRegister->id,
+
+                'cash_box_id' =>
+                    $cashBox->id,
+
+                'branch_id' =>
+                    $branchId,
+
+                'balance_total' =>
+                    $cashRegister
+                        ->current_balance,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' =>
+                    'Validación fallida.',
+
+                'errors' =>
+                    $e->errors(),
+            ], 422);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
         }
-
-
-        return response()->json([
-            'message' => 'Sesión iniciada correctamente.',
-            'cash_register_id' => $cr->id,
-            'cash_box_id' => $cashBox->id,
-        ]);
     }
 
     // GET /cash-registers/session/{cashBox}
     public function session(CashBox $cashBox)
     {
-        $user = Auth::user();
-        $userId = $user->id;
+        /*
+         * =========================================================
+         * 1. CONTEXTO ACTUAL
+         * =========================================================
+         */
 
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $user =
+            Auth::user();
 
-        $cashRegister = CashRegister::where('cash_box_id', $cashBox->id)
-            ->where('user_id', $userId)
-            ->where('status', 1)
-            ->latest()
-            ->first();
+        $userId =
+            $user->id;
+
+        $companyId =
+            TenantContext::companyId();
+
+        $branchId =
+            TenantContext::branchId();
+
+        $permissions =
+            $user
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->toArray();
+
+        /*
+         * =========================================================
+         * 2. VALIDAR CASHBOX EN EL CONTEXTO ACTUAL
+         * =========================================================
+         *
+         * BelongsToTenant protege Tenant.
+         *
+         * Company:
+         * debe coincidir con la Company activa.
+         *
+         * Branch:
+         *
+         * - cashBox.branch_id NULL:
+         *   disponible para toda la Company.
+         *
+         * - cashBox.branch_id = branch actual:
+         *   disponible para esta Branch.
+         */
+
+        $cashBox =
+            CashBox::query()
+                ->where(
+                    'id',
+                    $cashBox->id
+                )
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'is_active',
+                    1
+                )
+                ->where(
+                    function ($query) use (
+                        $branchId
+                    ) {
+
+                        $query
+                            ->whereNull(
+                                'branch_id'
+                            )
+                            ->orWhere(
+                                'branch_id',
+                                $branchId
+                            );
+                    }
+                )
+                ->firstOrFail();
+
+        /*
+         * =========================================================
+         * 3. SESIÓN ABIERTA DEL USUARIO
+         * =========================================================
+         *
+         * CRÍTICO:
+         *
+         * Una sesión pertenece a:
+         *
+         * Tenant
+         * Company
+         * Branch
+         * CashBox
+         * User
+         */
+
+        $cashRegister =
+            CashRegister::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'branch_id',
+                    $branchId
+                )
+                ->where(
+                    'cash_box_id',
+                    $cashBox->id
+                )
+                ->where(
+                    'user_id',
+                    $userId
+                )
+                ->where(
+                    'status',
+                    1
+                )
+                ->latest(
+                    'id'
+                )
+                ->first();
 
         if (!$cashRegister) {
-            return redirect()->route('cashMovement.my.index')
-                ->with('warning', 'No tienes una sesión abierta en esa caja.');
+
+            return redirect()
+                ->route(
+                    'cashMovement.my.index'
+                )
+                ->with(
+                    'warning',
+                    'No tienes una sesión abierta en esa caja para la empresa y sucursal actual.'
+                );
         }
 
-        $balance_total = $cashRegister->current_balance;
-        $active = $cashBox->name;
+        /*
+         * =========================================================
+         * 4. DATOS DE LA SESIÓN
+         * =========================================================
+         */
 
-        $state = '<div class="col-md-4 col-6">
-                <div class="small-box bg-success">
-                  <div class="inner"><h4>Abierta</h4></div>
-                  <div class="icon"><i class="fas fa-lock-open" style="font-size: 40px"></i></div>
-                  <a href="#" id="btn-arqueoCashRegister" class="small-box-footer">
-                    Arqueo de Caja <i class="fas fa-clipboard-check"></i>
-                  </a>
+        $balance_total =
+            $cashRegister
+                ->current_balance;
+
+        $active =
+            $cashBox->name;
+
+        $state =
+            '<div class="col-md-4 col-6">
+            <div class="small-box bg-success">
+                <div class="inner">
+                    <h4>Abierta</h4>
                 </div>
-              </div>';
 
-        // ✅ Subtypes para bancario (si usa subtypes)
-        $subtypes = collect();
-        if ($cashBox->type === 'bank' && $cashBox->uses_subtypes) {
-            // Por tu regla actual: usas globales (cash_box_id null)
-            $subtypes = CashBoxSubtype::whereNull('cash_box_id')
-                ->where('is_active', 1)
-                ->orderBy('position')
-                ->orderBy('name')
-                ->get();
+                <div class="icon">
+                    <i class="fas fa-lock-open" style="font-size: 40px"></i>
+                </div>
+
+                <a
+                    href="#"
+                    id="btn-arqueoCashRegister"
+                    class="small-box-footer"
+                >
+                    Arqueo de Caja
+                    <i class="fas fa-clipboard-check"></i>
+                </a>
+            </div>
+        </div>';
+
+        /*
+         * =========================================================
+         * 5. SUBTIPOS DISPONIBLES
+         * =========================================================
+         *
+         * Regla CASH-03:
+         *
+         * cash_box_id = NULL
+         * → disponible para todas las cajas de la Company.
+         *
+         * cash_box_id = ID actual
+         * → disponible únicamente para esta caja.
+         */
+
+        $subtypes =
+            collect();
+
+        if (
+            $cashBox->type === 'bank' &&
+            (int) $cashBox->uses_subtypes === 1
+        ) {
+
+            $subtypes =
+                CashBoxSubtype::query()
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->availableForCashBox(
+                        $cashBox->id
+                    )
+                    ->orderBy(
+                        'position'
+                    )
+                    ->orderBy(
+                        'name'
+                    )
+                    ->get();
         }
 
-        return view('cashRegister.session', compact(
-            'balance_total',
-            'permissions',
-            'active',
-            'state',
-            'cashRegister',
-            'cashBox',
-            'subtypes'
-        ));
+        /*
+         * =========================================================
+         * 6. VISTA
+         * =========================================================
+         */
+
+        return view(
+            'cashRegister.session',
+            compact(
+                'balance_total',
+                'permissions',
+                'active',
+                'state',
+                'cashRegister',
+                'cashBox',
+                'subtypes'
+            )
+        );
     }
 
-    public function getSessionMovements(Request $request, CashRegister $cashRegister, $pageNumber = 1)
-    {
-        // Seguridad: solo dueño de la sesión o admin (si luego lo habilitas)
-        if ($cashRegister->user_id != Auth::id()) {
-            return response()->json(['message' => 'No autorizado.'], 403);
+    public function getSessionMovements(
+        Request $request,
+        CashRegister $cashRegister,
+        $pageNumber = 1
+    ) {
+        /*
+         * =========================================================
+         * 1. CONTEXTO ACTUAL
+         * =========================================================
+         */
+
+        $companyId =
+            TenantContext::companyId();
+
+        $branchId =
+            TenantContext::branchId();
+
+        $userId =
+            Auth::id();
+
+        /*
+         * =========================================================
+         * 2. VALIDAR CASHREGISTER EN CONTEXTO ACTUAL
+         * =========================================================
+         *
+         * Aunque el route-model binding ya resolvió CashRegister,
+         * volvemos a consultar explícitamente por:
+         *
+         * - Company
+         * - Branch
+         * - User
+         *
+         * BelongsToTenant protege Tenant.
+         */
+
+        $cashRegister =
+            CashRegister::query()
+                ->where(
+                    'id',
+                    $cashRegister->id
+                )
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'branch_id',
+                    $branchId
+                )
+                ->where(
+                    'user_id',
+                    $userId
+                )
+                ->first();
+
+        if (!$cashRegister) {
+
+            return response()->json([
+                'message' =>
+                    'No autorizado para consultar esta sesión de caja.',
+            ], 403);
         }
 
-        // Solo sesiones abiertas (porque esta vista es sesión actual)
-        if ((int)$cashRegister->status !== 1) {
-            return response()->json(['message' => 'La sesión ya está cerrada.'], 422);
+        /*
+         * =========================================================
+         * 3. SOLO SESIÓN ABIERTA
+         * =========================================================
+         */
+
+        if (
+            (int) $cashRegister->status !== 1
+        ) {
+
+            return response()->json([
+                'message' =>
+                    'La sesión ya está cerrada.',
+            ], 422);
         }
 
-        $perPage = 10;
-        $pageNumber = (int)$pageNumber;
-        if ($pageNumber <= 0) $pageNumber = 1;
+        /*
+         * =========================================================
+         * 4. PAGINACIÓN
+         * =========================================================
+         */
 
-        $query = CashMovement::with('cashBoxSubtype')
-            ->where('cash_register_id', $cashRegister->id)
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc');
+        $perPage =
+            10;
 
-        $totalFilteredRecords = $query->count();
-        $totalPages = (int) ceil($totalFilteredRecords / $perPage);
+        $pageNumber =
+            (int) $pageNumber;
 
-        $startRecord = $totalFilteredRecords ? (($pageNumber - 1) * $perPage + 1) : 0;
-        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
+        if (
+            $pageNumber <= 0
+        ) {
+            $pageNumber = 1;
+        }
 
-        $movements = $query->skip(($pageNumber - 1) * $perPage)
-            ->take($perPage)
-            ->get();
+        /*
+         * =========================================================
+         * 5. MOVIMIENTOS DE LA SESIÓN
+         * =========================================================
+         *
+         * CashMovement también usa BelongsToTenant.
+         *
+         * Además filtramos explícitamente por Company/Branch
+         * para evitar lecturas cruzadas dentro del mismo Tenant.
+         */
+
+        $query =
+            CashMovement::query()
+                ->with([
+                    'cashBoxSubtype',
+                ])
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'branch_id',
+                    $branchId
+                )
+                ->where(
+                    'cash_register_id',
+                    $cashRegister->id
+                )
+                ->orderBy(
+                    'created_at',
+                    'desc'
+                )
+                ->orderBy(
+                    'id',
+                    'desc'
+                );
+
+        $totalFilteredRecords =
+            $query->count();
+
+        $totalPages =
+            (int) ceil(
+                $totalFilteredRecords /
+                $perPage
+            );
+
+        $startRecord =
+            $totalFilteredRecords
+                ? (
+                ($pageNumber - 1)
+                *
+                $perPage
+                +
+                1
+            )
+                : 0;
+
+        $endRecord =
+            min(
+                $totalFilteredRecords,
+                $pageNumber *
+                $perPage
+            );
+
+        $movements =
+            $query
+                ->skip(
+                    ($pageNumber - 1)
+                    *
+                    $perPage
+                )
+                ->take(
+                    $perPage
+                )
+                ->get();
+
+        /*
+         * =========================================================
+         * 6. RESPONSE
+         * =========================================================
+         */
 
         $array = [];
 
-        foreach ($movements as $movement) {
+        foreach (
+            $movements
+            as $movement
+        ) {
 
-            // Etiqueta de tipo (igual que tu lógica)
-            if ($movement->type === 'income') {
-                $tipo = ((int)$movement->regularize === 0) ? 'Regularizar' : 'Ingreso';
-            } elseif ($movement->type === 'expense') {
-                $tipo = 'Egreso';
-            } elseif ($movement->type === 'sale' && (int)$movement->regularize === 0) {
-                $tipo = 'Regularizar';
+            /*
+             * Etiqueta visible.
+             *
+             * Conservamos por ahora la semántica legacy:
+             *
+             * regularize = 0
+             * → pendiente
+             *
+             * regularize = 1
+             * → confirmado
+             */
+
+            if (
+                $movement->type ===
+                'income'
+            ) {
+
+                $tipo =
+                    (int) $movement->regularize === 0
+                        ? 'Regularizar'
+                        : 'Ingreso';
+
+            } elseif (
+                $movement->type ===
+                'expense'
+            ) {
+
+                $tipo =
+                    'Egreso';
+
+            } elseif (
+                $movement->type ===
+                'sale'
+                &&
+                (int) $movement->regularize === 0
+            ) {
+
+                $tipo =
+                    'Regularizar';
+
             } else {
-                $tipo = 'Venta';
+
+                $tipo =
+                    'Venta';
             }
 
             $array[] = [
-                'id' => $movement->id,
-                'type' => $tipo,
+                'id' =>
+                    $movement->id,
 
-                // nuevo: raw type + estado
-                'type_raw' => $movement->type, // sale|income|expense
-                'regularize' => (int)$movement->regularize,
-                'status_label' => ((int)$movement->regularize === 1) ? 'Confirmado' : 'Pendiente',
+                'type' =>
+                    $tipo,
 
-                // montos
-                'amount' => (string) $movement->amount,
-                'amount_regularize' => $movement->amount_regularize !== null ? (string)$movement->amount_regularize : null,
-                'commission' => $movement->commission !== null ? (string)$movement->commission : null,
+                /*
+                 * Raw type / estado.
+                 */
+                'type_raw' =>
+                    $movement->type,
 
-                // subtipo
-                'subtype' => $movement->cashBoxSubtype ? $movement->cashBoxSubtype->name : null,
-                'subtype_code' => $movement->cashBoxSubtype ? $movement->cashBoxSubtype->code : null,
+                'regularize' =>
+                    (int) $movement->regularize,
 
-                // auditoría
-                'origin_id' => $movement->cash_movement_origin_id,
-                'regularize_id' => $movement->cash_movement_regularize_id,
+                'status_label' =>
+                    (int) $movement->regularize === 1
+                        ? 'Confirmado'
+                        : 'Pendiente',
 
-                // texto
-                'description' => $movement->description,
-                'observation' => $movement->observation,
+                /*
+                 * Montos.
+                 */
+                'amount' =>
+                    (string) $movement->amount,
 
-                'date' => $movement->created_at ? $movement->created_at->format('d/m/Y h:i A') : '',
-                'sale_id' => $movement->sale_id,
-                'entry_id' => $movement->entry_id,
-                'subtype_is_deferred' => $movement->cashBoxSubtype ? (bool)$movement->cashBoxSubtype->is_deferred : false,
+                'amount_regularize' =>
+                    $movement->amount_regularize !== null
+                        ? (string)
+                    $movement->amount_regularize
+                        : null,
 
+                'commission' =>
+                    $movement->commission !== null
+                        ? (string)
+                    $movement->commission
+                        : null,
+
+                /*
+                 * Subtipo.
+                 */
+                'subtype' =>
+                    $movement->cashBoxSubtype
+                        ? $movement
+                        ->cashBoxSubtype
+                        ->name
+                        : null,
+
+                'subtype_code' =>
+                    $movement->cashBoxSubtype
+                        ? $movement
+                        ->cashBoxSubtype
+                        ->code
+                        : null,
+
+                'subtype_is_deferred' =>
+                    $movement->cashBoxSubtype
+                        ? (bool)
+                    $movement
+                        ->cashBoxSubtype
+                        ->is_deferred
+                        : false,
+
+                /*
+                 * Auditoría / relaciones.
+                 */
+                'origin_id' =>
+                    $movement
+                        ->cash_movement_origin_id,
+
+                'regularize_id' =>
+                    $movement
+                        ->cash_movement_regularize_id,
+
+                'cash_settlement_id' =>
+                    $movement
+                        ->cash_settlement_id,
+
+                /*
+                 * Texto.
+                 */
+                'description' =>
+                    $movement->description,
+
+                'observation' =>
+                    $movement->observation,
+
+                /*
+                 * Referencias.
+                 */
+                'sale_id' =>
+                    $movement->sale_id,
+
+                'entry_id' =>
+                    $movement->entry_id,
+
+                /*
+                 * Fecha.
+                 */
+                'date' =>
+                    $movement->created_at
+                        ? $movement
+                        ->created_at
+                        ->format(
+                            'd/m/Y h:i A'
+                        )
+                        : '',
             ];
         }
 
+        /*
+         * =========================================================
+         * 7. PAGINACIÓN RESPONSE
+         * =========================================================
+         */
+
         $pagination = [
-            'currentPage' => $pageNumber,
-            'totalPages' => $totalPages,
-            'startRecord' => $startRecord,
-            'endRecord' => $endRecord,
-            'totalRecords' => $totalFilteredRecords,
-            'totalFilteredRecords' => $totalFilteredRecords
+            'currentPage' =>
+                $pageNumber,
+
+            'totalPages' =>
+                $totalPages,
+
+            'startRecord' =>
+                $startRecord,
+
+            'endRecord' =>
+                $endRecord,
+
+            'totalRecords' =>
+                $totalFilteredRecords,
+
+            'totalFilteredRecords' =>
+                $totalFilteredRecords,
         ];
 
-        return response()->json(['data' => $array, 'pagination' => $pagination]);
+        return response()->json([
+            'data' =>
+                $array,
+
+            'pagination' =>
+                $pagination,
+        ]);
     }
 
     private function hasRecentDuplicateMovement(
@@ -734,733 +1467,1544 @@ class CashRegisterController extends Controller
         return $query->exists();
     }
 
-    public function incomeO(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $data = $request->validate(
-                [
-                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
-                    'amount'               => 'required|numeric|min:0.01',
-                    'description'          => 'required|string|max:255',
-                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
-                ],
-                [
-                    // cash_register_id
-                    'cash_register_id.required' => 'Debe seleccionar una caja.',
-                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
-                    'cash_register_id.exists'   => 'La caja seleccionada no existe o no está activa.',
-
-                    // amount
-                    'amount.required' => 'Debe ingresar un monto.',
-                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
-                    'amount.min'      => 'El monto debe ser mayor a 0.',
-
-                    // description
-                    'description.required' => 'Debe ingresar una descripción del movimiento.',
-                    'description.string'   => 'La descripción no es válida.',
-                    'description.max'      => 'La descripción no debe superar los 255 caracteres.',
-
-                    // subtype
-                    'cash_box_subtype_id.exists' => 'El canal / subtipo seleccionado no es válido.',
-                ]
-            );
-
-            /** @var CashRegister $cashRegister */
-            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
-
-            // Seguridad: solo dueño de la sesión
-            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
-                return response()->json(['message' => 'No autorizado.'], 403);
-            }
-
-            // Debe estar abierta
-            if ((int)$cashRegister->status !== 1) {
-                return response()->json(['message' => 'No se puede hacer un ingreso a una caja cerrada.'], 422);
-            }
-
-            $cashBox = $cashRegister->cashBox; // relación cashBox()
-            if (!$cashBox) {
-                return response()->json(['message' => 'La sesión no tiene caja asociada.'], 422);
-            }
-
-            $amount = (float)$data['amount'];
-            $subtypeId = $data['cash_box_subtype_id'] ?? null;
-
-            // ===== Reglas por tipo de caja =====
-            $regularize = 1; // default: confirmado
-
-            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
-
-                // En bancario con subtypes: subtype es obligatorio
-                if (!$subtypeId) {
-                    return response()->json(['message' => 'Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).'], 422);
-                }
-
-                $subtype = CashBoxSubtype::findOrFail($subtypeId);
-
-                // regularize según BD (is_deferred)
-                $regularize = $subtype->is_deferred ? 0 : 1;
-
-            } else {
-                // En efectivo o bancario sin subtypes: no debe venir subtype
-                $subtypeId = null;
-                $regularize = 1;
-            }
-
-            // 1) Crear movimiento
-            CashMovement::create([
-                'cash_register_id' => $cashRegister->id,
-                'type' => 'income',
-                'amount' => $amount,
-
-                // sugerencia: description corto y observation el texto libre
-                'description' => 'Ingreso manual',
-                'observation' => $data['description'],
-
-                'cash_box_subtype_id' => $subtypeId,
-                'regularize' => $regularize,
-            ]);
-
-            // 2) Actualizar caja (solo si confirmado)
-            if ($regularize == 1) {
-                $cashRegister->current_balance = (float)$cashRegister->current_balance + $amount;
-                $cashRegister->total_incomes   = (float)$cashRegister->total_incomes + $amount;
-                $cashRegister->save();
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => $regularize == 1
-                    ? 'Ingreso registrado con éxito.'
-                    : 'Ingreso registrado como pendiente (diferido).',
-                'balance_total' => $cashRegister->current_balance,
-            ], 200);
-
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Validación fallida.',
-                'errors'  => $e->errors(), // ✅ aquí vienen tus mensajes personalizados
-            ], 422);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
     public function income(Request $request)
     {
         DB::beginTransaction();
 
         try {
-            $data = $request->validate(
-                [
-                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
-                    'amount'               => 'required|numeric|min:0.01',
-                    'description'          => 'required|string|max:255',
-                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
-                ],
-                [
-                    'cash_register_id.required' => 'Debe seleccionar una caja.',
-                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
-                    'cash_register_id.exists'   => 'La caja seleccionada no existe o no está activa.',
 
-                    'amount.required' => 'Debe ingresar un monto.',
-                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
-                    'amount.min'      => 'El monto debe ser mayor a 0.',
+            /*
+             * =========================================================
+             * 1. CONTEXTO ACTUAL
+             * =========================================================
+             */
 
-                    'description.required' => 'Debe ingresar una descripción del movimiento.',
-                    'description.string'   => 'La descripción no es válida.',
-                    'description.max'      => 'La descripción no debe superar los 255 caracteres.',
+            $tenantId =
+                TenantContext::tenantId();
 
-                    'cash_box_subtype_id.exists' => 'El canal / subtipo seleccionado no es válido.',
-                ]
-            );
+            $companyId =
+                TenantContext::companyId();
 
-            /** @var CashRegister $cashRegister */
-            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
+            $branchId =
+                TenantContext::branchId();
 
-            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
+            $userId =
+                Auth::id();
+
+            /*
+             * =========================================================
+             * 2. VALIDAR PAYLOAD
+             * =========================================================
+             */
+
+            $data =
+                $request->validate(
+                    [
+                        'cash_register_id' =>
+                            'required|integer',
+
+                        'amount' =>
+                            'required|numeric|min:0.01',
+
+                        'description' =>
+                            'required|string|max:255',
+
+                        'cash_box_subtype_id' =>
+                            'nullable|integer',
+                    ],
+                    [
+                        'cash_register_id.required' =>
+                            'Debe seleccionar una caja.',
+
+                        'cash_register_id.integer' =>
+                            'La caja seleccionada no es válida.',
+
+                        'amount.required' =>
+                            'Debe ingresar un monto.',
+
+                        'amount.numeric' =>
+                            'El monto debe ser un valor numérico.',
+
+                        'amount.min' =>
+                            'El monto debe ser mayor a 0.',
+
+                        'description.required' =>
+                            'Debe ingresar una descripción del movimiento.',
+
+                        'description.string' =>
+                            'La descripción no es válida.',
+
+                        'description.max' =>
+                            'La descripción no debe superar los 255 caracteres.',
+
+                        'cash_box_subtype_id.integer' =>
+                            'El canal / subtipo seleccionado no es válido.',
+                    ]
+                );
+
+            /*
+             * =========================================================
+             * 3. OBTENER CASHREGISTER DE FORMA SEGURA
+             * =========================================================
+             *
+             * BelongsToTenant protege Tenant.
+             *
+             * Además exigimos:
+             *
+             * - Company actual
+             * - Branch actual
+             * - User actual
+             * - sesión abierta
+             */
+
+            $cashRegister =
+                CashRegister::query()
+                    ->where(
+                        'id',
+                        (int) $data[
+                        'cash_register_id'
+                        ]
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'branch_id',
+                        $branchId
+                    )
+                    ->where(
+                        'user_id',
+                        $userId
+                    )
+                    ->where(
+                        'status',
+                        1
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if (!$cashRegister) {
+
                 throw ValidationException::withMessages([
-                    'cash_register_id' => ['No autorizado para operar esta caja.']
+                    'cash_register_id' => [
+                        'No existe una sesión abierta válida para la empresa y sucursal actual.'
+                    ],
                 ]);
             }
 
-            if ((int)$cashRegister->status !== 1) {
-                throw ValidationException::withMessages([
-                    'cash_register_id' => ['No se puede hacer un ingreso a una caja cerrada.']
-                ]);
-            }
+            /*
+             * =========================================================
+             * 4. VALIDAR CASHBOX
+             * =========================================================
+             */
 
-            $cashBox = $cashRegister->cashBox;
+            $cashBox =
+                CashBox::query()
+                    ->where(
+                        'id',
+                        $cashRegister
+                            ->cash_box_id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->where(
+                        function ($query) use (
+                            $branchId
+                        ) {
+
+                            $query
+                                ->whereNull(
+                                    'branch_id'
+                                )
+                                ->orWhere(
+                                    'branch_id',
+                                    $branchId
+                                );
+                        }
+                    )
+                    ->first();
+
             if (!$cashBox) {
+
                 throw ValidationException::withMessages([
-                    'cash_register_id' => ['La sesión no tiene caja asociada.']
+                    'cash_register_id' => [
+                        'La caja asociada a esta sesión ya no está disponible en el contexto actual.'
+                    ],
                 ]);
             }
 
-            $amount = round((float)$data['amount'], 2);
-            $description = trim($data['description']);
-            $subtypeId = $data['cash_box_subtype_id'] ?? null;
+            /*
+             * =========================================================
+             * 5. MONTO / DESCRIPCIÓN
+             * =========================================================
+             */
+
+            $amount =
+                round(
+                    (float) $data[
+                    'amount'
+                    ],
+                    2
+                );
+
+            $description =
+                trim(
+                    $data[
+                    'description'
+                    ]
+                );
+
+            $subtypeId =
+                $data[
+                'cash_box_subtype_id'
+                ]
+                ?? null;
+
+            /*
+             * Por defecto el movimiento impacta saldo inmediatamente.
+             */
             $regularize = 1;
 
-            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+            /*
+             * =========================================================
+             * 6. VALIDAR SUBTIPO
+             * =========================================================
+             *
+             * Solo las cajas bancarias que utilizan subtipos
+             * pueden recibir cash_box_subtype_id.
+             */
+
+            if (
+                $cashBox->type === 'bank' &&
+                (int) $cashBox->uses_subtypes === 1
+            ) {
+
                 if (!$subtypeId) {
+
                     throw ValidationException::withMessages([
-                        'cash_box_subtype_id' => ['Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).']
+                        'cash_box_subtype_id' => [
+                            'Debe seleccionar un subtipo bancario.'
+                        ],
                     ]);
                 }
 
-                $subtype = CashBoxSubtype::findOrFail($subtypeId);
-                $regularize = $subtype->is_deferred ? 0 : 1;
+                /*
+                 * Debe pertenecer:
+                 *
+                 * - al Tenant actual por BelongsToTenant
+                 * - a la Company actual
+                 * - ser global o específico de esta CashBox
+                 * - estar activo
+                 */
+
+                $subtype =
+                    CashBoxSubtype::query()
+                        ->where(
+                            'id',
+                            (int) $subtypeId
+                        )
+                        ->where(
+                            'company_id',
+                            $companyId
+                        )
+                        ->where(
+                            'is_active',
+                            1
+                        )
+                        ->availableForCashBox(
+                            $cashBox->id
+                        )
+                        ->first();
+
+                if (!$subtype) {
+
+                    throw ValidationException::withMessages([
+                        'cash_box_subtype_id' => [
+                            'El subtipo seleccionado no está disponible para esta caja.'
+                        ],
+                    ]);
+                }
+
+                /*
+                 * Diferido:
+                 *
+                 * POS u otro canal que todavía
+                 * no representa dinero disponible.
+                 */
+                $regularize =
+                    $subtype->is_deferred
+                        ? 0
+                        : 1;
+
+                $subtypeId =
+                    $subtype->id;
+
             } else {
-                $subtypeId = null;
-                $regularize = 1;
+
+                /*
+                 * Efectivo / caja que no utiliza subtipos.
+                 *
+                 * Ignoramos cualquier ID enviado manualmente
+                 * desde frontend.
+                 */
+                $subtypeId =
+                    null;
+
+                $regularize =
+                    1;
             }
 
-            // Protección anti-duplicado
-            $alreadyExists = $this->hasRecentDuplicateMovement(
-                $cashRegister->id,
-                'income',
-                $amount,
-                $description,
-                $subtypeId,
-                3
-            );
+            /*
+             * =========================================================
+             * 7. PROTECCIÓN ANTI-DUPLICADO
+             * =========================================================
+             */
+
+            $alreadyExists =
+                $this->hasRecentDuplicateMovement(
+                    (int) $cashRegister->id,
+                    'income',
+                    $amount,
+                    $description,
+                    $subtypeId
+                        ? (int) $subtypeId
+                        : null,
+                    3
+                );
 
             if ($alreadyExists) {
+
                 throw ValidationException::withMessages([
-                    'duplicate' => ['Ya se registró un ingreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.']
+                    'duplicate' => [
+                        'Ya se registró un ingreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.'
+                    ],
                 ]);
             }
 
-            CashMovement::create([
-                'cash_register_id'     => $cashRegister->id,
-                'type'                 => 'income',
-                'amount'               => $amount,
-                'description'          => 'Ingreso manual',
-                'observation'          => $description,
-                'cash_box_subtype_id'  => $subtypeId,
-                'regularize'           => $regularize,
-            ]);
+            /*
+             * =========================================================
+             * 8. CREAR CASHMOVEMENT
+             * =========================================================
+             *
+             * Este es un movimiento OPERATIVO,
+             * por lo tanto sí pertenece a un CashRegister.
+             */
 
-            if ($regularize == 1) {
-                $cashRegister->current_balance = (float)$cashRegister->current_balance + $amount;
-                $cashRegister->total_incomes   = (float)$cashRegister->total_incomes + $amount;
+            $cashMovement =
+                CashMovement::create([
+                    'tenant_id' =>
+                        $tenantId,
+
+                    'company_id' =>
+                        $companyId,
+
+                    'branch_id' =>
+                        $branchId,
+
+                    'cash_box_id' =>
+                        $cashBox->id,
+
+                    'cash_register_id' =>
+                        $cashRegister->id,
+
+                    'user_id' =>
+                        $userId,
+
+                    'cash_settlement_id' =>
+                        null,
+
+                    'type' =>
+                        'income',
+
+                    'amount' =>
+                        $amount,
+
+                    /*
+                     * Tipo funcional del movimiento.
+                     */
+                    'description' =>
+                        'Ingreso manual',
+
+                    /*
+                     * Texto ingresado por el usuario.
+                     */
+                    'observation' =>
+                        $description,
+
+                    'cash_box_subtype_id' =>
+                        $subtypeId,
+
+                    /*
+                     * Semántica legacy:
+                     *
+                     * 1 = confirmado / disponible
+                     * 0 = pendiente de regularización
+                     */
+                    'regularize' =>
+                        $regularize,
+
+                    'amount_regularize' =>
+                        null,
+
+                    'commission' =>
+                        null,
+
+                    'arqueo' =>
+                        false,
+                ]);
+
+            /*
+             * =========================================================
+             * 9. ACTUALIZAR CASHREGISTER
+             * =========================================================
+             *
+             * Solo los movimientos confirmados afectan el saldo.
+             *
+             * Los diferidos permanecen como pendientes.
+             */
+
+            if (
+                $regularize === 1
+            ) {
+
+                $cashRegister->current_balance =
+                    round(
+                        (float)
+                        $cashRegister
+                            ->current_balance
+                        +
+                        $amount,
+                        2
+                    );
+
+                $cashRegister->total_incomes =
+                    round(
+                        (float)
+                        $cashRegister
+                            ->total_incomes
+                        +
+                        $amount,
+                        2
+                    );
+
                 $cashRegister->save();
             }
 
-            DB::commit();
-
-            return response()->json([
-                'message' => $regularize == 1
-                    ? 'Ingreso registrado con éxito.'
-                    : 'Ingreso registrado como pendiente (diferido).',
-                'balance_total' => $cashRegister->current_balance,
-            ], 200);
-
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Validación fallida.',
-                'errors'  => $e->errors(),
-            ], 422);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Ocurrió un error al registrar el ingreso.',
-                //'error' => $e->getMessage(), // solo si estás en desarrollo
-            ], 500);
-        }
-    }
-
-    public function expenseO(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $data = $request->validate(
-                [
-                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
-                    'amount'               => 'required|numeric|min:0.01',
-                    'description'          => 'required|string|max:255',
-                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
-                ],
-                [
-                    // cash_register_id
-                    'cash_register_id.required' => 'Debe seleccionar una caja abierta.',
-                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
-                    'cash_register_id.exists'   => 'La caja seleccionada no existe o fue cerrada.',
-
-                    // amount
-                    'amount.required' => 'Debe ingresar un monto.',
-                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
-                    'amount.min'      => 'El monto debe ser mayor a 0.',
-
-                    // description
-                    'description.required' => 'Debe ingresar una descripción del movimiento.',
-                    'description.string'   => 'La descripción no es válida.',
-                    'description.max'      => 'La descripción no puede exceder los 255 caracteres.',
-
-                    // cash_box_subtype_id
-                    'cash_box_subtype_id.exists' => 'El canal o subtipo seleccionado no es válido.',
-                ]
-            );
-
-            /** @var CashRegister $cashRegister */
-            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
-
-            // Seguridad: solo dueño de la sesión
-            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
-                return response()->json(['message' => 'No autorizado.'], 403);
-            }
-
-            // Debe estar abierta
-            if ((int)$cashRegister->status !== 1) {
-                return response()->json(['message' => 'No se puede hacer un egreso de una caja cerrada.'], 422);
-            }
-
-            $cashBox = $cashRegister->cashBox;
-            if (!$cashBox) {
-                return response()->json(['message' => 'La sesión no tiene caja asociada.'], 422);
-            }
-
-            $amount = (float)$data['amount'];
-            $subtypeId = $data['cash_box_subtype_id'] ?? null;
-
-            // ===== Reglas por tipo de caja =====
-            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
-                // Bancario con subtypes: subtype obligatorio
-                if (!$subtypeId) {
-                    return response()->json(['message' => 'Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).'], 422);
-                }
-
-                // Validar que exista (ya validado por request), si quieres usar info del subtype:
-                // $subtype = CashBoxSubtype::findOrFail($subtypeId);
-
-            } else {
-                // Efectivo o bancario sin subtypes: subtype NO aplica
-                $subtypeId = null;
-            }
-
-            // Validar saldo suficiente (recomendación: siempre)
-            if ((float)$cashRegister->current_balance < $amount) {
-                return response()->json(['message' => 'No hay suficiente saldo en la caja para realizar este egreso.'], 422);
-            }
-
-            // 1) Crear movimiento
-            CashMovement::create([
-                'cash_register_id' => $cashRegister->id,
-                'type' => 'expense',
-                'amount' => $amount,
-
-                // recomendado: etiquetas estándar
-                'description' => 'Egreso manual',
-                'observation' => $data['description'],
-
-                'regularize' => 1, // egreso manual siempre confirmado
-                'cash_box_subtype_id' => $subtypeId,
-            ]);
-
-            // 2) Actualizar caja
-            $cashRegister->current_balance = (float)$cashRegister->current_balance - $amount;
-            $cashRegister->total_expenses  = (float)$cashRegister->total_expenses + $amount;
-            $cashRegister->save();
+            /*
+             * =========================================================
+             * 10. CASHBOX
+             * =========================================================
+             *
+             * Todavía NO actualizamos CashBox.current_balance.
+             *
+             * El dinero de la sesión se consolidará en CashBox
+             * durante el CashSettlement.
+             */
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Egreso registrado con éxito.',
-                'balance_total' => $cashRegister->current_balance,
+                'message' =>
+                    $regularize === 1
+                        ? 'Ingreso registrado con éxito.'
+                        : 'Ingreso registrado como pendiente de regularización.',
+
+                'cash_movement_id' =>
+                    $cashMovement->id,
+
+                'regularize' =>
+                    $regularize,
+
+                'balance_total' =>
+                    $cashRegister
+                        ->current_balance,
             ], 200);
 
         } catch (ValidationException $e) {
+
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Validación fallida.',
-                'errors'  => $e->errors(), // ✅ aquí vienen tus mensajes personalizados
+                'message' =>
+                    'Validación fallida.',
+
+                'errors' =>
+                    $e->errors(),
             ], 422);
 
         } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
         }
     }
+
     public function expense(Request $request)
     {
         DB::beginTransaction();
 
         try {
-            $data = $request->validate(
-                [
-                    'cash_register_id'     => 'required|integer|exists:cash_registers,id',
-                    'amount'               => 'required|numeric|min:0.01',
-                    'description'          => 'required|string|max:255',
-                    'cash_box_subtype_id'  => 'nullable|exists:cash_box_subtypes,id',
-                ],
-                [
-                    'cash_register_id.required' => 'Debe seleccionar una caja abierta.',
-                    'cash_register_id.integer'  => 'La caja seleccionada no es válida.',
-                    'cash_register_id.exists'   => 'La caja seleccionada no existe o fue cerrada.',
 
-                    'amount.required' => 'Debe ingresar un monto.',
-                    'amount.numeric'  => 'El monto debe ser un valor numérico.',
-                    'amount.min'      => 'El monto debe ser mayor a 0.',
+            /*
+             * =========================================================
+             * 1. CONTEXTO ACTUAL
+             * =========================================================
+             */
 
-                    'description.required' => 'Debe ingresar una descripción del movimiento.',
-                    'description.string'   => 'La descripción no es válida.',
-                    'description.max'      => 'La descripción no puede exceder los 255 caracteres.',
+            $tenantId =
+                TenantContext::tenantId();
 
-                    'cash_box_subtype_id.exists' => 'El canal o subtipo seleccionado no es válido.',
-                ]
-            );
+            $companyId =
+                TenantContext::companyId();
 
-            /** @var CashRegister $cashRegister */
-            $cashRegister = CashRegister::lockForUpdate()->findOrFail($data['cash_register_id']);
+            $branchId =
+                TenantContext::branchId();
 
-            if ((int)$cashRegister->user_id !== (int)Auth::id()) {
+            $userId =
+                Auth::id();
+
+            /*
+             * =========================================================
+             * 2. VALIDAR PAYLOAD
+             * =========================================================
+             */
+
+            $data =
+                $request->validate(
+                    [
+                        'cash_register_id' =>
+                            'required|integer',
+
+                        'amount' =>
+                            'required|numeric|min:0.01',
+
+                        'description' =>
+                            'required|string|max:255',
+
+                        'cash_box_subtype_id' =>
+                            'nullable|integer',
+                    ],
+                    [
+                        'cash_register_id.required' =>
+                            'Debe seleccionar una caja abierta.',
+
+                        'cash_register_id.integer' =>
+                            'La caja seleccionada no es válida.',
+
+                        'amount.required' =>
+                            'Debe ingresar un monto.',
+
+                        'amount.numeric' =>
+                            'El monto debe ser un valor numérico.',
+
+                        'amount.min' =>
+                            'El monto debe ser mayor a 0.',
+
+                        'description.required' =>
+                            'Debe ingresar una descripción del movimiento.',
+
+                        'description.string' =>
+                            'La descripción no es válida.',
+
+                        'description.max' =>
+                            'La descripción no puede exceder los 255 caracteres.',
+
+                        'cash_box_subtype_id.integer' =>
+                            'El canal o subtipo seleccionado no es válido.',
+                    ]
+                );
+
+            /*
+             * =========================================================
+             * 3. OBTENER CASHREGISTER DE FORMA SEGURA
+             * =========================================================
+             */
+
+            $cashRegister =
+                CashRegister::query()
+                    ->where(
+                        'id',
+                        (int) $data[
+                        'cash_register_id'
+                        ]
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'branch_id',
+                        $branchId
+                    )
+                    ->where(
+                        'user_id',
+                        $userId
+                    )
+                    ->where(
+                        'status',
+                        1
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if (!$cashRegister) {
+
                 throw ValidationException::withMessages([
-                    'cash_register_id' => ['No autorizado para operar esta caja.']
+                    'cash_register_id' => [
+                        'No existe una sesión abierta válida para la empresa y sucursal actual.'
+                    ],
                 ]);
             }
 
-            if ((int)$cashRegister->status !== 1) {
-                throw ValidationException::withMessages([
-                    'cash_register_id' => ['No se puede hacer un egreso de una caja cerrada.']
-                ]);
-            }
+            /*
+             * =========================================================
+             * 4. VALIDAR CASHBOX
+             * =========================================================
+             */
 
-            $cashBox = $cashRegister->cashBox;
+            $cashBox =
+                CashBox::query()
+                    ->where(
+                        'id',
+                        $cashRegister
+                            ->cash_box_id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->where(
+                        function ($query) use (
+                            $branchId
+                        ) {
+
+                            $query
+                                ->whereNull(
+                                    'branch_id'
+                                )
+                                ->orWhere(
+                                    'branch_id',
+                                    $branchId
+                                );
+                        }
+                    )
+                    ->first();
+
             if (!$cashBox) {
+
                 throw ValidationException::withMessages([
-                    'cash_register_id' => ['La sesión no tiene caja asociada.']
+                    'cash_register_id' => [
+                        'La caja asociada a esta sesión ya no está disponible en el contexto actual.'
+                    ],
                 ]);
             }
 
-            $amount = round((float)$data['amount'], 2);
-            $description = trim($data['description']);
-            $subtypeId = $data['cash_box_subtype_id'] ?? null;
+            /*
+             * =========================================================
+             * 5. MONTO / DESCRIPCIÓN
+             * =========================================================
+             */
 
-            if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
+            $amount =
+                round(
+                    (float) $data[
+                    'amount'
+                    ],
+                    2
+                );
+
+            $description =
+                trim(
+                    $data[
+                    'description'
+                    ]
+                );
+
+            $subtypeId =
+                $data[
+                'cash_box_subtype_id'
+                ]
+                ?? null;
+
+            /*
+             * =========================================================
+             * 6. VALIDAR SUBTIPO
+             * =========================================================
+             *
+             * Para cajas bancarias que utilizan subtipos:
+             *
+             * el subtipo debe ser:
+             *
+             * - de la Company actual
+             * - activo
+             * - global o específico de esta CashBox
+             *
+             * IMPORTANTE:
+             *
+             * is_deferred NO cambia el comportamiento del egreso.
+             *
+             * Un egreso siempre se descuenta del saldo disponible
+             * inmediatamente.
+             */
+
+            if (
+                $cashBox->type === 'bank' &&
+                (int) $cashBox->uses_subtypes === 1
+            ) {
+
                 if (!$subtypeId) {
+
                     throw ValidationException::withMessages([
-                        'cash_box_subtype_id' => ['Debe seleccionar un subtipo (Yape/Plin/POS/Transferencia).']
+                        'cash_box_subtype_id' => [
+                            'Debe seleccionar un subtipo bancario.'
+                        ],
                     ]);
                 }
+
+                $subtype =
+                    CashBoxSubtype::query()
+                        ->where(
+                            'id',
+                            (int) $subtypeId
+                        )
+                        ->where(
+                            'company_id',
+                            $companyId
+                        )
+                        ->where(
+                            'is_active',
+                            1
+                        )
+                        ->availableForCashBox(
+                            $cashBox->id
+                        )
+                        ->first();
+
+                if (!$subtype) {
+
+                    throw ValidationException::withMessages([
+                        'cash_box_subtype_id' => [
+                            'El subtipo seleccionado no está disponible para esta caja.'
+                        ],
+                    ]);
+                }
+
+                $subtypeId =
+                    $subtype->id;
+
             } else {
-                $subtypeId = null;
+
+                /*
+                 * Efectivo / caja que no utiliza subtipos.
+                 */
+                $subtypeId =
+                    null;
             }
 
-            if ((float)$cashRegister->current_balance < $amount) {
+            /*
+             * =========================================================
+             * 7. VALIDAR SALDO DISPONIBLE
+             * =========================================================
+             */
+
+            if (
+                (float)
+                $cashRegister
+                    ->current_balance
+                <
+                $amount
+            ) {
+
                 throw ValidationException::withMessages([
-                    'amount' => ['No hay suficiente saldo en la caja para realizar este egreso.']
+                    'amount' => [
+                        'No hay suficiente saldo en la caja para realizar este egreso.'
+                    ],
                 ]);
             }
 
-            // Protección anti-duplicado
-            $alreadyExists = $this->hasRecentDuplicateMovement(
-                $cashRegister->id,
-                'expense',
-                $amount,
-                $description,
-                $subtypeId,
-                3
-            );
+            /*
+             * =========================================================
+             * 8. PROTECCIÓN ANTI-DUPLICADO
+             * =========================================================
+             */
+
+            $alreadyExists =
+                $this->hasRecentDuplicateMovement(
+                    (int) $cashRegister->id,
+                    'expense',
+                    $amount,
+                    $description,
+                    $subtypeId
+                        ? (int) $subtypeId
+                        : null,
+                    3
+                );
 
             if ($alreadyExists) {
+
                 throw ValidationException::withMessages([
-                    'duplicate' => ['Ya se registró un egreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.']
+                    'duplicate' => [
+                        'Ya se registró un egreso igual hace unos segundos. Espere un momento antes de intentar nuevamente.'
+                    ],
                 ]);
             }
 
-            CashMovement::create([
-                'cash_register_id'     => $cashRegister->id,
-                'type'                 => 'expense',
-                'amount'               => $amount,
-                'description'          => 'Egreso manual',
-                'observation'          => $description,
-                'regularize'           => 1,
-                'cash_box_subtype_id'  => $subtypeId,
-            ]);
+            /*
+             * =========================================================
+             * 9. CREAR CASHMOVEMENT
+             * =========================================================
+             */
 
-            $cashRegister->current_balance = (float)$cashRegister->current_balance - $amount;
-            $cashRegister->total_expenses  = (float)$cashRegister->total_expenses + $amount;
+            $cashMovement =
+                CashMovement::create([
+                    'tenant_id' =>
+                        $tenantId,
+
+                    'company_id' =>
+                        $companyId,
+
+                    'branch_id' =>
+                        $branchId,
+
+                    'cash_box_id' =>
+                        $cashBox->id,
+
+                    'cash_register_id' =>
+                        $cashRegister->id,
+
+                    'user_id' =>
+                        $userId,
+
+                    'cash_settlement_id' =>
+                        null,
+
+                    'type' =>
+                        'expense',
+
+                    'amount' =>
+                        $amount,
+
+                    'description' =>
+                        'Egreso manual',
+
+                    'observation' =>
+                        $description,
+
+                    'cash_box_subtype_id' =>
+                        $subtypeId,
+
+                    /*
+                     * Un egreso siempre impacta inmediatamente.
+                     */
+                    'regularize' =>
+                        1,
+
+                    'amount_regularize' =>
+                        null,
+
+                    'commission' =>
+                        null,
+
+                    'arqueo' =>
+                        false,
+                ]);
+
+            /*
+             * =========================================================
+             * 10. ACTUALIZAR CASHREGISTER
+             * =========================================================
+             */
+
+            $cashRegister->current_balance =
+                round(
+                    (float)
+                    $cashRegister
+                        ->current_balance
+                    -
+                    $amount,
+                    2
+                );
+
+            $cashRegister->total_expenses =
+                round(
+                    (float)
+                    $cashRegister
+                        ->total_expenses
+                    +
+                    $amount,
+                    2
+                );
+
             $cashRegister->save();
+
+            /*
+             * =========================================================
+             * 11. CASHBOX
+             * =========================================================
+             *
+             * Todavía NO modificamos CashBox.current_balance.
+             *
+             * Ese saldo se consolidará durante CashSettlement.
+             */
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Egreso registrado con éxito.',
-                'balance_total' => $cashRegister->current_balance,
+                'message' =>
+                    'Egreso registrado con éxito.',
+
+                'cash_movement_id' =>
+                    $cashMovement->id,
+
+                'balance_total' =>
+                    $cashRegister
+                        ->current_balance,
             ], 200);
 
         } catch (ValidationException $e) {
+
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Validación fallida.',
-                'errors'  => $e->errors(),
+                'message' =>
+                    'Validación fallida.',
+
+                'errors' =>
+                    $e->errors(),
             ], 422);
 
         } catch (\Throwable $e) {
+
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Ocurrió un error al registrar el egreso.',
-                //'error' => $e->getMessage(), // solo si estás en desarrollo
-            ], 500);
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
         }
     }
 
-    public function arqueo(Request $request, CashRegister $cashRegister)
-    {
-        $request->validate([
-            'observation' => 'nullable|string|max:1000',
-            'counted' => 'nullable|numeric|min:0',
-        ]);
+    public function arqueo(
+        Request $request,
+        CashRegister $cashRegister
+    ) {
+        /*
+         * =========================================================
+         * 1. VALIDAR PAYLOAD
+         * =========================================================
+         */
 
-        $user = Auth::user();
+        $data =
+            $request->validate(
+                [
+                    'observation' =>
+                        'nullable|string|max:1000',
 
-        // ✅ Regla: owner no puede arquear
-        if ((int)$user->owner === 1) {
-            return response()->json([
-                'message' => 'No se puede realizar arqueo en una sesión central (owner).'
-            ], 422);
-        }
+                    'counted' =>
+                        'nullable|numeric|min:0',
+                ],
+                [
+                    'observation.string' =>
+                        'La observación no es válida.',
 
-        // ✅ Seguridad: solo el dueño de la sesión
-        if ((int)$cashRegister->user_id !== (int)$user->id) {
-            return response()->json(['message' => 'No autorizado.'], 403);
-        }
+                    'observation.max' =>
+                        'La observación no puede superar los 1000 caracteres.',
 
-        // ✅ Debe estar abierta
-        if ((int)$cashRegister->status !== 1) {
-            return response()->json(['message' => 'La sesión ya está cerrada.'], 422);
-        }
+                    'counted.numeric' =>
+                        'El monto contado debe ser numérico.',
+
+                    'counted.min' =>
+                        'El monto contado no puede ser negativo.',
+                ]
+            );
+
+        /*
+         * =========================================================
+         * 2. CONTEXTO ACTUAL
+         * =========================================================
+         */
+
+        $tenantId =
+            TenantContext::tenantId();
+
+        $companyId =
+            TenantContext::companyId();
+
+        $branchId =
+            TenantContext::branchId();
+
+        $userId =
+            Auth::id();
 
         DB::beginTransaction();
+
         try {
-            // Bloquear sesión del cajero
-            $cashRegister = CashRegister::lockForUpdate()->findOrFail($cashRegister->id);
 
-            // Cargar CashBox (asumiendo relación cashBox() en CashRegister)
-            $cashBox = CashBox::findOrFail($cashRegister->cash_box_id);
+            /*
+             * =====================================================
+             * 3. BLOQUEAR Y VALIDAR CASHREGISTER
+             * =====================================================
+             *
+             * CashRegister debe pertenecer exactamente a:
+             *
+             * - Tenant actual por BelongsToTenant
+             * - Company actual
+             * - Branch actual
+             * - Usuario actual
+             * - sesión abierta
+             */
 
-            // Obtener usuario owner (central)
-            $ownerUser = User::where('owner', 1)->first();
-            if (!$ownerUser) {
-                return response()->json(['message' => 'No existe un usuario central (owner=1).'], 422);
+            $cashRegister =
+                CashRegister::query()
+                    ->where(
+                        'id',
+                        $cashRegister->id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'branch_id',
+                        $branchId
+                    )
+                    ->where(
+                        'user_id',
+                        $userId
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if (!$cashRegister) {
+
+                throw ValidationException::withMessages([
+                    'cash_register' => [
+                        'No autorizado para arquear esta sesión.'
+                    ],
+                ]);
             }
 
-            // Obtener/crear sesión central abierta para este CashBox
-            $central = CashRegister::where('user_id', $ownerUser->id)
-                ->where('cash_box_id', $cashBox->id)
-                ->where('status', 1)
-                ->lockForUpdate()
-                ->first();
+            if (
+                (int) $cashRegister->status !== 1
+            ) {
 
-            if (!$central) {
-                // Crear sesión central (se supone que no se cierra)
-                $central = CashRegister::create([
-                    'cash_box_id' => $cashBox->id,
-                    'user_id' => $ownerUser->id,
-                    'type' => ($cashBox->type === 'cash') ? 'efectivo' : 'bancario', // compat
-                    'opening_balance' => 0,
-                    'current_balance' => 0,
-                    'closing_balance' => 0,
-                    'total_sales' => 0,
-                    'total_incomes' => 0,
-                    'total_expenses' => 0,
-                    'opening_time' => now(),
-                    'closing_time' => null,
-                    'status' => 1,
+                throw ValidationException::withMessages([
+                    'cash_register' => [
+                        'La sesión ya se encuentra cerrada.'
+                    ],
+                ]);
+            }
+
+            /*
+             * =====================================================
+             * 4. EVITAR DOBLE ARQUEO
+             * =====================================================
+             *
+             * Además del UNIQUE en cash_settlements.cash_register_id,
+             * hacemos la validación funcional antes.
+             */
+
+            $alreadySettled =
+                CashSettlement::query()
+                    ->where(
+                        'cash_register_id',
+                        $cashRegister->id
+                    )
+                    ->exists();
+
+            if ($alreadySettled) {
+
+                throw ValidationException::withMessages([
+                    'cash_register' => [
+                        'Esta sesión ya fue arqueada anteriormente.'
+                    ],
+                ]);
+            }
+
+            /*
+             * =====================================================
+             * 5. VALIDAR CASHBOX
+             * =====================================================
+             */
+
+            $cashBox =
+                CashBox::query()
+                    ->where(
+                        'id',
+                        $cashRegister->cash_box_id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'is_active',
+                        1
+                    )
+                    ->where(
+                        function ($query) use (
+                            $branchId
+                        ) {
+
+                            $query
+                                ->whereNull(
+                                    'branch_id'
+                                )
+                                ->orWhere(
+                                    'branch_id',
+                                    $branchId
+                                );
+                        }
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+            if (!$cashBox) {
+
+                throw ValidationException::withMessages([
+                    'cash_box' => [
+                        'La caja asociada a esta sesión no está disponible en el contexto actual.'
+                    ],
+                ]);
+            }
+
+            /*
+             * =====================================================
+             * 6. MOVIMIENTOS DE LA SESIÓN
+             * =====================================================
+             */
+
+            $movements =
+                CashMovement::query()
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->where(
+                        'branch_id',
+                        $branchId
+                    )
+                    ->where(
+                        'cash_box_id',
+                        $cashBox->id
+                    )
+                    ->where(
+                        'cash_register_id',
+                        $cashRegister->id
+                    )
+                    ->lockForUpdate()
+                    ->get();
+
+            /*
+             * Una sesión abierta no debería contener movimientos
+             * pertenecientes previamente a otro arqueo.
+             */
+            $movementAlreadySettled =
+                $movements->first(
+                    function ($movement) {
+
+                        return
+                            !is_null(
+                                $movement->cash_settlement_id
+                            );
+                    }
+                );
+
+            if ($movementAlreadySettled) {
+
+                throw new \RuntimeException(
+                    'La sesión contiene movimientos que ya pertenecen a un arqueo anterior.'
+                );
+            }
+
+            /*
+             * =====================================================
+             * 7. CALCULAR ARQUEO
+             * =====================================================
+             */
+
+            $expectedAmount =
+                0.00;
+
+            $confirmedAmount =
+                0.00;
+
+            $deferredAmount =
+                0.00;
+
+            $countedAmount =
+                null;
+
+            $differenceAmount =
+                0.00;
+
+            /*
+             * -----------------------------------------------------
+             * EFECTIVO
+             * -----------------------------------------------------
+             */
+
+            if (
+                $cashBox->type === 'cash'
+            ) {
+
+                /*
+                 * Saldo teórico disponible de la sesión.
+                 */
+                $expectedAmount =
+                    round(
+                        (float)
+                        $cashRegister
+                            ->current_balance,
+                        2
+                    );
+
+                /*
+                 * Si no se envía conteo físico,
+                 * asumimos que coincide con lo esperado.
+                 */
+                $countedAmount =
+                    array_key_exists(
+                        'counted',
+                        $data
+                    )
+                    &&
+                    $data['counted'] !== null
+                        ? round(
+                        (float)
+                        $data['counted'],
+                        2
+                    )
+                        : $expectedAmount;
+
+                $differenceAmount =
+                    round(
+                        $countedAmount -
+                        $expectedAmount,
+                        2
+                    );
+
+                /*
+                 * El CashBox maestro recibe lo realmente contado.
+                 */
+                $confirmedAmount =
+                    $countedAmount;
+
+                $deferredAmount =
+                    0.00;
+
+
+                /*
+                 * -----------------------------------------------------
+                 * BANCARIO / OTROS
+                 * -----------------------------------------------------
+                 */
+
+            } else {
+
+                /*
+                 * current_balance ya contiene solamente
+                 * movimientos que impactaron saldo.
+                 *
+                 * Es decir:
+                 *
+                 * ingresos/ventas confirmadas
+                 * - egresos
+                 *
+                 * Los diferidos no fueron añadidos al saldo.
+                 */
+                $confirmedAmount =
+                    round(
+                        (float)
+                        $cashRegister
+                            ->current_balance,
+                        2
+                    );
+
+                /*
+                 * Pendientes de regularización.
+                 *
+                 * Solo sale/income incrementan disponibilidad futura.
+                 */
+                $deferredAmount =
+                    round(
+                        (float)
+                        $movements
+                            ->filter(
+                                function ($movement) {
+
+                                    return
+                                        (int)
+                                        $movement
+                                            ->regularize
+                                        === 0
+                                        &&
+                                        in_array(
+                                            $movement->type,
+                                            [
+                                                'sale',
+                                                'income',
+                                            ],
+                                            true
+                                        );
+                                }
+                            )
+                            ->sum(
+                                'amount'
+                            ),
+                        2
+                    );
+
+                /*
+                 * Total económico rendido.
+                 *
+                 * Ejemplo:
+                 *
+                 * BCP confirmado neto = 200
+                 * POS diferido         = 100
+                 *
+                 * expected             = 300
+                 */
+                $expectedAmount =
+                    round(
+                        $confirmedAmount +
+                        $deferredAmount,
+                        2
+                    );
+
+                $countedAmount =
+                    null;
+
+                $differenceAmount =
+                    0.00;
+            }
+
+            /*
+             * =====================================================
+             * 8. CREAR CASHSETTLEMENT
+             * =====================================================
+             */
+
+            $settlement =
+                CashSettlement::create([
+                    'tenant_id' =>
+                        $tenantId,
+
+                    'company_id' =>
+                        $companyId,
+
+                    'branch_id' =>
+                        $branchId,
+
+                    'cash_box_id' =>
+                        $cashBox->id,
+
+                    'cash_register_id' =>
+                        $cashRegister->id,
+
+                    'user_id' =>
+                        $userId,
+
+                    'expected_amount' =>
+                        $expectedAmount,
+
+                    'confirmed_amount' =>
+                        $confirmedAmount,
+
+                    'deferred_amount' =>
+                        $deferredAmount,
+
+                    'counted_amount' =>
+                        $countedAmount,
+
+                    'difference_amount' =>
+                        $differenceAmount,
+
+                    'observation' =>
+                        !empty(
+                        $data['observation']
+                        )
+                            ? trim(
+                            $data['observation']
+                        )
+                            : null,
+
+                    'settled_at' =>
+                        Carbon::now(
+                            'America/Lima'
+                        ),
                 ]);
 
-                // Lock recién creado
-                $central = CashRegister::where('id', $central->id)->lockForUpdate()->first();
+            /*
+             * =====================================================
+             * 9. ASOCIAR MOVIMIENTOS AL ARQUEO
+             * =====================================================
+             *
+             * CRÍTICO:
+             *
+             * NO creamos nuevos CashMovement.
+             *
+             * Tampoco:
+             *
+             * - expense de arqueo
+             * - income del owner
+             * - mirrors diferidos
+             *
+             * Los movimientos originales continúan siendo
+             * la fuente histórica.
+             */
+
+            if (
+            $movements->isNotEmpty()
+            ) {
+
+                CashMovement::query()
+                    ->whereIn(
+                        'id',
+                        $movements
+                            ->pluck('id')
+                            ->all()
+                    )
+                    ->update([
+                        'cash_settlement_id' =>
+                            $settlement->id,
+                    ]);
             }
 
-            // ============ EFECTIVO ============
-            if ($cashBox->type === 'cash') {
-                $this->arqueoEfectivo($cashRegister, $central, $request->input('counted'), $request->input('observation'));
-            }
-            // ============ BANCARIO ============
-            else {
-                $this->arqueoBancario($cashRegister, $central, $request->input('observation'));
-            }
+            /*
+             * =====================================================
+             * 10. CONSOLIDAR CASHBOX
+             * =====================================================
+             *
+             * CashBox recibe únicamente dinero realmente disponible.
+             *
+             * Efectivo:
+             * monto contado.
+             *
+             * Bancario:
+             * saldo confirmado neto.
+             *
+             * Diferidos:
+             * NO ingresan todavía.
+             */
 
-            // Cerrar sesión del cajero
-            $cashRegister->status = 0;
-            $cashRegister->closing_time = now();
-            $cashRegister->closing_balance = $cashRegister->current_balance; // luego de movimientos debería quedar 0 (o fondo fijo)
+            $cashBox->current_balance =
+                round(
+                    (float)
+                    $cashBox
+                        ->current_balance
+                    +
+                    $confirmedAmount,
+                    2
+                );
+
+            $cashBox->save();
+
+            /*
+             * =====================================================
+             * 11. CERRAR CASHREGISTER
+             * =====================================================
+             *
+             * closing_balance:
+             * representa lo realmente consolidado/rendido.
+             *
+             * current_balance:
+             * queda en cero porque la sesión ya terminó.
+             */
+
+            $cashRegister->closing_balance =
+                $confirmedAmount;
+
+            $cashRegister->current_balance =
+                0;
+
+            $cashRegister->closing_time =
+                Carbon::now(
+                    'America/Lima'
+                );
+
+            $cashRegister->status =
+                0;
+
             $cashRegister->save();
+
+            /*
+             * =====================================================
+             * 12. COMMIT
+             * =====================================================
+             */
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Arqueo realizado y sesión cerrada correctamente.',
-                'cash_register_id' => $cashRegister->id,
-                'central_cash_register_id' => $central->id,
-            ]);
+                'message' =>
+                    'Arqueo realizado y sesión cerrada correctamente.',
+
+                'cash_register_id' =>
+                    $cashRegister->id,
+
+                'cash_settlement_id' =>
+                    $settlement->id,
+
+                'cash_box_id' =>
+                    $cashBox->id,
+
+                'cash_box_balance' =>
+                    $cashBox
+                        ->current_balance,
+
+                'expected_amount' =>
+                    $settlement
+                        ->expected_amount,
+
+                'confirmed_amount' =>
+                    $settlement
+                        ->confirmed_amount,
+
+                'deferred_amount' =>
+                    $settlement
+                        ->deferred_amount,
+
+                'difference_amount' =>
+                    $settlement
+                        ->difference_amount,
+            ], 200);
+
+        } catch (ValidationException $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' =>
+                    'Validación fallida.',
+
+                'errors' =>
+                    $e->errors(),
+            ], 422);
 
         } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
 
-    private function arqueoEfectivo(CashRegister $cajero, CashRegister $central, $counted = null, $observation = null)
-    {
-        $montoTeorico = (float)$cajero->current_balance;
-
-        // Si quieres usar contado para observar diferencia:
-        $obs = $observation ? trim($observation) : '';
-        if (!is_null($counted)) {
-            $counted = (float)$counted;
-            $diff = $counted - $montoTeorico;
-            $obsExtra = "Contado: {$counted}. Teórico: {$montoTeorico}. Diferencia: {$diff}.";
-            $obs = $obs ? ($obs . " | " . $obsExtra) : $obsExtra;
-        }
-
-        // Expense en cajero (sale del cajero hacia central)
-        $movExpense = CashMovement::create([
-            'cash_register_id' => $cajero->id,
-            'type' => 'expense',
-            'amount' => $montoTeorico,
-            'description' => 'Entrega a administración (Arqueo)',
-            'observation' => $obs ?: null,
-            'regularize' => 1,
-            'cash_box_subtype_id' => null,
-            'arqueo' => true
-        ]);
-
-        // Income en central
-        CashMovement::create([
-            'cash_register_id' => $central->id,
-            'type' => 'income',
-            'amount' => $montoTeorico,
-            'description' => 'Arqueo de cajero ' . Auth::user()->name,
-            'observation' => $obs ?: null,
-            'regularize' => 1,
-            'cash_box_subtype_id' => null,
-            'cash_movement_origin_id' => $movExpense->id,
-            'arqueo' => true
-        ]);
-
-        // Actualizar balances
-        $cajero->current_balance = (float)$cajero->current_balance - $montoTeorico;
-        $cajero->total_expenses  = (float)$cajero->total_expenses + $montoTeorico;
-        $cajero->save();
-
-        $central->current_balance = (float)$central->current_balance + $montoTeorico;
-        $central->total_incomes   = (float)$central->total_incomes + $montoTeorico;
-        $central->save();
-    }
-
-    private function arqueoBancario(CashRegister $cajero, CashRegister $central, $observation = null)
-    {
-        $userName = Auth::user()->name;
-
-        // Movimientos confirmados del cajero (regularize=1)
-        $confirmados = CashMovement::where('cash_register_id', $cajero->id)
-            ->where('regularize', 1)
-            ->whereIn('type', ['sale', 'income']) // lo que suma a bancario
-            ->lockForUpdate()
-            ->get();
-
-        $totalConfirmado = (float) $confirmados->sum('amount');
-
-        // Movimientos diferidos del cajero (regularize=0) que aún NO se han espejado
-        $diferidos = CashMovement::where('cash_register_id', $cajero->id)
-            ->where('regularize', 0)
-            ->whereIn('type', ['sale', 'income'])
-            ->whereNull('cash_movement_regularize_id') // NO duplicados
-            ->lockForUpdate()
-            ->get();
-
-        $totalDiferido = (float) $diferidos->sum('amount');
-
-        // 1) Transferir confirmados como expense (cajero) + income (central)
-        if ($totalConfirmado > 0) {
-
-            $desc = "Arqueo del cajero {$userName}: confirmado S/ " . number_format($totalConfirmado, 2) .
-                ", diferido S/ " . number_format($totalDiferido, 2);
-
-            if ($observation) {
-                $desc .= " | " . trim($observation);
-            }
-
-            // expense en cajero
-            $movExpense = CashMovement::create([
-                'cash_register_id' => $cajero->id,
-                'type' => 'expense',
-                'amount' => $totalConfirmado,
-                'description' => "Arqueo del cajero {$userName}",
-                'observation' => $desc,
-                'regularize' => 1,
-                'cash_box_subtype_id' => null,
-                'arqueo' => true
-            ]);
-
-            // income en central
-            CashMovement::create([
-                'cash_register_id' => $central->id,
-                'type' => 'income',
-                'amount' => $totalConfirmado,
-                'description' => "Arqueo del cajero {$userName}",
-                'observation' => $desc,
-                'regularize' => 1,
-                'cash_box_subtype_id' => null,
-                'cash_movement_origin_id' => $movExpense->id,
-                'arqueo' => true
-            ]);
-
-            // actualizar balances
-            $cajero->current_balance = (float)$cajero->current_balance - $totalConfirmado;
-            $cajero->total_expenses  = (float)$cajero->total_expenses + $totalConfirmado;
-            $cajero->save();
-
-            $central->current_balance = (float)$central->current_balance + $totalConfirmado;
-            $central->total_incomes   = (float)$central->total_incomes + $totalConfirmado;
-            $central->save();
-        }
-
-        // 2) Clonar diferidos como espejos en central (regularize=0)
-        foreach ($diferidos as $mov) {
-            $obs = "Movimiento diferido (pendiente) del cajero {$userName}. Origen ID: {$mov->id}.";
-            if (!empty($mov->observation)) {
-                $obs .= " | Obs origen: " . trim($mov->observation);
-            }
-
-            $mirror = CashMovement::create([
-                'cash_register_id' => $central->id,
-                'type' => $mov->type, // sale o income
-                'amount' => $mov->amount,
-
-                // Mantener descripción original
-                'description' => "Arqueo: ".$mov->description,
-
-                // ✅ Observación generada para trazabilidad rápida
-                'observation' => $obs,
-
-                'regularize' => 0,
-                'cash_box_subtype_id' => $mov->cash_box_subtype_id,
-                'cash_movement_origin_id' => $mov->id,
-                'sale_id' => $mov->sale_id,
-                'arqueo' => true
-
-            ]);
-
-            // marcar en el cajero que ya fue enviado al central (evita duplicados)
-            $mov->cash_movement_regularize_id = $mirror->id;
-            $mov->observation = trim(($mov->observation ?: '') . " | Enviado a central. Mirror ID: {$mirror->id}.");
-            $mov->save();
+            return response()->json([
+                'message' =>
+                    $e->getMessage(),
+            ], 422);
         }
     }
 

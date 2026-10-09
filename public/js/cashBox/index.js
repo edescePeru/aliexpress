@@ -35,19 +35,46 @@
     }
 
     function setBankFieldsVisibility() {
-        const type = $('#cb_type').val();
-        if (type === 'bank') {
-            $('#wrap_bank_fields').show();
-            $('#wrap_uses_subtypes').show();
-        } else {
-            $('#wrap_bank_fields').hide();
-            $('#wrap_uses_subtypes').hide();
-            $('#cb_uses_subtypes').prop('checked', false);
 
-            // Limpia campos bancarios
-            $('#cb_bank_name').val('');
-            $('#cb_account_label').val('');
-            $('#cb_account_number_mask').val('');
+        const type =
+            $('#cb_type').val();
+
+        if (
+            type ===
+            'bank'
+        ) {
+
+            $('#wrap_bank_fields')
+                .show();
+
+            $('#wrap_uses_subtypes')
+                .show();
+
+            /*
+             * Moneda viene de CompanyBankAccount.
+             */
+            $('#wrap_currency')
+                .hide();
+
+        } else {
+
+            $('#wrap_bank_fields')
+                .hide();
+
+            $('#wrap_uses_subtypes')
+                .hide();
+
+            $('#wrap_currency')
+                .show();
+
+            $('#cb_uses_subtypes')
+                .prop(
+                    'checked',
+                    false
+                );
+
+            $('#cb_company_bank_account_id')
+                .val('');
         }
     }
 
@@ -57,12 +84,10 @@
         $('#cb_name').val('');
         $('#cb_type').val('cash');
         $('#cb_uses_subtypes').prop('checked', false);
-        $('#cb_bank_name').val('');
-        $('#cb_account_label').val('');
-        $('#cb_account_number_mask').val('');
+        $('#cb_company_bank_account_id').val('');
         $('#cb_currency').val('PEN');
         $('#cb_position').val(0);
-        $('#cb_is_active').prop('checked', true);
+        $('#cb_branch_id').val('');
 
         setBankFieldsVisibility();
     }
@@ -73,12 +98,10 @@
         $('#cb_name').val(data.name || '');
         $('#cb_type').val(data.type || 'cash');
         $('#cb_uses_subtypes').prop('checked', !!data.uses_subtypes);
-        $('#cb_bank_name').val(data.bank_name || '');
-        $('#cb_account_label').val(data.account_label || '');
-        $('#cb_account_number_mask').val(data.account_number_mask || '');
+        $('#cb_company_bank_account_id').val(data.company_bank_account_id || '');
         $('#cb_currency').val(data.currency || '');
         $('#cb_position').val(data.position !== null && data.position !== undefined ? data.position : 0);
-        $('#cb_is_active').prop('checked', !!data.is_active);
+        $('#cb_branch_id').val(data.branch_id || '');
 
         setBankFieldsVisibility();
     }
@@ -116,18 +139,58 @@
         // Tipo
         const typeText = item.type === 'bank' ? 'Bancario' : 'Efectivo';
         tpl.querySelector('[data-type]').textContent = typeText;
+        tpl.querySelector('[data-scope]').textContent = item.scope_label || 'Toda la empresa';
 
         // uses_subtypes
         const usesCell = tpl.querySelector('[data-uses_subtypes]');
         usesCell.innerHTML = '';
         usesCell.appendChild(badgeFromTemplate(item.uses_subtypes ? '#badge-yes' : '#badge-no'));
 
-        tpl.querySelector('[data-bank_name]').textContent = item.bank_name || '-';
-        const account = [
-            item.account_label ? item.account_label : null,
-            item.account_number_mask ? item.account_number_mask : null
-        ].filter(Boolean).join(' / ');
-        tpl.querySelector('[data-account]').textContent = account || '-';
+        const bankAccountCell =
+            tpl.querySelector('[data-bank-account]');
+
+        if (
+            item.type === 'bank' &&
+            item.company_bank_account_id
+        ) {
+
+            const bankName =
+                item.bank_name || '';
+
+            const accountTitle =
+                item.bank_account_title || '';
+
+            const accountNumber =
+                item.account_number || '';
+
+            const lines = [];
+
+            if (bankName) {
+                lines.push(
+                    `<strong>${escapeHtml(bankName)}</strong>`
+                );
+            }
+
+            const accountInfo = [
+                accountTitle,
+                accountNumber
+            ]
+                .filter(Boolean)
+                .join(' · ');
+
+            if (accountInfo) {
+                lines.push(
+                    escapeHtml(accountInfo)
+                );
+            }
+
+            bankAccountCell.innerHTML =
+                lines.join('<br>');
+
+        } else {
+
+            bankAccountCell.textContent = '-';
+        }
 
         tpl.querySelector('[data-currency]').textContent = item.currency || '-';
 
@@ -267,22 +330,60 @@
             return 'Efectivo no puede usar subtipos.';
         }
 
+        if (
+            type === 'bank' &&
+            !$('#cb_company_bank_account_id')
+                .val()
+        ) {
+
+            return 'Debe seleccionar una cuenta bancaria.';
+        }
+
         return null;
     }
 
     function buildPayload() {
+
         return {
-            id: $('#cb_id').val() || null,
-            name: ($('#cb_name').val() || '').trim(),
-            type: $('#cb_type').val(),
-            uses_subtypes: $('#cb_uses_subtypes').is(':checked') ? 1 : 0,
-            bank_name: ($('#cb_bank_name').val() || '').trim(),
-            account_label: ($('#cb_account_label').val() || '').trim(),
-            account_number_mask: ($('#cb_account_number_mask').val() || '').trim(),
-            currency: $('#cb_currency').val() || '',
-            position: $('#cb_position').val() || 0,
-            is_active: $('#cb_is_active').is(':checked') ? 1 : 0,
-            _token: csrf()
+
+            id:
+                $('#cb_id').val()
+                || null,
+
+            name:
+                (
+                    $('#cb_name').val()
+                    || ''
+                ).trim(),
+
+            type:
+                $('#cb_type').val(),
+
+            branch_id:
+                $('#cb_branch_id').val()
+                || '',
+
+            uses_subtypes:
+                $('#cb_uses_subtypes')
+                    .is(':checked')
+                    ? 1
+                    : 0,
+
+            company_bank_account_id:
+                $('#cb_company_bank_account_id')
+                    .val()
+                || '',
+
+            currency:
+                $('#cb_currency').val()
+                || '',
+
+            position:
+                $('#cb_position').val()
+                || 0,
+
+            _token:
+                csrf()
         };
     }
 
@@ -386,8 +487,17 @@
 
     // Permisos (simple): si no lo mandas, asumimos true para que no te bloquee
     // Puedes setearlos desde backend si quieres.
-    window.canEditCashBox = true;
-    window.canToggleCashBox = true;
+    const permissions =
+        JSON.parse(
+            $('#permissions').val()
+            || '{}'
+        );
+
+    window.canEditCashBox =
+        !!permissions.can_edit;
+
+    window.canToggleCashBox =
+        !!permissions.can_toggle;
 
     // Events
     $(document).on('click', '#btn-search', function () {

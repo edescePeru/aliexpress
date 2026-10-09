@@ -293,7 +293,7 @@
 
 <table class="totales-table">
     <tr>
-        <td class="text-right">DESCUENTO (-)</td>
+        <td class="text-right">DESCUENTO S/IGV (-)</td>
         <td style="text-align: right">
             {{ $quote->currency_invoice }}
             @if ( $quote->discount_input_mode == 'with_igv' )
@@ -304,9 +304,9 @@
         </td>
     </tr>
 
-    {{--<tr>
+    <tr>
         <td class="text-right">GRAVADA</td>
-        <td class="text-right">
+        <td style="text-align: right">
             {{ $quote->currency_invoice }}
             {{ number_format($quote->gravada, $quote->state_decimals ? 0 : 2) }}
         </td>
@@ -314,11 +314,11 @@
 
     <tr>
         <td class="text-right">IGV {{ $igv }}%</td>
-        <td class="text-right">
+        <td style="text-align: right">
             {{ $quote->currency_invoice }}
             {{ number_format($quote->igv_total, $quote->state_decimals ? 0 : 2) }}
         </td>
-    </tr>--}}
+    </tr>
 
     <tr>
         <td class="text-right"><strong>TOTAL</strong></td>

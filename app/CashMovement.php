@@ -2,101 +2,260 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class CashMovement extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+        'branch_id',
+
+        'cash_box_id',
         'cash_register_id',
+        'cash_settlement_id',
+        'user_id',
+
         'type',
+
         'amount',
+
         'description',
+
         'regularize',
-        'amount_regularize',      // monto real abonado
-        'commission',             // amount - amount_regularize
+
+        'amount_regularize',
+
+        'commission',
+
         'sale_id',
+
         'entry_id',
+
         'cash_box_subtype_id',
+
         'observation',
-        'cash_movement_origin_id',       // origen (ej: movimiento del cajero)
-        'cash_movement_regularize_id',   // el movimiento central que lo vinculó/regularizó
-        'arqueo'
+
+        'cash_movement_origin_id',
+
+        'cash_movement_regularize_id',
+
+        'arqueo',
     ];
 
-    protected $dates = ['created_at', 'updated_at'];
+    protected $dates = [
+        'created_at',
+        'updated_at',
+    ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'amount_regularize' => 'decimal:2',
-        'commission' => 'decimal:2',
-        'regularize' => 'boolean',
-        'arqueo' => 'boolean',
+        'tenant_id' =>
+            'integer',
+
+        'company_id' =>
+            'integer',
+
+        'branch_id' =>
+            'integer',
+
+        'cash_box_id' =>
+            'integer',
+
+        'cash_register_id' =>
+            'integer',
+
+        'user_id' =>
+            'integer',
+
+        'amount' =>
+            'decimal:2',
+
+        'amount_regularize' =>
+            'decimal:2',
+
+        'commission' =>
+            'decimal:2',
+
+        'regularize' =>
+            'boolean',
+
+        'arqueo' =>
+            'boolean',
     ];
+
+
+    /*
+     * ============================================================
+     * CONTEXTO
+     * ============================================================
+     */
+
+    public function company()
+    {
+        return $this->belongsTo(
+            Company::class
+        );
+    }
+
+
+    public function branch()
+    {
+        return $this->belongsTo(
+            Branch::class
+        );
+    }
+
+
+    public function user()
+    {
+        return $this->belongsTo(
+            User::class
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * CAJA
+     * ============================================================
+     */
+
+    public function cashBox()
+    {
+        return $this->belongsTo(
+            CashBox::class
+        );
+    }
+
 
     public function cashRegister()
     {
-        return $this->belongsTo('App\CashRegister');
+        return $this->belongsTo(
+            CashRegister::class
+        );
     }
 
-    public function sale()
-    {
-        return $this->belongsTo('App\Sale');
-    }
-
-    public function entry()
-    {
-        return $this->belongsTo(Entry::class, 'entry_id');
-    }
 
     public function cashBoxSubtype()
     {
-        return $this->belongsTo(CashBoxSubtype::class);
+        return $this->belongsTo(
+            CashBoxSubtype::class
+        );
     }
 
-    // Self references (auditoría)
+
+    /*
+     * ============================================================
+     * OPERACIÓN ORIGEN
+     * ============================================================
+     */
+
+    public function sale()
+    {
+        return $this->belongsTo(
+            Sale::class
+        );
+    }
+
+
+    public function entry()
+    {
+        return $this->belongsTo(
+            Entry::class,
+            'entry_id'
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * SELF REFERENCES
+     * ============================================================
+     */
+
     public function origin()
     {
-        return $this->belongsTo(self::class, 'cash_movement_origin_id');
+        return $this->belongsTo(
+            self::class,
+            'cash_movement_origin_id'
+        );
     }
+
 
     public function regularizedBy()
     {
-        return $this->belongsTo(self::class, 'cash_movement_regularize_id');
+        return $this->belongsTo(
+            self::class,
+            'cash_movement_regularize_id'
+        );
     }
+
 
     public function regularizedChildren()
     {
-        return $this->hasMany(self::class, 'cash_movement_origin_id');
+        return $this->hasMany(
+            self::class,
+            'cash_movement_origin_id'
+        );
     }
 
-    // ======================
-    // Helpers recomendados
-    // ======================
 
-    /**
-     * Retorna el monto que debe impactar balance.
-     * - Si regularize=1: usa amount_regularize si existe, caso contrario amount
-     * - Si regularize=0: no impacta balance
+    /*
+     * ============================================================
+     * HELPERS LEGACY
+     * ============================================================
      */
+
     public function impactAmount()
     {
-        if (!$this->regularize) return 0.0;
+        if (!$this->regularize) {
+            return 0.0;
+        }
 
-        if (!is_null($this->amount_regularize)) return (float) $this->amount_regularize;
+        if (
+        !is_null(
+            $this->amount_regularize
+        )
+        ) {
+            return (float)
+            $this->amount_regularize;
+        }
 
-        return (float) $this->amount;
+        return (float)
+        $this->amount;
     }
 
-    /**
-     * Recalcula commission si hay amount_regularize.
-     */
+
     public function computeCommission()
     {
-        if (is_null($this->amount_regularize)) {
-            $this->commission = null;
+        if (
+        is_null(
+            $this->amount_regularize
+        )
+        ) {
+
+            $this->commission =
+                null;
+
             return;
         }
 
-        $this->commission = (float) $this->amount - (float) $this->amount_regularize;
+        $this->commission =
+            (float)
+            $this->amount
+            -
+            (float)
+            $this->amount_regularize;
+    }
+
+    public function settlement()
+    {
+        return $this->belongsTo(
+            CashSettlement::class,
+            'cash_settlement_id'
+        );
     }
 }

@@ -5700,168 +5700,196 @@ class QuoteSaleController extends Controller
 
         try {
 
-            $companyId = TenantContext::companyId();
+            $companyId =
+                TenantContext::companyId();
 
-            DB::transaction(function () use (
-                $quote,
-                $companyId,
-                $begin
-            ) {
-
-                /*
-                 * ==========================================================
-                 * 1. OBTENER Y BLOQUEAR QUOTE DE LA COMPANY ACTUAL
-                 * ==========================================================
-                 */
-
-                $quote = Quote::query()
-                    ->where('id', $quote->id)
-                    ->where('company_id', $companyId)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                /*
-                 * ==========================================================
-                 * 2. VALIDAR ESTADO
-                 * ==========================================================
-                 */
-
-                if ($quote->state === 'canceled') {
-                    throw new \Exception(
-                        'La cotización ya fue anulada.'
-                    );
-                }
-
-                /** @var QuoteStockReservationService $reservationService */
-                $reservationService = app(
-                    QuoteStockReservationService::class
-                );
-
-                /*
-                 * ==========================================================
-                 * 3. VALIDAR VENTA ACTIVA
-                 * ==========================================================
-                 *
-                 * Mientras Sale todavía no sea Company-level,
-                 * la relación quote_id es nuestra referencia.
-                 *
-                 * Cuando migremos Sale en QUOTE-SALE-07,
-                 * agregaremos company_id también aquí.
-                 */
-
-                $activeSale = Sale::query()
-                    ->where(
-                        'quote_id',
-                        $quote->id
-                    )
-                    ->where(
-                        'state_annulled',
-                        0
-                    )
-                    ->lockForUpdate()
-                    ->first();
-
-                if (
-                    $quote->state === 'confirmed' &&
-                    $activeSale
+            DB::transaction(
+                function () use (
+                    $quote,
+                    $companyId,
+                    $begin
                 ) {
-                    throw new \Exception(
-                        'No se puede anular esta cotización porque tiene una venta activa asociada. Primero debe anular la venta.'
-                    );
-                }
 
-                /*
-                 * ==========================================================
-                 * 4. LIBERAR TODAS LAS RESERVAS
-                 * ==========================================================
-                 *
-                 * QuoteStockReservationService:
-                 *
-                 * - libera qty_reserved de StockLot
-                 * - devuelve Items reserved -> entered
-                 * - elimina QuoteStockLot
-                 * - sincroniza InventoryLevel
-                 */
+                    /*
+                     * ==========================================================
+                     * 1. OBTENER Y BLOQUEAR QUOTE DE LA COMPANY ACTUAL
+                     * ==========================================================
+                     *
+                     * BelongsToTenant protege el Tenant.
+                     *
+                     * company_id protege explícitamente frente a otras
+                     * Companies pertenecientes al mismo Tenant.
+                     */
 
-                $reservationService
-                    ->releaseReservationsByQuote(
-                        (int) $quote->id
-                    );
-
-                /*
-                 * ==========================================================
-                 * 5. LIBERAR USOS DE PROMOCIONES
-                 * ==========================================================
-                 *
-                 * Conservamos por ahora el comportamiento existente:
-                 * si la Quote se cancela, su consumo promocional deja
-                 * de ocupar cupo.
-                 *
-                 * No eliminamos Equipment ni EquipmentConsumable porque
-                 * forman parte del histórico de la cotización.
-                 */
-
-                $equipmentIds = Equipment::query()
-                    ->where(
-                        'quote_id',
-                        $quote->id
-                    )
-                    ->pluck('id');
-
-                if ($equipmentIds->isNotEmpty()) {
-
-                    $consumableIds =
-                        EquipmentConsumable::query()
-                            ->whereIn(
-                                'equipment_id',
-                                $equipmentIds
+                    $quote =
+                        Quote::query()
+                            ->where(
+                                'id',
+                                $quote->id
                             )
-                            ->pluck('id');
-
-                    if ($consumableIds->isNotEmpty()) {
-
-                        PromotionUsage::query()
-                            ->whereIn(
-                                'equipment_consumable_id',
-                                $consumableIds
+                            ->where(
+                                'company_id',
+                                $companyId
                             )
-                            ->delete();
+                            ->lockForUpdate()
+                            ->firstOrFail();
+
+                    /*
+                     * ==========================================================
+                     * 2. VALIDAR ESTADO
+                     * ==========================================================
+                     */
+
+                    if (
+                        $quote->state ===
+                        'canceled'
+                    ) {
+
+                        throw new \Exception(
+                            'La cotización ya fue anulada.'
+                        );
                     }
+
+                    /*
+                     * ==========================================================
+                     * 3. VALIDAR VENTA ACTIVA
+                     * ==========================================================
+                     *
+                     * Una Quote que tenga una venta activa asociada
+                     * NO puede anularse.
+                     *
+                     * No dependemos de quote.state para aplicar esta regla.
+                     *
+                     * Mientras Sale todavía no haya terminado su migración
+                     * Company-level, quote_id continúa siendo la referencia.
+                     *
+                     * Cuando migremos Sale completamente, aquí también
+                     * agregaremos la validación explícita de company_id.
+                     */
+
+                    $activeSale =
+                        Sale::query()
+                            ->where(
+                                'quote_id',
+                                $quote->id
+                            )
+                            ->where(
+                                'state_annulled',
+                                0
+                            )
+                            ->lockForUpdate()
+                            ->first();
+
+                    if ($activeSale) {
+
+                        throw new \Exception(
+                            'No se puede anular esta cotización porque tiene una venta activa asociada. Primero debe anular la venta.'
+                        );
+                    }
+
+                    /*
+                     * ==========================================================
+                     * 4. LIBERAR TODAS LAS RESERVAS
+                     * ==========================================================
+                     *
+                     * QuoteStockReservationService se encarga de:
+                     *
+                     * - liberar qty_reserved
+                     * - liberar StockLot reservado
+                     * - devolver Items reserved -> entered
+                     * - eliminar QuoteStockLot
+                     * - sincronizar InventoryLevel
+                     *
+                     * Funciona tanto para productos normales
+                     * como para productos itemeables.
+                     */
+
+                    /** @var QuoteStockReservationService $reservationService */
+                    $reservationService =
+                        app(
+                            QuoteStockReservationService::class
+                        );
+
+                    $reservationService
+                        ->releaseReservationsByQuote(
+                            (int) $quote->id
+                        );
+
+                    /*
+                     * ==========================================================
+                     * 5. PROMOCIONES LEGACY
+                     * ==========================================================
+                     *
+                     * IMPORTANTE:
+                     *
+                     * NO eliminamos PromotionUsage aquí.
+                     *
+                     * La implementación legacy puede acumular varios usos
+                     * dentro de un mismo registro mediante used_quantity.
+                     *
+                     * Eliminar el registro solamente porque actualmente
+                     * referencia a un EquipmentConsumable de esta Quote
+                     * podría eliminar consumo correspondiente a operaciones
+                     * anteriores.
+                     *
+                     * Esto queda registrado como PROMO-01.
+                     *
+                     * Además, discount / type_promo ya no participan
+                     * en los cálculos tributarios de TAX-01.
+                     */
+
+                    /*
+                     * ==========================================================
+                     * 6. MARCAR QUOTE COMO CANCELADA
+                     * ==========================================================
+                     *
+                     * Esto es una anulación lógica.
+                     *
+                     * NO ejecutamos delete().
+                     *
+                     * Conservamos:
+                     *
+                     * - Quote
+                     * - Equipment
+                     * - EquipmentConsumable
+                     * - EquipmentWorkforce
+                     * - snapshots de precios
+                     * - snapshots tributarios
+                     *
+                     * para histórico y auditoría.
+                     */
+
+                    $quote->state =
+                        'canceled';
+
+                    $quote->save();
+
+                    /*
+                     * ==========================================================
+                     * 7. AUDITORÍA
+                     * ==========================================================
+                     */
+
+                    Audit::create([
+                        'user_id' =>
+                            Auth::id(),
+
+                        'action' =>
+                            'Anular cotización de venta ' .
+                            $quote->code,
+
+                        'time' =>
+                            microtime(true)
+                            -
+                            $begin,
+                    ]);
                 }
-
-                /*
-                 * ==========================================================
-                 * 6. MARCAR QUOTE COMO CANCELADA
-                 * ==========================================================
-                 *
-                 * NO hacemos delete().
-                 * Conservamos toda la estructura para histórico/auditoría.
-                 */
-
-                $quote->state = 'canceled';
-
-                $quote->save();
-
-                /*
-                 * ==========================================================
-                 * 7. AUDITORÍA
-                 * ==========================================================
-                 */
-
-                Audit::create([
-                    'user_id' =>
-                        Auth::id(),
-
-                    'action' =>
-                        'Anular cotización de venta ' .
-                        $quote->code,
-
-                    'time' => microtime(true) - $begin,
-                ]);
-            });
+            );
 
             return response()->json([
-                'ok' => true,
+                'ok' =>
+                    true,
+
                 'message' =>
                     'La cotización fue anulada correctamente.',
             ], 200);
@@ -5869,8 +5897,11 @@ class QuoteSaleController extends Controller
         } catch (\Throwable $e) {
 
             return response()->json([
-                'ok' => false,
-                'message' => $e->getMessage(),
+                'ok' =>
+                    false,
+
+                'message' =>
+                    $e->getMessage(),
             ], 422);
         }
     }
@@ -6736,6 +6767,15 @@ class QuoteSaleController extends Controller
             $totalConsumable = 0;
             $totalWorkforces = 0;
 
+            /*
+             * IDs recreados que devolveremos al frontend.
+             *
+             * El índice coincide con el índice enviado
+             * por consumables/workforces.
+            */
+            $consumableSync = [];
+            $workforceSync = [];
+
             foreach (
                 $consumables
                 as $c
@@ -6883,7 +6923,7 @@ class QuoteSaleController extends Controller
                     !$existingSnapshot
                 ) {
                     throw new \RuntimeException(
-                        'No se pudo identificar una de las líneas originales de la cotización.'
+                        'No se pudo identificar una de las líneas originales de la cotización. '. $equipmentConsumableId . "  " . !$existingSnapshot
                     );
                 }
 
@@ -7455,6 +7495,22 @@ class QuoteSaleController extends Controller
                             'En compra',
                     ]);
 
+                $consumableSync[] = [
+                    'id' =>
+                        (int) $equipmentConsumable->id,
+
+                    'stock_item_id' =>
+                        (int) $equipmentConsumable->stock_item_id,
+
+                    /*
+                     * Sirve únicamente para debug/trazabilidad.
+                     */
+                    'previous_id' =>
+                        $equipmentConsumableId > 0
+                            ? $equipmentConsumableId
+                            : null,
+                ];
+
                 /*
                  * =====================================================
                  * LÍNEA TRIBUTARIA
@@ -7734,6 +7790,16 @@ class QuoteSaleController extends Controller
                             $workforceTaxRate,
                     ]);
 
+                $workforceSync[] = [
+                    'id' =>
+                        (int) $equipmentWorkforce->id,
+
+                    'previous_id' =>
+                        $workforceId > 0
+                            ? $workforceId
+                            : null,
+                ];
+
                 /*
                  * Solo servicios facturables afectan Quote.
                  */
@@ -7897,15 +7963,36 @@ class QuoteSaleController extends Controller
 
             DB::commit();
 
+            $equipmentSent =
+                Equipment::with([
+                    'consumables',
+                    'workforces',
+                ])
+                    ->find(
+                        $equipmentQuote->id
+                    );
+
             return response()->json([
                 'message' =>
                     'Cotización actualizada correctamente.',
 
                 'equipment' =>
-                    $equipmentQuote,
+                    $equipmentSent,
 
                 'quote' =>
                     $quote,
+
+                /*
+                 * IDs nuevos generados al reconstruir
+                 * los detalles.
+                 */
+                'sync' => [
+                    'consumables' =>
+                        $consumableSync,
+
+                    'workforces' =>
+                        $workforceSync,
+                ],
             ], 200);
 
         } catch (\Throwable $e) {

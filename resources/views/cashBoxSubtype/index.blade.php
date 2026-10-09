@@ -1,7 +1,5 @@
 @extends('layouts.appAdmin2')
 
-@section('openDataGeneral') menu-open @endsection
-@section('activeDataGeneral') active @endsection
 @section('activeCashBoxSubtype') active @endsection
 
 @section('title') Subtipos Bancarios @endsection
@@ -55,8 +53,8 @@
 
             <div class="col-md-6">
                 <select id="filter_cash_box" class="form-control">
-                    <option value="">TODAS (Global + Caja)</option>
-                    <option value="global">SOLO GLOBALES</option>
+                    <option value="">Todos los alcances</option>
+                    <option value="global">Toda la empresa</option>
                     @foreach($cashBoxes as $b)
                         <option value="{{ $b->id }}">SOLO: {{ $b->name }}</option>
                     @endforeach
@@ -167,7 +165,7 @@
                         <div class="form-group">
                             <label for="st_cash_box_id">Alcance</label>
                             <select class="form-control" name="cash_box_id" id="st_cash_box_id">
-                                <option value="global">GLOBAL (para todos)</option>
+                                <option value="global">Toda la empresa</option>
                                 @foreach($cashBoxes as $b)
                                     <option value="{{ $b->id }}">{{ $b->name }}</option>
                                 @endforeach
@@ -210,19 +208,14 @@
                             <input type="number" class="form-control" name="position" id="st_position" min="0" value="0">
                         </div>
 
-                        <div class="form-group">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="st_is_active" name="is_active" checked>
-                                <label class="custom-control-label" for="st_is_active">Activo</label>
-                            </div>
-                        </div>
-
                     </div>
 
                     <div class="modal-footer">
-                        @can('create_cashBoxSubtype')
-                            <button type="button" class="btn btn-primary" id="btnSaveSubtype">Guardar</button>
-                        @endcan
+                        @canany(['create_cashBoxSubtype', 'edit_cashBoxSubtype'])
+                            <button type="button" class="btn btn-primary" id="btnSaveSubtype">
+                                Guardar
+                            </button>
+                        @endcanany
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     </div>
                 </form>

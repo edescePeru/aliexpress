@@ -490,12 +490,12 @@ return [
     'watch_orderService' => 'Ver módulo orden de servicios',
     'workingDay_assistance' => 'Mod. Jornadas de Trabajo',
 
-    'enable_cashBox' => 'Habilitar Cajas de Efectivo',
-    'list_cashBox' => 'Listar Cajas de Efectivo',
-    'create_cashBox' => 'Crear Cajas de Efectivo',
-    'edit_cashBox' => 'Editar Cajas de Efectivo',
-    'delete_cashBox' => 'Eliminar Cajas de Efectivo',
-    'disable_cashBox' => 'Deshabilitar Cajas de Efectivo',
+    'enable_cashBox' => 'Habilitar Cajas',
+    'list_cashBox' => 'Listar Cajas',
+    'create_cashBox' => 'Crear Cajas',
+    'edit_cashBox' => 'Editar Cajas',
+    'delete_cashBox' => 'Eliminar Cajas',
+    'disable_cashBox' => 'Deshabilitar Cajas',
 
     'enable_cashBoxSubtype' => 'Habilitar Subtipos de Cajas',
     'list_cashBoxSubtype' => 'Listar Subtipos de Cajas',
@@ -558,4 +558,6 @@ return [
     'enable_priceList' => 'Acceder al módulo de listas de precios',
     'show_priceList' => 'Visualizar las listas de precios',
     'manage_priceListMaterial' => 'Administrar precios de productos por lista de precios',
+
+    'manage_workforce' => 'Administrar servicios predeterminados para cotizaciones',
 ];

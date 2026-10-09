@@ -1,13 +1,5 @@
 @extends('layouts.appAdmin2')
 
-@section('openDataGeneral')
-    menu-open
-@endsection
-
-@section('activeDataGeneral')
-    active
-@endsection
-
 @section('activeCashBox')
     active
 @endsection
@@ -98,9 +90,9 @@
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Tipo</th>
+                <th>Alcance</th>
                 <th>Subtipos</th>
-                <th>Banco</th>
-                <th>Cuenta</th>
+                <th>Cuenta bancaria</th>
                 <th>Moneda</th>
                 <th>Estado</th>
                 <th style="min-width: 140px;">Acciones</th>
@@ -121,9 +113,9 @@
             <td data-id></td>
             <td data-name></td>
             <td data-type></td>
+            <td data-scope></td>
             <td data-uses_subtypes></td>
-            <td data-bank_name></td>
-            <td data-account></td>
+            <td data-bank-account></td>
             <td data-currency></td>
             <td data-status></td>
             <td data-buttons></td>
@@ -132,7 +124,7 @@
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="9" align="center">No se ha encontrado ninguna caja</td>
+            <td colspan="10" align="center">No se ha encontrado ninguna caja</td>
         </tr>
     </template>
 
@@ -204,6 +196,41 @@
                             </select>
                         </div>
 
+                        <div class="form-group">
+
+                            <label for="cb_branch_id">
+                                Alcance
+                            </label>
+
+                            <select
+                                    class="form-control"
+                                    name="branch_id"
+                                    id="cb_branch_id"
+                            >
+
+                                <option value="">
+                                    Toda la empresa
+                                </option>
+
+                                @foreach($branches as $branch)
+
+                                    <option value="{{ $branch->id }}">
+                                        {{ $branch->name }}
+                                    </option>
+
+                                @endforeach
+
+                            </select>
+
+                            <small class="form-text text-muted">
+
+                                Si selecciona "Toda la empresa",
+                                esta caja podrá utilizarse desde todas las tiendas.
+
+                            </small>
+
+                        </div>
+
                         <div class="form-group" id="wrap_uses_subtypes">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="cb_uses_subtypes" name="uses_subtypes">
@@ -213,21 +240,56 @@
                             </div>
                         </div>
 
-                        <div id="wrap_bank_fields" style="display:none;">
-                            <div class="form-group">
-                                <label for="cb_bank_name">Banco (opcional)</label>
-                                <input type="text" class="form-control" name="bank_name" id="cb_bank_name" maxlength="120" placeholder="BCP, Interbank, etc.">
-                            </div>
+                        <div
+                                id="wrap_bank_fields"
+                                style="display:none;"
+                        >
 
                             <div class="form-group">
-                                <label for="cb_account_label">Alias / Etiqueta (opcional)</label>
-                                <input type="text" class="form-control" name="account_label" id="cb_account_label" maxlength="120" placeholder="Cuenta principal, Izipay, etc.">
+
+                                <label for="cb_company_bank_account_id">
+                                    Cuenta bancaria
+                                </label>
+
+                                <select
+                                        class="form-control"
+                                        name="company_bank_account_id"
+                                        id="cb_company_bank_account_id"
+                                >
+
+                                    <option value="">
+                                        Seleccione una cuenta bancaria
+                                    </option>
+
+                                    @foreach($bankAccounts as $account)
+
+                                        <option
+                                                value="{{ $account->id }}"
+                                        >
+                                            {{ optional($account->bank)->name }}
+                                            -
+                                            {{ $account->title }}
+
+                                            @if($account->account_number)
+                                                - {{ $account->account_number }}
+                                            @endif
+
+                                            @if($account->currency)
+                                                ({{ $account->currency }})
+                                            @endif
+                                        </option>
+
+                                    @endforeach
+
+                                </select>
+
+                                <small class="form-text text-muted">
+                                    La información bancaria se obtiene del catálogo
+                                    de cuentas bancarias de la empresa.
+                                </small>
+
                             </div>
 
-                            <div class="form-group">
-                                <label for="cb_account_number_mask">Cuenta (máscara) (opcional)</label>
-                                <input type="text" class="form-control" name="account_number_mask" id="cb_account_number_mask" maxlength="50" placeholder="****1234">
-                            </div>
                         </div>
 
                         <div class="form-group">
@@ -244,21 +306,18 @@
                             <input type="number" class="form-control" name="position" id="cb_position" min="0" value="0">
                         </div>
 
-                        <div class="form-group">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="cb_is_active" name="is_active" checked>
-                                <label class="custom-control-label" for="cb_is_active">
-                                    Activo
-                                </label>
-                            </div>
-                        </div>
-
                     </div>
 
                     <div class="modal-footer">
-                        @can('create_cashBox')
-                            <button type="button" class="btn btn-primary" id="btnSaveCashBox">Guardar</button>
-                        @endcan
+                        @canany(['create_cashBox', 'edit_cashBox'])
+                            <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    id="btnSaveCashBox"
+                            >
+                                Guardar
+                            </button>
+                        @endcanany
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     </div>
                 </form>
