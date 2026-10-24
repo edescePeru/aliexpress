@@ -4184,6 +4184,14 @@ class PuntoVentaController extends Controller
                 ], 422);
             }
 
+            if ($sale->requiresEmissionReview()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sale_id' =>
+                        'La emisión requiere conciliación antes de emitir, '
+                        . 'anular o descartar el comprobante.',
+                ]);
+            }
+
             if ((int) $sale->state_annulled === 1) {
                 return response()->json([
                     'message' => 'La orden ya ha sido anulada previamente'
@@ -6717,6 +6725,14 @@ class PuntoVentaController extends Controller
                 ], 422);
             }
 
+            if ($sale->requiresEmissionReview()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sale_id' =>
+                        'La emisión requiere conciliación antes de emitir, '
+                        . 'anular o descartar el comprobante.',
+                ]);
+            }
+
             if ((int) $sale->state_annulled === 1) {
                 return response()->json([
                     'message' => 'No se puede descartar el error porque la venta ya está anulada.',
@@ -6773,6 +6789,15 @@ class PuntoVentaController extends Controller
 
     public function recuperarArchivosNubefact(Sale $sale)
     {
+
+        if ($sale->requiresEmissionReview()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'sale_id' =>
+                    'La emisión requiere conciliación antes de emitir, '
+                    . 'anular o descartar el comprobante.',
+            ]);
+        }
+
         /*
          * Solo permitimos recuperar archivos de boletas y facturas.
          */

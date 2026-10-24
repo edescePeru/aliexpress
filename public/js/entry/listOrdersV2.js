@@ -303,135 +303,26 @@ function renderDataTableEmpty() {
 
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
-    clone.querySelector("[data-id]").innerHTML = data.id;
-    clone.querySelector("[data-code]").innerHTML = data.code;
-    clone.querySelector("[data-date_order]").innerHTML = data.date_order;
-    clone.querySelector("[data-date_arrival]").innerHTML = data.date_arrival;
-    clone.querySelector("[data-observation]").innerHTML = data.observation;
-    clone.querySelector("[data-supplier]").innerHTML = data.supplier;
-    clone.querySelector("[data-approved_user]").innerHTML = data.approved_user;
-    clone.querySelector("[data-currency]").innerHTML = data.currency;
-    clone.querySelector("[data-total]").innerHTML = data.total;
-    clone.querySelector("[data-state]").innerHTML = data.stateText;
-
-    var botones = clone.querySelector("[data-buttons]");
-
-    if ( data.type == "e" )
-    {
-        var cloneBtnExpress = activateTemplate('#template-express');
-
-        if ( $.inArray('list_orderPurchaseNormal', $permissions) !== -1 ) {
-            let url = document.location.origin+ '/dashboard/imprimir/orden/compra/'+data.id;
-            cloneBtnExpress.querySelector("[data-imprimir]").setAttribute("href", url);
-        } else {
-            let element = cloneBtnExpress.querySelector("[data-imprimir]");
-            if (element) {
-                element.style.display = 'none';
-            }
-        }
-
-        if ( $.inArray('list_orderPurchaseNormal', $permissions) !== -1 ) {
-            let url = document.location.origin+ '/dashboard/ver/orden/compra/express/'+data.id;
-            cloneBtnExpress.querySelector("[data-ver_orden]").setAttribute("href", url);
-        } else {
-            let element = cloneBtnExpress.querySelector("[data-ver_orden]");
-            if (element) {
-                element.style.display = 'none';
-            }
-        }
-
-        if (data.regularize === 'nr') {
-            if (data.status == 1) {
-                let element = cloneBtnExpress.querySelector("[data-crear_entrada]");
-                if (element) {
-                    element.style.display = 'none';
-                }
-
-            } else if ( data.status == 0 ) {
-                if ( $.inArray('create_entryPurchase', $permissions) !== -1 ) {
-                    let url = document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+data.id;
-                    cloneBtnExpress.querySelector("[data-crear_entrada]").setAttribute("href", url);
-                } else {
-                    let element = cloneBtnExpress.querySelector("[data-crear_entrada]");
-                    if (element) {
-                        element.style.display = 'none';
-                    }
-                }
-            } else if (data.status == 2) {
-                if ( $.inArray('create_entryPurchase', $permissions) !== -1 ) {
-                    let url = document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+data.id;
-                    cloneBtnExpress.querySelector("[data-crear_entrada]").setAttribute("href", url);
-                } else {
-                    let element = cloneBtnExpress.querySelector("[data-crear_entrada]");
-                    if (element) {
-                        element.style.display = 'none';
-                    }
-                }
-            }
-        }
-
-        botones.append(cloneBtnExpress);
+    ['id', 'code', 'date_order', 'date_arrival', 'observation', 'supplier', 'created_user', 'currency', 'total'].forEach(function (field) {
+        clone.querySelector('[data-' + field + ']').textContent = data[field] == null ? '' : data[field];
+    });
+    clone.querySelector('[data-state]').innerHTML = data.stateText;
+    clone.querySelector('[data-state]').title = (data.receipt_errors || []).join(' ');
+    var buttons = activateTemplate('#template-normal');
+    var origin = document.location.origin;
+    function action(selector, allowed, url) {
+        var element = buttons.querySelector(selector);
+        if (!element) return;
+        if (allowed) element.setAttribute('href', origin + url);
+        else element.remove();
     }
-
-    if ( data.type == "n" )
-    {
-        var cloneBtnNormal = activateTemplate('#template-normal');
-
-        if ( $.inArray('list_orderPurchaseNormal', $permissions) !== -1 ) {
-            let url = document.location.origin+ '/dashboard/imprimir/orden/compra/'+data.id;
-            cloneBtnNormal.querySelector("[data-imprimir]").setAttribute("href", url);
-        } else {
-            let element = cloneBtnNormal.querySelector("[data-imprimir]");
-            if (element) {
-                element.style.display = 'none';
-            }
-        }
-
-        if ( $.inArray('list_orderPurchaseNormal', $permissions) !== -1 ) {
-            let url = document.location.origin+ '/dashboard/ver/orden/compra/normal/'+data.id;
-            cloneBtnNormal.querySelector("[data-ver_orden]").setAttribute("href", url);
-        } else {
-            let element = cloneBtnNormal.querySelector("[data-ver_orden]");
-            if (element) {
-                element.style.display = 'none';
-            }
-        }
-
-        if (data.regularize === 'nr') {
-            if (data.status == 1) {
-                let element = cloneBtnNormal.querySelector("[data-crear_entrada]");
-                if (element) {
-                    element.style.display = 'none';
-                }
-
-            } else if ( data.status == 0 ) {
-                if ( $.inArray('create_entryPurchase', $permissions) !== -1 ) {
-                    let url = document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+data.id;
-                    cloneBtnNormal.querySelector("[data-crear_entrada]").setAttribute("href", url);
-                } else {
-                    let element = cloneBtnNormal.querySelector("[data-crear_entrada]");
-                    if (element) {
-                        element.style.display = 'none';
-                    }
-                }
-            } else if (data.status == 2) {
-                if ( $.inArray('create_entryPurchase', $permissions) !== -1 ) {
-                    let url = document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+data.id;
-                    cloneBtnNormal.querySelector("[data-crear_entrada]").setAttribute("href", url);
-                } else {
-                    let element = cloneBtnNormal.querySelector("[data-crear_entrada]");
-                    if (element) {
-                        element.style.display = 'none';
-                    }
-                }
-            }
-        }
-
-        botones.append(cloneBtnNormal);
-    }
-
-    $("#body-table").append(clone);
-
+    var mayView = $.inArray('list_orderPurchaseNormal', $permissions) !== -1;
+    action('[data-imprimir]', mayView, '/dashboard/imprimir/orden/compra/' + data.id);
+    action('[data-ver_orden]', mayView, '/dashboard/ver/orden/compra/normal/' + data.id);
+    action('[data-crear_entrada]', data.can_receive === true && $.inArray('create_entryPurchase', $permissions) !== -1,
+        '/dashboard/crear/entrada/compra/orden/' + data.id);
+    clone.querySelector('[data-buttons]').append(buttons);
+    $('#body-table').append(clone);
     $('[data-toggle="tooltip"]').tooltip();
 }
 

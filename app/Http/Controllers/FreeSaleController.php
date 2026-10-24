@@ -1134,6 +1134,14 @@ class FreeSaleController extends Controller
                 ], 422);
             }
 
+            if ($sale->requiresEmissionReview()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sale_id' =>
+                        'La emisión requiere conciliación antes de emitir, '
+                        . 'anular o descartar el comprobante.',
+                ]);
+            }
+
             if ((int) $sale->state_annulled === 1) {
                 return response()->json([
                     'message' => 'La venta libre ya fue anulada previamente.',
@@ -1910,6 +1918,14 @@ class FreeSaleController extends Controller
                     throw ValidationException::withMessages([
                         'sale_id' =>
                             'La venta libre no fue encontrada.',
+                    ]);
+                }
+
+                if ($sale->requiresEmissionReview()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'sale_id' =>
+                            'La emisión requiere conciliación antes de emitir, '
+                            . 'anular o descartar el comprobante.',
                     ]);
                 }
 

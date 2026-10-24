@@ -40,21 +40,49 @@ $(document).ready(function () {
 
     function pvToggleSubtypesByCashBox() {
         const $cash = $('#pv_cash_box_id');
-        const $sub  = $('#pv_cash_box_subtype_id');
+        const $sub = $('#pv_cash_box_subtype_id');
         const $wrap = $('#pv_cash_box_subtype_wrap');
 
         const $opt = $cash.find('option:selected');
-        const type = ($opt.data('type') || $opt.attr('data-type') || '').toString();
-        const uses = String($opt.data('uses_subtypes') || $opt.attr('data-uses_subtypes') || '0') === '1';
+        const cashBoxId = $cash.val();
 
-        if (type === 'bank' && uses) {
-            if ($wrap.length) $wrap.show();
-            pvFillSubtypes('#pv_cash_box_subtype_id', window.PV_SUBTYPES || []);
+        const type = String(
+            $opt.attr('data-type') || ''
+        );
+
+        const usesSubtypes =
+            String($opt.attr('data-uses_subtypes') || '0') === '1';
+
+        const needsSubtype =
+            Boolean(cashBoxId) &&
+            type === 'bank' &&
+            usesSubtypes;
+
+        // Limpiar siempre el subtipo al cambiar de caja.
+        $sub.val('');
+
+        if (needsSubtype) {
+            const applicableSubtypes = (window.PV_SUBTYPES || [])
+                .filter(function (subtype) {
+                    return subtype.cash_box_id === null ||
+                        String(subtype.cash_box_id) === String(cashBoxId);
+                });
+
+            pvFillSubtypes(
+                '#pv_cash_box_subtype_id',
+                applicableSubtypes
+            );
+
+            $wrap.show();
+            $sub.prop('disabled', false);
         } else {
-            if ($wrap.length) $wrap.hide();
             pvFillSubtypes('#pv_cash_box_subtype_id', []);
-            $sub.val('').trigger('change');
+
+            $wrap.hide();
+            $sub.prop('disabled', true);
         }
+
+        $sub.trigger('change');
     }
 
     // OJO: aquí NO rellenamos cajas por JS porque el Blade ya las imprime.
@@ -711,13 +739,35 @@ $(document).ready(function () {
                                 const urlPrint  = res.url_print || null;
                                 const printType = res.print_type || null;
 
+                                const warnings = Array.isArray(res.warnings)
+                                    ? res.warnings
+                                    : [];
+
+                                const escapeText = function (value) {
+                                    return $('<div>').text(String(value)).html();
+                                };
+
+                                const responseMessage = escapeText(
+                                    res.message || 'Venta registrada correctamente.'
+                                );
+
+                                const warningsHtml = warnings.length
+                                    ? '<br><br>' + warnings.map(escapeText).join('<br>')
+                                    : '';
+
                                 $.alert({
-                                    title: 'Éxito',
+                                    title: warnings.length
+                                        ? 'Venta registrada con advertencias'
+                                        : 'Éxito',
                                     content: `
-                                        ${typeComprobante} generada correctamente.<br>
-                                        ${urlPrint ? '<small>Listo para visualizar.</small>' : '<small>Venta creada, pero no se recibió URL de impresión.</small>'}
-                                      `,
-                                    type: 'green',
+                                        ${responseMessage}
+                                        ${warningsHtml}
+                                        <br>
+                                        ${urlPrint
+                                        ? '<small>Documento disponible para visualizar.</small>'
+                                        : '<small>Puede revisar la impresión desde el listado de ventas.</small>'}
+                                    `,
+                                    type: warnings.length ? 'orange' : 'green',
                                     buttons: (function(){
                                         if (!urlPrint) {
                                             return {

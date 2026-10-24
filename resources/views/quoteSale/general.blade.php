@@ -96,7 +96,7 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Listado General de Cotizaciones</h1>
+    <h1 class="page-title">Cotizaciones del local actual</h1>
 @endsection
 
 @section('page-title')
@@ -125,6 +125,11 @@
 @endsection
 
 @section('content')
+    <div id="quote-sale-action-context" hidden data-tenant="{{ \App\Support\TenantContext::tenantId() }}" data-company="{{ \App\Support\TenantContext::companyId() }}" data-branch="{{ \App\Support\TenantContext::branchId() }}"></div>
+    <div class="alert alert-info" role="status">
+        Mostrando las cotizaciones del local activo.
+        <a href="{{ route('quoteSale.pendingBranches') }}" class="alert-link">Consultar históricos pendientes de asignación</a>
+    </div>
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <!--begin::Form-->
     <form action="#">
@@ -371,151 +376,6 @@
         </tr>
     </template>
 
-    <template id="template-btn_created">
-        <a data-ver_cotizacion href="{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        {{--<a data-editar_planos href="--}}{{--'+document.location.origin+ '/dashboard/editar/planos/cotizacion/'+item.id+'--}}{{--" class="btn bg-lime color-palette btn-sm" data-toggle="tooltip" data-placement="top" title="Editar planos"><i class="fas fa-images"></i></a>
-        --}}
-        <a data-imprimir_cliente target="_blank" href="{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        {{--<a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        --}}
-        <button data-enviar data-send="{{--' + item.id + '--}}" data-name="{{--' + item.description_quote + '--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Enviar"><i class="fas fa-file-import"></i></button>
-        <a data-editar href="{{--'+document.location.origin+ '/dashboard/editar/cotizacion/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i></a>
-        <button data-confirmar data-status="{{--'+ item.send_state +'--}}" data-confirm="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Confirmar"><i class="fa fa-check"></i></button>
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        {{--<button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>--}}
-    </template>
-
-    <template id="template-btn_send">
-        <a data-ver_cotizacion href="{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        {{--<a data-editar_planos href="--}}{{--'+document.location.origin+ '/dashboard/editar/planos/cotizacion/'+item.id+'--}}{{--" class="btn bg-lime color-palette btn-sm" data-toggle="tooltip" data-placement="top" title="Editar planos"><i class="fas fa-images"></i></a>
-        --}}
-        <a data-imprimir_cliente target="_blank" href="{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        {{--<a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        --}}
-        <a data-editar href="{{--'+document.location.origin+ '/dashboard/editar/cotizacion/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i></a>
-        <button data-confirmar data-status="{{--'+ item.send_state +'--}}" data-confirm="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Confirmar"><i class="fa fa-check"></i></button>
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        {{--<button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>--}}
-    </template>
-
-    <template id="template-btn_confirm">
-        <a data-ver_cotizacion href="{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        {{--<a data-editar_planos href="--}}{{--'+document.location.origin+ '/dashboard/editar/planos/cotizacion/'+item.id+'--}}{{--" class="btn bg-lime color-palette btn-sm" data-toggle="tooltip" data-placement="top" title="Editar planos"><i class="fas fa-images"></i></a>
-        --}}
-        <a data-imprimir_cliente target="_blank" href="{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        {{--<a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        --}}
-        <button data-regresar_enviado data-deselevar="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Regresar a enviado"><i class="fas fa-level-down-alt"></i></button>
-        {{--<a data-ajustar_porcentajes href="--}}{{--'+document.location.origin+ '/dashboard/ajustar/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Ajustar porcentajes"><i class="fas fa-percentage"></i></a>
-        --}}
-        <button data-elevar data-raise="{{--' + item.id + '--}}" data-code="{{--' + item.code_customer + '--}}" data-name="{{--' + item.description_quote + '--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Elevar"><i class="fa fa-level-up-alt"></i></button>
-        {{--<a data-cotizar_soles href="--}}{{--'+document.location.origin+ '/dashboard/cotizar/soles/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Cotizar en soles"><i class="fa fa-dollar-sign"></i></a>
-        --}}
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        {{--<button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>--}}
-    </template>
-
-    <template id="template-btn_raised">
-        <a data-ver_cotizacion href="{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        {{--<a data-editar_planos href="--}}{{--'+document.location.origin+ '/dashboard/editar/planos/cotizacion/'+item.id+'--}}{{--" class="btn bg-lime color-palette btn-sm" data-toggle="tooltip" data-placement="top" title="Editar planos"><i class="fas fa-images"></i></a>
-        --}}
-        <a data-imprimir_cliente target="_blank" href="{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        {{--<a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        --}}
-        <button data-modificar_codigo data-raise2="{{--'+item.id+'--}}" data-code="{{--'+item.code_customer+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Modificar código"><i class="fa fa-chart-line"></i></button>
-        {{--<button data-seleccionar_detraccion data-detraction="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Seleccionar tipo de orden"><i class="fas fa-donate"></i></button>
-        --}}
-        <button data-finalizar data-finish="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar"><i class="fas fa-window-close"></i></button>
-        {{--<a data-reemplazar_materiales href="--}}{{--'+document.location.origin+ '/dashboard/reemplazar/materiales/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Reemplazar materiales"><i class="fas fa-recycle"></i></a>
-        <a data-finalizar_equipos href="--}}{{--'+document.location.origin+ '/dashboard/finalizar/equipos/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar equipos"><i class="fas fa-times-circle"></i></a>
-        --}}
-        <button data-regresar_enviado data-deselevar="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Regresar a enviado"><i class="fas fa-level-down-alt"></i></button>
-        {{--<a data-cotizar_soles href="--}}{{--'+document.location.origin+ '/dashboard/cotizar/soles/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Cotizar en soles"><i class="fa fa-dollar-sign"></i></a>
-        --}}{{--<button data-visto_bueno_finanzas data-vb_finances="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Visto bueno de finanzas"><i class="fas fa-check-double"></i></button>
-        --}}
-        {{--<button data-visto_bueno_operaciones data-vb_operations="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Visto bueno de operaciones"><i class="fas fa-check-double"></i></button>
-        --}}
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        {{--<button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>--}}
-    </template>
-
-    <template id="template-btn_close">
-        <a data-ver_cotizacion href="{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        <a data-imprimir_cliente target="_blank" href="{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        <button data-modificar_codigo data-raise2="{{--'+item.id+'--}}" data-code="{{--'+item.code_customer+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Modificar código"><i class="fa fa-chart-line"></i></button>
-        {{--<button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        --}}
-        <button data-reactivar data-active_quote="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Reactivar"><i class="fas fa-lock-open"></i></button>
-    </template>
-
-    <template id="template-btn_requote">
-        <a data-ver_cotizacion href="" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        <button data-recotizar data-renew="" data-name="" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-    </template>
-
-    {{--<template id="template-btn_VB_finance">
-        <a data-ver_cotizacion href="--}}{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        <a data-imprimir_cliente target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        <a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        <button data-modificar_codigo data-raise2="--}}{{--'+item.id+'--}}{{--" data-code="--}}{{--'+item.code_customer+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Modificar código"><i class="fa fa-chart-line"></i></button>
-        <button data-seleccionar_detraccion data-detraction="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Seleccionar tipo de orden"><i class="fas fa-donate"></i></button>
-        <button data-finalizar data-finish="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar"><i class="fas fa-window-close"></i></button>
-        <a data-reemplazar_materiales href="--}}{{--'+document.location.origin+ '/dashboard/reemplazar/materiales/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Reemplazar materiales"><i class="fas fa-recycle"></i></a>
-        <a data-finalizar_equipos href="--}}{{--'+document.location.origin+ '/dashboard/finalizar/equipos/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar equipos"><i class="fas fa-times-circle"></i></a>
-        <button data-regresar_enviado data-deselevar="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Regresar a enviado"><i class="fas fa-level-down-alt"></i></button>
-        <button data-visto_bueno_operaciones data-vb_operations="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Visto bueno de operaciones"><i class="fas fa-check-double"></i></button>
-        <button data-anular data-delete="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        <button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>
-    </template>--}}
-
-    {{--<template id="template-btn_VB_operation">
-        <a data-ver_cotizacion href="--}}{{--'+document.location.origin+ '/dashboard/ver/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Detalles"><i class="fa fa-eye"></i></a>
-        <a data-imprimir_cliente target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/cliente/' + item.id +'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir para cliente"><i class="fa fa-print"></i></a>
-        <a data-imprimir_interna target="_blank" href="--}}{{--' + document.location.origin + '/dashboard/imprimir/interno/' + item.id +'--}}{{--" class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir interna"><i class="fa fa-print"></i></a>
-        <button data-modificar_codigo data-raise2="--}}{{--'+item.id+'--}}{{--" data-code="--}}{{--'+item.code_customer+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Modificar código"><i class="fa fa-chart-line"></i></button>
-        <button data-seleccionar_detraccion data-detraction="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Seleccionar tipo de orden"><i class="fas fa-donate"></i></button>
-        <button data-finalizar data-finish="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar"><i class="fas fa-window-close"></i></button>
-        <a data-finalizar_equipos href="--}}{{--'+document.location.origin+ '/dashboard/finalizar/equipos/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Finalizar equipos"><i class="fas fa-times-circle"></i></a>
-        <a data-modificar_lista_materiales href="--}}{{--'+document.location.origin+ '/dashboard/modificar/lista/materiales/cotizacion/'+item.id+'--}}{{--" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar lista materiales"><i class="fas fa-edit"></i></a>
-        <button data-regresar_enviado data-deselevar="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Regresar a enviado"><i class="fas fa-level-down-alt"></i></button>
-        <button data-anular data-delete="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>
-        <button data-recotizar data-renew="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Recotizar"><i class="fas fa-sync"></i></button>
-        <button data-decimales data-decimals="--}}{{--'+item.id+'--}}{{--" data-name="--}}{{--'+item.description_quote+'--}}{{--" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Mostrar decimales"><i class="fas fa-toggle-on"></i></button>
-    </template>--}}
-
-    <div id="modalDetraction" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Seleccionar tipo de orden</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <form id="formDetraction" data-url="{{ route('detraction.change') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <input type="hidden" id="quote_id" name="quote_id">
-                        <strong>Cambie o Seleccione el tipo de orden</strong>
-                        <select id="detraction" name="detraction" class="form-control select2" style="width: 100%;">
-                            <option value=""></option>
-                            <option value="nn">Ninguno</option>
-                            <option value="oc">Orden de Compra</option>
-                            <option value="os">Orden de Servicio</option>
-                        </select>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" id="btn-change" class="btn btn-success">Guardar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     @can('destroy_quote')
         <div id="modalDelete" class="modal fade" tabindex="-1">
             <div class="modal-dialog">
@@ -548,7 +408,7 @@
                     <h4 class="modal-title">Seleccionar visualizar decimales</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <form id="formDecimals" data-url="{{ route('decimals.change') }}">
+                <form id="formDecimals" data-url="{{ route('quoteSale.decimals.change') }}">
                     @csrf
                     <div class="modal-body">
                         <input type="hidden" id="quote_id" name="quote_id">
@@ -586,10 +446,6 @@
 
     <script>
         $(function () {
-
-            $('#detraction').select2({
-                placeholder: "Seleccione"
-            });
             $('#decimals').select2({
                 placeholder: "Seleccione"
             });

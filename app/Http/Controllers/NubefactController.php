@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Sale;
+use App\Services\NubefactCompanyConfigService;
+use App\Services\NubefactCompanyConnection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -23,14 +25,15 @@ class NubefactController extends Controller
         }
 
         // Armamos el JSON para Nubefact
-        $data = $this->buildNubefactData($order);
+        $connection = app(NubefactCompanyConfigService::class)->forSale($order);
+        $data = $this->buildNubefactData($order, $connection);
 
         /*dump($data);
         dd();*/
 
         // Token y URL de Nubefact desde .env
-        $token = env('NUBEFACT_TOKEN');
-        $url = env('NUBEFACT_API_URL');
+        $token = $connection->token();
+        $url = $connection->url();
 
         try {
             $response = Http::withHeaders([
@@ -102,10 +105,10 @@ class NubefactController extends Controller
         }
     }
 
-    private function buildNubefactData(Sale $order)
+    private function buildNubefactData(Sale $order, NubefactCompanyConnection $connection)
     {
         $isFactura = $order->type_document === '01';
-        $serie = $isFactura ? 'FFF1' : 'BBB1';
+        $serie = $connection->saleSeries($order->type_document);
         $tipoCliente = $order->tipo_documento_cliente ?: ($isFactura ? '6' : '1');
 
         $discount = round($order->total_descuentos, 2);

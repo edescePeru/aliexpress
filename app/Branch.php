@@ -19,6 +19,7 @@ class Branch extends Model
     protected $casts = [
         'is_main' => 'boolean',
         'is_active' => 'boolean',
+        'default_entry_warehouse_id' => 'integer',
     ];
 
     public function company()
@@ -45,5 +46,10 @@ class Branch extends Model
             Warehouse::class,
             'branch_id'
         );
+    }
+
+    public function defaultEntryWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'default_entry_warehouse_id');
     }
 }

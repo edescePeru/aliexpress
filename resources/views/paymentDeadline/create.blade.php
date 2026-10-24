@@ -57,6 +57,8 @@
 @section('content')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('paymentDeadline.store') }}" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="form_tenant_id" value="{{ \App\Support\TenantContext::tenantId() }}">
+        <input type="hidden" name="form_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
         <div class="form-group row">
             <div class="col-md-6">
                 <label for="inputEmail3" class="col-12 col-form-label">Plazo de pago: <span class="right badge badge-danger">(*)</span></label>
@@ -96,8 +98,9 @@
             </div>
         </div>
 
+        <div class="form-group row"><div class="col-md-6"><label for="is_active" class="col-12 col-form-label">Estado</label><div class="col-sm-10"><select name="is_active" id="is_active" class="form-control"><option value="1" selected>Activo</option><option value="0" >Inactivo</option></select></div></div></div>
         <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+            <button type="submit" id="btn-submit" class="btn btn-outline-success">Guardar</button>
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
         </div>
         <!-- /.card-footer -->

@@ -2,12 +2,18 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+        'branch_id',
         'date_sale',
         'serie',
         'worker_id',
@@ -73,12 +79,18 @@ class Sale extends Model
         'numero_documento_cliente',
         'direccion_cliente',
         'email_cliente',
-        'serie_sunat'
+        'serie_sunat',
+
+        'emission_status',
+        'emission_key',
     ];
 
     protected $dates = ['date_sale'];
 
     protected $casts = [
+        'tenant_id' => 'integer',
+        'company_id' => 'integer',
+        'branch_id' => 'integer',
         'free_sale' => 'boolean',
     ];
 
@@ -235,5 +247,30 @@ class Sale extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function emissionAttempts()
+    {
+        return $this->hasMany(SaleEmissionAttempt::class);
+    }
+
+    public function requiresEmissionReview(): bool
+    {
+        return in_array($this->type_document, ['01', '03'], true)
+            && in_array(
+                $this->emission_status,
+                ['processing', 'unknown'],
+                true
+            );
     }
 }

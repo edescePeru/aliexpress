@@ -81,6 +81,7 @@
     </div>
 
     <form id="formEdit" class="form-horizontal" data-url="{{ route('quoteSale.update') }}" enctype="multipart/form-data">
+        @include('quoteSale._branchContext')
         @csrf
         <div class="row">
             <div class="col-md-12">

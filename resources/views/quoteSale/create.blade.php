@@ -120,6 +120,7 @@
             data-url="{{ route('quoteSale.store') }}"
             enctype="multipart/form-data"
     >
+        @include('quoteSale._branchContext')
         @csrf
 
         {{-- ===================================================== --}}

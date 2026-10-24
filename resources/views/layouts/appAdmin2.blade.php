@@ -467,6 +467,14 @@
 
                             </ul>
                         </li>
+
+                        <li class="nav-item">
+                            <a href="{{ route('platformNubefact.index') }}"
+                               class="nav-link @yield('activePlatformNubefact')">
+                                <i class="nav-icon fas fa-file-invoice"></i>
+                                <p>Nubefact</p>
+                            </a>
+                        </li>
                     @endif
 
                     @can('enable_puntoVenta')
@@ -860,7 +868,7 @@
                         <li class="nav-item">
                             <a
                                     href="{{ route('tenantCompany.index') }}"
-                                    class="nav-link {{ request()->routeIs('tenantCompany.*') ? 'active' : '' }}"
+                                    class="nav-link {{--{{ request()->routeIs('tenantCompany.*') ? 'active' : '' }}--}} @yield('activeTenantCompanyConfig')"
                             >
                                 <i class="nav-icon fas fa-building"></i>
                                 <p>Empresas</p>
@@ -931,6 +939,36 @@
                             </a>
                         </li>
                         @endif
+                    @endcan
+
+                    @can('enable_paymentDeadline')
+                        <li class="nav-item has-treeview @yield('openPaymentDeadline')">
+                            <a href="#" class="nav-link @yield('activePaymentDeadline')">
+                                <i class="nav-icon fas fa-handshake"></i>
+                                <p>
+                                    Plazo de pago
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                @can('list_paymentDeadline')
+                                    <li class="nav-item">
+                                        <a href="{{route('paymentDeadline.index')}}" class="nav-link @yield('activeListPaymentDeadline')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Listar plazos</p>
+                                        </a>
+                                    </li>
+                                @endcan
+                                @can('create_paymentDeadline')
+                                    <li class="nav-item">
+                                        <a href="{{ route('paymentDeadline.create') }}" class="nav-link @yield('activeCreatePaymentDeadline')">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Crear plazos</p>
+                                        </a>
+                                    </li>
+                                @endcan
+                            </ul>
+                        </li>
                     @endcan
 
                     @canany(['list_customer', 'list_contactName', 'list_supplier'])
@@ -1057,36 +1095,7 @@
                     </li>
                     @endcan
 
-                    @can('enable_paymentDeadline')
-                        <li class="nav-header">PLAZOS DE PAGO</li>
-                        <li class="nav-item has-treeview @yield('openPaymentDeadline')">
-                            <a href="#" class="nav-link @yield('activePaymentDeadline')">
-                                <i class="nav-icon fas fa-handshake"></i>
-                                <p>
-                                    Plazo de pago
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                @can('list_paymentDeadline')
-                                    <li class="nav-item">
-                                        <a href="{{route('paymentDeadline.index')}}" class="nav-link @yield('activeListPaymentDeadline')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar plazos</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                                @can('create_paymentDeadline')
-                                    <li class="nav-item">
-                                        <a href="{{ route('paymentDeadline.create') }}" class="nav-link @yield('activeCreatePaymentDeadline')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Crear plazos</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                            </ul>
-                        </li>
-                    @endcan
+
 
                     @canany(['list_material','list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_genero', 'list_talla', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler'])
                     <li class="nav-header">MATERIALES</li>
@@ -1726,7 +1735,7 @@
                                 </p>
                             </a>
                             <ul class="nav nav-treeview">
-                                @can('list_area')
+                                {{--@can('list_area')
                                 <li class="nav-item">
                                     <a href="{{ route('area.index') }}" class="nav-link @yield('activeAreas')">
                                         <i class="far fa-circle nav-icon"></i>
@@ -1741,14 +1750,15 @@
                                         <p>Ubicaciones</p>
                                     </a>
                                 </li>
-                                @endcan
+                                @endcan--}}
+
                                 @can('list_inventory')
-                                    <li class="nav-item">
+                                    {{--<li class="nav-item">
                                         <a href="{{ route('inventory.index') }}" class="nav-link @yield('activeListInventory')">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Listado</p>
                                         </a>
-                                    </li>
+                                    </li>--}}
                                     <li class="nav-item">
                                         <a href="{{ route('kardex.index') }}" class="nav-link @yield('activeListInventoryKardex')">
                                             <i class="far fa-circle nav-icon"></i>
@@ -1758,38 +1768,17 @@
                                 @endcan
                             </ul>
                         </li>
-
-                        @can('list_transfer')
-                            {{--<li class="nav-header">TRANSFERENCIAS</li>--}}
-                            <li class="nav-item has-treeview @yield('openTransfer')">
-                                <a href="#" class="nav-link @yield('activeTransfer')">
-                                    <i class="nav-icon fas fa-retweet"></i>
-                                    <p>
-                                        Transferencias
-                                        <i class="right fas fa-angle-left"></i>
-                                    </p>
-                                </a>
-                                <ul class="nav nav-treeview">
-                                    @can('list_transfer')
-                                        <li class="nav-item">
-                                            <a href="{{ route('transfer.index') }}" class="nav-link @yield('activeListTransfer')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Listar traslados</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                    @can('create_transfer')
-                                        <li class="nav-item">
-                                            <a href="{{ route('transfer.create') }}" class="nav-link @yield('activeCreateTransfer')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Crear traslado</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                </ul>
-                            </li>
-                        @endcan
                     @endcan
+
+                    @canany(['viewStock_transfer', 'list_transfer'])
+                        <li class="nav-header">TRASLADOS</li>
+                        @can('viewStock_transfer')
+                            <li class="nav-item"><a href="{{ route('warehouseAvailability.index') }}" class="nav-link @yield('activeWarehouseAvailability')"><i class="nav-icon fas fa-search" aria-hidden="true"></i><p>Disponibilidad por almacén</p></a></li>
+                        @endcan
+                        @can('list_transfer')
+                            <li class="nav-item"><a href="{{ route('warehouseTransfer.index') }}" class="nav-link @yield('activeWarehouseTransfer')"><i class="nav-icon fas fa-exchange-alt" aria-hidden="true"></i><p>Traslados entre almacenes</p></a></li>
+                        @endcan
+                    @endcanany
 
                     @can('enable_referralGuide')
                         <li class="nav-header">GUIAS DE REMISIÓN</li>
@@ -1857,14 +1846,14 @@
                                 </a>
                             </li>--}}
                             @endcan
-                            {{--@can('create_entryPurchase')
+                            @can('create_entryPurchase')
                             <li class="nav-item">
                                 <a href="{{ route('entry.purchase.create') }}" class="nav-link @yield('activeCreateEntryPurchase')">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Crear entrada</p>
+                                    <p>Crear ingreso</p>
                                 </a>
                             </li>
-                            @endcan--}}
+                            @endcan
                             @can('listOrder_entryPurchase')
                             {{--<li class="nav-item">
                                 <a href="{{ route('order.purchase.list') }}" class="nav-link @yield('activeListOrdersInEntries')">
@@ -2209,140 +2198,39 @@
                     @endcan
 
 
-                    @canany(['list_orderPurchaseExpress', 'list_orderPurchaseNormal', 'list_orderPurchaseFinance'])
-                    <li class="nav-header">ORDENES DE COMPRA</li>
-                    @endcanany
-                    @canany(['list_orderPurchaseNormal','list_orderPurchaseExpress'])
+                    @canany(['list_orderPurchaseNormal', 'create_orderPurchaseNormal', 'destroy_orderPurchaseNormal'])
+                        <li class="nav-header">ÓRDENES DE COMPRA</li>
                         <li class="nav-item has-treeview @yield('openOrderPurchaseGeneral')">
                             <a href="#" class="nav-link @yield('activeOrderPurchaseGeneral')">
                                 <i class="nav-icon fas fa-credit-card"></i>
-                                <p>
-                                    Órdenes de compra
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
+                                <p>Órdenes de compra <i class="right fas fa-angle-left"></i></p>
                             </a>
                             <ul class="nav nav-treeview">
-                                {{--@canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.general.indexV2')}}" class="nav-link @yield('activeListOrderPurchaseGeneral')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar ordenes general</p>
-                                        </a>
-                                    </li>
-                                @endcanany--}}
-                                {{--@can('list_orderPurchaseExpress')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.express.index')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar express</p>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.express.indexV2')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar express</p>
-                                        </a>
-                                    </li>
-                                @endcan--}}
                                 @can('list_orderPurchaseNormal')
-                                    {{--<li class="nav-item">
-                                        <a href="{{route('order.purchase.normal.index')}}" class="nav-link @yield('activeListOrderPurchaseNormal')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar normal</p>
-                                        </a>
-                                    </li>--}}
                                     <li class="nav-item">
-                                        <a href="{{route('order.purchase.normal.indexV2')}}" class="nav-link @yield('activeListOrderPurchaseNormal')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar órdenes</p>
+                                        <a href="{{ route('order.purchase.normal.indexV2') }}" class="nav-link @yield('activeListOrderPurchaseNormal')">
+                                            <i class="far fa-circle nav-icon"></i><p>Listar órdenes</p>
                                         </a>
                                     </li>
                                 @endcan
-                                {{--@can('list_orderPurchaseFinance')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.finance.index')}}" class="nav-link @yield('activeListOrderPurchaseFinance')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar Ord. finanzas</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                                @can('create_orderPurchaseExpress')
-                                    <li class="nav-item">
-                                        <a href="{{ route('order.purchase.express.create') }}" class="nav-link @yield('activeCreateOrderPurchaseExpress')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Crear Express</p>
-                                        </a>
-                                    </li>
-                                @endcan--}}
                                 @can('create_orderPurchaseNormal')
                                     <li class="nav-item">
                                         <a href="{{ route('order.purchase.normal.create') }}" class="nav-link @yield('activeCreateOrderPurchaseNormal')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Crear orden</p>
+                                            <i class="far fa-circle nav-icon"></i><p>Crear orden</p>
                                         </a>
                                     </li>
                                 @endcan
-                                {{--@can('create_orderPurchaseFinance')
+                                @can('destroy_orderPurchaseNormal')
                                     <li class="nav-item">
-                                        <a href="{{ route('order.purchase.finance.create') }}" class="nav-link @yield('activeCreateOrderPurchaseFinance')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Crear Ord. Finanza</p>
+                                        <a href="{{ route('order.purchase.delete') }}" class="nav-link @yield('activeListOrderPurchaseDelete')">
+                                            <i class="far fa-circle nav-icon"></i><p>Listar eliminadas</p>
                                         </a>
                                     </li>
                                 @endcan
-                                @canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
-                                    <li class="nav-item">
-                                        <a href="{{ route('order.purchase.list.regularize') }}" class="nav-link @yield('activeListOrderPurchaseRegularize')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar regularizadas</p>
-                                        </a>
-                                    </li>
-                                @endcanany--}}
-                                @canany(['destroy_orderPurchaseNormal','destroy_orderPurchaseNormal'])
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.delete')}}" class="nav-link @yield('activeListOrderPurchaseDelete')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar eliminadas</p>
-                                        </a>
-                                    </li>
-                                @endcanany
-                                {{--@canany('list_orderPurchaseNormal','list_orderPurchaseNormal')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.list.lost')}}" class="nav-link @yield('activeListOrderPurchaseLost')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Ordenes perdidas</p>
-                                        </a>
-                                    </li>
-                                @endcanany--}}
-
-                                {{--@canany('list_orderPurchaseFinance')
-                                    <li class="nav-item">
-                                        <a href="{{ route('order.purchase.finance.list.regularize') }}" class="nav-link @yield('activeListOrderPurchaseFinanceRegularize')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Ord. Finanzas Regularizada</p>
-                                        </a>
-                                    </li>
-                                @endcanany
-                                @canany('destroy_orderPurchaseFinance')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.finance.delete')}}" class="nav-link @yield('activeListOrderPurchaseFinanceDelete')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Ord. Finanzas Eliminadas</p>
-                                        </a>
-                                    </li>
-                                @endcanany
-                                @canany('list_orderPurchaseFinance')
-                                    <li class="nav-item">
-                                        <a href="{{route('order.purchase.finance.list.lost')}}" class="nav-link @yield('activeListOrderPurchaseFinanceLost')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Ord. Finanzas perdidas</p>
-                                        </a>
-                                    </li>
-                                @endcanany--}}
-
                             </ul>
                         </li>
                     @endcanany
+
                     @can('report_orderPurchaseExpress')
                     <li class="nav-item has-treeview @yield('openOrderPurchaseReports')">
                         <a href="#" class="nav-link @yield('activeOrderPurchaseReports')">

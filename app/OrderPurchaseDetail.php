@@ -2,11 +2,14 @@
 
 namespace App;
 
+use App\Support\TenantContext;
+use App\Traits\ScopedPurchaseCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class OrderPurchaseDetail extends Model
 {
+    use ScopedPurchaseCompany;
     use SoftDeletes;
 
     public $fillable = [
@@ -35,4 +38,16 @@ class OrderPurchaseDetail extends Model
     {
         return $this->belongsTo(StockItem::class, 'stock_item_id');
     }
+
+    public function receiptDetails()
+    {
+        return $this->hasMany(DetailEntry::class, 'order_purchase_detail_id')
+            ->where('detail_entries.tenant_id', TenantContext::tenantId())
+            ->where('detail_entries.company_id', TenantContext::companyId())
+            ->whereHas('entry', function ($query) {
+                $query->where('entries.tenant_id', TenantContext::tenantId())
+                    ->where('entries.company_id', TenantContext::companyId());
+            });
+    }
+
 }

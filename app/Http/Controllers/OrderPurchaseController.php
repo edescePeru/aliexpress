@@ -21,6 +21,7 @@ use App\Output;
 use App\OutputDetail;
 use App\PaymentDeadline;
 use App\Quote;
+use App\Services\Purchases\NormalPurchaseGuard;
 use App\Services\SettingService;
 use App\Services\TipoCambioService;
 use App\Supplier;
@@ -121,7 +122,7 @@ class OrderPurchaseController extends Controller
                         "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '' : $order->date_arrival->format('d/m/Y'),
                         "observation" => $order->observation,
                         "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                        "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                        "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
                         "currency" => ($order->currency_order == null || $order->currency_order == "") ? '' : $order->currency_order,
                         "state" => $typeText . "<br>" . $stateText,
                         "material_code" => $orderPurchaseDetail->material->code,
@@ -247,7 +248,7 @@ class OrderPurchaseController extends Controller
                         "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '' : $order->date_arrival->format('d/m/Y'),
                         "observation" => $order->observation,
                         "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                        "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                        "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
                         "currency" => ($order->currency_order == null || $order->currency_order == "") ? '' : $order->currency_order,
                         "state" => $typeText . " | " . $stateText,
                         "material_code" => $orderPurchaseDetail->material->code,
@@ -268,7 +269,7 @@ class OrderPurchaseController extends Controller
         return (new ReportOrdersByMaterialExcelExport($orderPurchases, $dates))->download('reporteOrdenesCompra.xlsx');
 
     }
-    
+
     public function getDataOrderGeneral(Request $request, $pageNumber = 1)
     {
         $perPage = 10;
@@ -284,13 +285,13 @@ class OrderPurchaseController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'approved_user', 'createdUser'])
                 ->orderBy('date_order', 'desc');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'approved_user', 'createdUser'])
                 ->whereDate('date_order', '>=', $fechaInicio)
                 ->whereDate('date_order', '<=', $fechaFinal)
                 ->orderBy('date_order', 'desc');
@@ -378,7 +379,8 @@ class OrderPurchaseController extends Controller
                 "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                 "observation" => $order->observation,
                 "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
+                'created_user' => optional($order->createdUser)->name ?? 'No registrado / usuario no disponible',
                 "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                 "total" => $order->total,
                 "type" => $type,
@@ -535,7 +537,7 @@ class OrderPurchaseController extends Controller
                 "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                 "observation" => $order->observation,
                 "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
                 "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                 "total" => $order->total,
                 "type" => $type,
@@ -597,14 +599,14 @@ class OrderPurchaseController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'approved_user', 'createdUser'])
                 ->where('type', 'n')
                 ->orderBy('date_order', 'desc');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'approved_user', 'createdUser'])
                 ->where('type', 'n')
                 ->whereDate('date_order', '>=', $fechaInicio)
                 ->whereDate('date_order', '<=', $fechaFinal)
@@ -625,9 +627,7 @@ class OrderPurchaseController extends Controller
         }
 
         if ($supplier != "") {
-            $query->whereHas('supplier', function ($query2) use ($supplier) {
-                $query2->where('supplier_id', $supplier);
-            });
+            $query->where('supplier_id', $supplier);
 
         }
 
@@ -682,13 +682,14 @@ class OrderPurchaseController extends Controller
 
             array_push($array, [
                 "id" => $order->id,
-                "year" => ( $order->date_order == null || $order->date_quote == "") ? '':$order->date_order->year,
+                "year" => ( $order->date_order == null) ? '':$order->date_order->year,
                 "code" => ($order->code == null || $order->code == "") ? '': $order->code,
                 "date_order" => ($order->date_order == null || $order->date_order == "") ? '': $order->date_order->format('d/m/Y'),
                 "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                 "observation" => $order->observation,
-                "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : optional($order->supplier)->business_name ?? '',
+                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : optional($order->approved_user)->name ?? '',
+                'created_user' => optional($order->createdUser)->name ?? 'No registrado / usuario no disponible',
                 "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                 "total" => $order->total,
                 "type" => $type,
@@ -715,7 +716,7 @@ class OrderPurchaseController extends Controller
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        $registros = OrderPurchase::all();
+        $registros = OrderPurchase::where('type', 'n')->get();
 
         $arrayYears = $registros->pluck('date_order')->map(function ($date) {
             return Carbon::parse($date)->format('Y');
@@ -738,35 +739,14 @@ class OrderPurchaseController extends Controller
 
     public function getStateOrderPurchase($orderPurchase_id)
     {
-        $order = OrderPurchase::find($orderPurchase_id);
-
-        if (isset($order))
-        {
-            $state = $order->status_order;
-        } else {
-            $state = 'nn';
-        }
-
-        return response()->json(["state" => $state]);
+        $order = app(\App\Services\Purchases\NormalPurchaseGuard::class)->order($orderPurchase_id);
+        return response()->json(['state' => $order->status_order]);
     }
 
     public function changeStateOrderPurchase(Request $request)
     {
-        $orderPurchase_id = $request->input('orderPurchase_id');
-        DB::beginTransaction();
-        try {
-            $order = OrderPurchase::find($orderPurchase_id);
-            $order->status_order = ($request->input('stateOrder') == 'nn' || $request->input('stateOrder') == '') ? null: $request->input('stateOrder');
-            $order->save();
-
-            // TODO: Actualizar la cotizacion
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Guardado con éxito'], 200);
+        // El listado V2 comparte la validación ya instalada del cambio de estado normal.
+        return $this->changeStatusOrderPurchase($request, $request->input('orderPurchase_id'), $request->input('stateOrder'));
     }
 
     public function exportOrderGeneralExcel()
@@ -817,7 +797,7 @@ class OrderPurchaseController extends Controller
                     "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                     "observation" => $order->observation,
                     "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                    "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                    "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
                     "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                     "total" => $order->total,
                     "type" => $type,
@@ -874,7 +854,7 @@ class OrderPurchaseController extends Controller
                     "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                     "observation" => $order->observation,
                     "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                    "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                    "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : (optional($order->approved_user)->name ?? ''),
                     "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                     "total" => $order->total,
                     "type" => $type,
@@ -889,8 +869,6 @@ class OrderPurchaseController extends Controller
         return (new OrderPurchaseExcelExport($orders_array, $dates))->download('reporteOrdenesCompra.xlsx');
 
     }
-
-
 
     public function indexOrderPurchaseExpressAndNormal()
     {
@@ -1951,7 +1929,7 @@ class OrderPurchaseController extends Controller
     public function getOrderDeleteGeneral()
     {
         $begin = microtime(true);
-        $orders = OrderPurchase::onlyTrashed()
+        $orders = OrderPurchase::onlyTrashed()->where('type', 'n')
             ->with(['supplier', 'approved_user'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -1969,8 +1947,8 @@ class OrderPurchaseController extends Controller
     {
         $begin = microtime(true);
         $suppliers = Supplier::all();
-        $users = User::all();
-        $quotesRaised = Quote::where('raise_status', 1)
+        $users = app(NormalPurchaseGuard::class)->users()->get();
+        $quotesRaised = Quote::where('company_id', TenantContext::companyId())->where('raise_status', 1)
             ->where('state_active', 'open')->get();
 
         // TODO: WITH TRASHED
@@ -1981,7 +1959,7 @@ class OrderPurchaseController extends Controller
         $length = 5;
         $codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         $end = microtime(true) - $begin;
 
@@ -1994,180 +1972,10 @@ class OrderPurchaseController extends Controller
 
     }
 
-    public function storeOrderPurchaseNormalO(StoreOrderPurchaseRequest $request)
-    {
-        $begin = microtime(true);
-        //dd($request);
-        $validated = $request->validated();
-
-        $fecha = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
-        $fechaFormato = $fecha->format('Y-m-d');
-        //$response = $this->getTipoDeCambio($fechaFormato);
-
-        $precioCompra = 1;
-        $precioVenta = 1;
-
-        $tipoMoneda = ($request->has('currency_order')) ? 'PEN':'USD';
-        if ( $tipoMoneda == 'USD' ) {
-            $tipoCambioSunat = $this->obtenerTipoCambio($fechaFormato);
-            $precioCompra = (float) $tipoCambioSunat->precioCompra;
-            $precioVenta = (float) $tipoCambioSunat->precioVenta;
-        }
-
-        DB::beginTransaction();
-        try {
-            $maxCode = OrderPurchase::withTrashed()->max('id');
-            $maxId = $maxCode + 1;
-            $length = 5;
-            //$codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-
-            $orderPurchase = OrderPurchase::create([
-                'code' => '',
-                'quote_supplier' => $request->get('quote_supplier'),
-                'payment_deadline_id' => ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null,
-                'supplier_id' => ($request->has('supplier_id')) ? $request->get('supplier_id') : null,
-                'date_arrival' => ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now(),
-                'date_order' => ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
-                'approved_by' => ($request->has('approved_by')) ? $request->get('approved_by') : null,
-                'payment_condition' => ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '',
-                'currency_order' => ($request->has('currency_order')) ? 'PEN':'USD',
-                'currency_compra' => $precioCompra,
-                'currency_venta' => $precioVenta,
-                'observation' => $request->get('observation'),
-                'igv' => $request->get('taxes_send'),
-                'total' => $request->get('total_send'),
-                'type' => 'n',
-                'regularize' => ($request->has('regularize_order')) ? 'r':'nr',
-                'status_order' => 'stand_by',
-                'quote_id' => ($request->has('quote_id')) ? $request->get('quote_id') : null,
-
-            ]);
-            $codeOrder = '';
-            if ( $maxId < $orderPurchase->id ){
-                $codeOrder = 'OC-'.str_pad($orderPurchase->id,$length,"0", STR_PAD_LEFT);
-                $orderPurchase->code = $codeOrder;
-                $orderPurchase->save();
-            } else {
-                $codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-                $orderPurchase->code = $codeOrder;
-                $orderPurchase->save();
-            }
-
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                $orderPurchaseDetail = OrderPurchaseDetail::create([
-                    'order_purchase_id' => $orderPurchase->id,
-                    'material_id' => $items[$i]->id_material,
-                    'quantity' => (float) $items[$i]->quantity,
-                    'price' => (float) $items[$i]->price,
-                    'total_detail' => (float) $items[$i]->total,
-                ]);
-
-                // TODO: Revisamos si hay un material en seguimiento y creamos
-                // TODO: la notificacion y cambiamos el estado
-                $follows = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)
-                    ->get();
-                if ( !$follows->isEmpty() )
-                {
-                    // TODO: Creamos notificacion y cambiamos el estado
-                    // Crear notificacion
-                    $notification = Notification::create([
-                        'content' => 'El material ' . $orderPurchaseDetail->material->full_description . ' ha sido pedido.',
-                        'reason_for_creation' => 'follow_material',
-                        'user_id' => Auth::user()->id,
-                        'url_go' => route('follow.index')
-                    ]);
-
-                    // Roles adecuados para recibir esta notificación admin, logistica
-                    $users = User::role(['admin', 'operator'])->get();
-                    foreach ( $users as $user )
-                    {
-                        $followUsers = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)
-                            ->where('user_id', $user->id)
-                            ->get();
-                        if ( !$followUsers->isEmpty() )
-                        {
-                            foreach ( $user->roles as $role )
-                            {
-                                NotificationUser::create([
-                                    'notification_id' => $notification->id,
-                                    'role_id' => $role->id,
-                                    'user_id' => $user->id,
-                                    'read' => false,
-                                    'date_read' => null,
-                                    'date_delete' => null
-                                ]);
-                            }
-                        }
-                    }
-                    foreach ( $follows as $follow )
-                    {
-                        $follow->state = 'in_order';
-                        $follow->save();
-                    }
-                }
-
-                $total = $orderPurchaseDetail->total_detail;
-                $subtotal = $total / 1.18;
-                $igv = $total - $subtotal;
-                $orderPurchaseDetail->igv = $igv;
-                $orderPurchaseDetail->save();
-
-                MaterialOrder::create([
-                    'order_purchase_detail_id' => $orderPurchaseDetail->id,
-                    'material_id' => $orderPurchaseDetail->material_id,
-                    'quantity_request' => $orderPurchaseDetail->quantity,
-                    'quantity_entered' => 0
-                ]);
-            }
-
-            // Si el plazo indica credito, se crea el credito
-            /*if ( isset($orderPurchase->deadline) )
-            {
-                if ( $orderPurchase->deadline->credit == 1 || $orderPurchase->deadline->credit == true )
-                {
-                    $deadline = PaymentDeadline::find($orderPurchase->deadline->id);
-                    //$fecha_issue = Carbon::parse($orderPurchase->date_order);
-                    //$fecha_expiration = $fecha_issue->addDays($deadline->days);
-                    // TODO: Poner dias
-                    //$dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
-
-                    $credit = SupplierCredit::create([
-                        'supplier_id' => $orderPurchase->supplier->id,
-                        'total_soles' => ($orderPurchase->currency_order == 'PEN') ? $orderPurchase->total:null,
-                        'total_dollars' => ($orderPurchase->currency_order == 'USD') ? $orderPurchase->total:null,
-                        //'date_issue' => $orderPurchase->date_order,
-                        'order_purchase_id' => $orderPurchase->id,
-                        'state_credit' => 'outstanding',
-                        'order_service_id' => null,
-                        //'date_expiration' => $fecha_expiration,
-                        //'days_to_expiration' => $dias_to_expire,
-                        'code_order' => $orderPurchase->code,
-                        'payment_deadline_id' => $orderPurchase->payment_deadline_id
-                    ]);
-                }
-            }*/
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Guardar Orden Compra Normal POST',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Su orden normal con el código '.$codeOrder.' se guardó con éxito.'], 200);
-
-    }
-
     public function storeOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
     {
+        $guard = app(NormalPurchaseGuard::class);
+        $guard->header($request);
         $begin = microtime(true);
         //dd($request);
         $validated = $request->validated();
@@ -2188,6 +1996,7 @@ class OrderPurchaseController extends Controller
 
         DB::beginTransaction();
         try {
+            $guard->header($request);
             $maxCode = OrderPurchase::withTrashed()->max('id');
             $maxId = $maxCode + 1;
             $length = 5;
@@ -2200,7 +2009,6 @@ class OrderPurchaseController extends Controller
                 'supplier_id' => ($request->has('supplier_id')) ? $request->get('supplier_id') : null,
                 'date_arrival' => ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now(),
                 'date_order' => ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
-                'approved_by' => ($request->has('approved_by')) ? $request->get('approved_by') : null,
                 'payment_condition' => ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '',
                 'currency_order' => ($request->has('currency_order')) ? 'PEN':'USD',
                 'currency_compra' => $precioCompra,
@@ -2214,18 +2022,11 @@ class OrderPurchaseController extends Controller
                 'quote_id' => ($request->has('quote_id')) ? $request->get('quote_id') : null,
 
             ]);
-            $codeOrder = '';
-            if ( $maxId < $orderPurchase->id ){
-                $codeOrder = 'OC-'.str_pad($orderPurchase->id,$length,"0", STR_PAD_LEFT);
-                $orderPurchase->code = $codeOrder;
-                $orderPurchase->save();
-            } else {
-                $codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-                $orderPurchase->code = $codeOrder;
-                $orderPurchase->save();
-            }
+            $codeOrder = 'OC-' . str_pad($orderPurchase->id, 5, '0', STR_PAD_LEFT);
+            $orderPurchase->code = $codeOrder;
+            $orderPurchase->save();
 
-            $items = json_decode($request->get('items'));
+            $items = $guard->items($request->get('items'));
 
             for ($i = 0; $i < sizeof($items); $i++) {
 
@@ -2238,7 +2039,7 @@ class OrderPurchaseController extends Controller
                     'total_detail' => (float) $items[$i]->total,
                 ]);
 
-                $follows = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)->get();
+                $follows = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)->whereIn('user_id', $guard->users()->pluck('users.id'))->get();
 
                 if (!$follows->isEmpty()) {
 
@@ -2249,7 +2050,7 @@ class OrderPurchaseController extends Controller
                         'url_go' => route('follow.index')
                     ]);
 
-                    $users = User::role(['admin', 'operator'])->get();
+                    $users = $guard->users()->role(['admin', 'operator'])->get();
 
                     foreach ($users as $user) {
                         $followUsers = FollowMaterial::where('material_id', $orderPurchaseDetail->material_id)
@@ -2292,6 +2093,7 @@ class OrderPurchaseController extends Controller
                 ]);
             }
 
+            $guard->recalculate($orderPurchase);
             $end = microtime(true) - $begin;
 
             Audit::create([
@@ -2300,7 +2102,13 @@ class OrderPurchaseController extends Controller
                 'time' => $end
             ]);
             DB::commit();
-        } catch ( \Throwable $e ) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'La orden o producto no pertenece a la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack(); $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -2337,9 +2145,9 @@ class OrderPurchaseController extends Controller
     public function showOrderPurchaseNormal($id)
     {
         $suppliers = Supplier::all();
-        $users = User::all();
+        $users = app(\App\Services\Purchases\NormalPurchaseGuard::class)->users()->get();
 
-        $order = OrderPurchase::with(['supplier', 'approved_user', 'deadline'])->find($id);
+        $order = app(\App\Services\Purchases\NormalPurchaseGuard::class)->order($id)->load(['supplier', 'approved_user', 'deadline', 'createdUser', 'updatedUser']);
         $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
             ->with(['material.unitMeasure','stockItem'])->get();
 
@@ -2350,10 +2158,10 @@ class OrderPurchaseController extends Controller
     public function showOrderPurchaseDelete($id)
     {
         $suppliers = Supplier::all();
-        $users = User::all();
+        $users = app(\App\Services\Purchases\NormalPurchaseGuard::class)->users()->get();
 
-        $order = OrderPurchase::withTrashed()
-            ->with(['supplier', 'approved_user', 'deadline'])->find($id);
+        $order = OrderPurchase::onlyTrashed()->where('type', 'n')
+            ->with(['supplier', 'approved_user', 'deadline'])->findOrFail($id);
         $details = OrderPurchaseDetail::withTrashed()
             ->where('order_purchase_id', $order->id)
             ->with(['material.unitMeasure','stockItem'])->get();
@@ -2362,453 +2170,108 @@ class OrderPurchaseController extends Controller
 
     }
 
-    public function destroyOrderPurchaseNormalO($order_id)
+    public function destroyOrderPurchaseNormal(Request $request, $order_id)
     {
-        $begin = microtime(true);
-        $orderPurchase = OrderPurchase::find($order_id);
-        $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-        foreach ( $details as $detail )
-        {
-            $material_order = MaterialOrder::where('material_id', $detail->material_id)
-                ->where('order_purchase_detail_id', $detail->id)->first();
-            if ( isset($material_order) )
-            {
-                if ( $material_order->quantity_entered > 0 ) {
-                    return response()->json(['message' => 'No se puede modificar el detalle porque ya hay un ingreso.'], 422);
-                } else {
-                    $material_order->delete();
-                }
-            }
-
-            $detail->delete();
-
-        }
-
-        $orderPurchase->delete();
-
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Eliminar Orden Compra Normal',
-            'time' => $end
-        ]);
-        return response()->json(['message' => 'Orden normal eliminada con éxito.'], 200);
-
-    }
-
-    public function destroyOrderPurchaseNormal($order_id)
-    {
-        $begin = microtime(true);
-
-        DB::beginTransaction();
-
+        $guard = app(\App\Services\Purchases\NormalPurchaseGuard::class);
+        $guard->context($request);
         try {
-
-            $orderPurchase = OrderPurchase::findOrFail($order_id);
-
-            $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-
-            foreach ($details as $detail) {
-
-                $materialOrderQuery = MaterialOrder::where('order_purchase_detail_id', $detail->id)
-                    ->where('material_id', $detail->material_id);
-
-                if (!empty($detail->stock_item_id)) {
-                    $materialOrderQuery->where('stock_item_id', $detail->stock_item_id);
+            DB::transaction(function () use ($guard, $request, $order_id) {
+                $order = $guard->order($order_id, true); $guard->editable($order);
+                foreach (OrderPurchaseDetail::query()->where('order_purchase_id', $order->id)->orderBy('id')->lockForUpdate()->get() as $detail) {
+                    foreach (MaterialOrder::query()->where('order_purchase_detail_id', $detail->id)->lockForUpdate()->get() as $row) { $row->delete(); }
+                    $detail->delete();
                 }
-
-                $material_order = $materialOrderQuery->first();
-
-                if ($material_order) {
-
-                    if ((float) $material_order->quantity_entered > 0) {
-                        DB::rollBack();
-
-                        return response()->json([
-                            'message' => 'No se puede eliminar la orden porque ya hay un ingreso registrado.'
-                        ], 422);
-                    }
-
-                    $material_order->delete();
-                }
-
-                $detail->delete();
-            }
-
-            $orderPurchase->delete();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Orden Compra Normal',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Orden normal eliminada con éxito.'
-            ], 200);
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
+                $order->delete();
+                Audit::create(['user_id' => Auth::id(), 'action' => 'destroyOrderPurchaseNormal: empresa ' . TenantContext::companyId(), 'time' => 0]);
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'La orden o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         }
+        return response()->json(['message' => 'Orden normal eliminada con éxito.'], 200);
     }
 
     public function editOrderPurchaseNormal($id)
     {
         $suppliers = Supplier::all();
-        $quotesRaised = Quote::where('raise_status', 1)
+        $quotesRaised = Quote::where('company_id', TenantContext::companyId())->where('raise_status', 1)
             ->where('state_active', 'open')->get();
-        $users = User::all();
+        $users = app(NormalPurchaseGuard::class)->users()->get();
 
-        $order = OrderPurchase::with(['supplier', 'approved_user'])->find($id);
+        $order = OrderPurchase::where('type', 'n')->with(['supplier', 'createdUser', 'updatedUser'])->findOrFail($id);
         $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
             ->with(['material.unitMeasure','stockItem'])->get();
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable($order->payment_deadline_id)->get();
 
         return view('orderPurchase.editNormalV2', compact('order', 'details', 'suppliers', 'users', 'payment_deadlines', 'quotesRaised'));
     }
 
-    public function updateNormalDetailO(Request $request, $detail_id)
-    {
-        $begin = microtime(true);
-        DB::beginTransaction();
-        try {
-            $detail = OrderPurchaseDetail::find($detail_id);
-            $orderExpress = OrderPurchase::find($detail->order_purchase_id);
-
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                $material_order = MaterialOrder::where('material_id', $items[$i]->id_material)
-                    ->where('order_purchase_detail_id', $detail->id)->first();
-                if ( isset($material_order) )
-                {
-                    if ( $material_order->quantity_entered > 0 ) {
-                        return response()->json(['message' => 'No se puede modificar el detalle porque ya hay un ingreso.'], 422);
-                    } else {
-
-                        $quantity = (float) $items[$i]->quantity;
-                        //4
-                        $price = (float) $items[$i]->price;
-                        //200
-                        $total_final = (float) $items[$i]->total;
-
-                        $total = round($total_final, 2);
-                        //800
-                        $subtotal = round($total_final / 1.18, 2);
-                        //677.97
-                        $igv = $total - $subtotal;
-                        //122.03
-                        $detail->quantity = round($quantity, 2);
-                        $detail->price = round($price, 2);
-                        $detail->igv = round($igv,2);
-                        $detail->total_detail = round($total,2);
-                        $detail->save();
-
-                        $material_order->quantity_request =  round($quantity, 2);
-                        $material_order->save();
-
-                    }
-                } else {
-
-                    $quantity = (float) $items[$i]->quantity;
-                    //4
-                    $price = (float) $items[$i]->price;
-                    //200
-                    $total_final = (float) $items[$i]->total;
-
-                    $total = round($total_final, 2);
-                    //800
-                    $subtotal = round($total_final / 1.18, 2);
-
-                    //$total = round($quantity*$price, 2);
-                    //800
-                    //$subtotal = round($total / 1.18, 2);
-                    //677.97
-                    $igv = $total - $subtotal;
-                    //122.03
-                    $detail->quantity = round($quantity, 2);
-                    $detail->price = round($price, 2);
-                    $detail->igv = round($igv,2);
-                    $detail->total_detail = round($total,2);
-                    $detail->save();
-
-                }
-
-            }
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Editar Orden Compra Normal Detalle',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['message' => 'Detalle normal modificado con éxito.'], 200);
-
-    }
-
     public function updateNormalDetail(Request $request, $detail_id)
     {
-        $begin = microtime(true);
-
-        DB::beginTransaction();
-
+        $guard = app(NormalPurchaseGuard::class);
+        $guard->context($request);
         try {
-
-            $detail = OrderPurchaseDetail::findOrFail($detail_id);
-
-            $items = json_decode($request->get('items'));
-
-            if (!$items || count($items) === 0) {
-                throw new \Exception('No se recibió información del detalle.');
-            }
-
-            $item = $items[0];
-
-            $quantity = (float) $item->quantity;
-            $price = (float) $item->price;
-            $totalFinal = (float) $item->total;
-            $stockItemId = $item->stock_item_id ?? $detail->stock_item_id;
-
-            $materialOrderQuery = MaterialOrder::where('order_purchase_detail_id', $detail->id)
-                ->where('material_id', $detail->material_id);
-
-            if (!empty($stockItemId)) {
-                $materialOrderQuery->where('stock_item_id', $stockItemId);
-            }
-
-            $materialOrder = $materialOrderQuery->first();
-
-            if ($materialOrder && (float) $materialOrder->quantity_entered > 0) {
-                return response()->json([
-                    'message' => 'No se puede modificar el detalle porque ya hay un ingreso.'
-                ], 422);
-            }
-
-            $total = round($totalFinal, 2);
-            $subtotal = round($total / 1.18, 2);
-            $igv = $total - $subtotal;
-
-            $detail->quantity = round($quantity, 2);
-            $detail->price = round($price, 2);
-            $detail->igv = round($igv, 2);
-            $detail->total_detail = round($total, 2);
-            $detail->stock_item_id = $stockItemId;
-            $detail->save();
-
-            if ($materialOrder) {
-                $materialOrder->stock_item_id = $stockItemId;
-                $materialOrder->quantity_request = round($quantity, 2);
-                $materialOrder->save();
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Editar Orden Compra Normal Detalle',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Detalle normal modificado con éxito.'
-            ], 200);
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
+            DB::transaction(function () use ($guard, $request, $detail_id) {
+                $detail = OrderPurchaseDetail::query()->findOrFail($detail_id);
+                $order = $guard->order($detail->order_purchase_id, true);
+                $guard->editable($order);
+                $detail = OrderPurchaseDetail::query()->where('order_purchase_id', $order->id)->lockForUpdate()->findOrFail($detail_id);
+                $items = json_decode($request->get('items'));
+                if (!is_array($items) || count($items) !== 1 || !is_object($items[0])) { $guard->invalid('Envíe un detalle válido.'); }
+                $item = $items[0]; $guard->product($item, $detail);
+                $detail->stock_item_id = $item->stock_item_id;
+                $detail->quantity = round((float) $item->quantity, 2);
+                $detail->price = round((float) $item->price, 2);
+                $detail->total_detail = round((float) $item->total, 2);
+                $detail->igv = round($detail->total_detail - $detail->total_detail / 1.18, 2);
+                $detail->save();
+                $tracking = MaterialOrder::query()->where('order_purchase_detail_id', $detail->id)->lockForUpdate()->get();
+                if ($tracking->count() > 1) { $guard->invalid('El detalle tiene seguimiento duplicado. Requiere conciliación.'); }
+                $row = $tracking->first() ?: new MaterialOrder(['order_purchase_detail_id' => $detail->id, 'quantity_entered' => 0]);
+                $row->material_id = $detail->material_id; $row->stock_item_id = $detail->stock_item_id;
+                $row->quantity_request = $detail->quantity; $row->save();
+                $guard->recalculate($order);
+                Audit::create(['user_id' => Auth::id(), 'action' => 'updateNormalDetail: empresa ' . TenantContext::companyId(), 'time' => 0]);
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'La orden o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         }
+        return response()->json(['message' => 'Detalle normal modificado con éxito.'], 200);
     }
 
-    public function destroyNormalDetailO($idDetail, $idMaterial)
+    public function destroyNormalDetail(Request $request, $idDetail, $stockItemId)
     {
-        $begin = microtime(true);
-        DB::beginTransaction();
+        $guard = app(\App\Services\Purchases\NormalPurchaseGuard::class);
+        $guard->context($request);
         try {
-            $detail = OrderPurchaseDetail::find($idDetail);
-            $orderExpress = OrderPurchase::find($detail->order_purchase_id);
-
-            $material_order = MaterialOrder::where('material_id', $idMaterial)
-                ->where('order_purchase_detail_id', $detail->id)->first();
-            if ( isset($material_order) )
-            {
-                if ( $material_order->quantity_entered > 0 ) {
-                    return response()->json(['message' => 'No se puede eliminar el detalle porque ya hay un ingreso.'], 422);
-                } else {
-                    $material_order->delete();
-                    $detail->delete();
-                }
-            } else {
-                $detail->delete();
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Orden Compra Normal Detalle',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            DB::transaction(function () use ($guard, $request, $idDetail, $stockItemId) {
+                $detail = OrderPurchaseDetail::query()->findOrFail($idDetail);
+                $order = $guard->order($detail->order_purchase_id, true); $guard->editable($order);
+                $field = $request->route('materialId') !== null ? 'material_id' : 'stock_item_id';
+                if ((int) $detail->$field !== (int) $stockItemId) { $guard->invalid('El producto no corresponde al detalle.'); }
+                foreach (MaterialOrder::query()->where('order_purchase_detail_id', $detail->id)->lockForUpdate()->get() as $row) { $row->delete(); }
+                $detail->delete(); $guard->recalculate($order);
+                Audit::create(['user_id' => Auth::id(), 'action' => 'destroyNormalDetail: empresa ' . TenantContext::companyId(), 'time' => 0]);
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'La orden o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         }
-
         return response()->json(['message' => 'Detalle normal eliminado con éxito.'], 200);
-
-    }
-
-    public function destroyNormalDetail($idDetail, $stockItemId)
-    {
-        $begin = microtime(true);
-
-        DB::beginTransaction();
-
-        try {
-            $detail = OrderPurchaseDetail::where('id', $idDetail)
-                ->where('stock_item_id', $stockItemId)
-                ->first();
-
-            if (!$detail) {
-                return response()->json([
-                    'message' => 'No se encontró el detalle de la orden.'
-                ], 422);
-            }
-
-            $materialOrder = MaterialOrder::where('stock_item_id', $stockItemId)
-                ->where('order_purchase_detail_id', $detail->id)
-                ->first();
-
-            if ($materialOrder) {
-                if ((float) $materialOrder->quantity_entered > 0) {
-                    return response()->json([
-                        'message' => 'No se puede eliminar el detalle porque ya hay un ingreso.'
-                    ], 422);
-                }
-
-                $materialOrder->delete();
-            }
-
-            $detail->delete();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Orden Compra Normal Detalle',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Detalle normal eliminado con éxito.'
-            ], 200);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
-        }
-    }
-
-    public function updateOrderPurchaseNormalO(StoreOrderPurchaseRequest $request)
-    {
-        $begin = microtime(true);
-        $validated = $request->validated();
-
-        DB::beginTransaction();
-        try {
-            $orderPurchase = OrderPurchase::find($request->get('order_id'));
-            $orderPurchase->payment_deadline_id = ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null;
-            $orderPurchase->supplier_id = ($request->has('supplier_id')) ? $request->get('supplier_id') : null;
-            $orderPurchase->date_arrival = ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now();
-            $orderPurchase->date_order = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
-            $orderPurchase->approved_by = ($request->has('approved_by')) ? $request->get('approved_by') : null;
-            $orderPurchase->payment_condition = ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '';
-            $orderPurchase->currency_order = ($request->get('state') === 'true') ? 'PEN': 'USD';
-            $orderPurchase->regularize = ($request->get('regularize') === 'true') ? 'r': 'nr';
-            $orderPurchase->observation = $request->get('observation');
-            $orderPurchase->quote_supplier = $request->get('quote_supplier');
-            $orderPurchase->igv = (float) $request->get('taxes_send');
-            $orderPurchase->total = (float) $request->get('total_send');
-            $orderPurchase->quote_id = ($request->has('quote_id')) ? $request->get('quote_id') : null;
-            $orderPurchase->save();
-
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                if ($items[$i]->detail_id === '')
-                {
-                    $orderPurchaseDetail = OrderPurchaseDetail::create([
-                        'order_purchase_id' => $orderPurchase->id,
-                        'material_id' => $items[$i]->id_material,
-                        'quantity' => (float) $items[$i]->quantity,
-                        'price' => (float) $items[$i]->price,
-                        'total_detail' => (float) $items[$i]->total,
-                    ]);
-
-                    $total = $orderPurchaseDetail->total_detail;
-                    $subtotal = round($total / 1.18, 2);
-                    $igv = round($total - $subtotal, 2);
-                    $orderPurchaseDetail->igv = $igv;
-                    $orderPurchaseDetail->save();
-
-                    MaterialOrder::create([
-                        'order_purchase_detail_id' => $orderPurchaseDetail->id,
-                        'material_id' => $orderPurchaseDetail->material_id,
-                        'quantity_request' => $orderPurchaseDetail->quantity,
-                        'quantity_entered' => 0
-                    ]);
-                }
-
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Modificar Orden Compra Normal',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Orden compra normal modificada con éxito.'], 200);
-
     }
 
     public function updateOrderPurchaseNormal(StoreOrderPurchaseRequest $request)
     {
+        $guard = app(NormalPurchaseGuard::class);
+        $guard->context($request);
         $begin = microtime(true);
         $validated = $request->validated();
 
@@ -2816,13 +2279,14 @@ class OrderPurchaseController extends Controller
 
         try {
 
-            $orderPurchase = OrderPurchase::findOrFail($request->get('order_id'));
+            $orderPurchase = $guard->order($request->get('order_id'), true);
+            $guard->editable($orderPurchase);
+            $guard->header($request, $orderPurchase);
 
             $orderPurchase->payment_deadline_id = ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null;
             $orderPurchase->supplier_id = ($request->has('supplier_id')) ? $request->get('supplier_id') : null;
             $orderPurchase->date_arrival = ($request->has('date_arrival')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_arrival')) : Carbon::now();
             $orderPurchase->date_order = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
-            $orderPurchase->approved_by = ($request->has('approved_by')) ? $request->get('approved_by') : null;
             $orderPurchase->payment_condition = ($request->has('purchase_condition')) ? $request->get('purchase_condition') : '';
             $orderPurchase->currency_order = ($request->get('state') === 'true') ? 'PEN' : 'USD';
             $orderPurchase->regularize = ($request->get('regularize') === 'true') ? 'r' : 'nr';
@@ -2833,7 +2297,7 @@ class OrderPurchaseController extends Controller
             $orderPurchase->quote_id = ($request->has('quote_id')) ? $request->get('quote_id') : null;
             $orderPurchase->save();
 
-            $items = json_decode($request->get('items'));
+            $items = $guard->items($request->get('items') ?: '[]', $orderPurchase, true);
 
             if ($items && sizeof($items) > 0) {
 
@@ -2891,6 +2355,7 @@ class OrderPurchaseController extends Controller
                 }
             }
 
+            $guard->recalculate($orderPurchase);
             $end = microtime(true) - $begin;
 
             Audit::create([
@@ -2905,6 +2370,12 @@ class OrderPurchaseController extends Controller
                 'message' => 'Orden compra normal modificada con éxito.'
             ], 200);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'La orden o producto no pertenece a la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack(); $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         } catch (\Throwable $e) {
 
             DB::rollBack();
@@ -3027,110 +2498,59 @@ class OrderPurchaseController extends Controller
         return $pdf->stream($name);
     }
 
-    public function restoreOrderPurchaseDeleteO($id)
+    public function restoreOrderPurchaseDelete(Request $request, $id)
     {
-        $begin = microtime(true);
-        $orderPurchase = OrderPurchase::onlyTrashed()->find($id);
-
-        $details = OrderPurchaseDetail::onlyTrashed()
-            ->where('order_purchase_id', $id)->get();
-        foreach ( $details as $detail )
-        {
-            $detail->restore();
-
-            MaterialOrder::create([
-                'order_purchase_detail_id' => $detail->id,
-                'material_id' => $detail->material_id,
-                'quantity_request' => $detail->quantity,
-                'quantity_entered' => 0
-            ]);
-        }
-
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Restaurar orden de compra',
-            'time' => $end
-        ]);
-        $orderPurchase->restore();
-
-    }
-
-    public function restoreOrderPurchaseDelete($id)
-    {
-        $begin = microtime(true);
-
-        DB::beginTransaction();
-
+        $guard = app(\App\Services\Purchases\NormalPurchaseGuard::class);
+        $guard->context($request);
         try {
-
-            $orderPurchase = OrderPurchase::onlyTrashed()->findOrFail($id);
-
-            $details = OrderPurchaseDetail::onlyTrashed()
-                ->where('order_purchase_id', $id)
-                ->get();
-
-            foreach ($details as $detail) {
-
-                $detail->restore();
-
-                $materialOrderExists = MaterialOrder::where('order_purchase_detail_id', $detail->id)
-                    ->exists();
-
-                if (!$materialOrderExists) {
-                    MaterialOrder::create([
-                        'order_purchase_detail_id' => $detail->id,
-                        'material_id' => $detail->material_id,
-                        'stock_item_id' => $detail->stock_item_id,
-                        'quantity_request' => $detail->quantity,
-                        'quantity_entered' => 0
-                    ]);
+            DB::transaction(function () use ($id, $guard) {
+                $order = OrderPurchase::onlyTrashed()->where('type', 'n')->lockForUpdate()->findOrFail($id);
+                $guard->editable($order);
+                $allDetailIds = OrderPurchaseDetail::withTrashed()->where('order_purchase_id', $order->id)->pluck('id');
+                if (MaterialOrder::query()->whereIn('order_purchase_detail_id', $allDetailIds)->where('quantity_entered', '>', 0)->exists()) {
+                    $guard->invalid('La orden eliminada tiene cantidades recibidas; requiere conciliación antes de restaurar.');
                 }
-            }
-
-            $orderPurchase->restore();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Restaurar orden de compra',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Orden de compra restaurada con éxito.'
-            ], 200);
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
+                // Los detalles solo pueden guardarse cuando su padre ya está activo.
+                $order->restore();
+                foreach (OrderPurchaseDetail::onlyTrashed()->where('order_purchase_id', $order->id)->orderBy('id')->lockForUpdate()->get() as $detail) {
+                    $detail->restore();
+                    $tracking = MaterialOrder::query()->where('order_purchase_detail_id', $detail->id)->lockForUpdate()->get();
+                    if ($tracking->count() > 1) { $guard->invalid('El detalle tiene seguimiento duplicado. Requiere conciliación.'); }
+                    if ($tracking->isEmpty()) {
+                        MaterialOrder::create(['order_purchase_detail_id' => $detail->id, 'material_id' => $detail->material_id,
+                            'stock_item_id' => $detail->stock_item_id, 'quantity_request' => $detail->quantity, 'quantity_entered' => 0]);
+                    }
+                }
+                $guard->recalculate($order);
+                Audit::create(['user_id' => Auth::id(), 'action' => 'Restaurar orden normal: empresa ' . TenantContext::companyId(), 'time' => 0]);
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'La orden no existe entre las eliminadas de la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         }
+        return response()->json(['message' => 'Orden de compra restaurada con éxito.'], 200);
     }
 
-    public function changeStatusOrderPurchase($order_id, $status)
+    public function changeStatusOrderPurchase(Request $request, $order_id, $status)
     {
-        DB::beginTransaction();
+        $guard = app(\App\Services\Purchases\NormalPurchaseGuard::class);
+        $guard->context($request);
         try {
-
-            $orderPurchase = OrderPurchase::find($order_id);
-            $orderPurchase->status_order = $status;
-            $orderPurchase->save();
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            DB::transaction(function () use ($guard, $request, $order_id, $status) {
+                if (!in_array($status, ['stand_by', 'send', 'pick_up'], true)) { $guard->invalid('Estado no permitido.'); }
+                $order = $guard->order($order_id, true);
+                $order->status_order = $status; $order->save();
+                Audit::create(['user_id' => Auth::id(), 'action' => 'changeStatusOrderPurchase: empresa ' . TenantContext::companyId(), 'time' => 0]);
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'La orden o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise la orden.', 'errors' => $errors], 422);
         }
         return response()->json(['message' => 'Estado modificado.'], 200);
-
     }
 
     public function indexOrderPurchaseRegularize()

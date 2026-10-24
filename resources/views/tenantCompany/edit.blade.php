@@ -1,5 +1,28 @@
 @extends('layouts.appAdmin2')
 
+@section('title', 'Modificar Empresas')
+
+@section('activeTenantCompanyConfig', 'active')
+
+@section('page-header')
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Configuración de Empresa</span>
+        <h1 class="page-title">Empresas</h1>
+        <p class="next-page-description">Administra los datos de la empresa.</p>
+    </div>
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right">
+        <li class="breadcrumb-item"><a href="{{ route('tenantCompany.index') }}"><i class="fa fa-home"></i>Empresas</a></li>
+        <li class="breadcrumb-item active">Modificar</li>
+    </ol>
+@endsection
+
+@section('page-title')
+    <h5 class="card-title">Editar empresas</h5>
+@endsection
+
 @section('content')
 
     <div class="container-fluid">
@@ -8,7 +31,7 @@
 
             <div class="card-header">
                 <h3 class="card-title">
-                    Editar empresa
+                    Datos de la empresa
                 </h3>
             </div>
 
@@ -149,11 +172,17 @@
 
     </div>
 
+    @include('inventory.managedWarehouses', [
+        'branchWarehouseContext' => false,
+        'warehouseCompanyId' => $company->id,
+        'warehouseBranchId' => null,
+    ])
+
 @endsection
 
 
 @section('scripts')
 
     <script src="{{ asset('js/tenantCompany/edit.js') }}"></script>
-
+    <script src="{{ asset('js/inventory/managedWarehouses.js') }}"></script>
 @endsection

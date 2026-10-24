@@ -2,11 +2,23 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Output extends Model
 {
+    use BelongsToTenant;
+
+    protected $casts = [
+        'tenant_id' => 'integer',
+        'company_id' => 'integer',
+        'branch_id' => 'integer',
+    ];
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
+        'branch_id',
         'execution_order',
         'request_date',
         'requesting_user',
@@ -35,5 +47,15 @@ class Output extends Model
     public function quote()
     {
         return $this->belongsTo('App\Quote', 'execution_order', 'order_execution');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

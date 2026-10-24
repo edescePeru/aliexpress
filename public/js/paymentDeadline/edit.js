@@ -1,99 +1,26 @@
-$(document).ready(function () {
-    $formEdit = $('#formEdit');
-    $('#btn-submit').on('click', updatePaymentDeadline);
-    //$formEdit.on('submit', updateQuality);
-
-});
-
-var $formEdit;
-
-function mayus(e) {
-    e.value = e.value.toUpperCase();
-}
-
-function updatePaymentDeadline() {
-    event.preventDefault();
-    $("#btn-submit").attr("disabled", true);
-    var formulario = $('#formEdit')[0];
-    var form = new FormData(formulario);
-    // Obtener la URL
-    var editUrl = $formEdit.data('url');
-    $.ajax({
-        url: editUrl,
-        method: 'POST',
-        data: form,
-        processData:false,
-        contentType:false,
-        success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "3000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            setTimeout( function () {
-                $("#btn-submit").attr("disabled", false);
-                $(location).attr('href', data.url)
-            }, 2000 )
-        },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-submit").attr("disabled", false);
-
-
-        },
+function mayus(e) { e.value = e.value.toUpperCase(); }
+$(function () {
+    var form = document.getElementById('formCreate') || document.getElementById('formEdit');
+    if (!form) return;
+    var saving = false;
+    $(form).on('submit', function (event) {
+        event.preventDefault();
+        if (saving || !form.reportValidity()) return;
+        saving = true;
+        var button = $('#btn-submit');
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Guardando');
+        $.ajax({url: $(form).data('url'), type: 'POST', data: new FormData(form), processData: false, contentType: false,
+            headers: {'Accept': 'application/json'}})
+            .done(function (data) {
+                var leave = function () { window.location.assign(data.url); };
+                if ($.alert) $.alert({title: 'Guardado', content: $('<div>').text(data.message).html(), type: 'green', onClose: leave});
+                else { window.alert(data.message); leave(); }
+            })
+            .fail(function (xhr) {
+                var data = xhr.responseJSON || {};
+                var messages = data.errors ? Object.keys(data.errors).reduce(function (all, key) { return all.concat(data.errors[key]); }, []) : [data.message || 'No se pudo guardar.'];
+                messages.forEach(function (message) { toastr.error(message); });
+                saving = false; button.prop('disabled', false).text('Guardar');
+            });
     });
-}
+});

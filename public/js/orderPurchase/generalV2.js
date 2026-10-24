@@ -659,7 +659,7 @@ function renderDataTable(data) {
     clone.querySelector("[data-date_arrival]").innerHTML = data.date_arrival;
     clone.querySelector("[data-observation]").innerHTML = data.observation;
     clone.querySelector("[data-supplier]").innerHTML = data.supplier;
-    clone.querySelector("[data-approved_user]").innerHTML = data.approved_user;
+    clone.querySelector("[data-created_user]").textContent = data.created_user;
     clone.querySelector("[data-currency]").innerHTML = data.currency;
     clone.querySelector("[data-total]").innerHTML = data.total;
     clone.querySelector("[data-type]").innerHTML = data.typeText;

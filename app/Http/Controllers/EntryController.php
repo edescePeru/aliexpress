@@ -28,7 +28,10 @@ use App\Output;
 use App\OutputDetail;
 use App\PaymentDeadline;
 use App\Quote;
+use App\Services\Inventory\EntryDeletionService;
+use App\Services\Inventory\EntryWarehouseResolver;
 use App\Services\InventoryCostService;
+use App\Services\Purchases\NormalPurchaseReceiptSummary;
 use App\Services\TipoCambioService;
 use App\StockItem;
 use App\StockLot;
@@ -43,6 +46,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Intervention\Image\Facades\Image;
 use Barryvdh\DomPDF\Facade as PDF;
 use App\Services\SettingService;
@@ -234,8 +238,10 @@ class EntryController extends Controller
     public function createEntryPurchase()
     {
         $suppliers = Supplier::all();
-        //return view('entry.create_entry_purchase', compact('suppliers'));
-        return view('entry.create_entry_purchaseV2', compact('suppliers'));
+        $warehouseOptions = app(EntryWarehouseResolver::class)
+            ->optionsForCurrentContext();
+
+        return view('entry.create_entry_purchaseV2', compact('suppliers', 'warehouseOptions'));
     }
 
     public function createEntryScrap()
@@ -1309,6 +1315,12 @@ class EntryController extends Controller
         DB::beginTransaction();
 
         try {
+            // Antes de crear Entry, guardar imágenes o escribir stock.
+            $items = app(\App\Services\Inventory\EntryDestinationValidator::class)->normalize(
+                $request->get('items'),
+                $request->get('entry_context_company_id'),
+                $request->get('entry_context_branch_id')
+            );
             $entry = Entry::create([
                 'referral_guide'   => $request->get('referral_guide'),
                 'purchase_order'   => $request->get('purchase_order'),
@@ -1383,11 +1395,7 @@ class EntryController extends Controller
             // =========================
             // ITEMS (JSON)
             // =========================
-            $items = json_decode($request->get('items'));
-
-            if (!is_array($items) && !($items instanceof \Traversable)) {
-                throw new \Exception('El formato de items es inválido.');
-            }
+            // $items ya fue validado y normalizado dentro de esta transacción.
 
             /**
              * Agrupar por:
@@ -1398,35 +1406,8 @@ class EntryController extends Controller
             foreach ($items as $it) {
                 $materialId  = (int) ($it->id_material ?? 0);
                 $stockItemId = (int) ($it->stock_item_id ?? 0);
-                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
-
-                if (!$locationId) {
-                    throw new \RuntimeException(
-                        'Uno de los items no tiene una ubicación válida.'
-                    );
-                }
-
-                $location = Location::query()
-                    ->where('id', $locationId)
-                    ->where(
-                        'company_id',
-                        TenantContext::companyId()
-                    )
-                    ->first();
-
-                if (!$location) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no pertenece a la empresa actual.'
-                    );
-                }
-
-                $warehouseId = $location->warehouse_id;
-
-                if (!$warehouseId) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no tiene un almacén asociado.'
-                    );
-                }
+                $locationId = (int) $it->id_location;
+                $warehouseId = (int) $it->warehouse_id;
 
                 $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
                 $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
@@ -1612,35 +1593,8 @@ class EntryController extends Controller
             foreach ($items as $it) {
                 $materialId  = (int) ($it->id_material ?? 0);
                 $stockItemId = (int) ($it->stock_item_id ?? 0);
-                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
-
-                if (!$locationId) {
-                    throw new \RuntimeException(
-                        'Uno de los items no tiene una ubicación válida.'
-                    );
-                }
-
-                $location = Location::query()
-                    ->where('id', $locationId)
-                    ->where(
-                        'company_id',
-                        TenantContext::companyId()
-                    )
-                    ->first();
-
-                if (!$location) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no pertenece a la empresa actual.'
-                    );
-                }
-
-                $warehouseId = $location->warehouse_id;
-
-                if (!$warehouseId) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no tiene un almacén asociado.'
-                    );
-                }
+                $locationId = (int) $it->id_location;
+                $warehouseId = (int) $it->warehouse_id;
 
                 $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
                 $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
@@ -1852,6 +1806,11 @@ class EntryController extends Controller
 
             DB::commit();
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            $errors = $e->errors();
+            $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise los destinos del ingreso.', 'errors' => $errors], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -2399,11 +2358,15 @@ class EntryController extends Controller
             ->orderBy('business_name')
             ->get();
 
+        $warehouseOptions = app(\App\Services\Inventory\EntryWarehouseResolver::class)
+            ->optionsForCurrentContext();
+
         return view(
             'entry.edit_entry_purchaseV2',
             compact(
                 'entry',
-                'suppliers'
+                'suppliers',
+                'warehouseOptions'
             )
         );
     }
@@ -2430,6 +2393,12 @@ class EntryController extends Controller
                     $request->get('entry_id')
                 )
                 ->firstOrFail();
+            if ($entry->order_purchase_id || trim((string) $entry->purchase_order) !== '') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'entry_id' => 'Este ingreso pertenece a una orden. Reciba las cantidades pendientes desde Órdenes para almacén; no se pueden agregar productos ni modificarlo por esta vía.',
+                ]);
+            }
+
             $entry->referral_guide = $request->get('referral_guide');
             $entry->purchase_order = $request->get('purchase_order');
             $entry->invoice = $request->get('invoice');
@@ -2655,689 +2624,23 @@ class EntryController extends Controller
 
     }
 
-    // No se borró la orden de compra
-    public function destroyEntryPurchaseO(Entry $entry)
-    {
-        $begin = microtime(true);
-        $entry2 = $entry;
-
-        DB::beginTransaction();
-        try {
-            if ($entry->entry_type === 'Por compra') {
-
-                $details_entry = $entry->details;
-
-                // ===========================
-                // ✅ Validación: no permitir eliminar si hay items reservados o en salida
-                // ===========================
-                foreach ($details_entry as $detail) {
-                    $itemsBlocking = Item::where('detail_entry_id', $detail->id)
-                        ->whereIn('state_item', ['reserved','exited'])
-                        ->get();
-
-                    if ($itemsBlocking && $itemsBlocking->count() > 0) {
-                        return response()->json(['message' => 'Lo sentimos, no se puede eliminar la entrada porque hay items reservados o en salida.'], 422);
-                    }
-                }
-
-                $order_purchase = OrderPurchase::where('code', $entry->purchase_order)->first();
-
-                // ===========================
-                // ✅ Preparar Output(s) de rollback: uno por detalle (más claro/auditable)
-                //    (si prefieres uno solo para todo el entry, lo ajustamos)
-                // ===========================
-                $now = now();
-
-                // Para recalcular costos al final (materiales afectados)
-                $affectedMaterialIds = [];
-
-                foreach ($details_entry as $detail) {
-
-                    $material = Material::find($detail->material_id);
-                    if (!$material) {
-                        throw new \Exception("Material no encontrado: {$detail->material_id}");
-                    }
-
-                    $affectedMaterialIds[] = (int)$material->id;
-
-                    // Output por cada detalle
-                    /*$output = Output::create([
-                        'execution_order'  => 'SALIDA POR ANULACIÓN DE INGRESO (ENTRY #' . $entry->id . ')',
-                        'request_date'     => $now,
-                        'requesting_user'  => Auth::id(),
-                        'responsible_user' => Auth::id(),
-                        'state'            => 'confirmed',
-                        'indicator'        => 'or',
-                    ]);*/
-
-                    // Costo promedio vigente ANTES de registrar la salida (auditoría)
-                    $unitCostBefore = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
-
-                    // ===========================
-                    // ✅ Crear OutputDetail(s) y descontar stock
-                    // ===========================
-                    if ((int)$material->tipo_venta_id === 3) {
-                        // ITEMEABLE: 1 output_detail por item físico
-                        $itemsToDelete = Item::where('detail_entry_id', $detail->id)->get();
-
-                        if ($itemsToDelete && $itemsToDelete->count() > 0) {
-                            foreach ($itemsToDelete as $item) {
-
-                                /*OutputDetail::create([
-                                    'output_id'      => $output->id,
-                                    'sale_detail_id' => null,
-                                    'item_id'        => $item->id,
-                                    'material_id'    => $material->id,
-                                    'quote_id'       => null,
-                                    'custom'         => 0,
-                                    'percentage'     => 1,
-                                    'price'          => $item->price,
-                                    'length'         => $item->length,
-                                    'width'          => $item->width,
-                                    'equipment_id'   => null,
-                                    'activo'         => null,
-
-                                    'unit_cost'      => $unitCostBefore,
-                                    'total_cost'     => $unitCostBefore,
-                                ]);*/
-
-                                // rollback de stock por item
-                                $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
-                                $material->save();
-
-                                $item->delete();
-                            }
-                        } else {
-                            // fallback: si no hay items, salimos por entered_quantity
-                            $qty = (float)$detail->entered_quantity;
-
-                            /*OutputDetail::create([
-                                'output_id'      => $output->id,
-                                'sale_detail_id' => null,
-                                'item_id'        => null,
-                                'material_id'    => $material->id,
-                                'quote_id'       => null,
-                                'custom'         => 0,
-                                'percentage'     => $qty,
-                                'price'          => (float)($detail->unit_price ?? $material->unit_price),
-                                'length'         => null,
-                                'width'          => null,
-                                'equipment_id'   => null,
-                                'activo'         => null,
-
-                                'unit_cost'      => $unitCostBefore,
-                                'total_cost'     => $qty * $unitCostBefore,
-                            ]);*/
-
-                            $material->stock_current = (float)$material->stock_current - $qty;
-                            $material->save();
-                        }
-
-                    } else {
-                        // NO ITEMEABLE: 1 output_detail por cantidad del detalle
-                        $qty = (float)$detail->entered_quantity;
-
-                        /*OutputDetail::create([
-                            'output_id'      => $output->id,
-                            'sale_detail_id' => null,
-                            'item_id'        => null,
-                            'material_id'    => $material->id,
-                            'quote_id'       => null,
-                            'custom'         => 0,
-                            'percentage'     => $qty,
-                            'price'          => (float)($detail->unit_price ?? $material->unit_price),
-                            'length'         => null,
-                            'width'          => null,
-                            'equipment_id'   => null,
-                            'activo'         => null,
-
-                            'unit_cost'      => $unitCostBefore,
-                            'total_cost'     => $qty * $unitCostBefore,
-                        ]);*/
-
-                        $material->stock_current = (float)$material->stock_current - $qty;
-                        $material->save();
-                    }
-
-                    // ===========================
-                    // ✅ Tu lógica de OrderPurchase / MaterialOrder (igual, solo sin tocar stock aquí porque ya se tocó arriba)
-                    // ===========================
-                    if (!is_null($order_purchase)) {
-                        $order_purchase_detail = OrderPurchaseDetail::where('order_purchase_id', $order_purchase->id)
-                            ->where('material_id', $material->id)->first();
-
-                        if ($order_purchase_detail) {
-                            $material_orders = MaterialOrder::where('order_purchase_detail_id', $order_purchase_detail->id)->get();
-                            if ($material_orders && $material_orders->count() > 0) {
-                                foreach ($material_orders as $material_order) {
-                                    $material_order->quantity_entered = 0;
-                                    $material_order->save();
-                                }
-                            }
-                        }
-                    }
-
-                    // eliminar detalle
-                    $detail->delete();
-                }
-
-                // ===========================
-                // ✅ Recalcular costo promedio (Kardex) y actualizar materials.unit_price
-                //    (ya incluye todas las salidas creadas arriba)
-                // ===========================
-                $affectedMaterialIds = array_values(array_unique(array_map('intval', $affectedMaterialIds)));
-
-                $avgCosts = $this->inventoryCostService->getAverageCostsUpToDate($affectedMaterialIds, $now);
-
-                foreach ($affectedMaterialIds as $mid) {
-                    $avg = (float) ($avgCosts[$mid] ?? 0.0);
-                    Material::where('id', $mid)->update(['unit_price' => $avg]);
-                }
-
-                // Borrar imagen principal
-                if ($entry->image !== 'no_image.png') {
-                    $my_image = public_path().'/images/entries/'.$entry->image;
-                    if (@getimagesize($my_image)) {
-                        unlink($my_image);
-                    }
-                }
-
-                // Eliminar crédito outstanding
-                $credit = SupplierCredit::with('deadline')
-                    ->where('entry_id', $entry->id)
-                    ->where('state_credit', 'outstanding')->first();
-
-                if (isset($credit)) {
-                    $credit->delete();
-                }
-
-                // Eliminar entry
-                $entry->delete();
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Ingreso Almacen (con salida kardex)',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        // TODO: Logica para actualizar (tu bloque original)
-        $orderPurchase = OrderPurchase::where('code', $entry2->purchase_order)->first();
-        if (!is_null($orderPurchase)) {
-
-            // OJO: aquí tu código original usaba $order_purchase en el if; lo dejamos como estaba,
-            // pero si quieres, conviene uniformizar variable ($orderPurchase vs $order_purchase).
-            $entradas = Entry::where('purchase_order', $orderPurchase->code)->get();
-
-            if (count($entradas) > 0) {
-                $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-
-                if (isset($details)) {
-                    $flag = 1;
-                    foreach ($details as $detail) {
-                        $material = $detail->material_id;
-                        $cant_material = 0;
-                        foreach ($entradas as $entrada) {
-                            $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
-                                ->where('material_id', $material)->sum('entered_quantity');
-                            $cant_material += $entry_details_sum;
-                        }
-
-                        if ($cant_material < $detail->quantity) {
-                            $flag = 0;
-                        }
-                    }
-                    if ($flag == 0) {
-                        $orderPurchase->state = 0;
-                        $orderPurchase->save();
-                    } else {
-                        $orderPurchase->state = 1;
-                        $orderPurchase->save();
-                    }
-
-                } else {
-                    $orderPurchase->state = 2;
-                    $orderPurchase->save();
-                }
-
-            } else {
-                $orderPurchase->state = 2;
-                $orderPurchase->save();
-            }
-        }
-
-        return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
-    }
-
     public function destroyEntryPurchase(Entry $entry)
     {
         $begin = microtime(true);
-
-        $companyId = TenantContext::companyId();
-
+        if ((int) $entry->company_id !== (int) TenantContext::companyId()) { abort(404); }
         $entryId = $entry->id;
-
-        if ( (int) $entry->company_id !== (int) $companyId ) {
-            abort(404);
-        }
-
-        $purchaseOrderCode = null;
-
-        DB::beginTransaction();
+        $companyId = TenantContext::companyId();
         try {
-
-            $entry = Entry::query()
-                ->where('company_id', $companyId)
-                ->where('id', $entryId)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $purchaseOrderCode = $entry->purchase_order;
-
-            if ($entry->entry_type !== 'Por compra') {
-                throw new \RuntimeException(
-                    'El ingreso indicado no corresponde a un ingreso por compra.'
-                );
-            }
-
-            $imagePath = null;
-            $imageObservationPath = null;
-
-            $detailsEntry = DetailEntry::query()
-                ->where('company_id', $companyId)
-                ->where('entry_id', $entry->id)
-                ->lockForUpdate()
-                ->get();
-
-            $affectedStockItemIds = [];
-            $inventoryKeysToSync = [];
-
-            foreach ($detailsEntry as $detail) {
-
-                $materialId = (int) $detail->material_id;
-
-                if ($detail->stock_item_id) {
-                    $affectedStockItemIds[] =
-                        (int) $detail->stock_item_id;
-                }
-
-                // ===========================
-                // 1) Validaciones de bloqueo
-                // ===========================
-                $items = Item::query()
-                    ->where('company_id', $companyId)
-                    ->where(
-                        'detail_entry_id',
-                        $detail->id
-                    )
-                    ->lockForUpdate()
-                    ->get();
-
-                // Para itemeables: no permitir si hay items reservados o salidos
-                $itemsBlocking = $items->whereIn('state_item', ['reserved', 'exited']);
-                if ($itemsBlocking->count() > 0) {
-                    throw new \RuntimeException('Lo sentimos, no se puede eliminar la entrada porque hay items reservados o en salida.'
-                    );
-                }
-
-                $stockLots = StockLot::query()
-                    ->where('company_id', $companyId)
-                    ->where(
-                        'detail_entry_id',
-                        $detail->id
-                    )
-                    ->lockForUpdate()
-                    ->get();
-
-                // No permitir eliminar si algún lote de este detalle tiene reserva
-                $reservedLots = $stockLots->filter(function ($lot) {
-                    return (float) $lot->qty_reserved > 0;
-                });
-
-                if ($reservedLots->count() > 0) {
-                    throw new \RuntimeException('Lo sentimos, no se puede eliminar la entrada porque uno o más lotes tienen stock reservado.'
-                    );
-                }
-
-                // No permitir eliminar si el stock restante del detalle ya fue consumido parcialmente
-                $currentLotOnHand = (float) $stockLots->sum('qty_on_hand');
-                $originalDetailQty = (float) $detail->entered_quantity;
-
-                if ($stockLots->count() > 0 && bccomp((string) $currentLotOnHand, (string) $originalDetailQty, 10) < 0) {
-                    throw new \RuntimeException('Lo sentimos, no se puede eliminar la entrada porque parte del stock ya fue consumido.'
-                    );
-                }
-
-                // Validación extra si ya agregaste stock_lot_id a output_details
-                if (Schema::hasColumn('output_details', 'stock_lot_id') && $stockLots->count() > 0) {
-                    $stockLotIds = $stockLots->pluck('id')->all();
-
-                    $outputDetailsUsingLots = OutputDetail::whereIn('stock_lot_id', $stockLotIds)->exists();
-                    if ($outputDetailsUsingLots) {
-                        throw new \RuntimeException(
-                            'Lo sentimos, no se puede eliminar la entrada porque el stock ya fue usado en una salida.'
-                        );
-                    }
-                }
-
-                // ===========================
-                // 2) Eliminar items ligados al detalle
-                // ===========================
-                foreach ($items as $item) {
-                    $item->delete();
-                }
-
-                // ===========================
-                // 3) Eliminar lotes del detalle
-                //    y luego sincronizar inventory_levels
-                // ===========================
-                foreach ($stockLots as $lot) {
-                    $inventoryKeysToSync[] = [
-                        'stock_item_id' => (int) $lot->stock_item_id,
-                        'warehouse_id'  => $lot->warehouse_id,
-                        'location_id'   => $lot->location_id,
-                    ];
-
-                    $lot->delete();
-                }
-
-                // ===========================
-                // 4) Si no hubo stock_lot (caso legacy), ajustar inventory level
-                //    usando entered_quantity del detalle
-                // ===========================
-                if ($stockLots->isEmpty() && $detail->stock_item_id) {
-                    $inventoryLevels =
-                        InventoryLevel::query()
-                            ->where('company_id', $companyId)
-                            ->where(
-                                'stock_item_id',
-                                $detail->stock_item_id
-                            )
-                            ->lockForUpdate()
-                            ->get();
-
-                    if ($inventoryLevels->isEmpty()) {
-                        throw new \RuntimeException(
-                            'No se puede eliminar la entrada porque no se encontró el inventario asociado al detalle legacy.'
-                        );
-                    }
-
-                    $totalAvailable = (float)
-                    $inventoryLevels->sum('qty_on_hand');
-
-                    $quantityToReverse =
-                        (float) $detail->entered_quantity;
-
-                    if (
-                        bccomp(
-                            (string) $totalAvailable,
-                            (string) $quantityToReverse,
-                            10
-                        ) < 0
-                    ) {
-                        throw new \RuntimeException(
-                            'Lo sentimos, no se puede eliminar la entrada porque parte del stock legacy ya fue consumido.'
-                        );
-                    }
-
-                    $remainingToDiscount =
-                        $quantityToReverse;
-
-                    foreach ($inventoryLevels as $inventoryLevel) {
-                        if ($remainingToDiscount <= 0) {
-                            break;
-                        }
-
-                        $availableHere =
-                            (float) $inventoryLevel->qty_on_hand;
-
-                        if ($availableHere <= 0) {
-                            continue;
-                        }
-
-                        $toDiscount = min(
-                            $remainingToDiscount,
-                            $availableHere
-                        );
-
-                        $inventoryLevel->qty_on_hand = max(
-                            0,
-                            $availableHere - $toDiscount
-                        );
-
-                        $inventoryLevel->save();
-
-                        $remainingToDiscount -=
-                            $toDiscount;
-                    }
-                }
-
-                // ===========================
-                // 5) Tu lógica de OrderPurchase / MaterialOrder
-                // ===========================
-                $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
-
-                if (!is_null($orderPurchase)) {
-                    $orderPurchaseDetail =
-                        OrderPurchaseDetail::where(
-                            'order_purchase_id',
-                            $orderPurchase->id
-                        )
-                            ->where(
-                                'material_id',
-                                $materialId
-                            )
-                            ->first();
-
-                    if ($orderPurchaseDetail) {
-                        $materialOrders = MaterialOrder::where('order_purchase_detail_id', $orderPurchaseDetail->id)->get();
-
-                        if ($materialOrders && $materialOrders->count() > 0) {
-                            foreach ($materialOrders as $materialOrder) {
-                                $materialOrder->quantity_entered = 0;
-                                $materialOrder->save();
-                            }
-                        }
-                    }
-                }
-
-                // ===========================
-                // 6) Eliminar detail entry
-                // ===========================
-                $detail->delete();
-            }
-
-            // ===========================
-            // 7) Sincronizar inventory levels desde stock_lots
-            // ===========================
-            $inventoryKeysToSync = collect($inventoryKeysToSync)
-                ->unique(function ($row) {
-                    return implode('|', [
-                        $row['stock_item_id'] ?? 'null',
-                        $row['warehouse_id'] ?? 'null',
-                        $row['location_id'] ?? 'null',
-                    ]);
-                })
-                ->values()
-                ->all();
-
-            foreach ($inventoryKeysToSync as $key) {
-                $this->syncInventoryLevelFromLots(
-                    (int) $key['stock_item_id'],
-                    $key['warehouse_id'],
-                    $key['location_id']
-                );
-            }
-
-            // ===========================
-            // 8) Recalcular costo promedio por StockItem y Company
-            // ===========================
-            $affectedStockItemIds =
-                array_values(
-                    array_unique(
-                        array_filter(
-                            array_map(
-                                'intval',
-                                $affectedStockItemIds
-                            )
-                        )
-                    )
-                );
-
-            if (!empty($affectedStockItemIds)) {
-                $avgStockItemCosts =
-                    $this->inventoryCostService
-                        ->getAverageCostsByStockItem(
-                            $affectedStockItemIds,
-                            now()
-                        );
-
-                foreach ($affectedStockItemIds as $stockItemId) {
-                    $avg = (float) (
-                        $avgStockItemCosts[
-                        $stockItemId
-                        ] ?? 0
-                    );
-
-                    InventoryLevel::query()
-                        ->where('company_id', $companyId)
-                        ->where('stock_item_id', $stockItemId)
-                        ->update([ 'average_cost' => $avg,]);
-                }
-            }
-
-
-            // ===========================
-            // 9) Borrar imagen principal
-            // ===========================
-            if ( $entry->image && $entry->image !== 'no_image.png' ) {
-                $imagePath = public_path( 'images/entries/' .
-                        $entry->image
-                    );
-            }
-
-            if ( $entry->imageOb && $entry->imageOb !== 'no_image.png' ) {
-                $imageObservationPath =
-                    public_path(
-                        'images/entries/observations/' .
-                        $entry->imageOb
-                    );
-            }
-
-            // ===========================
-            // 10) Eliminar crédito outstanding
-            // ===========================
-            $credit = SupplierCredit::with('deadline')
-                ->where('entry_id', $entry->id)
-                ->where('state_credit', 'outstanding')
-                ->first();
-
-            if (isset($credit)) {
-                $credit->delete();
-            }
-
-            // ===========================
-            // 11) Eliminar entry
-            // ===========================
-            $entry->delete();
-
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Ingreso Almacen (sin salida, reversión física)',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            if ( $imagePath && file_exists($imagePath) ) {
-                @unlink($imagePath);
-            }
-
-            if ( $imageObservationPath && file_exists($imageObservationPath) ) {
-                @unlink($imageObservationPath);
-            }
-
+            app(EntryDeletionService::class)->delete((int) $entryId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'El ingreso o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'No se pudo validar la reversión.', 'errors' => $errors], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            report($e);
+            return response()->json(['message' => 'No se pudo confirmar la eliminación. Actualice el listado antes de volver a intentarlo.'], 500);
         }
-
-        // ===========================
-        // 12) Recalcular estado de la Orden de Compra
-        // ===========================
-
-        if (!empty($purchaseOrderCode)) {
-            $orderPurchase =
-                OrderPurchase::where(
-                    'code',
-                    $purchaseOrderCode
-                )->first();
-
-            if (!is_null($orderPurchase)) {
-                $entradas = Entry::query()
-                    ->where(
-                        'company_id',
-                        $companyId
-                    )
-                    ->where(
-                        'purchase_order',
-                        $orderPurchase->code
-                    )
-                    ->get();
-
-                if (count($entradas) > 0) {
-                    $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-
-                    if ($details->isNotEmpty()) {
-                        $flag = 1;
-                        foreach ($details as $detail) {
-                            $materialId  = $detail->material_id;
-                            $cantMaterial = 0;
-
-                            foreach ($entradas as $entrada) {
-                                $entryDetailsSum =
-                                    DetailEntry::query()
-                                        ->where( 'company_id', $companyId)
-                                        ->where('entry_id', $entrada->id)
-                                        ->where('material_id', $materialId)
-                                        ->sum('entered_quantity');
-
-                                $cantMaterial += $entryDetailsSum;
-                            }
-
-                            if ($cantMaterial < $detail->quantity) {
-                                $flag = 0;
-                            }
-                        }
-
-                        $orderPurchase->state = $flag == 0 ? 0 : 1;
-                        $orderPurchase->save();
-
-                    } else {
-                        $orderPurchase->state = 2;
-                        $orderPurchase->save();
-                    }
-
-                } else {
-                    $orderPurchase->state = 2;
-                    $orderPurchase->save();
-                }
-            }
-        }
-
-
         return response()->json(['message' => 'Ingreso por compra eliminado con éxito.'], 200);
     }
 
@@ -3533,552 +2836,26 @@ class EntryController extends Controller
         return $entries;
     }
 
-    public function destroyDetailOfEntryO($id_detail, $id_entry)
-    {
-        $begin = microtime(true);
-
-        DB::beginTransaction();
-        try {
-            $entry  = Entry::find($id_entry);
-            $detail = DetailEntry::find($id_detail);
-
-            if (!$entry || !$detail) {
-                throw new \Exception("No se encontró el ingreso o el detalle.");
-            }
-
-            $material = Material::find($detail->material_id);
-            if (!$material) {
-                throw new \Exception("Material no encontrado: {$detail->material_id}");
-            }
-
-            $qty = $detail->entered_quantity;
-            if ((float)$material->stock_current < $qty) {
-                return response()->json([
-                    'message' => "No se puede eliminar este ingreso: ya fue consumido por salidas/ventas. Stock actual {$material->stock_current}, intenta eliminar {$qty}."
-                ], 422);
-            }
-
-            $itemsTotal = Item::where('detail_entry_id', $detail->id)->count();
-            $itemsDisponibles = Item::where('detail_entry_id', $detail->id)
-                ->whereIn('state_item', ['entered']) // el estado que represente “en almacén”
-                ->count();
-
-            if ($itemsTotal > 0 && $itemsDisponibles < $itemsTotal) {
-                return response()->json([
-                    'message' => 'No se puede eliminar: hay items de este ingreso que ya fueron consumidos/salieron.'
-                ], 422);
-            }
-
-            // ===========================
-            // ✅ Validación: no permitir eliminar si hay items reservados o en salida
-            // ===========================
-            $itemsBlocking = Item::where('detail_entry_id', $detail->id)
-                ->whereIn('state_item', ['reserved', 'exited'])
-                ->get();
-
-            if ($itemsBlocking && $itemsBlocking->count() > 0) {
-                return response()->json(['message' => 'Lo sentimos, no se puede eliminar porque hay items reservados o en salida.'], 422);
-            }
-
-            // ===========================
-            // ✅ Preparar Output de rollback (salida por eliminación)
-            // ===========================
-            $now = now();
-
-            /*$output = Output::create([
-                'execution_order'  => 'SALIDA POR ELIMINACIÓN DE INGRESO',
-                'request_date'     => $now,
-                'requesting_user'  => Auth::id(),
-                'responsible_user' => Auth::id(),
-                'state'            => 'confirmed',
-                'indicator'        => 'or',
-            ]);*/
-
-            // ===========================
-            // ✅ Costo promedio vigente ANTES de registrar esta salida (para auditar unit_cost aplicado)
-            // ===========================
-            $unitCostBefore = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
-
-            // ===========================
-            // ✅ Crear OutputDetail(s) según tipo de material
-            // ===========================
-            if ((int)$material->tipo_venta_id === 3) {
-                // ITEMEABLE: 1 output_detail por item físico
-                $itemsToDelete = Item::where('detail_entry_id', $detail->id)->get();
-
-                // Si no hay items, igual registramos la salida por cantidad del detalle (fallback)
-                if ($itemsToDelete && $itemsToDelete->count() > 0) {
-                    foreach ($itemsToDelete as $item) {
-                        /*OutputDetail::create([
-                            'output_id'      => $output->id,
-                            'sale_detail_id' => null,
-                            'item_id'        => $item->id,
-                            'material_id'    => $material->id,
-                            'quote_id'       => null,
-                            'custom'         => 0,
-                            'percentage'     => 1,
-                            'price'          => $item->price,
-                            'length'         => $item->length,
-                            'width'          => $item->width,
-                            'equipment_id'   => null,
-                            'activo'         => null,
-
-                            // costo aplicado
-                            'unit_cost'      => $unitCostBefore,
-                            'total_cost'     => $unitCostBefore,
-                        ]);*/
-
-                        // actualizar stock (rollback) + borrar item
-                        $material->stock_current = (float)$material->stock_current - (float)$item->percentage;
-                        $material->save();
-
-                        $item->delete();
-                    }
-                } else {
-                    // Fallback si por alguna razón no existen items asociados
-                    $qty = (float)$detail->entered_quantity;
-
-                    /*OutputDetail::create([
-                        'output_id'      => $output->id,
-                        'sale_detail_id' => null,
-                        'item_id'        => null,
-                        'material_id'    => $material->id,
-                        'quote_id'       => null,
-                        'custom'         => 0,
-                        'percentage'     => $qty,
-                        'price'          => (float)($detail->unit_price ?? $material->unit_price),
-                        'length'         => null,
-                        'width'          => null,
-                        'equipment_id'   => null,
-                        'activo'         => null,
-
-                        'unit_cost'      => $unitCostBefore,
-                        'total_cost'     => $qty * $unitCostBefore,
-                    ]);*/
-
-                    $material->stock_current = (float)$material->stock_current - $qty;
-                    $material->save();
-                }
-
-            } else {
-                // NO ITEMEABLE: 1 output_detail por cantidad del detalle
-                $qty = (float)$detail->entered_quantity;
-                /*OutputDetail::create([
-                    'output_id'      => $output->id,
-                    'sale_detail_id' => null,
-                    'item_id'        => null,
-                    'material_id'    => $material->id,
-                    'quote_id'       => null,
-                    'custom'         => 0,
-                    'percentage'     => $qty,
-                    'price'          => (float)($detail->unit_price ?? $material->unit_price),
-                    'length'         => null,
-                    'width'          => null,
-                    'equipment_id'   => null,
-                    'activo'         => null,
-
-                    'unit_cost'      => $unitCostBefore,
-                    'total_cost'     => $qty * $unitCostBefore,
-                ]);*/
-
-                // actualizar stock (rollback)
-                $material->stock_current = $material->stock_current - $qty;
-                $material->save();
-
-            }
-
-            // ===========================
-            // ✅ Eliminar el detalle del ingreso
-            // ===========================
-            $detail->delete();
-
-            // TODO: Modificar el total del credito (tu lógica original)
-            $credit = SupplierCredit::where('entry_id', $entry->id)->first();
-            if (isset($credit)) {
-                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
-                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
-                $credit->save();
-            }
-
-            // ===========================
-            // ✅ Recalcular costo promedio (Kardex) y actualizar material->unit_price
-            //    (ya incluye esta nueva salida creada arriba)
-            // ===========================
-            $newAvg = (float) $this->inventoryCostService->getAverageCostUpToDate((int)$material->id, $now);
-
-            $material->unit_price = $newAvg;
-            $material->save();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar detalle de ingreso (con salida kardex)',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            //dd();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        // TODO: Logica para actualizar
-        $entry = Entry::find($id_entry);
-        $orderPurchase = OrderPurchase::where('code', $entry->purchase_order)->first();
-
-        if (!is_null($orderPurchase)) {
-            $entradas = Entry::where('purchase_order', $orderPurchase->code)
-                ->get();
-
-            if (count($entradas) > 0) {
-                $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-
-                if (isset($details)) {
-                    $flag = 1;
-                    foreach ($details as $detail) {
-                        $materialId = $detail->material_id;
-                        $cant_material = 0;
-                        foreach ($entradas as $entrada) {
-                            $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
-                                ->where('material_id', $materialId)->sum('entered_quantity');
-                            $cant_material += $entry_details_sum;
-                        }
-
-                        if ($cant_material < $detail->quantity) {
-                            $flag = 0;
-                        }
-                    }
-                    if ($flag == 0) {
-                        $orderPurchase->state = 0;
-                        $orderPurchase->save();
-                    } else {
-                        $orderPurchase->state = 1;
-                        $orderPurchase->save();
-                    }
-
-                } else {
-                    $orderPurchase->state = 2;
-                    $orderPurchase->save();
-                }
-
-            } else {
-                $orderPurchase->state = 2;
-                $orderPurchase->save();
-            }
-        }
-
-        return response()->json(['message' => 'Detalle de compra eliminado con éxito.'], 200);
-    }
-
     public function destroyDetailOfEntry($id_detail, $id_entry)
     {
         $begin = microtime(true);
-
+        $entryId = $id_entry;
         $companyId = TenantContext::companyId();
-
-        DB::beginTransaction();
         try {
-
-            $entry = Entry::query()
-                ->where('company_id', $companyId)
-                ->where('id', $id_entry)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $detail = DetailEntry::query()
-                ->where('company_id', $companyId)
-                ->where('entry_id', $entry->id)
-                ->where('id', $id_detail)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $inventoryKeysToSync = [];
-
-            // ===========================
-            // 1) Validaciones de bloqueo
-            // ===========================
-            $items = Item::query()
-                ->where('company_id', $companyId)
-                ->where('detail_entry_id', $detail->id)
-                ->lockForUpdate()
-                ->get();
-
-            $itemsBlocking = $items->whereIn('state_item', ['reserved', 'exited']);
-            if ($itemsBlocking->count() > 0) {
-                throw new \RuntimeException('Lo sentimos, no se puede eliminar porque hay items reservados o en salida.'
-                );
-            }
-
-            $stockLots = StockLot::query()
-                ->where('company_id', $companyId)
-                ->where('detail_entry_id', $detail->id)
-                ->lockForUpdate()
-                ->get();
-
-            $reservedLots = $stockLots->filter(function ($lot) {
-                return (float) $lot->qty_reserved > 0;
-            });
-
-            if ($reservedLots->count() > 0) {
-                throw new \RuntimeException('Lo sentimos, no se puede eliminar porque uno o más lotes tienen stock reservado.'
-                );
-            }
-
-            // Si ya hay menos qty_on_hand que lo ingresado originalmente, parte del ingreso ya fue consumido
-            $currentLotOnHand = (float) $stockLots->sum('qty_on_hand');
-            $originalDetailQty = (float) $detail->entered_quantity;
-
-            if ($stockLots->count() > 0 && bccomp((string) $currentLotOnHand, (string) $originalDetailQty, 10) < 0) {
-                throw new \RuntimeException('No se puede eliminar este detalle porque parte del stock ya fue consumido por salidas/ventas.'
-                );
-            }
-
-            // Validación extra si output_details ya tiene stock_lot_id
-            if (Schema::hasColumn('output_details', 'stock_lot_id') && $stockLots->count() > 0) {
-                $stockLotIds = $stockLots->pluck('id')->all();
-
-                $outputDetailsUsingLots = OutputDetail::whereIn('stock_lot_id', $stockLotIds)->exists();
-
-                if ($outputDetailsUsingLots) {
-                    throw new \RuntimeException('No se puede eliminar este detalle porque el stock ya fue usado en una salida.'
-                    );
-                }
-            }
-
-            // ===========================
-            // 2) Eliminar items del detalle
-            // ===========================
-            foreach ($items as $item) {
-                $item->delete();
-            }
-
-            // ===========================
-            // 3) Eliminar lotes y preparar sync de inventory_levels
-            // ===========================
-            foreach ($stockLots as $lot) {
-                $inventoryKeysToSync[] = [
-                    'stock_item_id' => (int) $lot->stock_item_id,
-                    'warehouse_id'  => $lot->warehouse_id,
-                    'location_id'   => $lot->location_id,
-                ];
-
-                $lot->delete();
-            }
-
-            // ===========================
-            // 4) Fallback legacy: si no hay stock_lots pero sí stock_item_id,
-            //    ajustar inventory_levels usando entered_quantity
-            // ===========================
-            if ($stockLots->isEmpty() && $detail->stock_item_id) {
-                $inventoryLevels = InventoryLevel::query()
-                    ->where('company_id', $companyId)
-                    ->where(
-                        'stock_item_id',
-                        $detail->stock_item_id
-                    )
-                    ->lockForUpdate()
-                    ->get();
-
-                if ($inventoryLevels->count() > 0) {
-                    $remainingToDiscount = (float) $detail->entered_quantity;
-
-                    foreach ($inventoryLevels as $inventoryLevel) {
-                        if ($remainingToDiscount <= 0) {
-                            break;
-                        }
-
-                        $availableHere = (float) $inventoryLevel->qty_on_hand;
-                        if ($availableHere <= 0) {
-                            continue;
-                        }
-
-                        $toDiscount = min($remainingToDiscount, $availableHere);
-
-                        $inventoryLevel->qty_on_hand = max(
-                            0,
-                            (float) $inventoryLevel->qty_on_hand - $toDiscount
-                        );
-                        $inventoryLevel->save();
-
-                        $remainingToDiscount -= $toDiscount;
-                    }
-                }
-            }
-
-            // ===========================
-            // 5) Eliminar detail entry
-            // ===========================
-            $detail->delete();
-
-            // ===========================
-            // 6) Sincronizar inventory_levels desde stock_lots
-            // ===========================
-            $inventoryKeysToSync = collect($inventoryKeysToSync)
-                ->unique(function ($row) {
-                    return implode('|', [
-                        $row['stock_item_id'] ?? 'null',
-                        $row['warehouse_id'] ?? 'null',
-                        $row['location_id'] ?? 'null',
-                    ]);
-                })
-                ->values()
-                ->all();
-
-            foreach ($inventoryKeysToSync as $key) {
-                $this->syncInventoryLevelFromLots(
-                    (int) $key['stock_item_id'],
-                    $key['warehouse_id'],
-                    $key['location_id']
-                );
-            }
-
-            // ===========================
-            // 7) Actualizar crédito (mantengo tu lógica)
-            // ===========================
-            $credit = SupplierCredit::where('entry_id', $entry->id)->first();
-            if (isset($credit)) {
-                $credit->total_soles = ($entry->currency_invoice == 'PEN') ? (float)$entry->total : null;
-                $credit->total_dollars = ($entry->currency_invoice == 'USD') ? (float)$entry->total : null;
-                $credit->save();
-            }
-
-            // ===========================
-            // 8) Recalcular costo promedio del StockItem para la Company
-            // ===========================
-            if ($detail->stock_item_id) {
-                $avgCosts =
-                    $this->inventoryCostService
-                        ->getAverageCostsByStockItem(
-                            [
-                                (int) $detail->stock_item_id
-                            ],
-                            now()
-                        );
-
-                $avg = (float) (
-                    $avgCosts[
-                    (int) $detail->stock_item_id
-                    ] ?? 0
-                );
-
-                InventoryLevel::query()
-                    ->where('company_id', $companyId)
-                    ->where(
-                        'stock_item_id',
-                        $detail->stock_item_id
-                    )
-                    ->update([
-                        'average_cost' => $avg,
-                    ]);
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar detalle de ingreso (sin salida, reversión física)',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
+            $deleted = app(EntryDeletionService::class)->delete((int) $entryId, (int) $id_detail);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'El ingreso o detalle no existe en la empresa actual.'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors(); $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'No se pudo validar la reversión.', 'errors' => $errors], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            report($e);
+            return response()->json(['message' => 'No se pudo confirmar la eliminación. Actualice el listado antes de volver a intentarlo.'], 500);
         }
-
-        // ===========================
-        // 9) Recalcular estado de la Orden de Compra
-        // ===========================
-        if (!empty($entry->purchase_order)) {
-
-            $orderPurchase = OrderPurchase::where(
-                'code',
-                $entry->purchase_order
-            )->first();
-
-            if ($orderPurchase) {
-
-                $entradas = Entry::query()
-                    ->where('company_id', $companyId)
-                    ->where(
-                        'purchase_order',
-                        $orderPurchase->code
-                    )
-                    ->get();
-
-                if ($entradas->count() > 0) {
-
-                    $details = OrderPurchaseDetail::where(
-                        'order_purchase_id',
-                        $orderPurchase->id
-                    )->get();
-
-                    if ($details->isNotEmpty()) {
-
-                        $flag = 1;
-
-                        foreach ($details as $detailOrder) {
-
-                            $materialId =
-                                $detailOrder->material_id;
-
-                            $cantMaterial = 0;
-
-                            foreach ($entradas as $entrada) {
-
-                                $entryDetailsSum =
-                                    DetailEntry::query()
-                                        ->where(
-                                            'company_id',
-                                            $companyId
-                                        )
-                                        ->where(
-                                            'entry_id',
-                                            $entrada->id
-                                        )
-                                        ->where(
-                                            'material_id',
-                                            $materialId
-                                        )
-                                        ->sum(
-                                            'entered_quantity'
-                                        );
-
-                                $cantMaterial +=
-                                    (float) $entryDetailsSum;
-                            }
-
-                            if (
-                                $cantMaterial <
-                                $detailOrder->quantity
-                            ) {
-                                $flag = 0;
-                            }
-                        }
-
-                        $orderPurchase->state =
-                            $flag === 0 ? 0 : 1;
-
-                        $orderPurchase->save();
-
-                    } else {
-                        $orderPurchase->state = 2;
-                        $orderPurchase->save();
-                    }
-
-                } else {
-                    $orderPurchase->state = 2;
-                    $orderPurchase->save();
-                }
-            }
-        }
-
-        return response()->json(['message' => 'Detalle de compra eliminado con éxito.'], 200);
+        return response()->json(['message' => $deleted['entry_deleted'] ? 'Último detalle eliminado e ingreso cerrado.' : 'Detalle de compra eliminado con éxito.',
+            'entry_deleted' => $deleted['entry_deleted'], 'url' => $deleted['entry_deleted'] ? route('order.purchase.list.indexV2') : null], 200);
     }
+
 
     public function addDetailOfEntryO( Request $request, $id_entry )
     {
@@ -4513,13 +3290,20 @@ class EntryController extends Controller
                     'company_id',
                     TenantContext::companyId()
                 )
+                ->lockForUpdate()
                 ->firstOrFail();
-
-            $items = json_decode($request->get('items'));
-
-            if (!is_array($items) && !($items instanceof \Traversable)) {
-                throw new \Exception('El formato de items es inválido.');
+            if ($entry->order_purchase_id || trim((string) $entry->purchase_order) !== '') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'entry_id' => 'Este ingreso pertenece a una orden. Reciba las cantidades pendientes desde Órdenes para almacén; no se pueden agregar productos ni modificarlo por esta vía.',
+                ]);
             }
+
+
+            $items = app(\App\Services\Inventory\EntryDestinationValidator::class)->normalize(
+                $request->get('items'),
+                $request->get('entry_context_company_id'),
+                $request->get('entry_context_branch_id')
+            );
 
             /**
              * Agrupar por:
@@ -4530,35 +3314,8 @@ class EntryController extends Controller
             foreach ($items as $it) {
                 $materialId  = (int) ($it->id_material ?? 0);
                 $stockItemId = (int) ($it->stock_item_id ?? 0);
-                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
-
-                if (!$locationId) {
-                    throw new \RuntimeException(
-                        'Uno de los items no tiene una ubicación válida.'
-                    );
-                }
-
-                $location = Location::query()
-                    ->where('id', $locationId)
-                    ->where(
-                        'company_id',
-                        $entry->company_id
-                    )
-                    ->first();
-
-                if (!$location) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no pertenece a la empresa del ingreso.'
-                    );
-                }
-
-                $warehouseId = $location->warehouse_id;
-
-                if (!$warehouseId) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no tiene un almacén asociado.'
-                    );
-                }
+                $locationId = (int) $it->id_location;
+                $warehouseId = (int) $it->warehouse_id;
 
                 $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
                 $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
@@ -4734,35 +3491,8 @@ class EntryController extends Controller
 
                 $materialId  = (int) ($it->id_material ?? 0);
                 $stockItemId = (int) ($it->stock_item_id ?? 0);
-                $locationId  = !empty($it->id_location) ? (int) $it->id_location : null;
-
-                if (!$locationId) {
-                    throw new \RuntimeException(
-                        'Uno de los items no tiene una ubicación válida.'
-                    );
-                }
-
-                $location = Location::query()
-                    ->where('id', $locationId)
-                    ->where(
-                        'company_id',
-                        $entry->company_id
-                    )
-                    ->first();
-
-                if (!$location) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no pertenece a la empresa del ingreso.'
-                    );
-                }
-
-                $warehouseId = $location->warehouse_id;
-
-                if (!$warehouseId) {
-                    throw new \RuntimeException(
-                        'La ubicación seleccionada no tiene un almacén asociado.'
-                    );
-                }
+                $locationId = (int) $it->id_location;
+                $warehouseId = (int) $it->warehouse_id;
 
                 $lotCode = isset($it->material_lote) ? trim((string) $it->material_lote) : '';
                 $dateStr = isset($it->date_vence) ? trim((string) $it->date_vence) : '';
@@ -4935,6 +3665,11 @@ class EntryController extends Controller
 
             DB::commit();
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            $errors = $e->errors();
+            $first = reset($errors);
+            return response()->json(['message' => $first[0] ?? 'Revise los destinos del ingreso.', 'errors' => $errors], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -5043,6 +3778,7 @@ class EntryController extends Controller
     public function getAllOrdersV2(Request $request, $pageNumber = 1)
     {
         $perPage = 10;
+        $pageNumber = max(1, (int) $pageNumber);
         $year = $request->input('year');
         $code = $request->input('code');
         $quote = $request->input('quote');
@@ -5054,13 +3790,15 @@ class EntryController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'createdUser'])
+                ->where('type', 'n')
                 ->orderBy('date_order', 'desc');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = OrderPurchase::with(['supplier', 'approved_user'])
+            $query = OrderPurchase::with(['supplier', 'createdUser'])
+                ->where('type', 'n')
                 ->whereDate('date_order', '>=', $fechaInicio)
                 ->whereDate('date_order', '<=', $fechaFinal)
                 ->orderBy('date_order', 'desc');
@@ -5080,9 +3818,7 @@ class EntryController extends Controller
         }
 
         if ($supplier != "") {
-            $query->whereHas('supplier', function ($query2) use ($supplier) {
-                $query2->where('supplier_id', $supplier);
-            });
+            $query->where('supplier_id', $supplier);
 
         }
 
@@ -5091,14 +3827,23 @@ class EntryController extends Controller
             $query->whereDate('date_arrival', $fecha);
         }
 
-        if ($state != "") {
-            $query->where('state', $state);
+        $summaries = [];
+        $matchingIds = [];
+        $summaryService = app(\App\Services\Purchases\NormalPurchaseReceiptSummary::class);
+        if ($state !== null && $state !== '') {
+            foreach ((clone $query)->pluck('id') as $orderId) {
+                $receipt = $summaryService->forOrder((int) $orderId);
+                $summaries[$orderId] = $receipt;
+                $filterValue = $receipt['state'] === null ? 'review' : (string) $receipt['state'];
+                if ($state === null || $state === '' || (string) $state === $filterValue) { $matchingIds[] = $orderId; }
+            }
+            $query->whereIn('id', $matchingIds);
         }
 
         $totalFilteredRecords = $query->count();
         $totalPages = ceil($totalFilteredRecords / $perPage);
 
-        $startRecord = ($pageNumber - 1) * $perPage + 1;
+        $startRecord = $totalFilteredRecords ? ($pageNumber - 1) * $perPage + 1 : 0;
         $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
 
         $orders = $query->skip(($pageNumber - 1) * $perPage)
@@ -5111,18 +3856,10 @@ class EntryController extends Controller
 
         foreach ( $orders as $order )
         {
-            $state = "";
-            $stateText = "";
-            if ( $order->state == 2 ) {
-                $state = '2';
-                $stateText = '<span class="badge bg-primary">POR INGRESAR</span>';
-            } elseif ( $order->state == 0 ){
-                $state = '0';
-                $stateText = '<span class="badge bg-warning">INCOMPLETA</span>';
-            } elseif ( $order->state == 1 ) {
-                $state = '1';
-                $stateText = '<span class="badge bg-success">COMPLETA</span>';
-            }
+            $receipt = $summaries[$order->id] ?? $summaryService->forOrder((int) $order->id);
+            $state = $receipt['state'] === null ? 'review' : (string) $receipt['state'];
+            $badge = $state === '1' ? 'bg-success' : ($state === '2' ? 'bg-primary' : 'bg-warning');
+            $stateText = '<span class="badge '.$badge.'">'.$receipt['state_text'].'</span>';
 
             $type = "";
             $typeText = "";
@@ -5136,20 +3873,22 @@ class EntryController extends Controller
 
             array_push($array, [
                 "id" => $order->id,
-                "year" => ( $order->date_order == null || $order->date_quote == "") ? '':$order->date_order->year,
+                "year" => ( $order->date_order == null || $order->date_order == "") ? '':$order->date_order->year,
                 "code" => ($order->code == null || $order->code == "") ? '': $order->code,
                 "date_order" => ($order->date_order == null || $order->date_order == "") ? '': $order->date_order->format('d/m/Y'),
                 "date_arrival" => ($order->date_arrival == null || $order->date_arrival == "") ? '': $order->date_arrival->format('d/m/Y'),
                 "observation" => $order->observation,
-                "supplier" => ($order->supplier_id == "" || $order->supplier_id == null) ? "" : $order->supplier->business_name,
-                "approved_user" => ($order->approved_by == "" || $order->approved_by == null) ? "" : $order->approved_user->name,
+                "supplier" => optional($order->supplier)->business_name ?? '',
+                "created_user" => optional($order->createdUser)->name ?? 'No registrado / usuario no disponible',
                 "currency" => ($order->currency_order == null || $order->currency_order == "") ? '': $order->currency_order,
                 "total" => $order->total,
                 "type" => $type,
                 "typeText" => $typeText,
                 "state" => $state,
                 "stateText" => $stateText,
-                "status" => $order->status,
+                "status" => $receipt['state'],
+                "can_receive" => $receipt['can_receive'],
+                "receipt_errors" => $receipt['errors'],
                 "regularize" => $order->regularize
             ]);
         }
@@ -5169,9 +3908,9 @@ class EntryController extends Controller
     public function listOrderPurchaseV2()
     {
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
-        $registros = OrderPurchase::all();
+        $registros = OrderPurchase::where('type', 'n')->whereNotNull('date_order')->get();
 
         $arrayYears = $registros->pluck('date_order')->map(function ($date) {
             return Carbon::parse($date)->format('Y');
@@ -5185,7 +3924,8 @@ class EntryController extends Controller
         $arrayStates = [
             ["value" => "1", "display" => "COMPLETAS"],
             ["value" => "0", "display" => "INCOMPLETAS"],
-            ["value" => "2", "display" => "POR INGRESAR"]
+            ["value" => "2", "display" => "POR INGRESAR"],
+            ["value" => "review", "display" => "REQUIERE REVISIÓN"]
         ];
 
         return view('entry.listOrderPurchaseV2', compact('permissions', 'arrayYears', 'arraySuppliers', 'arrayStates'));
@@ -5194,473 +3934,233 @@ class EntryController extends Controller
 
     public function updateStateOrderPurchase()
     {
-        $begin = microtime(true);
-        $orders = OrderPurchase::all();
-
-        foreach ( $orders as $order )
-        {
-            $order->state = $order->status;
-            $order->save();
-        }
-        $end = microtime(true) - $begin;
-        dump($end);
-        dd("Proceso finalizado");
+        abort(405, 'Los estados se consultan desde las recepciones; no se actualizan mediante esta ruta GET.');
     }
 
     public function createEntryOrder($id)
     {
-        $begin = microtime(true);
-        $suppliers = Supplier::all();
-        $orderPurchase = OrderPurchase::
-            with(['details' => function ($query) {
-                $query->with(['material']);
-            }])
-            ->with('supplier')->find($id);
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Crear ingreso de Orden de compra',
-            'time' => $end
-        ]);
-        return view('entry.create_entry_purchase_order', compact('suppliers', 'orderPurchase'));
+        $orderPurchase = OrderPurchase::query()->where('type', 'n')->with(['supplier', 'details.stockItem', 'details.material'])->findOrFail($id);
+        $receiptSummary = app(NormalPurchaseReceiptSummary::class)->forOrder((int) $orderPurchase->id);
+        $warehouseContext = app(EntryWarehouseResolver::class)->optionsForCurrentContext();
+        $receiptKey = (string) Str::uuid();
+        return view('entry.create_entry_purchase_order', compact('orderPurchase', 'receiptSummary', 'warehouseContext', 'receiptKey'));
     }
 
     public function storeEntryPurchaseOrder(StoreEntryPurchaseOrderRequest $request)
     {
-        $begin = microtime(true);
-        //$extension = $request->file('image')->getClientOriginalExtension();
-        //dd($extension);
-
-        //dd($request->get('deferred_invoice'));
-        $validated = $request->validated();
-
-        DB::beginTransaction();
+        $request->validated();
+        $request->validate([
+            'purchase_order_id' => 'required|integer|min:1',
+            'receipt_key' => 'required|uuid',
+            'date_invoice' => 'required|date_format:d/m/Y',
+            'entry_context_tenant_id' => 'required|integer',
+            'entry_context_company_id' => 'required|integer',
+            'entry_context_branch_id' => 'required|integer',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'imageOb' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'observation' => 'nullable|string|max:2000',
+        ]);
+        if ((int) $request->input('entry_context_tenant_id') !== TenantContext::tenantId()
+            || (int) $request->input('entry_context_company_id') !== TenantContext::companyId()
+            || (int) $request->input('entry_context_branch_id') !== TenantContext::branchId()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Cambió la empresa o el local. Abra nuevamente la recepción.']);
+        }
+        $fingerprintData = $request->only(['purchase_order_id', 'date_invoice', 'invoice', 'referral_guide',
+            'deferred_invoice', 'observation', 'items', 'entry_context_tenant_id', 'entry_context_company_id', 'entry_context_branch_id']);
+        foreach (['image', 'imageOb'] as $field) {
+            $fingerprintData[$field] = $request->file($field) ? hash_file('sha256', $request->file($field)->getRealPath()) : null;
+        }
+        $fingerprint = hash('sha256', json_encode($fingerprintData));
+        $writtenPaths = [];
         try {
-            $orderPurchase = OrderPurchase::find($request->get('purchase_order_id'));
-            $orderPurchase->status_order = 'pick_up';
-            $orderPurchase->save();
-            //dump($tipoCambioSunat->compra);
-            $entry = Entry::create([
-                'referral_guide' => $request->get('referral_guide'),
-                'purchase_order' => $request->get('purchase_order'),
-                'invoice' => $request->get('invoice'),
-                'deferred_invoice' => ($request->has('deferred_invoice')) ? $request->get('deferred_invoice'):'off',
-                'currency_invoice' => $orderPurchase->currency_order,
-                'supplier_id' => $orderPurchase->supplier_id,
-                'entry_type' => 'Por compra',
-                'date_entry' => Carbon::createFromFormat('d/m/Y', $request->get('date_invoice')),
-                'finance' => false,
-                'currency_compra' => (float) $orderPurchase->currency_compra,
-                'currency_venta' => (float) $orderPurchase->currency_venta,
-                'observation' => $request->get('observation'),
-            ]);
-
-            // TODO: Tratamiento de un archivo de forma tradicional
-            if (!$request->file('image')) {
-                $entry->image = 'no_image.png';
-                $entry->save();
-            } else {
-                $path = public_path().'/images/entries/';
-                $image = $request->file('image');
-                $extension = $request->file('image')->getClientOriginalExtension();
-                //dd(  );
-                if ( strtoupper($extension) != "PDF")
-                {
-                    $filename = $entry->id . '.JPG';
-                    $img = Image::make($image);
-                    $img->orientate();
-                    $img->save($path.$filename, 80, 'JPG');
-                    //$request->file('image')->move($path, $filename);
-                    $entry->image = $filename;
-                    $entry->save();
-                } else {
-                    $filename = 'pdf'.$entry->id . '.' .$extension;
-                    $request->file('image')->move($path, $filename);
-                    $entry->image = $filename;
-                    $entry->save();
+            $saved = DB::transaction(function () use ($request, $fingerprint, &$writtenPaths) {
+                $order = OrderPurchase::query()->where('type', 'n')->lockForUpdate()->findOrFail($request->input('purchase_order_id'));
+                $existing = Entry::withTrashed()->where('tenant_id', TenantContext::tenantId())
+                    ->where('company_id', TenantContext::companyId())->where('purchase_receipt_key', $request->input('receipt_key'))->first();
+                if ($existing) {
+                    if ((int) $existing->order_purchase_id !== (int) $order->id || $existing->trashed() || $existing->state_annulled) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Esta recepción ya fue procesada y requiere revisión.']);
+                    }
+                    if (!hash_equals((string) $existing->purchase_receipt_hash, $fingerprint)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Esta recepción ya fue guardada con otros datos. Revise el ingreso registrado y abra otra recepción para lo pendiente.']);
+                    }
+                    return ['id' => $existing->id, 'replayed' => true];
                 }
-                /*$filename = $entry->id . '.jpg';
-                $img = Image::make($image);
-                $img->orientate();
-                $img->save($path.$filename, 80, 'jpg');
-                //$request->file('image')->move($path, $filename);
-                $entry->image = $filename;
-                $entry->save();*/
-            }
-
-            if (!$request->file('imageOb')) {
-                $entry->imageOb = 'no_image.png';
-                $entry->save();
-            } else {
-                $path = public_path().'/images/entries/observations/';
-                $image = $request->file('imageOb');
-                $extension = $image->getClientOriginalExtension();
-                if ( strtoupper($extension) != "PDF" )
-                {
-                    $filename = $entry->id . '.JPG';
-                    $img = Image::make($image);
-                    $img->orientate();
-                    $img->save($path.$filename, 80, 'JPG');
-                    //$request->file('image')->move($path, $filename);
-                    $entry->imageOb = $filename;
-                    $entry->save();
-                } else {
-                    $filename = 'pdf'.$entry->id . '.' .$extension;
-                    $request->file('imageOb')->move($path, $filename);
-                    $entry->imageOb = $filename;
-                    $entry->save();
+                $lines = OrderPurchaseDetail::query()->where('order_purchase_id', $order->id)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                $summaryService = app(NormalPurchaseReceiptSummary::class);
+                $summary = $summaryService->forOrder((int) $order->id);
+                $items = app(\App\Services\Purchases\NormalPurchaseReceiptInput::class)->normalize($request->input('items'), $summary);
+                $items = app(\App\Services\Inventory\EntryDestinationValidator::class)->normalize(
+                    json_encode($items), $request->input('entry_context_company_id'), $request->input('entry_context_branch_id')
+                );
+                if (!in_array($order->currency_order, ['PEN', 'USD'], true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'La moneda de la orden debe ser PEN o USD.']);
                 }
-                /*$filename = $entry->id . '.jpg';
-                $img = Image::make($image);
-                $img->orientate();
-                $img->save($path.$filename, 80, 'jpg');
-                $entry->imageOb = $filename;
-                $entry->save();*/
-            }
-
-            $items = json_decode($request->get('items'));
-
-            //dd($items);
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                //dd($items[$i]->id);
-                $detail_entry = DetailEntry::create([
-                    'entry_id' => $entry->id,
-                    'material_id' => $items[$i]->id,
-                    'ordered_quantity' => $items[$i]->quantity,
-                    'entered_quantity' => $items[$i]->entered,
-                    'isComplete' => ($items[$i]->quantity == $items[$i]->entered) ? true:false,
+                if (trim((string) $order->code) === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'La orden requiere un código válido antes de recibirla.']);
+                }
+                $supplier = Supplier::query()->where('tenant_id', TenantContext::tenantId())->findOrFail($order->supplier_id);
+                // Todas las comprobaciones de producto y cantidad preceden a las escrituras de stock.
+                foreach ($items as $item) {
+                    $line = $lines->get($item->order_purchase_detail_id);
+                    $stock = StockItem::query()->where('is_active', true)->findOrFail($line->stock_item_id);
+                    $material = Material::query()->findOrFail($stock->material_id);
+                    if ((int) $material->id !== (int) $line->material_id
+                        || !CompanyStockItem::query()->where('company_id', TenantContext::companyId())->where('stock_item_id', $stock->id)->where('is_active', true)->exists()) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Un producto no corresponde a la orden o no está habilitado en la empresa.']);
+                    }
+                    if (!is_numeric($line->price) || !is_finite((float) $line->price) || (float) $line->price < 0) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'La orden tiene un precio inválido.']);
+                    }
+                    if ((int) $material->tipo_venta_id === 3 && floor($item->quantity) != $item->quantity) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Un producto controlado por unidades requiere cantidades enteras.']);
+                    }
+                    if (strlen($item->material_lote) > 255) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'El lote es demasiado largo.']);
+                    }
+                    if ($item->date_vence !== '') {
+                        $v = \Illuminate\Support\Facades\Validator::make(['date' => $item->date_vence], ['date' => 'required|date_format:Y-m-d']);
+                        $v->validate();
+                    }
+                    $item->material = $material;
+                    $item->stock = $stock;
+                    $item->line = $line;
+                }
+                $entry = new Entry();
+                $entry->fill([
+                    'tenant_id' => TenantContext::tenantId(), 'company_id' => TenantContext::companyId(),
+                    'purchase_order' => $order->code, 'supplier_id' => $supplier->id,
+                    'invoice' => $request->input('invoice'), 'referral_guide' => $request->input('referral_guide'),
+                    'date_entry' => Carbon::createFromFormat('d/m/Y', $request->input('date_invoice'))->startOfDay(),
+                    'deferred_invoice' => $request->boolean('deferred_invoice') ? 'on' : 'off',
+                    'currency_invoice' => $order->currency_order, 'currency_compra' => $order->currency_compra,
+                    'currency_venta' => $order->currency_venta, 'entry_type' => 'Por compra', 'finance' => false,
+                    'observation' => $request->input('observation'), 'image' => 'no_image.png', 'imageOb' => 'no_image.png',
                 ]);
-
-                // TODO: Revisamos si hay un material en seguimiento y creamos
-                // TODO: la notificacion y cambiamos el estado
-                $follows = FollowMaterial::where('material_id', $detail_entry->material->id)
-                    ->get();
-                if ( !$follows->isEmpty() )
-                {
-                    // TODO: Creamos notificacion y cambiamos el estado
-                    // Crear notificacion
-                    $notification = Notification::create([
-                        'content' => 'El material ' . $detail_entry->material->full_description . ' ha sido ingresado.',
-                        'reason_for_creation' => 'follow_material',
-                        'user_id' => Auth::user()->id,
-                        'url_go' => route('follow.index')
+                $entry->order_purchase_id = $order->id;
+                $entry->purchase_receipt_key = $request->input('receipt_key');
+                $entry->purchase_receipt_hash = $fingerprint;
+                $entry->save();
+                foreach (['image' => '/images/entries/', 'imageOb' => '/images/entries/observations/'] as $field => $folder) {
+                    if (!$request->file($field)) { continue; }
+                    $file = $request->file($field);
+                    $pdf = strtolower($file->getClientOriginalExtension()) === 'pdf';
+                    $name = ($pdf ? 'pdf' : '').$entry->id.($pdf ? '.pdf' : '.JPG');
+                    $destination = public_path().$folder;
+                    $path = $destination.$name;
+                    if (!is_dir($destination) || file_exists($path)) { throw new \RuntimeException('No se puede guardar el archivo del ingreso.'); }
+                    $writtenPaths[] = $path;
+                    if ($pdf) { $file->move($destination, $name); }
+                    else { Image::make($file)->orientate()->save($path, 80, 'JPG'); }
+                    $entry->$field = $name;
+                }
+                $entry->save();
+                $total = 0; $stockIds = [];
+                foreach ($items as $item) {
+                    $line = $item->line; $material = $item->material;
+                    $quantity = (float) $item->quantity; $price = (float) $line->price;
+                    $date = $item->date_vence === '' ? null : Carbon::createFromFormat('Y-m-d', $item->date_vence)->startOfDay();
+                    $detail = new DetailEntry();
+                    $detail->fill([
+                        'tenant_id' => TenantContext::tenantId(), 'company_id' => TenantContext::companyId(),
+                        'entry_id' => $entry->id, 'material_id' => $line->material_id, 'stock_item_id' => $line->stock_item_id,
+                        'ordered_quantity' => $line->quantity, 'entered_quantity' => $quantity,
+                        'unit_price' => $price, 'total_detail' => round($quantity * $price, 2), 'date_vence' => $date,
                     ]);
-
-                    // Roles adecuados para recibir esta notificación admin, logistica
-                    $users = User::role(['admin', 'operator'])->get();
-                    foreach ( $users as $user )
-                    {
-                        $followUsers = FollowMaterial::where('material_id', $detail_entry->material_id)
-                            ->where('user_id', $user->id)
-                            ->get();
-                        if ( !$followUsers->isEmpty() )
-                        {
-                            foreach ( $user->roles as $role )
-                            {
-                                NotificationUser::create([
-                                    'notification_id' => $notification->id,
-                                    'role_id' => $role->id,
-                                    'user_id' => $user->id,
-                                    'read' => false,
-                                    'date_read' => null,
-                                    'date_delete' => null
-                                ]);
-                            }
+                    $detail->order_purchase_detail_id = $line->id;
+                    $detail->save();
+                    $this->increaseInventoryLevel((int) $line->stock_item_id, (int) $item->id_location, (int) $item->warehouse_id, $quantity, $price);
+                    $lot = $this->increaseStockLot((int) $line->stock_item_id, (int) $item->id_location, (int) $item->warehouse_id,
+                        (int) $detail->id, $item->material_lote ?: null, $date, $quantity, $price);
+                    if ($material->perecible === 's' && $date) {
+                        MaterialVencimiento::firstOrCreate(['material_id' => $material->id, 'fecha_vencimiento' => $date]);
+                    }
+                    if ((int) $material->tipo_venta_id === 3) {
+                        if (!$lot) { throw new \RuntimeException('No se pudo registrar el lote.'); }
+                        for ($unit = 0; $unit < (int) $quantity; $unit++) {
+                            $scrap = $material->typeScrap;
+                            Item::create([
+                                'tenant_id' => TenantContext::tenantId(), 'company_id' => TenantContext::companyId(),
+                                'detail_entry_id' => $detail->id, 'stock_item_id' => $line->stock_item_id, 'stock_lot_id' => $lot->id,
+                                'material_id' => $line->material_id, 'code' => 'RC-'.$entry->id.'-'.$detail->id.'-'.($unit + 1),
+                                'length' => $scrap ? $scrap->length : 0, 'width' => $scrap ? $scrap->width : 0, 'weight' => 0,
+                                'price' => $price, 'unit_cost' => $price, 'percentage' => 1,
+                                'typescrap_id' => $scrap ? $scrap->id : null,
+                                'warehouse_id' => $item->warehouse_id, 'location_id' => $item->id_location,
+                                'state' => 'good', 'state_item' => 'entered',
+                            ]);
                         }
                     }
-                    foreach ( $follows as $follow )
-                    {
-                        $follow->state = 'in_warehouse';
-                        $follow->save();
-                    }
+                    $total += (float) $detail->total_detail;
+                    $stockIds[] = (int) $line->stock_item_id;
                 }
-
-                $orderPurchasesDetail = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)
-                    ->where('material_id', $items[$i]->id)
-                    ->first();
-                $materialOrder = MaterialOrder::where('order_purchase_detail_id',$orderPurchasesDetail->id)
-                    ->where('material_id',$orderPurchasesDetail->material_id)->first();
-
-                $materialOrder->quantity_entered = $items[$i]->entered;
-                $materialOrder->save();
-
-                $material = Material::find($detail_entry->material_id);
-                $material->stock_current = $material->stock_current + $detail_entry->entered_quantity;
-                $material->save();
-
-                if ( $entry->currency_invoice === 'PEN' )
-                {
-                    $precio1 = (float)$items[$i]->price / (float) $entry->currency_compra;
-                    $price1 = ($detail_entry->material->unit_price > $precio1) ? $detail_entry->material->unit_price : $precio1;
-                    $materialS = Material::find($detail_entry->material_id);
-                    if ( $materialS->price < $price1 )
-                    {
-                        $materialS->unit_price = $price1;
-                        $materialS->save();
-
-                        $detail_entry->unit_price = (float) round((float)$items[$i]->price,2);
-                        $detail_entry->save();
-                    } else {
-                        $detail_entry->unit_price = (float) round((float)$items[$i]->price,2);
-                        $detail_entry->save();
+                $after = $summaryService->forOrder((int) $order->id);
+                if ($after['errors']) { throw new \RuntimeException(implode(' ', $after['errors'])); }
+                foreach ($after['lines'] as $lineSummary) {
+                    $tracking = MaterialOrder::query()->where('order_purchase_detail_id', $lineSummary['order_purchase_detail_id'])->lockForUpdate()->get();
+                    if ($tracking->count() > 1) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Una línea tiene seguimientos duplicados y requiere conciliación.']);
                     }
-                    //dd($detail_entry->material->materialType);
-                    if ( isset($detail_entry->material->typeScrap) )
-                    {
-                        for ( $k=0; $k<(int)$detail_entry->entered_quantity; $k++ )
-                        {
-                            Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $this->generateRandomString(20),
-                                'length' => (float)$detail_entry->material->typeScrap->length,
-                                'width' => (float)$detail_entry->material->typeScrap->width,
-                                'weight' => 0,
-                                'price' => (float)$items[$i]->price,
-                                'percentage' => 1,
-                                'typescrap_id' => $detail_entry->material->typeScrap->id,
-                                'location_id' => ($items[$i]->id_location)=='' ? 1:$items[$i]->id_location,
-                                'state' => 'good',
-                                'state_item' => 'entered'
-                            ]);
-                        }
-
+                    if ($tracking->isEmpty()) {
+                        MaterialOrder::create(['order_purchase_detail_id' => $lineSummary['order_purchase_detail_id'],
+                            'material_id' => $lineSummary['material_id'], 'stock_item_id' => $lineSummary['stock_item_id'],
+                            'quantity_request' => $lineSummary['ordered'], 'quantity_entered' => $lineSummary['received']]);
                     } else {
-                        for ( $k=0; $k<(int)$detail_entry->entered_quantity; $k++ )
-                        {
-                            Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $this->generateRandomString(20),
-                                'length' => 0,
-                                'width' => 0,
-                                'weight' => 0,
-                                'price' => (float)$items[$i]->price,
-                                'percentage' => 1,
-                                'location_id' => ($items[$i]->id_location) == '' ? 1 : $items[$i]->id_location,
-                                'state' => 'good',
-                                'state_item' => 'entered'
-                            ]);
+                        $row = $tracking->first();
+                        if ((int) $row->material_id !== $lineSummary['material_id'] || (string) $row->stock_item_id !== (string) $lineSummary['stock_item_id']) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'El seguimiento no corresponde al producto de la línea.']);
                         }
+                        $row->quantity_entered = $lineSummary['received']; $row->save();
                     }
-                } else {
-                    $price = ((float)$detail_entry->material->unit_price > (float)$items[$i]->price) ? $detail_entry->material->unit_price : $items[$i]->price;
-                    //dump($detail_entry->material->unit_price);
-                    //dump((float)$items[$i]->price);
-                    //dd($price);
-                    $materialS = Material::find($detail_entry->material_id);
-                    if ( (float)$materialS->unit_price < (float)$price )
-                    {
-                        $materialS->unit_price = (float)$price;
-                        $materialS->save();
-
-                        $detail_entry->unit_price = (float) round((float)$items[$i]->price,2);
-                        $detail_entry->save();
-                    } else {
-                        $detail_entry->unit_price = (float) round((float)$items[$i]->price,2);
-                        $detail_entry->save();
-                    }
-                    //dd($detail_entry->material->materialType);
-                    if ( isset($detail_entry->material->typeScrap) )
-                    {
-                        for ( $k=0; $k<(int)$detail_entry->entered_quantity; $k++ )
-                        {
-                            Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $this->generateRandomString(20),
-                                'length' => (float)$detail_entry->material->typeScrap->length,
-                                'width' => (float)$detail_entry->material->typeScrap->width,
-                                'weight' => 0,
-                                'price' => (float)$price,
-                                'percentage' => 1,
-                                'typescrap_id' => $detail_entry->material->typeScrap->id,
-                                'location_id' => ($items[$i]->id_location) == '' ? 1 : $items[$i]->id_location,
-                                'state' => 'good',
-                                'state_item' => 'entered'
-                            ]);
-                        }
-                    } else {
-                        //dd($detail_entry->material->typeScrap);
-                        for ( $k=0; $k<(int)$detail_entry->entered_quantity; $k++ )
-                        {
-                            Item::create([
-                                'detail_entry_id' => $detail_entry->id,
-                                'material_id' => $detail_entry->material_id,
-                                'code' => $this->generateRandomString(20),
-                                'length' => 0,
-                                'width' => 0,
-                                'weight' => 0,
-                                'price' => (float)$price,
-                                'percentage' => 1,
-                                'location_id' => ($items[$i]->id_location) == '' ? 1 : $items[$i]->id_location,
-                                'state' => 'good',
-                                'state_item' => 'entered'
-                            ]);
-                        }
-                    }
+                    DetailEntry::query()->where('entry_id', $entry->id)->where('company_id', TenantContext::companyId())
+                        ->where('order_purchase_detail_id', $lineSummary['order_purchase_detail_id'])
+                        ->update(['isComplete' => $lineSummary['pending'] === '0.00']);
                 }
-
-            }
-
-            /* SI ( En el campo factura y en (Orden Compra/Servicio) ) AND Diferente a 000
-                Entonces
-                SI ( Existe en la tabla creditos ) ENTONCES
-                actualiza la factura en la tabla de creditos
-            */
-            //dd($entry->invoice);
-            if ( ($entry->invoice != '' || $entry->invoice != null) )
-            {
-                //dd($entry->purchase_order);
-                if ( $entry->purchase_order != '' || $entry->purchase_order != null )
-                {
-                    $order_purchase = OrderPurchase::where('code', $entry->purchase_order)->first();
-
-                    if ( isset($order_purchase) )
-                    {
-                        /*if ( $credit->invoice != "" || $credit->invoice != null )
-                        {
-                            //$credit->delete();
-                            $deadline = PaymentDeadline::find($credit->deadline->id);
-                            $fecha_issue = Carbon::parse($entry->date_entry);
-                            $fecha_expiration = $fecha_issue->addDays($deadline->days);
-                            // TODO: Poner dias
-                            $dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
-                            $credit->supplier_id = $entry->supplier_id;
-                            $credit->invoice = $credit->invoice.' | '.$entry->invoice;
-                            $credit->image_invoice = $entry->image;
-                            $credit->total_soles = ((float)$credit->total_soles>0) ? $entry->total:null;
-                            $credit->total_dollars = ((float)$credit->total_dollars>0) ? $entry->total:null;
-                            $credit->date_issue = $entry->date_entry;
-                            $credit->date_expiration = $fecha_expiration;
-                            $credit->days_to_expiration = $dias_to_expire;
-                            $credit->code_order = $entry->purchase_order;
-                            $credit->save();
-                        } else {
-                            //$credit->delete();
-                            $deadline = PaymentDeadline::find($credit->deadline->id);
-                            $fecha_issue = Carbon::parse($entry->date_entry);
-                            $fecha_expiration = $fecha_issue->addDays($deadline->days);
-                            // TODO: Poner dias
-                            $dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
-                            $credit->supplier_id = $entry->supplier_id;
-                            $credit->invoice = $entry->invoice;
-                            $credit->image_invoice = $entry->image;
-                            $credit->total_soles = ((float)$credit->total_soles>0) ? $entry->total:null;
-                            $credit->total_dollars = ((float)$credit->total_dollars>0) ? $entry->total:null;
-                            $credit->date_issue = $entry->date_entry;
-                            $credit->date_expiration = $fecha_expiration;
-                            $credit->days_to_expiration = $dias_to_expire;
-                            $credit->code_order = $entry->purchase_order;
-                            $credit->save();
-                        }*/
-                        if ( isset($order_purchase->deadline) )
-                        {
-                            if ( $order_purchase->deadline->credit == 1 || $order_purchase->deadline->credit == true )
-                            {
-                                $deadline = PaymentDeadline::find($order_purchase->deadline->id);
-                                $fecha_issue = Carbon::parse($entry->date_entry);
-                                $fecha_expiration = $fecha_issue->addDays($deadline->days);
-                                // TODO: Poner dias
-                                $dias_to_expire = $fecha_expiration->diffInDays(Carbon::now('America/Lima'));
-
-                                $credit = SupplierCredit::create([
-                                    'supplier_id' => $order_purchase->supplier->id,
-                                    'invoice' => ($this->onlyZeros($entry->invoice) == true ) ? null:$entry->invoice,
-                                    'image_invoice' => $entry->image,
-                                    'total_soles' => ($order_purchase->currency_order == 'PEN') ? (float)$entry->total:null,
-                                    'total_dollars' => ($order_purchase->currency_order == 'USD') ? (float)$entry->total:null,
-                                    'date_issue' => Carbon::parse($entry->date_entry),
-                                    'order_purchase_id' => $order_purchase->id,
-                                    'state_credit' => 'outstanding',
-                                    'order_service_id' => null,
-                                    'date_expiration' => $fecha_expiration,
-                                    'days_to_expiration' => $dias_to_expire,
-                                    'code_order' => $order_purchase->code,
-                                    'payment_deadline_id' => $order_purchase->payment_deadline_id,
-                                    'entry_id' => $entry->id
-                                ]);
-                            }
-                        }
-
-                    }
+                $order->state = $after['state'];
+                if ($after['state'] === 1) { $order->status_order = 'pick_up'; }
+                $order->save();
+                $stockIds = array_values(array_unique($stockIds));
+                $costs = $this->inventoryCostService->getAverageCostsByStockItem($stockIds, $entry->date_entry);
+                foreach ($stockIds as $stockId) {
+                    InventoryLevel::query()->where('tenant_id', TenantContext::tenantId())->where('company_id', TenantContext::companyId())
+                        ->where('stock_item_id', $stockId)->update(['average_cost' => (float) ($costs[$stockId] ?? 0)]);
                 }
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Guardar ingreso de Orden de compra',
-                'time' => $end
-            ]);
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+                $users = app(\App\Services\Purchases\NormalPurchaseGuard::class)->users()->get();
+                foreach (array_unique(array_map(function ($item) { return $item->id_material; }, $items)) as $materialId) {
+                    $followers = FollowMaterial::query()->where('material_id', $materialId)->whereIn('user_id', $users->pluck('id'))->get();
+                    if ($followers->isEmpty()) { continue; }
+                    $material = Material::findOrFail($materialId);
+                    $notification = Notification::create(['content' => 'El material '.$material->full_description.' ha sido ingresado.',
+                        'reason_for_creation' => 'follow_material', 'user_id' => Auth::id(), 'url_go' => route('follow.index')]);
+                    foreach ($users->whereIn('id', $followers->pluck('user_id')->all()) as $user) {
+                        foreach ($user->roles as $role) {
+                            NotificationUser::create(['notification_id' => $notification->id, 'role_id' => $role->id, 'user_id' => $user->id,
+                                'read' => false, 'date_read' => null, 'date_delete' => null]);
+                        }
+                    }
+                    foreach ($followers as $follow) { $follow->state = 'in_warehouse'; $follow->save(); }
+                }
+                $deadline = $order->deadline;
+                if ($deadline && $deadline->credit) {
+                    $expiration = $entry->date_entry->copy()->addDays($deadline->days);
+                    SupplierCredit::create([
+                        'supplier_id' => $supplier->id, 'entry_id' => $entry->id, 'order_purchase_id' => $order->id,
+                        'invoice' => $this->onlyZeros($entry->invoice) ? null : $entry->invoice, 'image_invoice' => $entry->image,
+                        'total_soles' => $order->currency_order === 'PEN' ? round($total, 2) : null,
+                        'total_dollars' => $order->currency_order === 'USD' ? round($total, 2) : null,
+                        'date_issue' => $entry->date_entry, 'date_expiration' => $expiration,
+                        'days_to_expiration' => $expiration->diffInDays(Carbon::now('America/Lima')),
+                        'code_order' => $order->code, 'payment_deadline_id' => $deadline->id, 'state_credit' => 'outstanding',
+                    ]);
+                }
+                return ['id' => $entry->id, 'replayed' => false];
+            });
+        } catch (\Throwable $exception) {
+            foreach ($writtenPaths as $path) { if (is_file($path)) { @unlink($path); } }
+            throw $exception;
         }
-
-        // TODO: Logica para actualizar
-        $orderPurchase = OrderPurchase::find($request->get('purchase_order_id'));
-        $entradas = Entry::where('purchase_order', $orderPurchase->code)
-            ->get();
-
-        if ( count($entradas) > 0 )
-        {
-            $details = OrderPurchaseDetail::where('order_purchase_id', $orderPurchase->id)->get();
-
-            if (isset($details))
-            {
-                $flag = 1;
-                foreach ($details as $detail)
-                {
-                    $material = $detail->material_id;
-                    // TODO: obtener las entradas de esa orden y material
-                    $cant_material = 0;
-                    foreach ( $entradas as $entrada )
-                    {
-                        $entry_details_sum = DetailEntry::where('entry_id', $entrada->id)
-                            ->where('material_id', $material)->sum('entered_quantity');
-                        $cant_material += $entry_details_sum;
-                    }
-
-                    if ($cant_material < $detail->quantity)
-                    {
-                        // TODO: Esto significa que esta incompleta
-                        /*$orderPurchase->state = 0;
-                        $orderPurchase->save();*/
-                        $flag = 0;
-                    }
-                }
-                if ( $flag == 0 )
-                {
-                    // TODO: Esto significa que esta incompleta
-                    $orderPurchase->state = 0;
-                    $orderPurchase->save();
-                } else {
-                    // TODO: Esto significa que esta completa
-                    $orderPurchase->state = 1;
-                    $orderPurchase->save();
-                }
-
-            } else {
-                // TODO: Esto significa que esta por ingresar
-                $orderPurchase->state = 2;
-                $orderPurchase->save();
-            }
-
-        } else {
-            // TODO: Esto significa que esta por ingresar
-            $orderPurchase->state = 2;
-            $orderPurchase->save();
-        }
-
-        return response()->json(['message' => 'Ingreso por compra guardado con éxito.', 'url'=>route('entry.purchase.index')], 200);
-
+        return response()->json(['message' => $saved['replayed'] ? 'Esta recepción ya estaba guardada.' : 'Ingreso guardado correctamente.',
+            'entry_id' => $saved['id'], 'url' => route('order.purchase.list.indexV2')]);
     }
 
     function generateRandomString($length = 25) {

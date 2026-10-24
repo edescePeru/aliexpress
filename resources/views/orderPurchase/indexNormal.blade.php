@@ -92,5 +92,7 @@
 
 @section('scripts')
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
+    <script>window.normalPurchaseContext = {tenant_id: {{ \App\Support\TenantContext::tenantId() }}, company_id: {{ \App\Support\TenantContext::companyId() }}};</script>
+    <script src="{{ asset('js/orderPurchase/companyContext.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/indexNormal.js') }}"></script>
 @endsection

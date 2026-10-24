@@ -2,11 +2,16 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class SaleDetail extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
         'sale_id',
         'material_id',
         'stock_item_id',
@@ -27,6 +32,8 @@ class SaleDetail extends Model
     ];
 
     protected $casts = [
+        'tenant_id' => 'integer',
+        'company_id' => 'integer',
         'item_snapshot' => 'array',
     ];
 
@@ -53,5 +60,10 @@ class SaleDetail extends Model
     public function creditNoteDetails()
     {
         return $this->hasMany(CreditNoteDetail::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

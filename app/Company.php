@@ -105,4 +105,9 @@ class Company extends Model
             'company_id'
         );
     }
+
+    public function nubefactConfig()
+    {
+        return $this->hasOne(CompanyNubefactConfig::class);
+    }
 }

@@ -27,7 +27,10 @@ class StoreQuoteRequest extends FormRequest
 
             'customer_id' => 'nullable|exists:customers,id',
             'contact_id' => 'nullable|exists:contact_names,id',
-            'payment_deadline' => 'nullable|exists:payment_deadlines,id',
+            'payment_deadline' => ['nullable', 'integer', Rule::exists('payment_deadlines', 'id')->where(function ($query) {
+                $query->where('tenant_id', \App\Support\TenantContext::tenantId())
+                    ->where('company_id', \App\Support\TenantContext::companyId())->where('type', 'quotes')->where('is_active', true);
+            })],
 
             // Totales (front)
             'descuento' => 'nullable|numeric|min:0',

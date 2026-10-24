@@ -68,6 +68,8 @@
 @section('content')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('entry.purchase.store') }}" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="entry_context_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
+        <input type="hidden" name="entry_context_branch_id" value="{{ \App\Support\TenantContext::branchId() }}">
         <div class="row">
             <div class="col-md-12">
                 <div class="card card-success">
@@ -223,9 +225,15 @@
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="almacen">
-                                        Ubicación de ingreso
+                                        Almacén de ingreso
                                     </label>
-                                    <input type="text" id="almacen" name="almacen" data-locationGroup class="form-control locationGroup" />
+                                    <select id="almacen" name="almacen" class="form-control" aria-describedby="entry-warehouse-help">
+                                        <option value="">Seleccione un almacén</option>
+                                    </select>
+                                    <small id="entry-warehouse-help" class="text-muted">El destino se aplica a los productos que agregue a continuación.</small>
+                                    @foreach($warehouseOptions['configuration_errors'] as $warehouseError)
+                                        <div class="text-danger" role="alert">{{ $warehouseError }}</div>
+                                    @endforeach
 
                                 </div>
                             </div>
@@ -248,17 +256,17 @@
                                     <div class="card-body table-responsive p-0" style="height: 300px;">
                                         <table class="table table-head-fixed text-nowrap">
                                             <thead>
-                                                <tr>
-                                                    <th>Codigo</th>
-                                                    <th>Material</th>
-                                                    <th>Cantidad</th>
-                                                    <th>Und</th>
-                                                    <th>Precio Unit.</th>
-                                                    <th>Total sin Imp.</th>
-                                                    <th>Total Imp.</th>
-                                                    <th>Importe</th>
-                                                    <th>Acciones</th>
-                                                </tr>
+                                            <tr>
+                                                <th>Codigo</th>
+                                                <th>Material</th>
+                                                <th>Cantidad</th>
+                                                <th>Und</th>
+                                                <th>Precio Unit.</th>
+                                                <th>Total sin Imp.</th>
+                                                <th>Total Imp.</th>
+                                                <th>Importe</th>
+                                                <th>Acciones</th>
+                                            </tr>
                                             </thead>
                                             <tbody id="body-materials">
 
@@ -675,6 +683,7 @@
             allowClear: true
         });*/
     </script>
+    <script type="application/json" id="entry-warehouse-catalog">@json($warehouseOptions)</script>
     <script src="{{ asset('js/entry/entry_purchaseV2.js') }}?v={{ time() }}"></script>
 
 @endsection

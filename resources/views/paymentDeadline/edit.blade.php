@@ -54,8 +54,11 @@
 @endsection
 
 @section('content')
+<div class="alert alert-info">Si este plazo ya se utilizó, sus días, tipo y condición de crédito se conservan. Para condiciones nuevas, cree otro plazo.</div>
     <form id="formEdit" class="form-horizontal" data-url="{{ route('paymentDeadline.update') }}" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="form_tenant_id" value="{{ \App\Support\TenantContext::tenantId() }}">
+        <input type="hidden" name="form_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
         <input type="hidden" class="form-control" name="paymentDeadline_id" value="{{$paymentDeadline->id}}">
 
         <div class="form-group row">
@@ -97,8 +100,9 @@
             </div>
         </div>
 
+        <div class="form-group row"><div class="col-md-6"><label for="is_active" class="col-12 col-form-label">Estado</label><div class="col-sm-10"><select name="is_active" id="is_active" class="form-control"><option value="1" {{ $paymentDeadline->is_active ? 'selected' : '' }}>Activo</option><option value="0" {{ !$paymentDeadline->is_active ? 'selected' : '' }}>Inactivo</option></select></div></div></div>
         <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar Cambios</button>
+            <button type="submit" id="btn-submit" class="btn btn-outline-success">Guardar Cambios</button>
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
         </div>
         <!-- /.card-footer -->

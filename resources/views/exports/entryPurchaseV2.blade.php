@@ -98,9 +98,9 @@
             <div  class="mt-3"><span class="label">FECHA:</span>
                 <span class="texto">{{ date('d/m/Y', strtotime($purchase_order->date_order)) }}</span>
             </div>
-            <div  class="mt-3"><span class="label">APROBADO POR:</span>
+            <div  class="mt-3"><span class="label">{{ $purchase_order->type === 'n' ? 'CREADO POR:' : 'APROBADO POR:' }}</span>
                 <span class="texto">
-                    {{ $purchase_order->approved_user->name ?? 'No tiene aprobador' }}
+                    {{ $purchase_order->type === 'n' ? (optional($purchase_order->createdUser)->name ?? 'No registrado / usuario no disponible') : ($purchase_order->approved_user->name ?? 'No tiene aprobador') }}
                 </span>
             </div>
             <div  class="mt-3"><span class="label">CONDICIÓN DE PAGO:</span>

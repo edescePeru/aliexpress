@@ -249,7 +249,7 @@
                     <th>Fecha Llegada</th>
                     <th>Observación</th>
                     <th>Proveedor</th>
-                    <th>Aprobado Por</th>
+                    <th>Creado por</th>
                     <th>Moneda</th>
                     <th>Total</th>
                     <th>Tipo</th>
@@ -314,7 +314,7 @@
             <td data-date_arrival></td>
             <td data-observation></td>
             <td data-supplier></td>
-            <td data-approved_user></td>
+            <td data-created_user></td>
             <td data-currency></td>
             <td data-total></td>
             <td data-type></td>
@@ -415,6 +415,8 @@
 
         })
     </script>
+    <script>window.normalPurchaseContext = {tenant_id: {{ \App\Support\TenantContext::tenantId() }}, company_id: {{ \App\Support\TenantContext::companyId() }}};</script>
+    <script src="{{ asset('js/orderPurchase/companyContext.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/normalV2.js') }}"></script>
 
 @endsection

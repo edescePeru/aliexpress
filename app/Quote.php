@@ -15,6 +15,7 @@ class Quote extends Model
     protected $fillable = [
         'tenant_id',
         'company_id',
+        'branch_id',
 
         'code',
         'description_quote',

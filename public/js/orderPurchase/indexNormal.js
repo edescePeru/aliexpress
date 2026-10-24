@@ -97,7 +97,7 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     var select = '';
-                    if ( $.inArray('update_orderPurchaseExpress', $permissions) !== -1 ) {
+                    if ( $.inArray('update_orderPurchaseNormal', $permissions) !== -1 ) {
 
                         if ( item.status_order === 'stand_by' )
                         {

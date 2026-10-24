@@ -214,55 +214,44 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
                 Route::prefix('workforces-default')
                     ->group(function () {
+                        Route::get('/','WorkforceController@index')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.index');
 
-                        Route::get(
-                            '/',
-                            'WorkforceController@index'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.index'
-                        );
+                        Route::get('/data','WorkforceController@getData')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.data');
 
-                        Route::get(
-                            '/data',
-                            'WorkforceController@getData'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.data'
-                        );
+                        Route::post('/','WorkforceController@store')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.store');
 
-                        Route::post(
-                            '/',
-                            'WorkforceController@store'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.store'
-                        );
+                        Route::get('/{id}/edit','WorkforceController@edit')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.edit');
 
-                        Route::get(
-                            '/{id}/edit',
-                            'WorkforceController@edit'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.edit'
-                        );
+                        Route::put('/{id}','WorkforceController@update')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.update');
 
-                        Route::put(
-                            '/{id}',
-                            'WorkforceController@update'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.update'
-                        );
-
-                        Route::delete(
-                            '/{id}',
-                            'WorkforceController@destroy'
-                        )->middleware('permission:manage_workforce')
-                            ->name(
-                            'workforce.destroy'
-                        );
+                        Route::delete('/{id}','WorkforceController@destroy')
+                            ->middleware('permission:manage_workforce')
+                            ->name('workforce.destroy');
                     });
+
+
+                Route::get('empresas/{companyId}/almacenes', 'ManagedWarehouseController@index')
+                    ->where('companyId', '[1-9][0-9]*')->middleware('permission:edit_company')
+                    ->name('managedWarehouse.company');
+                Route::post('empresas/{companyId}/almacenes', 'ManagedWarehouseController@store')
+                    ->where('companyId', '[1-9][0-9]*')->middleware('permission:edit_company');
+
+                Route::get('empresas/{companyId}/sucursales/{branchId}/almacenes', 'ManagedWarehouseController@index')
+                    ->where(['companyId' => '[1-9][0-9]*', 'branchId' => '[1-9][0-9]*'])
+                    ->middleware('permission:edit_branch')->name('managedWarehouse.branch');
+                Route::post('empresas/{companyId}/sucursales/{branchId}/almacenes', 'ManagedWarehouseController@store')
+                    ->where(['companyId' => '[1-9][0-9]*', 'branchId' => '[1-9][0-9]*'])
+                    ->middleware('permission:edit_branch');
             });
 
         /*Route::get(
@@ -1105,6 +1094,26 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/get/json/entries/scrap', 'EntryController@getJsonEntriesScrap');
         Route::get('/get/json/items/{entry_id}', 'ItemController@getJsonItemsEntry');
 
+        // TODO:Rutas para Traslados entre almacenes
+        Route::prefix('traslados/almacenes')->name('warehouseTransfer.')->middleware('permission:list_transfer')->group(function () {
+            Route::get('/', 'WarehouseTransferController@index')->name('index');
+            Route::get('/crear', 'WarehouseTransferController@create')->middleware('permission:create_transfer')->name('create');
+            Route::get('/productos', 'WarehouseTransferController@products')->middleware('permission:create_transfer')->name('products');
+            Route::post('/', 'WarehouseTransferController@store')->middleware('permission:create_transfer')->name('store');
+            Route::get('/{id}', 'WarehouseTransferController@show')->where('id', '[0-9]+')->name('show');
+            foreach (['prepare' => 'prepare', 'dispatch' => 'dispatchTransfer', 'receive' => 'receive', 'cancel' => 'cancel'] as $action => $method) {
+                Route::post('/{id}/'.$action, 'WarehouseTransferController@'.$method)->where('id', '[0-9]+')
+                    ->middleware('permission:'.$action.'_transfer')->name($action);
+            }
+        });
+
+        Route::prefix('disponibilidad/almacenes')->name('warehouseAvailability.')->middleware('permission:viewStock_transfer')->group(function () {
+            Route::get('/', 'WarehouseAvailabilityController@index')->name('index');
+            Route::get('/productos', 'WarehouseAvailabilityController@products')->name('products');
+            Route::get('/datos', 'WarehouseAvailabilityController@data')->name('data');
+        });
+
+
         // TODO: Rutas para V2 de listado de Entradas por almacen
         Route::get('/get/all/entries/v2/{numberPage}', 'EntryController@getAllEntriesV2')
             ->middleware('permission:list_entryPurchase');
@@ -1269,7 +1278,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
 
         // TRANSFER
-        Route::get('transferencias', 'TransferController@index')
+        /*Route::get('transferencias', 'TransferController@index')
             ->name('transfer.index')
             ->middleware('permission:list_transfer');
         Route::get('crear/transferencia', 'TransferController@create')
@@ -1303,7 +1312,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('get/container/level/{level_id}', 'TransferController@getContainer')
             ->middleware('permission:create_transfer');
         Route::get('get/position/container/{container_id}', 'TransferController@getPosition')
-            ->middleware('permission:create_transfer');
+            ->middleware('permission:create_transfer');*/
 
         // COTIZACIONES
         Route::get('cotizaciones', 'QuoteController@index')
@@ -1342,12 +1351,12 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('/destroy/quote/{quote}', 'QuoteController@destroy')
             ->name('quote.destroy')
             ->middleware('permission:destroy_quote');
-        Route::post('/confirm/quote/{quote}', 'QuoteController@confirm')
+        /*Route::post('/confirm/quote/{quote}', 'QuoteController@confirm')
             ->name('quote.confirm')
-            ->middleware('permission:confirm_quote');
-        Route::post('/send/quote/{quote}', 'QuoteController@send')
+            ->middleware('permission:confirm_quote');*/
+        /*Route::post('/send/quote/{quote}', 'QuoteController@send')
             ->name('quote.send')
-            ->middleware('permission:send_quote');
+            ->middleware('permission:send_quote');*/
         Route::post('/raise/quote/{quote}/code/{code}', 'QuoteController@raiseQuote')
             ->name('quote.raise.quote')
             ->middleware('permission:raise_quote');
@@ -1386,15 +1395,15 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('quote.closed')
             ->middleware('permission:finish_quote');
         Route::get('/all/quotes/closed', 'QuoteController@getAllQuotesClosed');
-        Route::post('/finish/quote/{quote}', 'QuoteController@closeQuote')
-            ->middleware('permission:finish_quote');
+        /*Route::post('/finish/quote/{quote}', 'QuoteController@closeQuote')
+            ->middleware('permission:finish_quote');*/
         Route::get('/get/contact/{customer}', 'QuoteController@getContactsByCustomer');
 
-        Route::post('/active/quote/{quote}', 'QuoteController@activeQuote')
-            ->middleware('permission:finish_quote');
+        /*Route::post('/active/quote/{quote}', 'QuoteController@activeQuote')
+            ->middleware('permission:finish_quote');*/
 
-        Route::post('/deselevar/quote/{quote}', 'QuoteController@deselevarQuote')
-            ->middleware('permission:raise_quote');
+        /*Route::post('/deselevar/quote/{quote}', 'QuoteController@deselevarQuote')
+            ->middleware('permission:raise_quote');*/
 
         Route::get('editar/planos/cotizacion/{quote}', 'QuoteController@editPlanos')
             ->name('quote.edit.planos')
@@ -1408,15 +1417,15 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('save.planos.quote')
             ->middleware('permission:update_quote');
 
-        Route::get('/get/detraction/quote/{quote_id}', 'QuoteController@getDetractionQuote');
+        /*Route::get('/get/detraction/quote/{quote_id}', 'QuoteController@getDetractionQuote');
         Route::post('/change/detraction/quote', 'QuoteController@changeDetractionQuote')
             ->name('detraction.change')
-            ->middleware('permission:update_quote');
+            ->middleware('permission:update_quote');*/
 
-        Route::get('/get/decimals/quote/{quote_id}', 'QuoteController@getDecimalsQuote');
-        Route::post('/change/decimals/quote', 'QuoteController@changeDecimalsQuote')
+        /*Route::get('/get/decimals/quote/{quote_id}', 'QuoteController@getDecimalsQuote');*/
+        /*Route::post('/change/decimals/quote', 'QuoteController@changeDecimalsQuote')
             ->name('decimals.change')
-            ->middleware('permission:update_quote');
+            ->middleware('permission:update_quote');*/
 
         // TODO: Rutas para V2 de listado de cotizaciones GENERAL
         Route::get('/get/data/quotes/v2/{numberPage}', 'QuoteController@getDataQuotes')
@@ -1475,10 +1484,10 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/all/quotes/lost', 'QuoteController@getAllQuoteLost');
 
         // TODO: Visto bueno de finanzas y operaciones
-        Route::post('/visto/bueno/finances/quote/{quote}', 'QuoteController@vistoBuenoFinancesQuote')
-            ->middleware('permission:VBFinances_quote');
-        Route::post('/visto/bueno/operations/quote/{quote}', 'QuoteController@vistoBuenoOperationsQuote')
-            ->middleware('permission:VBOperations_quote');
+        /*Route::post('/visto/bueno/finances/quote/{quote}', 'QuoteController@vistoBuenoFinancesQuote')
+            ->middleware('permission:VBFinances_quote');*/
+        /*Route::post('/visto/bueno/operations/quote/{quote}', 'QuoteController@vistoBuenoOperationsQuote')
+            ->middleware('permission:VBOperations_quote');*/
         Route::get('modificar/lista/materiales/cotizacion/{quote}', 'QuoteController@modificarListaMateriales')
             ->middleware('permission:replacement_quote');
         Route::post('/update/list/equipment/{id_equipment}/quote/{id_quote}', 'QuoteController@updateListEquipmentOfQuote')
@@ -1547,7 +1556,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('store/order/purchase/normal', 'OrderPurchaseController@storeOrderPurchaseNormal')
             ->name('order.purchase.normal.store')
             ->middleware('permission:create_orderPurchaseNormal');
-        Route::get('/all/order/normal', 'OrderPurchaseController@getAllOrderNormal');
+        Route::get('/all/order/normal', 'OrderPurchaseController@getAllOrderNormal')
+            ->middleware('permission:list_orderPurchaseNormal');
         Route::get('editar/orden/compra/normal/{id}', 'OrderPurchaseController@editOrderPurchaseNormal')
             ->middleware('permission:update_orderPurchaseNormal');
         Route::post('update/order/purchase/normal', 'OrderPurchaseController@updateOrderPurchaseNormal')
@@ -1572,9 +1582,10 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('ordenes/compra/eliminadas', 'OrderPurchaseController@indexOrderPurchaseDelete')
             ->name('order.purchase.delete')
             ->middleware('permission:destroy_orderPurchaseNormal');
-        Route::get('/all/order/delete', 'OrderPurchaseController@getOrderDeleteGeneral');
+        Route::get('/all/order/delete', 'OrderPurchaseController@getOrderDeleteGeneral')
+            ->middleware('permission:destroy_orderPurchaseNormal');
         Route::get('ver/orden/compra/eliminada/{id}', 'OrderPurchaseController@showOrderPurchaseDelete')
-            ->middleware('permission:list_orderPurchaseExpress');
+            ->middleware('permission:destroy_orderPurchaseNormal');
         Route::get('imprimir/orden/compra/eliminada/{id}', 'OrderPurchaseController@printOrderPurchaseDelete')
             ->middleware('permission:list_orderPurchaseNormal');
         Route::post('/restore/order/purchase/delete/{id}', 'OrderPurchaseController@restoreOrderPurchaseDelete')
@@ -1600,10 +1611,11 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:list_orderPurchaseExpress');
         Route::get('exportar/reporte/ordenes/compra/v2/', 'OrderPurchaseController@exportOrderGeneralExcel')
             ->middleware('permission:list_orderPurchaseExpress');
-        Route::get('/get/state/order/purchase/{orderPurchase_id}', 'OrderPurchaseController@getStateOrderPurchase');
+        Route::get('/get/state/order/purchase/{orderPurchase_id}', 'OrderPurchaseController@getStateOrderPurchase')
+            ->middleware('permission:update_orderPurchaseNormal');
         Route::post('/change/state/order/purchase', 'OrderPurchaseController@changeStateOrderPurchase')
             ->name('state.order.purchase.change')
-            ->middleware('permission:update_orderPurchaseExpress');
+            ->middleware('permission:update_orderPurchaseNormal');
 
         // TODO: Rutas para V2 de listado de Ordenes de compra Normal y Express
         Route::get('/get/data/orders/express/v2/{numberPage}', 'OrderPurchaseController@getDataOrderExpress')
@@ -3351,6 +3363,13 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/get/data/quotes/sale/{id}', 'QuoteSaleController@getDataIndividual')->name('quotes.getDataIndividual');
         Route::post('/store/sale/from/quote', 'QuoteSaleController@storeFromQuote')
             ->middleware('permission:edit_quoteSale');
+        Route::post(
+            '/sales/from-quote/{saleId}/recover-emission-persistence',
+            'QuoteSaleController@recoverEmissionPersistence'
+        )
+            ->where('saleId', '[0-9]+')
+            ->name('quoteSale.recoverEmissionPersistence')
+            ->middleware('permission:edit_quoteSale');
 
         Route::post('/quotes/update-general', 'QuoteSaleController@updateDatosGeneral')
             ->name('quotes.sales.update.general');
@@ -3374,6 +3393,22 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         )
             ->name('quoteSale.renew')
             ->middleware('permission:renew_quoteSale');
+
+        Route::get('cotizaciones/venta/pendientes-sucursal', 'QuoteBranchPendingController@index')
+            ->name('quoteSale.pendingBranches')
+            ->middleware('permission:list_quoteSale');
+        Route::get('cotizaciones/venta/pendientes-sucursal/{id}', 'QuoteBranchPendingController@show')
+            ->where('id', '[0-9]+')
+            ->name('quoteSale.pendingBranches.show')
+            ->middleware('permission:list_quoteSale');
+
+        Route::post('quote-sale/{quote}/confirm', 'QuoteSaleController@confirm')->where('quote', '[0-9]+')->name('quoteSale.confirm')->middleware('permission:confirm_quoteSale');
+        Route::post('quote-sale/{quote}/send', 'QuoteSaleController@send')->where('quote', '[0-9]+')->name('quoteSale.send')->middleware('permission:send_quoteSale');
+        Route::post('quote-sale/{quote}/close', 'QuoteSaleController@closeQuote')->where('quote', '[0-9]+')->name('quoteSale.close')->middleware('permission:finish_quoteSale');
+        Route::post('quote-sale/{quote}/reopen', 'QuoteSaleController@activeQuote')->where('quote', '[0-9]+')->name('quoteSale.reopen')->middleware('permission:finish_quoteSale');
+        Route::get('quote-sale/{quote}/decimals', 'QuoteSaleController@getDecimalsQuote')->where('quote', '[0-9]+')->name('quoteSale.decimals.get')->middleware('permission:edit_quoteSale');
+        Route::post('quote-sale/decimals', 'QuoteSaleController@changeDecimalsQuote')->name('quoteSale.decimals.change')->middleware('permission:edit_quoteSale');
+
 
         // TODO: PromotionLimits
         Route::get('promociones/por/limite', 'PromotionLimitController@index')
@@ -3748,6 +3783,10 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::get('tipos-impuesto','TypeTaxController@index')->name('platformTypeTax.index');
         Route::post('tipos-impuesto','TypeTaxController@store')->name('platformTypeTax.store');
         Route::post('tipos-impuesto/{id}/update','TypeTaxController@update')->name('platformTypeTax.update');
+
+        Route::get('nubefact','Platform\NubefactConfigController@index')->name('platformNubefact.index');
+        Route::get('tenants/{tenantId}/companies/{companyId}/nubefact','Platform\NubefactConfigController@edit')->where(['tenantId' => '[0-9]+','companyId' => '[0-9]+',])->name('platformNubefact.edit');
+        Route::post('tenants/{tenantId}/companies/{companyId}/nubefact','Platform\NubefactConfigController@update')->where(['tenantId' => '[0-9]+','companyId' => '[0-9]+',])->name('platformNubefact.update');
 });
 
 Route::prefix('store-web/')->group(function () {

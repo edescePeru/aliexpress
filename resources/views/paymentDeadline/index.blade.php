@@ -63,6 +63,7 @@
                 <th>Cantidad de días</th>
                 <th>Usado en</th>
                 <th>Indica crédito</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
             </thead>
@@ -76,19 +77,21 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Confirmar eliminación</h4>
+                    <h4 class="modal-title">Confirmar desactivación</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <form id="formDelete" data-url="{{ route('paymentDeadline.destroy') }}">
                     @csrf
+        <input type="hidden" name="form_tenant_id" value="{{ \App\Support\TenantContext::tenantId() }}">
+        <input type="hidden" name="form_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
                     <div class="modal-body">
                         <input type="hidden" id="paymentDeadline_id" name="paymentDeadline_id">
-                        <strong>¿Está seguro de eliminar esta plazo de pago?</strong>
+                        <strong>¿Está seguro de desactivar este plazo de pago?</strong>
                         <p id="name"></p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" id="btn-submit" class="btn btn-danger">Eliminar</button>
+                        <button type="button" id="btn-submit" class="btn btn-danger">Desactivar</button>
                     </div>
                 </form>
             </div>

@@ -28,19 +28,8 @@ $(document).ready(function () {
 
         }
     });
-    $.ajax({
-        url: "/dashboard/get/locations",
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            for (var i=0; i<json.length; i++)
-            {
-                $locations.push(json[i].location);
-                $locationsComplete.push(json[i]);
-            }
-
-        }
-    });
+    inicializarResumenEntrada();
+    cargarLocations();
 
     /*$('.typeahead').typeahead({
             hint: true,
@@ -57,7 +46,7 @@ $(document).ready(function () {
     $('#btn-add').on('click', function () {
 
         if (!$materialSelected) {
-            toastr.error('Debe seleccionar un material asdasd.', 'Error');
+            toastr.error('Debe seleccionar un material.', 'Error');
             return;
         }
 
@@ -87,18 +76,7 @@ $(document).ready(function () {
     $formEdit = $("#formEdit");
     $formEdit.on('submit', updateOrderPurchase);
 
-    $('#almacen').typeahead('destroy');
-    $('#almacen').typeahead({
-            hint: true,
-            highlight: true, /* Enable substring highlighting */
-            minLength: 1 /* Specify minimum characters required for showing suggestions */
-        },
-        {
-            limit: 12,
-            source: substringMatcher($locations)
-        });
-    //var l = $locations[0];
-    $("#almacen").typeahead('val',$locations[0]).trigger('change');
+
 
     /*$(document).on('typeahead:select', '#material_search', function(ev, suggestion) {
         var select_material = $(this);
@@ -588,6 +566,7 @@ function agregarMaterialSimpleConCodigosManuales(data, codigos) {
             'stock_item_id': material.stock_item_id,
             'item': codigo,
             'id_location': location.id,
+            'warehouse_id': location.warehouse_id,
             'date_vence': materialVence,
             'material_lote': materialLote,
             'state': 'good',
@@ -623,15 +602,11 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
 
     let material = $materialSelected;
 
-    let materialLocation = $('#almacen').val();
     let materialVence = $('#date_vence').val();
     let materialLote = $('#lot').val();
+    const location = $destinoPendienteVariantes;
 
-    let location = $locationsComplete.find(function (location) {
-        return location.location === materialLocation;
-    });
-
-    if (!location) {
+    if (!location || $entryWarehouseErrors.length) {
         toastr.error('Debe seleccionar un almacén válido.', 'Error');
         return;
     }
@@ -665,6 +640,7 @@ function agregarStockItemsVariantAEntrada(selectedRows) {
                 'variant_id': row.variant_id,
                 'item': code,
                 'id_location': location.id,
+                'warehouse_id': location.warehouse_id,
                 'date_vence': materialVence,
                 'material_lote': materialLote,
                 'state': 'good',
@@ -708,7 +684,7 @@ function limpiarFormularioEntradaMaterial() {
 
     $('#quantity').val('');
     $('#price').val('');
-    $('#almacen').val('');
+    seleccionarLocationDefault();
     $('#date_vence').val('');
     $('#lot').val('');
 
@@ -736,9 +712,9 @@ function limpiarFormularioEntradaMaterial() {
 
 function abrirModalStockItemsVariant(material) {
 
-    let materialLocation = $('#almacen').val();
+    $destinoPendienteVariantes = obtenerDestinoSeleccionado();
 
-    if (!materialLocation) {
+    if (!$destinoPendienteVariantes) {
         toastr.error('Debe seleccionar un almacén.', 'Error');
         return;
     }
@@ -1025,9 +1001,7 @@ function prepararFormularioParaMaterialSimple(material) {
     $('#almacen').prop('readonly', false);
     $('#almacen').prop('disabled', false);
 
-    if (typeof $locations !== 'undefined' && $locations.length > 0) {
-        $("#almacen").typeahead('val', $locations[0]).trigger('change');
-    }
+    seleccionarLocationDefault();
 }
 
 function prepararFormularioParaMaterialConVariantes(material) {
@@ -1051,9 +1025,7 @@ function prepararFormularioParaMaterialConVariantes(material) {
     $('#almacen').prop('readonly', false);
     $('#almacen').prop('disabled', false);
 
-    if (typeof $locations !== 'undefined' && $locations.length > 0) {
-        $("#almacen").typeahead('val', $locations[0]).trigger('change');
-    }
+    seleccionarLocationDefault();
 
     toastr.info('Este material tiene variantes. Presione agregar para ingresar cantidades por variante.', 'Material con variantes');
 }
@@ -1121,30 +1093,14 @@ var substringMatcher = function(strs) {
 };
 
 function updateSummaryInvoice() {
-    var subtotal = 0;
-    var total = 0;
-    var taxes = 0;
-
-    for ( var i=0; i<$items.length; i++ )
-    {
-        subtotal += parseFloat( (parseFloat($items[i].price)*parseFloat($items[i].quantity))/1.18 );
-        total += parseFloat((parseFloat($items[i].price)*parseFloat($items[i].quantity)));
-        taxes = subtotal*0.18;
-    }
-
-    console.log("subtotal "+subtotal);
-    console.log("taxes "+taxes);
-    console.log("total "+total);
-
-    var subtotalAntes = parseFloat($('#subtotal').html()) + subtotal ;
-
-    var taxesAntes = parseFloat($('#taxes').html()) + taxes ;
-
-    var totalAntes = parseFloat($('#total').html()) + total ;
-
-    $('#subtotal').html(subtotalAntes.toFixed(2));
-    $('#taxes').html(taxesAntes.toFixed(2));
-    $('#total').html(totalAntes.toFixed(2));
+    if (!$entryHistoricalSummary) { inicializarResumenEntrada(); }
+    const pendingTotal = $items.reduce(function (sum, item) {
+        return sum + Number(item.price) * Number(item.quantity);
+    }, 0);
+    const pendingSubtotal = pendingTotal / 1.18;
+    $('#subtotal').text(($entryHistoricalSummary.subtotal + pendingSubtotal).toFixed(2));
+    $('#taxes').text(($entryHistoricalSummary.taxes + pendingTotal - pendingSubtotal).toFixed(2));
+    $('#total').text(($entryHistoricalSummary.total + pendingTotal).toFixed(2));
 }
 
 function saveTableItems() {
@@ -1168,9 +1124,9 @@ function saveTableItems() {
             const material = $materialsComplete.find( material => material.material.trim() === material_name.trim() );
             const location = $locationsComplete.find( location => location.location === material_location );
             const code = rand_code($caracteres, $longitud);
-            $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(quantity)).toFixed(4), 'quantity':1 ,'material': material_name, 'id_material': material.id, 'item': code, 'location': location.location, 'id_location':location.id, 'state': state, 'state_description': state_description });
+            $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(quantity)).toFixed(4), 'quantity':1 ,'material': material_name, 'id_material': material.id, 'item': code, 'location': location.location, 'id_location':location.id, 'warehouse_id': location.warehouse_id, 'state': state, 'state_description': state_description });
 
-            //$items.push({ 'id': $items.length+1, 'price': material_price, 'quantity':1 ,'material': material_name, 'id_material': material.id, 'item': code, 'location': location.location, 'id_location':location.id, 'state': state, 'state_description': state_description });
+            //$items.push({ 'id': $items.length+1, 'price': material_price, 'quantity':1 ,'material': material_name, 'id_material': material.id, 'item': code, 'location': location.location, 'id_location':location.id, 'warehouse_id': location.warehouse_id, 'state': state, 'state_description': state_description });
             //renderTemplateMaterial($items.length, material_price, material_name, code,  location.location, state_description);
         }
         const material = $materialsComplete.find( material => material.material.trim() === material_name.trim() );
@@ -1229,7 +1185,7 @@ function saveTableItems() {
             if ( $(this).val() !== '' )
             {
                 const result = $locationsComplete.find( location => location.location === $(this).val() );
-                locations_selected.push( {'id':result.id, 'location':result.location} );
+                locations_selected.push( {'id':result.id, 'location':result.location, 'warehouse_id':result.warehouse_id} );
             }
 
         });
@@ -1241,9 +1197,9 @@ function saveTableItems() {
         for ( var i=0; i<series_selected.length; i++ )
         {
             const result = $materialsComplete.find( material => material.material.trim() === material_name.trim() );
-            $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(material_quantity)).toFixed(4), 'quantity':1, 'material': material_name, 'id_material': result.id, 'item': series_selected[i], 'location': locations_selected[i].location, 'id_location':locations_selected[i].id, 'state': states_selected[i].state, 'state_description': states_selected[i].description });
+            $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(material_quantity)).toFixed(4), 'quantity':1, 'material': material_name, 'id_material': result.id, 'item': series_selected[i], 'location': locations_selected[i].location, 'id_location':locations_selected[i].id, 'warehouse_id':locations_selected[i].warehouse_id, 'state': states_selected[i].state, 'state_description': states_selected[i].description });
 
-            //$items.push({ 'id': $items.length+1, 'price': material_price, 'quantity':1, 'material': material_name, 'id_material': result.id, 'item': series_selected[i], 'location': locations_selected[i].location, 'id_location':locations_selected[i].id, 'state': states_selected[i].state, 'state_description': states_selected[i].description });
+            //$items.push({ 'id': $items.length+1, 'price': material_price, 'quantity':1, 'material': material_name, 'id_material': result.id, 'item': series_selected[i], 'location': locations_selected[i].location, 'id_location':locations_selected[i].id, 'warehouse_id':locations_selected[i].warehouse_id, 'state': states_selected[i].state, 'state_description': states_selected[i].description });
             //renderTemplateMaterial($items.length, material_price, material_name, series_selected[i],  locations_selected[i].location, states_selected[i].description);
             $('.select2').select2();
         }
@@ -1389,7 +1345,7 @@ function addItemsO() {
                 'id_material': material.material_id,
                 'stock_item_id': material.stock_item_id,
                 'item': code,
-                'id_location':location.id,
+                'id_location':location.id, 'warehouse_id': location.warehouse_id,
                 'date_vence': material_vence,
                 'material_lote': material_lote,
                 'state': 'good'
@@ -1407,7 +1363,7 @@ function addItemsO() {
         $('#material_search').val('');
         $('#quantity').val('');
         $('#price').val('');
-        $('#almacen').val('');
+        seleccionarLocationDefault();
         $("#date_vence").val('');
 
     } else {
@@ -1558,10 +1514,10 @@ function addItems() {
         }
 
         let location = $locationsComplete.find(function (location) {
-            return location.location === material_location;
+            return String(location.warehouse_id) === String(material_location);
         });
 
-        if (!location) {
+        if (!location || $entryWarehouseErrors.length) {
             toastr.error('Debe seleccionar un almacén válido', 'Error', toastrOptions());
             return;
         }
@@ -1605,10 +1561,10 @@ function addItems() {
     }
 
     let location = $locationsComplete.find(function (location) {
-        return location.location === material_location;
+        return String(location.warehouse_id) === String(material_location);
     });
 
-    if (!location) {
+    if (!location || $entryWarehouseErrors.length) {
         toastr.error('Debe seleccionar un almacén válido', 'Error', toastrOptions());
         return;
     }
@@ -1669,6 +1625,7 @@ function addItems() {
             'stock_item_id': material.stock_item_id,
             'item': code,
             'id_location': location.id,
+            'warehouse_id': location.warehouse_id,
             'date_vence': material_vence,
             'material_lote': material_lote,
             'state': 'good',
@@ -1735,39 +1692,24 @@ function generarEntryGroupId() {
 }
 
 function deleteItem() {
-    //console.log($(this).parent().parent().parent());
-    var totalDelete = parseFloat($(this).parent().prev().html());
-    var taxesDelete = parseFloat($(this).parent().prev().prev().html());
-    var subtotalDelete = parseFloat($(this).parent().prev().prev().prev().html());
-
-    var subtotalActual = parseFloat($('#subtotal').html());
-    var taxesActual = parseFloat($('#taxes').html());
-    var totalActual = parseFloat($('#total').html());
-
-    var subtotal_Restar = subtotalDelete;
-    var taxes_Restar = taxesDelete;
-    var total_Restar = totalDelete;
-
-    var subtotalNuevo = subtotalActual - subtotal_Restar ;
-    var taxesNuevo = taxesActual - taxes_Restar ;
-    var totalNuevo = totalActual - total_Restar ;
-
-    $('#subtotal').html(subtotalNuevo.toFixed(2));
-    $('#taxes').html(taxesNuevo.toFixed(2));
-    $('#total').html(totalNuevo.toFixed(2));
-
-    $(this).parent().parent().remove();
     const entryGroupId = $(this).data('delete');
-    $items = $items.filter(function (item) {
-        return item.entry_group_id !== entryGroupId;
-    });
-    //updateSummaryInvoice();
+    $items = $items.filter(function (item) { return item.entry_group_id !== entryGroupId; });
+    $(this).closest('tr').remove();
+    updateSummaryInvoice();
 }
 
 function renderTemplateMaterial(id, code, description, quantity, unit, price, subtotal, taxes, total, entryGroupId) {
     var clone = activateTemplate('#materials-selected');
     clone.querySelector("[data-code]").innerHTML = code;
-    clone.querySelector("[data-description]").innerHTML = description;
+    clone.querySelector("[data-description]").textContent = description;
+    const groupedItem = $items.find(function (item) { return item.entry_group_id === entryGroupId; });
+    const destination = groupedItem ? destinoPorWarehouseId(groupedItem.warehouse_id) : null;
+    if (destination) {
+        const label = document.createElement('small');
+        label.className = 'd-block text-muted';
+        label.textContent = destination.location;
+        clone.querySelector('[data-description]').appendChild(label);
+    }
     clone.querySelector("[data-quantity]").innerHTML = parseFloat(quantity).toFixed(2);
     clone.querySelector("[data-unit]").innerHTML = unit;
     clone.querySelector("[data-price]").innerHTML = parseFloat(price).toFixed(2);
@@ -1818,7 +1760,8 @@ function deleteItemOld() {
                             $(this).parent().parent().remove();
                             $.alert(data.message);
                             setTimeout( function () {
-                                location.reload();
+                                if (data.url) { window.location.assign(data.url); }
+                                else { location.reload(); }
                             }, 2000 )
 
                         },
@@ -1881,93 +1824,54 @@ function deleteItemOld() {
 }
 
 function saveNewDetails() {
-    var idEntry = $(this).data('entry');
-    $('#btn-submit').attr("disabled", true);
-    console.log(idEntry);
-    var valParam = JSON.stringify($items);
+    const button = $('#btn-submit');
+    if (button.prop('disabled')) { return; }
+    if ($entryWarehouseErrors.length || !$items.length) {
+        toastr.error($entryWarehouseErrors.length ? $entryWarehouseErrors.join(' ') : 'Agregue al menos un producto nuevo.', 'Ingreso');
+        return;
+    }
+    const label = button.html();
+    const idEntry = button.data('entry');
+    let confirmed = false;
+    button.prop('disabled', true);
     $.confirm({
-        icon: 'fas fa-smile',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'green',
-        title: '¿Está seguro de guardar estos nuevos materiales?',
-        content: 'Se agregarán estos materiales a la compra',
+        title: 'Guardar nuevos materiales',
+        content: 'Se agregarán los productos nuevos a este ingreso, cada uno en el almacén indicado.',
+        type: 'green', closeIcon: true,
+        onClose: function () {
+            if (!confirmed) { button.prop('disabled', false).html(label); }
+        },
         buttons: {
             confirm: {
-                text: 'CONFIRMAR',
-                action: function (e) {
+                text: 'Guardar',
+                action: function () {
+                    confirmed = true;
+                    button.html('<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Guardando…');
                     $.ajax({
-                        url: '/dashboard/add/materials/entry/'+idEntry,
-                        method: 'POST',
-                        data: { items: valParam} ,
-                        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-                        success: function (data) {
-                            console.log(data);
-                            $.alert(data.message);
-                            setTimeout( function () {
-                                $("#btn-submit").attr("disabled", false);
-                                location.reload();
-                            }, 2000 )
-
-                        },
-                        error: function (data) {
-                            if( data.responseJSON.message && !data.responseJSON.errors )
-                            {
-                                toastr.error(data.responseJSON.message, 'Error',
-                                    {
-                                        "closeButton": true,
-                                        "debug": false,
-                                        "newestOnTop": false,
-                                        "progressBar": true,
-                                        "positionClass": "toast-top-right",
-                                        "preventDuplicates": false,
-                                        "onclick": null,
-                                        "showDuration": "300",
-                                        "hideDuration": "1000",
-                                        "timeOut": "2000",
-                                        "extendedTimeOut": "1000",
-                                        "showEasing": "swing",
-                                        "hideEasing": "linear",
-                                        "showMethod": "fadeIn",
-                                        "hideMethod": "fadeOut"
-                                    });
-                            }
-                            for ( var property in data.responseJSON.errors ) {
-                                toastr.error(data.responseJSON.errors[property], 'Error',
-                                    {
-                                        "closeButton": true,
-                                        "debug": false,
-                                        "newestOnTop": false,
-                                        "progressBar": true,
-                                        "positionClass": "toast-top-right",
-                                        "preventDuplicates": false,
-                                        "onclick": null,
-                                        "showDuration": "300",
-                                        "hideDuration": "1000",
-                                        "timeOut": "2000",
-                                        "extendedTimeOut": "1000",
-                                        "showEasing": "swing",
-                                        "hideEasing": "linear",
-                                        "showMethod": "fadeIn",
-                                        "hideMethod": "fadeOut"
-                                    });
-                            }
-
-                            $("#btn-submit").attr("disabled", false);
-                        },
+                        url: '/dashboard/add/materials/entry/' + idEntry,
+                        method: 'POST', dataType: 'json',
+                        headers: {Accept: 'application/json'},
+                        data: {
+                            _token: $('#formEdit [name=_token]').val(),
+                            entry_context_company_id: $('#formEdit [name=entry_context_company_id]').val(),
+                            entry_context_branch_id: $('#formEdit [name=entry_context_branch_id]').val(),
+                            items: JSON.stringify($items)
+                        }
+                    }).done(function (data) {
+                        $.alert({title: 'Materiales guardados', content: escapeHtml(data.message), type: 'green',
+                            onClose: function () { window.location.reload(); }});
+                    }).fail(function (xhr) {
+                        const body = xhr.responseJSON || {};
+                        const keys = body.errors ? Object.keys(body.errors) : [];
+                        const message = keys.length ? body.errors[keys[0]][0]
+                            : (body.message || 'No se pudo confirmar el guardado. Revise el ingreso antes de reenviar.');
+                        $.alert({title: 'No se pudo guardar', content: escapeHtml(message), type: 'red'});
+                        button.prop('disabled', false).html(label);
                     });
-                },
+                }
             },
-            cancel: {
-                text: 'CANCELAR',
-                action: function (e) {
-                    $("#btn-submit").attr("disabled", false);
-                    $.alert("Material cancelada.");
-                },
-
-            },
-        },
+            cancel: {text: 'Cancelar'}
+        }
     });
 }
 
@@ -2041,4 +1945,74 @@ function updateOrderPurchase() {
 
         },
     });
+}
+let $entryWarehouseDefaultId = null;
+let $entryWarehouseErrors = [];
+let $destinoPendienteVariantes = null;
+
+function cargarLocations() {
+    $locations = [];
+    $locationsComplete = [];
+    const select = $('#almacen').empty().prop('disabled', true);
+    select.append($('<option>').val('').text('Seleccione un almacén'));
+    let catalog;
+    try {
+        catalog = JSON.parse(document.getElementById('entry-warehouse-catalog').textContent);
+    } catch (e) {
+        $entryWarehouseErrors = ['No se pudo leer el catálogo de almacenes. Recargue el formulario.'];
+        toastr.error($entryWarehouseErrors[0], 'Almacenes');
+        return;
+    }
+    $entryWarehouseErrors = catalog.configuration_errors || [];
+    $entryWarehouseDefaultId = catalog.default_warehouse_id;
+    catalog.warehouses.forEach(function (warehouse) {
+        const label = (warehouse.is_general ? 'General · ' : 'Local · ') + warehouse.name;
+        select.append($('<option>').val(warehouse.id).text(label + (warehouse.selectable ? '' : ' · Revisar ubicación'))
+            .prop('disabled', !warehouse.selectable));
+        if (warehouse.selectable) {
+            const location = {id: warehouse.location_id, warehouse_id: warehouse.id, location: label};
+            $locationsComplete.push(location);
+            $locations.push(label);
+        }
+    });
+    if ($entryWarehouseErrors.length) {
+        toastr.error($entryWarehouseErrors.join(' '), 'Revise los almacenes');
+        return;
+    }
+    select.prop('disabled', false);
+    seleccionarLocationDefault();
+}
+
+function destinoPorWarehouseId(id) {
+    if ($entryWarehouseErrors.length || !id) { return null; }
+    return $locationsComplete.find(function (location) {
+        return String(location.warehouse_id) === String(id);
+    }) || null;
+}
+
+function obtenerDestinoSeleccionado() {
+    return destinoPorWarehouseId($('#almacen').val());
+}
+
+function seleccionarLocationDefault() {
+    if ($entryWarehouseErrors.length) {
+        $('#almacen').val('').prop('disabled', true);
+        return;
+    }
+    // Mantener la elección actual entre productos; nunca modificar los ya agregados.
+    if (obtenerDestinoSeleccionado()) { return; }
+    const destination = destinoPorWarehouseId($entryWarehouseDefaultId);
+    $('#almacen').val(destination ? String(destination.warehouse_id) : '');
+}
+
+
+
+let $entryHistoricalSummary = null;
+
+function inicializarResumenEntrada() {
+    $entryHistoricalSummary = {
+        subtotal: Number($('#subtotal').text()) || 0,
+        taxes: Number($('#taxes').text()) || 0,
+        total: Number($('#total').text()) || 0
+    };
 }

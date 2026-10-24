@@ -4,23 +4,24 @@ namespace App\Http\Controllers\Traits;
 
 use App\CreditNote;
 use App\Sale;
+use App\Services\NubefactCompanyConfigService;
+use App\Services\NubefactCompanyConnection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 trait NubefactTrait
 {
-    private function buildNubefactDataO(Sale $order): array
+    private function buildNubefactDataO(Sale $order, ?NubefactCompanyConnection $connection = null): array
     {
+        $connection = $connection ?: $this->nubefactConnectionForSale($order);
         $order->loadMissing([
             'details.material',
             'details.stockItem']);
 
         $isFactura = $order->type_document === '01';
-        $serie = $isFactura ? 'FFF1' : 'BBB1';
-        /*$serie = $isFactura
-            ? config('services.nubefact.serie_factura', 'FFF1')
-            : config('services.nubefact.serie_boleta', 'BBB1');*/
+        $serie = $connection->saleSeries($order->type_document);
+        
         $tipoCliente = $order->tipo_documento_cliente ?: ($isFactura ? '6' : '1');
 
         $items = $order->details->map(function ($item) {
@@ -189,8 +190,9 @@ trait NubefactTrait
             ];
     }
 
-    private function buildNubefactData(Sale $order): array
+    private function buildNubefactData(Sale $order, ?NubefactCompanyConnection $connection = null): array
     {
+        $connection = $connection ?: $this->nubefactConnectionForSale($order);
         $order->loadMissing([
             'details.material',
             'details.stockItem',
@@ -213,9 +215,7 @@ trait NubefactTrait
         /*
          * Se conservan las series utilizadas actualmente.
          */
-        $serie = $isFactura
-            ? 'FFF1'
-            : 'BBB1';
+        $serie = $connection->saleSeries($order->type_document);
 
         $tipoCliente = $order->tipo_documento_cliente
             ?: ($isFactura ? '6' : '1');
@@ -702,15 +702,15 @@ trait NubefactTrait
             throw new \Exception('El tipo de comprobante no está definido.');
         }
 
-        $data = $this->buildNubefactData($order);
+        $connection = $this->nubefactConnectionForSale($order);
+        $data = $this->buildNubefactData($order, $connection);
         /*dump("Nubefact data");
         dump($data);
         dd();*/
 
-        /*$token = env('NUBEFACT_TOKEN');
-        $url   = env('NUBEFACT_API_URL');*/
-        $token = config('services.nubefact.token');
-        $url   = config('services.nubefact.url');
+        
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact en .env (NUBEFACT_TOKEN / NUBEFACT_API_URL).');
@@ -743,10 +743,11 @@ trait NubefactTrait
             );
         }
 
-        $data = $this->buildNubefactData($order);
+        $connection = $this->nubefactConnectionForSale($order);
+        $data = $this->buildNubefactData($order, $connection);
 
-        $token = config('services.nubefact.token');
-        $url = config('services.nubefact.url');
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (empty($token) || empty($url)) {
             throw new \RuntimeException(
@@ -1332,8 +1333,9 @@ trait NubefactTrait
     {
         $data = $this->buildNubefactVoidData($sale, $motivo);
 
-        $token = config('services.nubefact.token');
-        $url   = config('services.nubefact.url');
+        $connection = $this->nubefactConnectionForSale($sale);
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact en .env.');
@@ -1470,8 +1472,9 @@ trait NubefactTrait
     {
         $data = $this->buildNubefactConsultAnnulmentData($sale);
 
-        $token = config('services.nubefact.token');
-        $url   = config('services.nubefact.url');
+        $connection = $this->nubefactConnectionForSale($sale);
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact.');
@@ -1500,8 +1503,9 @@ trait NubefactTrait
         return $result;
     }
 
-    private function buildNubefactCreditNoteTotalData(Sale $sale, CreditNote $creditNote): array
+    private function buildNubefactCreditNoteTotalData(Sale $sale, CreditNote $creditNote, ?NubefactCompanyConnection $connection = null): array
     {
+        $connection = $connection ?: $this->nubefactConnectionForCreditNote($creditNote, $sale);
         $sale->loadMissing([
             'details.material',
             'details.stockItem'
@@ -1516,9 +1520,7 @@ trait NubefactTrait
 
         $isFactura = $sale->type_document === '01';
 
-        $serieNotaCredito = $isFactura
-            ? config('services.nubefact.serie_nc_factura', 'FFF1')
-            : config('services.nubefact.serie_nc_boleta', 'BBB1');
+        $serieNotaCredito = $connection->creditNoteSeries($sale->type_document);
 
         $items = $sale->details->map(function ($item) {
 
@@ -1595,7 +1597,8 @@ trait NubefactTrait
 
     private function generarNotaCreditoNubefact(Sale $sale, CreditNote $creditNote): array
     {
-        $data = $this->buildNubefactCreditNoteTotalData($sale, $creditNote);
+        $connection = $this->nubefactConnectionForCreditNote($creditNote, $sale);
+        $data = $this->buildNubefactCreditNoteTotalData($sale, $creditNote, $connection);
 
         Log::info(
             'Payload Nota de Crédito Nubefact',
@@ -1623,8 +1626,8 @@ trait NubefactTrait
         );
         //dd($data);
 
-        $token = config('services.nubefact.token');
-        $url = config('services.nubefact.url');
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact.');
@@ -2179,8 +2182,9 @@ trait NubefactTrait
 
         //dd($data);
 
-        $token = config('services.nubefact.token');
-        $url   = config('services.nubefact.url');
+        $connection = $this->nubefactConnectionForCreditNote($creditNote);
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact.');
@@ -2216,8 +2220,9 @@ trait NubefactTrait
             $creditNote
         );
 
-        $token = config('services.nubefact.token');
-        $url = config('services.nubefact.url');
+        $connection = $this->nubefactConnectionForCreditNote($creditNote);
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \RuntimeException(
@@ -2369,10 +2374,11 @@ trait NubefactTrait
 
     private function generarNotaCreditoParcialNubefact(Sale $sale, CreditNote $creditNote): array
     {
-        $data = $this->buildNubefactCreditNotePartialData($sale, $creditNote);
+        $connection = $this->nubefactConnectionForCreditNote($creditNote, $sale);
+        $data = $this->buildNubefactCreditNotePartialData($sale, $creditNote, $connection);
 
-        $token = config('services.nubefact.token');
-        $url   = config('services.nubefact.url');
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (!$token || !$url) {
             throw new \Exception('Faltan credenciales Nubefact.');
@@ -2404,8 +2410,9 @@ trait NubefactTrait
         return $result;
     }
 
-    private function buildNubefactCreditNotePartialData(Sale $sale, CreditNote $creditNote): array
+    private function buildNubefactCreditNotePartialData(Sale $sale, CreditNote $creditNote, ?NubefactCompanyConnection $connection = null): array
     {
+        $connection = $connection ?: $this->nubefactConnectionForCreditNote($creditNote, $sale);
         $creditNote->loadMissing(['details']);
 
         if ($creditNote->details->isEmpty()) {
@@ -2414,9 +2421,7 @@ trait NubefactTrait
 
         $isFactura = $sale->type_document === '01';
 
-        $serieNotaCredito = $isFactura
-            ? config('services.nubefact.serie_nc_factura', 'FFF1')
-            : config('services.nubefact.serie_nc_boleta', 'BBB1');
+        $serieNotaCredito = $connection->creditNoteSeries($sale->type_document);
 
         $items = $creditNote->details->map(function ($detail) {
             return [
@@ -2652,8 +2657,9 @@ trait NubefactTrait
             );
         }
 
-        $token = config('services.nubefact.token');
-        $url = config('services.nubefact.url');
+        $connection = $this->nubefactConnectionForSale($sale);
+        $token = $connection->token();
+        $url = $connection->url();
 
         if (empty($token) || empty($url)) {
             throw new \RuntimeException(
@@ -2791,5 +2797,23 @@ trait NubefactTrait
         }
 
         return $result;
+    }
+
+    private function nubefactConnectionForSale(Sale $sale): NubefactCompanyConnection
+    {
+        return app(NubefactCompanyConfigService::class)->forSale($sale);
+    }
+
+    private function nubefactConnectionForCreditNote(
+        CreditNote $creditNote,
+        ?Sale $sale = null
+    ): NubefactCompanyConnection {
+        if ($sale && (int) $creditNote->sale_id !== (int) $sale->id) {
+            throw new \RuntimeException('La nota de crédito no pertenece a la venta indicada.');
+        }
+        if (!$sale) {
+            $sale = Sale::query()->where('id', $creditNote->sale_id)->firstOrFail();
+        }
+        return $this->nubefactConnectionForSale($sale);
     }
 }

@@ -20,6 +20,7 @@ use App\EquipmentTurnstile;
 use App\EquipmentWorkday;
 use App\EquipmentWorkforce;
 use App\Http\Controllers\Traits\NubefactTrait;
+use App\Http\Middleware\QuoteSaleBranchContext;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\ImagesQuote;
@@ -48,6 +49,9 @@ use App\ResumenQuote;
 use App\Sale;
 use App\SaleDetail;
 use App\Services\InventoryCostService;
+use App\Services\Quotes\QuoteBranchCatalog;
+use App\Services\Quotes\QuoteBranchReadScope;
+use App\Services\Quotes\QuoteSaleActions;
 use App\Services\QuoteTaxCalculatorService;
 use App\Services\SettingService;
 use App\StockItem;
@@ -74,6 +78,8 @@ use Intervention\Image\Facades\Image;
 use App\Services\QuoteStockReservationService;
 use App\Services\PriceResolverService;
 use App\Services\TypeTaxResolverService;
+use App\Services\SaleEmissionService;
+use App\Services\SaleEmissionRecoveryService;
 
 class QuoteSaleController extends Controller
 {
@@ -85,10 +91,12 @@ class QuoteSaleController extends Controller
     public function __construct(InventoryCostService $inventoryCostService)
     {
         $this->inventoryCostService = $inventoryCostService;
+        $this->middleware(QuoteSaleBranchContext::class);
     }
 
     public function index()
     {
+        $branchScope = app(QuoteBranchReadScope::class);
         $user = Auth::user();
 
         $permissions = $user
@@ -98,7 +106,7 @@ class QuoteSaleController extends Controller
 
         $companyId = TenantContext::companyId();
 
-        $registros = Quote::query()
+        $registros = $branchScope->local(Quote::query())
             ->where('company_id', $companyId)
             ->get();
 
@@ -154,6 +162,7 @@ class QuoteSaleController extends Controller
 
     public function indexFacturadas()
     {
+        $branchScope = app(QuoteBranchReadScope::class);
         $user = Auth::user();
 
         $permissions = $user
@@ -163,7 +172,7 @@ class QuoteSaleController extends Controller
 
         $companyId = TenantContext::companyId();
 
-        $registros = Quote::query()
+        $registros = $branchScope->local(Quote::query())
             ->where('company_id', $companyId)
             ->get();
 
@@ -212,26 +221,10 @@ class QuoteSaleController extends Controller
         );
     }
 
-    public function getMaterialsO(Request $request)
-    {
-        $materials = [];
-
-        if ($request->has('q')) {
-            $search = $request->get('q');
-
-            $materials = Material::where('enable_status', 1) // 👈 aquí filtras en la BD
-            ->get()
-                ->filter(function ($item) use ($search) {
-                    return stripos($item->full_name, $search) !== false;
-                });
-        }
-
-        return json_encode($materials);
-    }
-
     public function getMaterials(Request $request)
     {
         $companyId = TenantContext::companyId();
+        $catalog = app(QuoteBranchCatalog::class);
 
         $search = trim(
             (string) $request->get('q', '')
@@ -288,6 +281,8 @@ class QuoteSaleController extends Controller
                     });
             });
         }
+
+        $catalog->catalog($query);
 
         $stockItems = $query
             ->orderBy('display_name', 'asc')
@@ -346,33 +341,10 @@ class QuoteSaleController extends Controller
         );
     }
 
-    public function getMaterialTotalsO()
-    {
-        $materials = Material::with('unitMeasure','typeScrap')
-            ->where('enable_status', 1)->get();
-
-        $array = [];
-        foreach ( $materials as $material )
-        {
-            array_push($array, [
-                'id'=> $material->id,
-                'full_description' => $material->full_name,
-                'unit' => ($material->unitMeasure == null) ? "":$material->unitMeasure->name,
-                'code' => $material->code,
-                'type_scrap' => $material->typeScrap,
-                'unit_measure' => $material->unitMeasure,
-                'list_price' => $material->list_price,
-                'enable_status' => $material->enable_status,
-                'stock_current' => $material->stock_current,
-                'state_update_price' => $material->state_update_price
-            ]);
-        }
-
-        return $array;
-    }
-
     public function getMaterialTotals()
     {
+        $catalog = app(QuoteBranchCatalog::class);
+        $catalog->validateContext();
         $companyId =
             TenantContext::companyId();
 
@@ -396,12 +368,12 @@ class QuoteSaleController extends Controller
 
         /*
          * ============================================================
-         * STOCKITEMS DISPONIBLES PARA LA COMPANY ACTUAL
+         * STOCKITEMS DISPONIBLES PARA LA LOCAL ACTUAL
          * ============================================================
          */
 
         $stockItems =
-            StockItem::query()
+            $catalog->catalog(StockItem::query())
                 ->with([
                     'material' =>
                         function ($query) {
@@ -422,13 +394,14 @@ class QuoteSaleController extends Controller
 
                     /*
                      * Inventario únicamente
-                     * de la Company actual.
+                     * del local actual.
                      */
                     'inventoryLevels' =>
                         function ($query) use (
-                            $companyId
+                            $companyId, $catalog
                         ) {
 
+                            $catalog->levels($query);
                             $query
                                 ->where(
                                     'company_id',
@@ -506,7 +479,7 @@ class QuoteSaleController extends Controller
 
             /*
              * ============================================================
-             * INVENTARIO DE LA COMPANY ACTUAL
+             * INVENTARIO DE LA LOCAL ACTUAL
              * ============================================================
              */
 
@@ -812,6 +785,8 @@ class QuoteSaleController extends Controller
 
     public function getAvailableItemsByStockItem($stockItemId) {
         $companyId = TenantContext::companyId();
+        $catalog = app(QuoteBranchCatalog::class);
+        $catalog->validateContext();
 
         /*
          * ============================================================
@@ -837,6 +812,7 @@ class QuoteSaleController extends Controller
             ->enabledForCompany(
                 $companyId
             )
+            ->whereHas('material', function ($q) { $q->where('enable_status', 1); })
             ->first();
 
         if (!$stockItem) {
@@ -854,7 +830,7 @@ class QuoteSaleController extends Controller
          * ============================================================
          */
 
-        $items = Item::query()
+        $items = $catalog->items(Item::query(), (int) $stockItem->id)
             ->with([
                 'stockLot' => function ($query) use ($companyId) {
                     $query
@@ -1062,7 +1038,7 @@ class QuoteSaleController extends Controller
                     'type',
                     'quotes'
                 )
-                ->get();
+                ->selectable()->get();
 
         /*
          * ============================================================
@@ -1611,7 +1587,7 @@ class QuoteSaleController extends Controller
                         'type',
                         'quotes'
                     )
-                    ->firstOrFail();
+                    ->selectable()->firstOrFail();
         }
 
         /*
@@ -1654,6 +1630,7 @@ class QuoteSaleController extends Controller
              */
 
             $quote = Quote::create([
+                'branch_id' => TenantContext::branchId(),
                 'company_id' => $companyId,
 
                 'code' =>
@@ -3150,6 +3127,7 @@ class QuoteSaleController extends Controller
                  */
 
                 $renewQuote = Quote::create([
+                    'branch_id' => TenantContext::branchId(),
 
                     /*
                      * Company explícita.
@@ -4324,11 +4302,7 @@ class QuoteSaleController extends Controller
 
     public function getAvailableStockFromLots($stockItemId)
     {
-        return (float) StockLot::where('stock_item_id', $stockItemId)
-            ->get()
-            ->sum(function ($lot) {
-                return (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
-            });
+        return app(QuoteStockReservationService::class)->getAvailableStockByStockItem((int) $stockItemId);
     }
 
     public function updateDatosGeneral(Request $request)
@@ -4372,6 +4346,7 @@ class QuoteSaleController extends Controller
 
     public function getDataQuotesIndex(Request $request, $pageNumber = 1)
     {
+        $branchScope = app(QuoteBranchReadScope::class);
         $perPage = 10;
 
         $description_quote = $request->input('description_quote');
@@ -4392,7 +4367,7 @@ class QuoteSaleController extends Controller
 
         $companyId = TenantContext::companyId();
 
-        $query = Quote::with([
+        $query = $branchScope->local(Quote::query())->with([
             'customer',
             'deadline',
             'users',
@@ -4404,7 +4379,7 @@ class QuoteSaleController extends Controller
             ->whereNotIn('state', [
                 'expired',
             ])
-            ->where('state_active', 'open')
+            ->where('state_active', $stateQuote === 'close' ? 'close' : 'open')
 
             /*
              * No mostrar cotizaciones que todavía tengan
@@ -4855,6 +4830,7 @@ class QuoteSaleController extends Controller
 
                 'decimals' => $stateDecimals,
                 'send_state' => $quote->send_state,
+                'has_active_sale' => false,
             ];
         }
 
@@ -4880,6 +4856,7 @@ class QuoteSaleController extends Controller
 
     public function getDataQuotesSalesIndex(Request $request, $pageNumber = 1)
     {
+        $branchScope = app(QuoteBranchReadScope::class);
         $perPage = 10;
         $description_quote = $request->input('description_quote');
         $year = $request->input('year');
@@ -4893,7 +4870,7 @@ class QuoteSaleController extends Controller
 
         $companyId = TenantContext::companyId();
 
-        $query = Quote::with([
+        $query = $branchScope->local(Quote::query())->with([
             'customer',
             'deadline',
             'users',
@@ -5131,6 +5108,7 @@ class QuoteSaleController extends Controller
                 "created_at" => $quote->created_at->format('d/m/Y'),
                 "creator" => ($quote->users[0] == null) ? "": $quote->users[0]->user->name,
                 "decimals" => $stateDecimals,
+                "has_active_sale" => true,
                 "send_state" => $quote->send_state
             ]);
         }
@@ -5172,10 +5150,10 @@ class QuoteSaleController extends Controller
         $workforces = Workforce::with('unitMeasure')
             ->get();
 
-        $paymentDeadlines = PaymentDeadline::where(
+        PaymentDeadline::where(
             'type',
             'quotes'
-        )->get();
+        )->selectable(Quote::query()->where('company_id', TenantContext::companyId())->findOrFail($id)->payment_deadline_id)->get();
 
         /*
          * CRÍTICO:
@@ -6440,7 +6418,8 @@ class QuoteSaleController extends Controller
                         'type',
                         'quotes'
                     )
-                    ->firstOrFail();
+                    ->selectable($quote->payment_deadline_id)->firstOrFail();
+
             }
 
             $dateQuote =
@@ -8014,52 +7993,86 @@ class QuoteSaleController extends Controller
 
     public function showRegistrarComprobante($typeComprobante)
     {
+        abort_unless(
+            in_array($typeComprobante, ['Boleta', 'Factura', 'Ticket'], true),
+            404
+        );
+
+        $tenantId = TenantContext::tenantId();
+        $companyId = TenantContext::companyId();
+        $branchId = TenantContext::branchId();
+
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getPermissionsViaRoles()
+            ->pluck('name')
+            ->toArray();
 
-        $currency = app(SettingService::class)->get('finance.base_currency');
+        $settings = app(SettingService::class);
 
-        $dataIgv = PorcentageQuote::where('name', 'igv')->first();
+        $currency = $settings->get('finance.base_currency');
+
+        $dataIgv = PorcentageQuote::where('name', 'igv')->firstOrFail();
         $igv = $dataIgv->value;
 
-        // ✅ NUEVO: Cajas + subtipos (igual que PV)
-        $cashBoxes = CashBox::where('is_active', 1)
-            ->orderBy('position')
-            ->get()
-            ->map(function ($b) {
-                return [
-                    'id'            => (int) $b->id,
-                    'name'          => (string) $b->name,
-                    'type'          => (string) $b->type,
-                    'uses_subtypes' => (bool) $b->uses_subtypes,
-                ];
-            })
-            ->values();
-
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')
+        $cashBoxes = CashBox::query()
+            ->where('tenant_id', $tenantId)
+            ->where('company_id', $companyId)
             ->where('is_active', 1)
+            ->where(function ($query) use ($branchId) {
+                $query->whereNull('branch_id')
+                    ->orWhere('branch_id', $branchId);
+            })
             ->orderBy('position')
+            ->orderBy('name')
             ->get()
-            ->map(function ($s) {
+            ->map(function ($box) {
                 return [
-                    'id'   => (int) $s->id,
-                    'name' => (string) $s->name,
+                    'id' => (int) $box->id,
+                    'name' => (string) $box->name,
+                    'type' => (string) $box->type,
+                    'uses_subtypes' => (bool) $box->uses_subtypes,
                 ];
             })
             ->values();
-        /*dump($cashBoxes);
-        dd();*/
 
-        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
+        $cashBoxIds = $cashBoxes->pluck('id')->all();
 
-        $pagos_parciales = $allowPartialPayments ? 's': 'n';
+        $subtypes = CashBoxSubtype::query()
+            ->where('tenant_id', $tenantId)
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->where(function ($query) use ($cashBoxIds) {
+                $query->whereNull('cash_box_id')
+                    ->orWhereIn('cash_box_id', $cashBoxIds);
+            })
+            ->orderBy('position')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($subtype) {
+                return [
+                    'id' => (int) $subtype->id,
+                    'name' => (string) $subtype->name,
+                    'cash_box_id' => $subtype->cash_box_id === null
+                        ? null
+                        : (int) $subtype->cash_box_id,
+                    'is_deferred' => (bool) $subtype->is_deferred,
+                    'requires_commission' => (bool) $subtype->requires_commission,
+                ];
+            })
+            ->values();
+
+        $pagos_parciales = (bool) $settings->get(
+            'sales.allow_partial_payments'
+        ) ? 's' : 'n';
 
         return view('quoteSale.registrarComprobante', compact(
             'typeComprobante',
             'permissions',
             'currency',
             'igv',
-            'cashBoxes','subtypes', 'pagos_parciales'
+            'cashBoxes',
+            'subtypes',
+            'pagos_parciales'
         ));
     }
 
@@ -8133,11 +8146,13 @@ class QuoteSaleController extends Controller
 
     public function buscar(Request $request)
     {
+        $branchScope = app(QuoteBranchReadScope::class);
         if (!$request->filled('code') && !$request->filled('name')) {
             return response()->json([]);
         }
 
-        $query = Quote::with(['customer:id,business_name'])
+        $query = $branchScope->local(Quote::query())->with(['customer:id,business_name'])
+            ->where('company_id', TenantContext::companyId())
             ->select('id', 'code', 'description_quote', 'customer_id', 'date_quote', 'state')
             ->where('state', 'confirmed')
             ->whereDoesntHave('sales', function ($q) {
@@ -8239,7 +8254,7 @@ class QuoteSaleController extends Controller
                         }
                     ]);
             }
-        ])->findOrFail($id);
+        ])->where('company_id', TenantContext::companyId())->findOrFail($id);
 
         $response = [
             'id' => $quote->id,
@@ -9509,87 +9524,236 @@ class QuoteSaleController extends Controller
     {
         $begin = microtime(true);
 
-        $worker = Worker::where('user_id', Auth::id())->firstOrFail();
+        $tenantId = TenantContext::tenantId();
+        $companyId = TenantContext::companyId();
+        $branchId = TenantContext::branchId();
+        $userId = Auth::id();
 
-        $currency = app(SettingService::class)->get('finance.base_currency');
+        $worker = Worker::query()
+            ->where('tenant_id', $tenantId)
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->firstOrFail();
 
-        $negocioAceptaPagosParciales = $request->input('negocio_acepta_pagos_parciales', 'n');
-        $pagosParcialesVenta = $request->input('pagos_parciales_venta', 'n');
+        $settings = app(SettingService::class);
 
-        if (!in_array($pagosParcialesVenta, ['s', 'n'])) {
-            throw new \Exception("Valor inválido para pagos parciales.");
-        }
+        $currency = $settings->get('finance.base_currency');
 
-        if ($pagosParcialesVenta === 's' && $negocioAceptaPagosParciales !== 's') {
-            throw new \Exception("Este negocio no tiene habilitados los pagos parciales.");
+        $request->validate([
+            'quote_id' => ['required', 'integer', 'min:1'],
+            'pagos_parciales_venta' => ['nullable', 'in:s,n'],
+            'fechaDocumento' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $pagosParcialesVenta =
+            $request->input('pagos_parciales_venta') ?? 'n';
+
+        $allowPartialPayments = (bool) $settings->get(
+            'sales.allow_partial_payments'
+        );
+
+        if ($pagosParcialesVenta === 's' && !$allowPartialPayments) {
+            return response()->json([
+                'message' => 'Esta empresa no tiene habilitados los pagos parciales.',
+            ], 422);
         }
 
         // ===========================
         // ✅ Validación CashBox/Subtype
         // Solo aplica si NO es pago parcial
         // ===========================
+
+        $cashBox = null;
+        $validSubtype = null;
+        $cashRegister = null;
+
         $cashBoxId = null;
         $cashBoxSubtypeId = null;
-        $cashBox = null;
         $needSubtype = false;
 
         if ($pagosParcialesVenta === 'n') {
+            $request->validate([
+                'type_document' => ['nullable', 'string', 'in:01,03'],
 
-            $cashBoxId = $request->input('pv_cash_box_id');
-            $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+                'tipo_documento_cliente' => [
+                    'nullable',
+                    'required_with:type_document',
+                    'string',
+                    'in:1,6',
+                ],
 
-            if (!$cashBoxId) {
-                return response()->json(['message' => 'Seleccione una caja (CashBox).'], 422);
+                'numero_documento_cliente' => [
+                    'nullable',
+                    'required_with:type_document',
+                    'string',
+                    'max:11',
+                ],
+
+                'nombre_cliente' => [
+                    'nullable',
+                    'required_with:type_document',
+                    'string',
+                    'max:255',
+                ],
+
+                'direccion_cliente' => [
+                    'nullable',
+                    'required_if:type_document,01',
+                    'string',
+                    'max:255',
+                ],
+
+                'email_cliente' => [
+                    'nullable',
+                    'email',
+                    'max:254',
+                ],
+            ]);
+
+            if (
+                $request->type_document === '03' &&
+                !auth()->user()->can('generarBoleta_quoteSale')
+            ) {
+                abort(403, 'No tiene permiso para generar boletas.');
             }
 
-            $cashBox = CashBox::find($cashBoxId);
-
-            if (!$cashBox || !(bool)$cashBox->is_active) {
-                return response()->json(['message' => 'La caja seleccionada no es válida o está inactiva.'], 422);
-            }
-
-            $needSubtype = ($cashBox->type === 'bank' && (bool)$cashBox->uses_subtypes);
-
-            if ($needSubtype) {
-                if (!$cashBoxSubtypeId) {
-                    return response()->json(['message' => 'Seleccione el canal/subtipo (Yape/Plin/POS/Transfer).'], 422);
-                }
-
-                $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
-                    ->where('is_active', 1)
-                    ->where('id', (int)$cashBoxSubtypeId)
-                    ->first();
-
-                if (!$validSubtype) {
-                    return response()->json(['message' => 'El subtipo seleccionado no es válido o está inactivo.'], 422);
-                }
-            } else {
-                $cashBoxSubtypeId = null;
+            if (
+                $request->type_document === '01' &&
+                !auth()->user()->can('generarFactura_quoteSale')
+            ) {
+                abort(403, 'No tiene permiso para generar facturas.');
             }
         }
 
         DB::beginTransaction();
         try {
+
+            if ($pagosParcialesVenta === 'n') {
+                $cashBoxId = $request->input('pv_cash_box_id');
+                $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
+
+                if (
+                    !is_scalar($cashBoxId) ||
+                    !ctype_digit((string) $cashBoxId) ||
+                    (int) $cashBoxId < 1
+                ) {
+                    throw new \Exception('Seleccione una caja válida.');
+                }
+
+                $cashBox = CashBox::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('company_id', $companyId)
+                    ->where('id', (int) $cashBoxId)
+                    ->where('is_active', 1)
+                    ->where(function ($query) use ($branchId) {
+                        $query->whereNull('branch_id')
+                            ->orWhere('branch_id', $branchId);
+                    })
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$cashBox) {
+                    throw new \Exception(
+                        'La caja no está disponible para la empresa y sucursal actuales.'
+                    );
+                }
+
+                if ((string) $cashBox->currency !== (string) $currency) {
+                    throw new \Exception(
+                        'La moneda de la caja no coincide con la moneda de la venta.'
+                    );
+                }
+
+                $needSubtype =
+                    $cashBox->type === 'bank' &&
+                    (bool) $cashBox->uses_subtypes;
+
+                if ($needSubtype) {
+                    if (
+                        !is_scalar($cashBoxSubtypeId) ||
+                        !ctype_digit((string) $cashBoxSubtypeId) ||
+                        (int) $cashBoxSubtypeId < 1
+                    ) {
+                        throw new \Exception('Seleccione un canal/subtipo válido.');
+                    }
+
+                    $validSubtype = CashBoxSubtype::query()
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
+                        ->where('id', (int) $cashBoxSubtypeId)
+                        ->where('is_active', 1)
+                        ->availableForCashBox($cashBox->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$validSubtype) {
+                        throw new \Exception(
+                            'El subtipo está inactivo o no corresponde a la caja seleccionada.'
+                        );
+                    }
+
+                    $cashBoxSubtypeId = (int) $validSubtype->id;
+                } else {
+                    $cashBoxSubtypeId = null;
+                }
+
+                $registers = CashRegister::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->where('cash_box_id', $cashBox->id)
+                    ->where('user_id', $userId)
+                    ->where('status', 1)
+                    ->orderBy('id')
+                    ->limit(2)
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($registers->isEmpty()) {
+                    throw new \Exception(
+                        'No tiene una sesión abierta para esta caja en la sucursal actual.'
+                    );
+                }
+
+                if ($registers->count() > 1) {
+                    throw new \Exception(
+                        'Existen varias sesiones abiertas para esta caja y usuario. Revise las aperturas.'
+                    );
+                }
+
+                $cashRegister = $registers->first();
+            }
+
             $quote = Quote::with([
                 'equipments.consumables.material',
                 'equipments.consumables.stockItem',
                 'equipments.workforces',
             ])
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('branch_id', $branchId)
                 ->where('id', $request->quote_id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            app(QuoteStockReservationService::class)->validateReservationsForSale((int) $quote->id);
 
             if (!$quote || $quote->state !== 'confirmed') {
                 throw new \Exception("La cotización no es válida o no está confirmada.");
             }
 
-            $activeSale = Sale::where('quote_id', $quote->id)
+            $activeSale = Sale::query()
+                ->where('tenant_id', $tenantId)
+                ->where('company_id', $companyId)
+                ->where('quote_id', $quote->id)
                 ->where('state_annulled', 0)
                 ->lockForUpdate()
                 ->first();
 
             if ($activeSale) {
-                throw new \Exception("La cotización ya fue convertida en una venta activa.");
+                throw new \Exception(
+                    'La cotización ya fue convertida en una venta activa.'
+                );
             }
 
             /* $tipoComprobante = $request->tipo_documento_cliente; // 01 factura, 03 boleta
@@ -9631,6 +9795,10 @@ class QuoteSaleController extends Controller
             // 1) Crear venta (Sale)
             // ===========================
             $sale = Sale::create([
+                'tenant_id' => $tenantId,
+                'company_id' => $companyId,
+                'branch_id' => $branchId,
+
                 'date_sale' => $request->filled('fechaDocumento')
                     ? Carbon::createFromFormat('Y-m-d', $request->fechaDocumento)
                     : Carbon::now(),
@@ -9640,8 +9808,8 @@ class QuoteSaleController extends Controller
                 'caja'      => $worker->id,
                 'currency'  => $currency,
 
-                'op_exonerada'     => 0,
-                'op_inafecta'      => 0,
+                'op_exonerada'     => $quote->exonerada ?? 0,
+                'op_inafecta'      => $quote->inafecta ?? 0,
                 'op_gravada'       => $quote->gravada,
                 'igv'              => $quote->igv_total,
                 'total_descuentos' => $quote->descuento,
@@ -9649,6 +9817,7 @@ class QuoteSaleController extends Controller
                 'vuelto'           => 0,
 
                 'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
                 'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente': 'despachado',
 
                 'type_document' => $pagosParcialesVenta === 's'
@@ -9686,12 +9855,18 @@ class QuoteSaleController extends Controller
                 'cdr_path'      => null,
                 'pdf_path'      => null,
                 'fecha_emision' => null,
+
+                'emission_status' => 'not_requested',
             ]);
 
             // ===========================
             // 2) Crear Output
             // ===========================
             $output = Output::create([
+                'tenant_id' => $sale->tenant_id,
+                'company_id' => $sale->company_id,
+                'branch_id' => $sale->branch_id,
+
                 'execution_order'   => ($quote->order_execution == "") ? 'VENTA POR COTIZACION' : $quote->order_execution,
                 'request_date'      => $sale->date_sale,
                 'requesting_user'   => Auth::id(),
@@ -9730,11 +9905,37 @@ class QuoteSaleController extends Controller
                         throw new \Exception("No se encontraron reservas para el consumible {$consumable->id}.");
                     }
 
-                    $reservedQty = (float) $reservedLots->sum('quantity');
-                    if (bccomp((string) $reservedQty, (string) $qty, 10) < 0) {
+                    $requiredQty = (string) $consumable->quantity;
+
+                    if (bccomp($requiredQty, '0', 10) <= 0) {
                         throw new \Exception(
-                            "Las reservas del consumible {$consumable->id} son insuficientes. " .
-                            "Reservado: {$reservedQty}. Requerido: {$qty}."
+                            "La cantidad del consumible {$consumable->id} debe ser mayor que cero."
+                        );
+                    }
+
+                    $reservedQty = '0';
+
+                    foreach ($reservedLots as $reservedLot) {
+                        $lotReservedQty = (string) $reservedLot->quantity;
+
+                        if (bccomp($lotReservedQty, '0', 10) <= 0) {
+                            throw new \Exception(
+                                "La reserva {$reservedLot->id} tiene una cantidad inválida."
+                            );
+                        }
+
+                        $reservedQty = bcadd(
+                            $reservedQty,
+                            $lotReservedQty,
+                            10
+                        );
+                    }
+
+                    if (bccomp($reservedQty, $requiredQty, 10) !== 0) {
+                        throw new \Exception(
+                            "Las reservas del consumible {$consumable->id} " .
+                            "no coinciden con la cantidad cotizada. " .
+                            "Reservado: {$reservedQty}. Requerido: {$requiredQty}."
                         );
                     }
 
@@ -9744,6 +9945,9 @@ class QuoteSaleController extends Controller
                     $unitCost = $qty > 0 ? ($totalCost / $qty) : 0;
 
                     $saleDetailData = [
+                        'tenant_id'                => $sale->tenant_id,
+                        'company_id'               => $sale->company_id,
+
                         'sale_id'                  => $sale->id,
                         'material_id'              => $materialId,
                         'stock_item_id'            => $stockItemId,
@@ -9833,7 +10037,10 @@ class QuoteSaleController extends Controller
                              * Se bloquean únicamente los Items seleccionados en cotización.
                              * Deben seguir reservados y pertenecer al mismo StockItem/lote.
                              */
-                            $reservedItems = Item::whereIn('id', $reservedItemIds)
+                            $reservedItems = Item::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('company_id', $companyId)
+                                ->whereIn('id', $reservedItemIds)
                                 ->where('stock_item_id', $stockItemId)
                                 ->where('stock_lot_id', $reservedLot->stock_lot_id)
                                 ->where('percentage', 1)
@@ -9847,7 +10054,11 @@ class QuoteSaleController extends Controller
                                 );
                             }
 
-                            $lot = StockLot::where('id', $reservedLot->stock_lot_id)
+                            $lot = StockLot::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('company_id', $companyId)
+                                ->where('id', $reservedLot->stock_lot_id)
+                                ->where('stock_item_id', $stockItemId)
                                 ->lockForUpdate()
                                 ->first();
 
@@ -9873,6 +10084,9 @@ class QuoteSaleController extends Controller
                                 ];
 
                                 OutputDetail::create([
+                                    'tenant_id' => $output->tenant_id,
+                                    'company_id' => $output->company_id,
+
                                     'output_id' => $output->id,
                                     'sale_detail_id' => $saleDetail->id,
 
@@ -9917,7 +10131,8 @@ class QuoteSaleController extends Controller
                             $this->syncInventoryLevelFromLots(
                                 $stockItemId,
                                 $lot->warehouse_id,
-                                $lot->location_id
+                                $lot->location_id,
+                                $consumeQty
                             );
 
                             /*
@@ -9938,7 +10153,11 @@ class QuoteSaleController extends Controller
                                 continue;
                             }
 
-                            $lot = StockLot::where('id', $reservedLot->stock_lot_id)
+                            $lot = StockLot::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('company_id', $companyId)
+                                ->where('id', $reservedLot->stock_lot_id)
+                                ->where('stock_item_id', $stockItemId)
                                 ->lockForUpdate()
                                 ->first();
 
@@ -9967,10 +10186,14 @@ class QuoteSaleController extends Controller
                             $this->syncInventoryLevelFromLots(
                                 $stockItemId,
                                 $lot->warehouse_id,
-                                $lot->location_id
+                                $lot->location_id,
+                                $consumeQty
                             );
 
                             OutputDetail::create([
+                                'tenant_id' => $output->tenant_id,
+                                'company_id' => $output->company_id,
+
                                 'output_id'      => $output->id,
                                 'sale_detail_id' => $saleDetail->id,
                                 'item_id'        => null,
@@ -10003,6 +10226,9 @@ class QuoteSaleController extends Controller
                     $valorUnitario = bcdiv($priceWithIgv, $factor, 10);
 
                     SaleDetail::create([
+                        'tenant_id'                => $sale->tenant_id,
+                        'company_id'               => $sale->company_id,
+
                         'sale_id'                  => $sale->id,
                         'material_id'              => null,
                         'stock_item_id'            => null,
@@ -10023,66 +10249,66 @@ class QuoteSaleController extends Controller
             }
 
             // ===========================
-            // 4) Caja: movimiento (SIN VUELTO)
-            // Solo aplica si NO es pago parcial
+            // 4) Movimiento financiero
+            // Pagos parciales: sin cobro inicial.
             // ===========================
             if ($pagosParcialesVenta === 'n') {
-                $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
-                    ->where('user_id', Auth::id())
-                    ->where('status', 1)
-                    ->latest();
+                $amount = bcadd(
+                    (string) $quote->total_importe,
+                    '0',
+                    2
+                );
 
-                if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
-                    $cashRegisterQuery->where('cash_box_subtype_id', (int)$cashBoxSubtypeId);
+                if (bccomp($amount, '0', 2) <= 0) {
+                    throw new \Exception(
+                        'El importe de la venta debe ser mayor que cero.'
+                    );
                 }
 
-                $cashRegister = $cashRegisterQuery->first();
+                $regularize = $validSubtype && $validSubtype->is_deferred
+                    ? 0
+                    : 1;
 
-                if (!$cashRegister) {
-                    return response()->json(['message' => 'No hay caja abierta para la caja/canal seleccionado.'], 422);
+                $description = 'Venta desde cotización '
+                    . $quote->code
+                    . ' - '
+                    . $cashBox->name;
+
+                if ($validSubtype) {
+                    $description .= ' (' . $validSubtype->name . ')';
                 }
 
-                $amount = (float)$quote->total_importe;
+                CashMovement::create([
+                    'tenant_id' => $sale->tenant_id,
+                    'company_id' => $sale->company_id,
+                    'branch_id' => $cashRegister->branch_id,
 
-                $description = 'Venta desde cotización - ' . ($cashBox->name ?? 'Caja');
-                if ($needSubtype && $cashBoxSubtypeId) {
-                    $sub = CashBoxSubtype::find((int)$cashBoxSubtypeId);
-                    if ($sub) $description .= ' (' . $sub->name . ')';
-                }
-
-                $regularize = 1;
-
-                if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
-                    if (!$cashBoxSubtypeId) {
-                        return response()->json([
-                            'message' => 'Debe seleccionar el subtipo bancario (Yape / Plin / POS / Transfer).'
-                        ], 422);
-                    }
-
-                    $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
-                    $regularize = $subtype->is_deferred ? 0 : 1;
-                } else {
-                    $cashBoxSubtypeId = null;
-                }
-
-                $movement = [
+                    'cash_box_id' => $cashBox->id,
                     'cash_register_id' => $cashRegister->id,
+                    'cash_box_subtype_id' => $cashBoxSubtypeId,
+                    'user_id' => $userId,
+
                     'type' => 'sale',
                     'amount' => $amount,
                     'description' => $description,
                     'sale_id' => $sale->id,
+
                     'regularize' => $regularize,
-                ];
+                ]);
 
-                if (!is_null($cashBoxSubtypeId)) {
-                    $movement['cash_box_subtype_id'] = (int)$cashBoxSubtypeId;
-                }
+                if ($regularize === 1) {
+                    $cashRegister->current_balance = bcadd(
+                        (string) $cashRegister->current_balance,
+                        $amount,
+                        2
+                    );
 
-                CashMovement::create($movement);
+                    $cashRegister->total_sales = bcadd(
+                        (string) $cashRegister->total_sales,
+                        $amount,
+                        2
+                    );
 
-                if ($regularize == 1) {
-                    $cashRegister->current_balance += $amount;
-                    $cashRegister->total_sales += $amount;
                     $cashRegister->save();
                 }
             }
@@ -10097,7 +10323,14 @@ class QuoteSaleController extends Controller
                 'url_go' => route('puntoVenta.index')
             ]);
 
-            $users = User::role(['admin', 'principal', 'logistic'])->get();
+            $users = User::role(['admin', 'principal', 'logistic'])
+                ->where('users.tenant_id', $tenantId)
+                ->where('users.id', '<>', $userId)
+                ->whereHas('companies', function ($query) use ($companyId) {
+                    $query->where('companies.id', $companyId)
+                        ->where('company_user.is_active', 1);
+                })
+                ->get();
             foreach ($users as $u) {
                 if ($u->id != Auth::id()) {
                     foreach ($u->roles as $role) {
@@ -10120,50 +10353,44 @@ class QuoteSaleController extends Controller
             ]);
 
             DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
+        // Desde aquí la venta ya está registrada.
+        // Los errores posteriores no deben intentar revertirla.
+        $nubefactResult = null;
+        $warnings = [];
+
+        $urlPrint = null;
+        $printType = 'ticket';
+        $outcome = null;
+
+        try {
             // ===========================
             // 5) Nubefact
             // ===========================
-            $nubefactResult = null;
-
             if ($pagosParcialesVenta === 'n' && in_array($sale->type_document, ['01', '03'])) {
-                /*
-                 * PRIMER PROCESO:
-                 * Emitir el comprobante en Nubefact.
-                 */
-                try {
-                    $sale->loadMissing(['details.material']);
+                $outcome = app(SaleEmissionService::class)->emit(
+                    $sale,
+                    function (
+                        Sale $lockedSale,
+                        \App\Services\NubefactCompanyConnection $connection
+                    ) {
+                        return $this->buildNubefactData(
+                            $lockedSale,
+                            $connection
+                        );
+                    }
+                );
 
-                    $nubefactResult = $this
-                        ->generarComprobanteNubefactParaVenta($sale);
+                $nubefactResult = $outcome['result'];
 
-                    /*
-                     * Guardamos inmediatamente los datos tributarios.
-                     *
-                     * Desde este momento sabemos que Nubefact procesó
-                     * correctamente el comprobante, aunque después pudiera
-                     * fallar la descarga de uno de los archivos.
-                     */
-                    $sale->update([
-                        'serie_sunat' => $nubefactResult['serie'] ?? null,
-                        'numero' => $nubefactResult['numero'] ?? null,
-                        'sunat_ticket' => $nubefactResult['sunat_ticket'] ?? null,
-                        'sunat_status' => $nubefactResult['sunat_description']
-                            ?? 'Enviado',
-                        'sunat_message' => $nubefactResult['sunat_note'] ?? '',
-                        'fecha_emision' => now()->toDateString(),
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::error('Error al generar comprobante en Nubefact', [
-                        'sale_id' => $sale->id,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    $sale->update([
-                        'sunat_status' => 'Error',
-                        'sunat_message' => $e->getMessage(),
-                    ]);
-                }
+                $warnings = array_merge(
+                    $warnings,
+                    $outcome['warnings']
+                );
 
                 /*
                  * SEGUNDO PROCESO:
@@ -10328,6 +10555,9 @@ class QuoteSaleController extends Controller
                      * El detalle técnico queda en laravel.log.
                      */
                     if (!empty($erroresDescarga)) {
+                        $warnings[] =
+                            'El comprobante fue emitido, pero quedaron archivos pendientes de descarga.';
+
                         Log::warning(
                             'Comprobante emitido con archivos pendientes',
                             [
@@ -10375,18 +10605,88 @@ class QuoteSaleController extends Controller
                     $printType = 'sunat_pdf';
                 }
             }
+        } catch (\Throwable $e) {
+            $warnings[] =
+                'La venta quedó registrada, pero no se pudo completar ' .
+                'el procesamiento del comprobante o la impresión. ' .
+                'Revise la venta antes de repetir la operación.';
+
+            Log::error('Error posterior al commit de venta desde cotización', [
+                'sale_id' => $sale->id,
+                'tenant_id' => $tenantId,
+                'company_id' => $companyId,
+                'branch_id' => $branchId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $warnings = array_values(array_unique($warnings));
+
+        $message = 'Venta creada con éxito desde cotización.';
+
+        if (!empty($warnings)) {
+            $message = 'Venta registrada con advertencias.';
+        } elseif (is_array($nubefactResult)) {
+            $message = 'Venta creada y comprobante generado.';
+        }
+
+        return response()->json([
+            'message' => $message,
+            'sale_id' => $sale->id,
+            'sale_created' => true,
+            'warnings' => $warnings,
+            'nubefact' => $nubefactResult,
+            'url_print' => $urlPrint,
+            'print_type' => $printType,
+            'emission_status' => $outcome['emission_status'] ?? $sale->emission_status,
+        ], 200);
+    }
+
+    public function recoverEmissionPersistence(Request $request, $saleId)
+    {
+        $data = $request->validate([
+            'attempt_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        if (!ctype_digit((string) $saleId) || (int) $saleId < 1) {
+            abort(404);
+        }
+
+        try {
+            $result = app(SaleEmissionRecoveryService::class)->recover(
+                (int) $saleId,
+                (int) $data['attempt_id']
+            );
+
+            return response()->json($result, 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
 
             return response()->json([
-                'message'    => 'Venta creada con éxito desde cotización' . ($nubefactResult ? ' y comprobante generado.' : ' (sin comprobante).'),
-                'sale_id'    => $sale->id,
-                'nubefact'   => $nubefactResult,
-                'url_print'  => $urlPrint,
-                'print_type' => $printType,
-            ], 200);
+                'message' => $errors['attempt_id'][0]
+                    ?? 'No se pudo recuperar la persistencia del comprobante.',
+                'errors' => $errors,
+            ], 422);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Venta o intento no encontrado en la empresa actual.',
+            ], 404);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            Log::error('Fallo al recuperar persistencia de emisión', [
+                'sale_id' => (int) $saleId,
+                'attempt_id' => (int) $data['attempt_id'],
+                'tenant_id' => TenantContext::tenantId(),
+                'company_id' => TenantContext::companyId(),
+                'exception_type' => get_class($e),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo completar la recuperación. '
+                    . 'No se volvió a emitir el comprobante.',
+            ], 500);
         }
     }
 
@@ -10396,105 +10696,15 @@ class QuoteSaleController extends Controller
     protected function syncInventoryLevelFromLots(
         int $stockItemId,
         int $warehouseId,
-        int $locationId
-    ): void
-    {
-        $companyId =
-            TenantContext::companyId();
-
-        $warehouse =
-            Warehouse::query()
-                ->where('id', $warehouseId)
-                ->where('company_id', $companyId)
-                ->first();
-
-        if (!$warehouse) {
-            throw new \RuntimeException(
-                'El almacén no pertenece a la empresa actual.'
-            );
-        }
-
-        $location =
-            Location::query()
-                ->where('id', $locationId)
-                ->where('company_id', $companyId)
-                ->where('warehouse_id', $warehouseId)
-                ->first();
-
-        if (!$location) {
-            throw new \RuntimeException(
-                'La ubicación no pertenece al almacén y empresa actuales.'
-            );
-        }
-
-        $qtyOnHand =
-            (float) StockLot::query()
-                ->where('company_id', $companyId)
-                ->where('stock_item_id', $stockItemId)
-                ->where('warehouse_id', $warehouseId)
-                ->where('location_id', $locationId)
-                ->sum('qty_on_hand');
-
-        $qtyReserved =
-            (float) StockLot::query()
-                ->where('company_id', $companyId)
-                ->where('stock_item_id', $stockItemId)
-                ->where('warehouse_id', $warehouseId)
-                ->where('location_id', $locationId)
-                ->sum('qty_reserved');
-
-        $inventoryLevel =
-            InventoryLevel::query()
-                ->where('company_id', $companyId)
-                ->where('stock_item_id', $stockItemId)
-                ->where('warehouse_id', $warehouseId)
-                ->where('location_id', $locationId)
-                ->lockForUpdate()
-                ->first();
-
-        if (!$inventoryLevel) {
-            $inventoryLevel =
-                InventoryLevel::create([
-                    'company_id' =>
-                        $companyId,
-
-                    'stock_item_id' =>
-                        $stockItemId,
-
-                    'warehouse_id' =>
-                        $warehouseId,
-
-                    'location_id' =>
-                        $locationId,
-
-                    'qty_on_hand' =>
-                        0,
-
-                    'qty_reserved' =>
-                        0,
-
-                    'min_alert' =>
-                        0,
-
-                    'max_alert' =>
-                        0,
-
-                    'average_cost' =>
-                        0,
-
-                    'last_cost' =>
-                        0,
-                ]);
-        }
-
-        $inventoryLevel->qty_on_hand =
-            $qtyOnHand;
-
-        $inventoryLevel->qty_reserved =
-            $qtyReserved;
-
-        $inventoryLevel->save();
+        int $locationId,
+        float $consumedUnits
+    ): void {
+        app(QuoteStockReservationService::class)->consumeInventoryLevel(
+            $stockItemId, $warehouseId, $locationId, $consumedUnits
+        );
     }
+
+
 
     public function generateRandomString($length = 25) {
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -11078,4 +11288,42 @@ class QuoteSaleController extends Controller
         ));
 
     }
+
+    public function confirm(Request $request, $quote)
+    {
+        app(QuoteSaleActions::class)->change($request, (int) $quote, 'confirm');
+        return response()->json(['message' => 'Cotización confirmada correctamente.']);
+    }
+
+    public function send(Request $request, $quote)
+    {
+        app(QuoteSaleActions::class)->change($request, (int) $quote, 'send');
+        return response()->json(['message' => 'Cotización marcada como enviada.']);
+    }
+
+    public function closeQuote(Request $request, $quote)
+    {
+        app(QuoteSaleActions::class)->change($request, (int) $quote, 'close');
+        return response()->json(['message' => 'Cotización cerrada correctamente.']);
+    }
+
+    public function activeQuote(Request $request, $quote)
+    {
+        app(QuoteSaleActions::class)->change($request, (int) $quote, 'reopen');
+        return response()->json(['message' => 'Cotización reabierta correctamente.']);
+    }
+
+    public function getDecimalsQuote($quote)
+    {
+        return response()->json(app(QuoteSaleActions::class)->read((int) $quote, 'decimals'));
+    }
+
+    public function changeDecimalsQuote(Request $request)
+    {
+        $data = $request->validate(['quote_id' => 'required|integer|min:1', 'decimals' => 'required|in:0,1']);
+        app(QuoteSaleActions::class)->change($request, (int) $data['quote_id'], 'decimals', $data['decimals']);
+        return response()->json(['message' => 'Visualización de decimales guardada correctamente.']);
+    }
+
+
 }

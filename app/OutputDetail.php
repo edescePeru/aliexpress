@@ -2,11 +2,21 @@
 
 namespace App;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class OutputDetail extends Model
 {
+    use BelongsToTenant;
+
+    protected $casts = [
+        'tenant_id' => 'integer',
+        'company_id' => 'integer',
+    ];
+
     protected $fillable = [
+        'tenant_id',
+        'company_id',
         'output_id',
         'sale_detail_id',
         'item_id',
@@ -105,5 +115,10 @@ class OutputDetail extends Model
     public function location()
     {
         return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

@@ -119,4 +119,9 @@ class Entry extends Model
             'company_id'
         );
     }
+
+    public function sourceOrder()
+    {
+        return $this->belongsTo(OrderPurchase::class, 'order_purchase_id');
+    }
 }

@@ -71,6 +71,8 @@
         <div class="col-md-12">
             <form id="formEdit" data-url="{{ route('entry.purchase.update') }}" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="entry_context_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
+                <input type="hidden" name="entry_context_branch_id" value="{{ \App\Support\TenantContext::branchId() }}">
                 <input type="hidden" name="entry_id" value="{{ $entry->id }}">
                 <div class="card card-success">
                     <div class="card-header">
@@ -163,7 +165,7 @@
                     </div>
 
                 </div>
-            <!-- /.card -->
+                <!-- /.card -->
             </form>
         </div>
 
@@ -236,8 +238,14 @@
                         </div>
                         <div class="col-md-2">
                             <div class="form-group">
-                                <label for="quantity">Almacen </label>
-                                <input type="text" id="almacen" name="almacen" data-locationGroup class="form-control locationGroup" />
+                                <label for="almacen">Almacén de ingreso</label>
+                                <select id="almacen" name="almacen" class="form-control" aria-describedby="entry-warehouse-help">
+                                    <option value="">Seleccione un almacén</option>
+                                </select>
+                                <small id="entry-warehouse-help" class="text-muted">El destino se aplica solo a los productos nuevos. Los ya registrados conservan sus almacenes.</small>
+                                @foreach($warehouseOptions['configuration_errors'] as $warehouseError)
+                                    <div class="text-danger" role="alert">{{ $warehouseError }}</div>
+                                @endforeach
 
                             </div>
                         </div>
@@ -716,6 +724,7 @@
             allowClear: true
         })
     </script>
+    <script type="application/json" id="entry-warehouse-catalog">@json($warehouseOptions)</script>
     <script src="{{ asset('js/entry/edit_entry_purchaseV2.js') }}?v={{ time() }}"></script>
 
 @endsection

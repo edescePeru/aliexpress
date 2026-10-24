@@ -260,6 +260,14 @@ class SalePartialPaymentController extends Controller
             $sale = Sale::with(['details.material', 'details.stockItem'])
                 ->findOrFail($request->sale_id);
 
+            if ($sale->requiresEmissionReview()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sale_id' =>
+                        'La emisión requiere conciliación antes de emitir, '
+                        . 'anular o descartar el comprobante.',
+                ]);
+            }
+
             /*if ($sale->pagos_parciales_venta !== 's') {
                 return response()->json([
                     'message' => 'Esta opción solo aplica para ventas con pagos parciales.'

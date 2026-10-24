@@ -109,13 +109,8 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="approved_by">Aprobado por: </label>
-                                    <select id="approved_by" name="approved_by" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $users as $user )
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label for="purchase-created-user">Creado por</label>
+                                    <input id="purchase-created-user" class="form-control" value="{{ \Illuminate\Support\Facades\Auth::user()->name }}" readonly>
                                 </div>
                                 <div class="form-group">
                                     <label for="payment_deadline">Forma de pago </label>
@@ -295,7 +290,7 @@
         </div>
         <div class="row">
             <div class="col-12">
-                <a class="btn btn-outline-secondary" href="{{ route('order.purchase.general.index') }}">Regresar</a>
+                <a class="btn btn-outline-secondary" href="{{ route('order.purchase.normal.indexV2') }}">Regresar</a>
                 <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar orden de compra</button>
             </div>
         </div>
@@ -463,5 +458,7 @@
         })
     </script>
 
+    <script>window.normalPurchaseContext = {tenant_id: {{ \App\Support\TenantContext::tenantId() }}, company_id: {{ \App\Support\TenantContext::companyId() }}};</script>
+    <script src="{{ asset('js/orderPurchase/companyContext.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/createNormalV2.js') }}?v={{ time() }}"></script>
 @endsection

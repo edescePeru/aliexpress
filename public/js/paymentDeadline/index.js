@@ -8,59 +8,23 @@ $(document).ready(function () {
         },
         bAutoWidth: false,
         "aoColumns": [
-            { data: 'description' },
-            { data: 'days' },
-            { data: null,
-                title: 'Usado en',
-                wrap: true,
-                "render": function (item)
-                {
-                    if ( item.type != null )
-                    {
-                        if (item.type == 'purchases')
-                            return '<p> COMPRAS/SERVICIOS </p>';
-                        else
-                            return '<p> COTIZACIONES </p>';
-                    }
-                    else
-                        return '<p> No hay datos </p>'
+            {data: 'description', render: $.fn.dataTable.render.text()},
+            {data: 'days'},
+            {data: 'type', render: function (value) { return value === 'purchases' ? 'COMPRAS / SERVICIOS' : 'COTIZACIONES'; }},
+            {data: 'credit', render: function (value) { return value ? 'SI' : 'NO'; }},
+            {data: 'is_active', render: function (value) { return value ? 'Activo' : 'Inactivo'; }},
+            {data: null, render: function (item) {
+                var actions = $('<div>');
+                if ($.inArray('update_paymentDeadline', $permissions) !== -1) {
+                    $('<a>').attr('href', document.location.origin + '/dashboard/editar/plazo/pago/' + item.id)
+                        .attr('title', 'Editar').addClass('btn btn-outline-warning btn-sm').html('<i class="fa fa-pen"></i>').appendTo(actions);
                 }
-            },
-            { data: null,
-                title: 'Indica crédito',
-                wrap: true,
-                "render": function (item)
-                {
-                    if ( item.credit != null )
-                    {
-                        if (item.credit == 1)
-                            return '<p> SI </p>';
-                        else
-                            return '<p> NO </p>';
-                    }
-                    else
-                        return '<p> No hay datos </p>'
+                if (item.is_active && $.inArray('destroy_paymentDeadline', $permissions) !== -1) {
+                    $('<button>').attr('data-delete', item.id).attr('data-name', item.description).attr('title', 'Desactivar')
+                        .addClass('btn btn-outline-danger btn-sm').html('<i class="fa fa-ban"></i>').appendTo(actions);
                 }
-            },
-            { data: null,
-                title: 'Acciones',
-                wrap: true,
-                "render": function (item)
-                {
-                    var text = '';
-                    if ( $.inArray('update_paymentDeadline', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/plazo/pago/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a> ';
-                    }
-                    if ( $.inArray('destroy_paymentDeadline', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-name="'+item.description+'" '+
-                            'class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
-                    }
-                    return text;
-
-                }
-            },
-
+                return actions.html();
+            }}
         ],
         "aaSorting": [],
 
@@ -219,93 +183,28 @@ function openModalDelete() {
     var name = $(this).data('name');
 
     $modalDelete.find('[id=paymentDeadline_id]').val(paymentDeadline_id);
-    $modalDelete.find('[id=name]').html(name);
+    $modalDelete.find('[id=name]').text(name);
 
     $modalDelete.modal('show');
 }
 
-function destroyPaymentDeadline() {
+function destroyPaymentDeadline(event) {
     event.preventDefault();
-    $("#btn-submit").attr("disabled", true);
-    // Obtener la URL
-    var deleteUrl = $formDelete.data('url');
-    var formulario = $('#formDelete')[0];
-    var form = new FormData(formulario);
-    $.ajax({
-        url: deleteUrl,
-        method: 'POST',
-        data: form,
-        processData:false,
-        contentType:false,
-        success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "3000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
+    var button = $('#btn-submit');
+    if (button.prop('disabled')) return;
+    button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Desactivando');
+    $.ajax({url: $formDelete.data('url'), type: 'POST', data: new FormData($formDelete[0]),
+        processData: false, contentType: false, headers: {'Accept': 'application/json'}})
+        .done(function (data) {
             $modalDelete.modal('hide');
-            setTimeout( function () {
-                $("#btn-submit").attr("disabled", false);
-                location.reload();
-            }, 2000 )
-        },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-submit").attr("disabled", false);
-        },
-    });
+            var refresh = function () { window.location.reload(); };
+            if ($.alert) $.alert({title: 'Plazo desactivado', content: $('<div>').text(data.message).html(), type: 'green', onClose: refresh});
+            else { toastr.success(data.message); refresh(); }
+        })
+        .fail(function (xhr) {
+            var data = xhr.responseJSON || {};
+            var messages = data.errors ? Object.keys(data.errors).reduce(function (all, key) { return all.concat(data.errors[key]); }, []) : [data.message || 'No se pudo desactivar.'];
+            messages.forEach(function (message) { toastr.error(message); });
+            button.prop('disabled', false).text('Desactivar');
+        });
 }

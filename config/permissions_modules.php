@@ -28,7 +28,7 @@ return [
     'position' => 'POSICIONES',
     'unitMeasure' => 'UNIDAD DE MEDIDA',
     'contactName' => 'NOMBRE DE CONTACTO',
-    'transfer' => 'TRANSFERENCIAS',
+    'transfer' => 'TRASLADOS ENTRE ALMACENES',
     'entryPurchase' => 'ENTRADA POR COMPRA',
     'entryScrap' => 'RETACERÍA',
     'entryInventory' => 'INVENTARIO',

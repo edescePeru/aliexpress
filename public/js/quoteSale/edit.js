@@ -2538,6 +2538,9 @@ $(document).ready(function () {
 
         let data = {
             _token: $('meta[name="csrf-token"]').attr('content'),
+            form_tenant_id: $('#formEdit [name="form_tenant_id"]').val(),
+            form_company_id: $('#formEdit [name="form_company_id"]').val(),
+            form_branch_id: $('#formEdit [name="form_branch_id"]').val(),
             quote_id: $("#quote_id").val(),
             descriptionQuote: $("#descriptionQuote").val(),
             codeQuote: $("#codeQuote").val(),
@@ -2923,7 +2926,10 @@ function saveEquipmentEdit() {
                         method: 'POST',
                         data: JSON.stringify({
 
-                            quote_id: $("#quote_id").val(),
+                            form_tenant_id: $('#formEdit [name="form_tenant_id"]').val(),
+            form_company_id: $('#formEdit [name="form_company_id"]').val(),
+            form_branch_id: $('#formEdit [name="form_branch_id"]').val(),
+            quote_id: $("#quote_id").val(),
                             descriptionQuote: $("#descriptionQuote").val(),
                             codeQuote: $("#codeQuote").val(),
                             date_quote: $("#date_quote").val(),

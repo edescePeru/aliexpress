@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'confirm_quoteSale' => 'Confirmar cotizaciones de venta',
+    'send_quoteSale' => 'Marcar cotizaciones de venta como enviadas',
+    'finish_quoteSale' => 'Cerrar y reabrir cotizaciones de venta',
+
     'VBFinances_quote' => 'Dar visto bueno de finanzas',
     'VBOperations_quote' => 'Dar visto bueno de operaciones',
     'access_dashboard' => 'Acceder al dashboard',
@@ -560,4 +564,11 @@ return [
     'manage_priceListMaterial' => 'Administrar precios de productos por lista de precios',
 
     'manage_workforce' => 'Administrar servicios predeterminados para cotizaciones',
+    // Traslados entre almacenes: listado y creación reutilizan list_transfer/create_transfer.
+    'prepare_transfer' => 'Preparar y reservar traslados entre almacenes',
+    'dispatch_transfer' => 'Despachar traslados entre almacenes',
+    'receive_transfer' => 'Recibir traslados entre almacenes',
+    'cancel_transfer' => 'Cancelar traslados antes del despacho',
+    'manageAll_transfer' => 'Gestionar todos los almacenes de la empresa en los traslados',
+    'viewStock_transfer' => 'Consultar disponibilidad de productos por sucursal y almacén',
 ];

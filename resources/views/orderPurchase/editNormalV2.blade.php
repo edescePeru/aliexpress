@@ -50,7 +50,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-key"></i> Ordenes de compra</a>
+            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-key"></i> Ordenes de compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Editar</li>
     </ol>
@@ -110,14 +110,19 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="approved_by">Aprobado por: </label>
-                                    <select id="approved_by" name="approved_by" class="form-control select2" style="width: 100%;">
-                                        <option></option>
-                                        @foreach( $users as $user )
-                                            <option value="{{ $user->id }}" {{ ($user->id === $order->approved_by) ? 'selected':'' }}>{{ $user->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label for="purchase-created-user">Creado por</label>
+                                    <input id="purchase-created-user" class="form-control" value="{{ optional($order->createdUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
                                 </div>
+                                <div class="form-group">
+                                    <label for="purchase-updated-user">Última modificación por</label>
+                                    <input id="purchase-updated-user" class="form-control" value="{{ optional($order->updatedUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
+                                </div>
+                                @if($order->approved_by)
+                                    <div class="form-group">
+                                        <label>Aprobador consignado anteriormente</label>
+                                        <input class="form-control" value="{{ optional($order->approved_user)->name ?? 'Usuario no disponible' }}" readonly>
+                                    </div>
+                                @endif
                                 <div class="form-group">
                                     <label for="payment_deadline">Forma de pago </label>
                                     {{--<input type="text" id="purchase_condition" name="purchase_condition" class="form-control" value="{{ $order->payment_condition }}">--}}
@@ -338,7 +343,7 @@
         </div>
         <div class="row">
             <div class="col-12">
-                <a class="btn btn-outline-secondary" href="{{ route('order.purchase.general.index') }}">Regresar</a>
+                <a class="btn btn-outline-secondary" href="{{ route('order.purchase.normal.indexV2') }}">Regresar</a>
                 <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar cambios y totales</button>
             </div>
         </div>
@@ -508,5 +513,7 @@
         })
     </script>
 
+    <script>window.normalPurchaseContext = {tenant_id: {{ \App\Support\TenantContext::tenantId() }}, company_id: {{ \App\Support\TenantContext::companyId() }}};</script>
+    <script src="{{ asset('js/orderPurchase/companyContext.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/editNormalV2.js') }}?v={{ time() }}"></script>
 @endsection

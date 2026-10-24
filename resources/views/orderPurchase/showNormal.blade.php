@@ -50,7 +50,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-key"></i> Ordenes de compra</a>
+            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-key"></i> Ordenes de compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Visualizar</li>
     </ol>
@@ -106,9 +106,19 @@
 
                                 </div>
                                 <div class="form-group">
-                                    <label for="approved_by">Aprobado por: </label>
-                                    <input type="text" id="approved_by" name="purchase_condition" class="form-control" value="{{ ($order->approved_user == null) ? 'Falta aprobador':$order->approved_user->name }}" readonly>
+                                    <label for="purchase-created-user">Creado por</label>
+                                    <input id="purchase-created-user" class="form-control" value="{{ optional($order->createdUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
                                 </div>
+                                <div class="form-group">
+                                    <label for="purchase-updated-user">Última modificación por</label>
+                                    <input id="purchase-updated-user" class="form-control" value="{{ optional($order->updatedUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
+                                </div>
+                                @if($order->approved_by)
+                                    <div class="form-group">
+                                        <label>Aprobador consignado anteriormente</label>
+                                        <input class="form-control" value="{{ optional($order->approved_user)->name ?? 'Usuario no disponible' }}" readonly>
+                                    </div>
+                                @endif
                                 <div class="form-group">
                                     <label for="purchase_condition">Forma de pago </label>
                                     <input type="text" id="purchase_condition" name="purchase_condition" class="form-control" value="{{ ($order->deadline !== null) ? $order->deadline->description:'No tiene condición' }}" readonly>

@@ -136,4 +136,9 @@ class DetailEntry extends Model
             'company_id'
         );
     }
+
+    public function sourceOrderDetail()
+    {
+        return $this->belongsTo(OrderPurchaseDetail::class, 'order_purchase_detail_id');
+    }
 }

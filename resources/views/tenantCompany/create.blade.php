@@ -1,5 +1,28 @@
 @extends('layouts.appAdmin2')
 
+@section('title', 'Crear Empresas')
+
+@section('activeTenantCompanyConfig', 'active')
+
+@section('page-header')
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Configuración de Empresa</span>
+        <h1 class="page-title">Empresas</h1>
+        <p class="next-page-description">Administra los datos de la empresa.</p>
+    </div>
+@endsection
+
+@section('page-breadcrumb')
+    <ol class="breadcrumb float-sm-right">
+        <li class="breadcrumb-item"><a href="{{ route('tenantCompany.index') }}">Empresas</a></li>
+        <li class="breadcrumb-item active">Crear</li>
+    </ol>
+@endsection
+
+@section('page-title')
+    <h5 class="card-title">Crear empresas</h5>
+@endsection
+
 @section('content')
 
     <div class="container-fluid">
