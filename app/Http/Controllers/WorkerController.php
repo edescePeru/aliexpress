@@ -8,11 +8,14 @@ use App\Contract;
 use App\EmergencyContact;
 use App\Exports\WorkersInfoExport;
 use App\FinishContract;
+use App\Http\Middleware\WorkerCompanyContext;
 use App\Http\Requests\FinishContractDeleteRequest;
 use App\Http\Requests\FinishContractStoreRequest;
 use App\PensionSystem;
 use App\PercentageWorker;
 use App\Relationship;
+use App\Services\Workers\WorkerAccess;
+use App\Services\Workers\WorkerUserLink;
 use App\User;
 use App\Work;
 use App\Worker;
@@ -27,6 +30,14 @@ use App\Support\TenantContext;
 
 class WorkerController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(WorkerCompanyContext::class);
+        $this->middleware('permission:list_worker')->only(['getWorkers', 'exportWorkers']);
+        $this->middleware('permission:restore_worker')->only(['getWorkersEnable']);
+        $this->middleware('permission:list_worker|create_paySlip|list_paySlip')->only(['getWorkersBoleta']);
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -40,7 +51,7 @@ class WorkerController extends Controller
         $filtros = $_GET['filtros'];
 
         // Inicializar la consulta con el modelo Worker
-        $query = Worker::query();
+        $query = app(WorkerAccess::class)->scope(Worker::query());
 
         // Filtrar los filtros para incluir solo las columnas existentes en la tabla
         $filtros = array_filter($filtros, function ($filtro) {
@@ -151,7 +162,7 @@ class WorkerController extends Controller
 
     public function getWorkers()
     {
-        $workers = Worker::where('enable', 1)->get();
+        $workers = app(WorkerAccess::class)->scope(Worker::query())->where('enable', 1)->get();
         $arrayWorkers = [];
 
         foreach ( $workers as $worker )
@@ -251,7 +262,7 @@ class WorkerController extends Controller
 
     public function getWorkersBoleta()
     {
-        $workers = Worker::where('enable', 1)
+        $workers = app(WorkerAccess::class)->scope(Worker::query())->where('enable', 1)
             ->orderBy('last_name')->get();
         $arrayWorkers = [];
 
@@ -290,7 +301,9 @@ class WorkerController extends Controller
 
         $areaWorkers = AreaWorker::select('id', 'name')->get();
 
-        return view('worker.create', compact('value_essalud','value_assign_family','permissions','civil_statuses', 'work_functions', 'pension_systems', 'relationships', 'areaWorkers'));
+        $systemUsers = app(WorkerUserLink::class)->options();
+
+        return view('worker.create', compact('systemUsers','value_essalud','value_assign_family','permissions','civil_statuses', 'work_functions', 'pension_systems', 'relationships', 'areaWorkers'));
     }
 
     public function store(Request $request)
@@ -302,6 +315,7 @@ class WorkerController extends Controller
 
         DB::beginTransaction();
         try {
+            $linkedUserId = app(WorkerUserLink::class)->validateLink($request->input('user_id'));
             $sueldo = PercentageWorker::where('name', 'rmv')->first();
             $essalud = PercentageWorker::where('name', 'essalud')->first();
             $assign_family = PercentageWorker::where('name', 'assign_family')->first();
@@ -312,6 +326,7 @@ class WorkerController extends Controller
             // Creamos el trabajador
             $worker = Worker::create([
                 'tenant_id' => $tenantId,
+                'user_id' => $linkedUserId,
                 'company_id' => $companyId,
                 'branch_id' => $branchId,
 
@@ -366,6 +381,9 @@ class WorkerController extends Controller
 
             DB::commit();
 
+        } catch ( \Illuminate\Validation\ValidationException $e ) {
+            DB::rollBack();
+            return response()->json(['message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch ( \Throwable $e ) {
             DB::rollBack();
             //dump($e);
@@ -394,7 +412,7 @@ class WorkerController extends Controller
 
     public function edit($id)
     {
-        $worker = Worker::with('emergency_contacts')->find($id);
+        $worker = app(WorkerAccess::class)->scope(Worker::query())->with('emergency_contacts')->find($id);
 
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
@@ -414,7 +432,9 @@ class WorkerController extends Controller
 
         $areaWorkers = AreaWorker::select('id', 'name')->get();
 
-        return view('worker.edit', compact('value_essalud','value_assign_family','permissions','civil_statuses', 'work_functions', 'pension_systems', 'relationships', 'worker', 'areaWorkers'));
+        $systemUsers = app(WorkerUserLink::class)->options($worker->id);
+
+        return view('worker.edit', compact('systemUsers','value_essalud','value_assign_family','permissions','civil_statuses', 'work_functions', 'pension_systems', 'relationships', 'worker', 'areaWorkers'));
 
     }
 
@@ -422,6 +442,7 @@ class WorkerController extends Controller
     {
         DB::beginTransaction();
         try {
+            $linkedUserId = app(WorkerUserLink::class)->validateLink($request->input('user_id'), (int) $id);
             $sueldo = PercentageWorker::where('name', 'rmv')->first();
             $essalud = PercentageWorker::where('name', 'essalud')->first();
             $assign_family = PercentageWorker::where('name', 'assign_family')->first();
@@ -429,10 +450,11 @@ class WorkerController extends Controller
             $value_assign_family = round((float)$sueldo->value/(float)$assign_family->value, 2);
             $value_essalud = $essalud->value;
 
-            $worker = Worker::find($id);
+            $worker = app(WorkerAccess::class)->scope(Worker::query())->findOrFail($id);
 
             // Modificamos el trabajador
 
+            $worker->user_id = $linkedUserId;
             $worker->first_name = $request->get('first_name');
             $worker->last_name = $request->get('last_name');
             $worker->personal_address = $request->get('personal_address');
@@ -491,6 +513,9 @@ class WorkerController extends Controller
 
             DB::commit();
 
+        } catch ( \Illuminate\Validation\ValidationException $e ) {
+            DB::rollBack();
+            return response()->json(['message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch ( \Throwable $e ) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -505,7 +530,7 @@ class WorkerController extends Controller
         DB::beginTransaction();
         try {
 
-            $worker = Worker::find($worker_id);
+            $worker = app(WorkerAccess::class)->scope(Worker::query())->findOrFail($worker_id);
 
             $worker->enable = false;
             $worker->save();
@@ -539,7 +564,7 @@ class WorkerController extends Controller
         DB::beginTransaction();
         try {
 
-            $worker = Worker::find($worker_id);
+            $worker = app(WorkerAccess::class)->scope(Worker::query())->findOrFail($worker_id);
 
             $worker->enable = true;
             $worker->save();
@@ -564,7 +589,7 @@ class WorkerController extends Controller
 
     public function getWorkersEnable()
     {
-        $workers = Worker::where('enable', 0)->get();
+        $workers = app(WorkerAccess::class)->scope(Worker::query())->where('enable', 0)->get();
         $arrayWorkers = [];
 
         foreach ( $workers as $worker )

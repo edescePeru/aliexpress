@@ -883,6 +883,17 @@ class UpdateMaterialRequest extends FormRequest
 
                     } else {
 
+                        if (
+                            (string) $variant->talla_id !== (string) $tallaId ||
+                            (string) $variant->color_id !== (string) $colorId
+                        ) {
+                            $validator->errors()->add(
+                                'variantes_json',
+                                "No puede cambiar la talla o el color de la variante "
+                                . "existente de la fila {$fila}. Cree una variante nueva."
+                            );
+                        }
+
                         $currentStockItem =
                             $variant
                                 ->stockItem()

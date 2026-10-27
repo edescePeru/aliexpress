@@ -4,6 +4,8 @@ Fecha: 2026-10-23. Rama: `feature/venti-next-frontend`; base de inspección: `df
 
 **REAL NEXT 10 — FRONTEND READY / BACKEND SYNC REQUIRED**
 
+Revalidación 2026-10-26 durante merge `feature/venti-next-frontend <- multitenancy`: **Creator filter Backend Sync: OPEN**. Los nuevos vínculos Worker/User no corrigen las consultas arrayUsers de Cotizaciones. Véase la sección de resolución de merge al final; las notas anteriores conservan su fecha de auditoría.
+
 Fachada de listado general, facturadas, detalle e históricos integrada con Venti Next. No se modificaron controllers, rutas, middleware, scopes, requests, servicios, DB ni CSS. El filtro de creador entrega usuarios ajenos al contexto: este hallazgo impide declarar una integración funcional completamente cerrada. Las comprobaciones de aislamiento de cotizaciones no certifican aislamiento de todos sus catálogos auxiliares.
 
 ## Contract Audit
@@ -192,6 +194,8 @@ No se utilizó Platform Admin. Credenciales introducidas únicamente en login; n
 
 ### [OPEN] Q-01 — Catálogo de creadores fuera de contexto
 
+Revalidado el 2026-10-26 con HEAD `2d9e365` y MERGE_HEAD `a8e01e1`: OPEN. General y facturadas entregan las mismas ocho opciones de usuario tanto a EDESCE como a Gamarra, incluyendo el owner del otro tenant. No se aplicó filtrado de seguridad en JavaScript.
+
 Point: `User::select('id','name')->get()` entrega usuarios globales.
 File / endpoint: QuoteSaleController@index / indexFacturadas (arrayUsers); vistas de ambos listados.
 Impact: Gamarra recibe opciones de Owner EDESCE y otros contextos. Fuga de catálogo auxiliar aunque las cotizaciones estén acotadas.
@@ -267,3 +271,51 @@ CSS nuevo: **0**. Archivos backend comercial modificados: **0**. Sin commits ni 
 Validación técnica final: `node --check` en ambos JS; PHP 7.3.33 `-l` para config/venti-next.php; `artisan view:cache` completado; `git diff --check` sin errores (solo aviso de normalización CRLF). Diff de app/, routes/ y public/admin/dist/css/ vacío.
 
 Evidencia visual local (fuera de archivos públicos/versionados): directorio `C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/real-next-10/`. Capturas detail-desktop.jpg / detail-mobile.jpg corresponden al detalle real; list-fixture-* son únicamente evidencia sintética, no datos de negocio.
+
+## Resolución semántica de merge — 2026-10-26
+
+Merge en curso, sin abortar ni crear commit. Base: `df5c53f420932511dcbf4c3ca858e82205291f3c`; OURS/HEAD: `2d9e365`; THEIRS/MERGE_HEAD: `a8e01e1`. Se compararon los stages 1/2/3 de ambos JS y el delta backend desde la base. No se reemplazó ninguno de los archivos completos por una sola rama.
+
+### Conflicto e integración
+
+El único bloque textual conflictivo de cada JS estaba en la configuración del diálogo de `cancelQuote`: OURS había corregido el texto a «anular»; THEIRS cambió el flujo completo de anulación. La fusión automática ya incorporaba el resto del nuevo callback; conservar el bloque OURS habría perdido el bloqueo de cierre y la limpieza del flag de operación pendiente.
+
+Se conserva de OURS toda la implementación fuera de `cancelQuote`: menús Venti Next con portal, Escape y restauración de foco; permisos/estados del renderer; texto seguro; filtros y hooks DOM; requests abortables y secuenciados; paginación corregida; separación de endpoints general/facturadas. Blade, allowlist y responsive de REAL NEXT 10 permanecen sin cambios en esta resolución.
+
+Se conserva de THEIRS `cancelQuote` completo: validación del ID, descripción escapada, guard contra doble ejecución, botones deshabilitados durante petición, confirmación explícita, `quoteSaleSnapshot()` en POST, respuesta `ok/message`, errores mediante `quoteSaleError`, restauración del botón y recarga tras aceptar el resultado. La adaptación manual consiste en seleccionar ese bloque dentro del archivo integrado, no en recuperar el archivo legacy de THEIRS.
+
+Verificación exacta, normalizando únicamente saltos de línea: para ambos archivos, resultado = versión stage 2 con su función cancelQuote sustituida por la de stage 3. No existen otras diferencias manuales en JS.
+
+### Cambios backend recibidos y conservados
+
+- `QuoteSaleBranchContext`: destroy ahora requiere validateForm y los snapshots de tenant/company/branch. Omitir el payload nuevo rompería el contrato.
+- `QuoteSaleController::destroy`: consulta bloqueada por tenant/company/branch; venta activa acotada por tenant/company; respuesta ValidationException 422 con message/errors. Se retira destroyO obsoleto. Se conserva todo ello sin edición manual.
+- `QuoteSaleController`: corrección de paymentDeadlines en edición; conversión a venta pasa a `WorkerUserLink::saleIdentity()` con created_by, created_by_name y worker opcional. No se ejecutó conversión.
+- `WorkerCompanyContext` y `WorkerAccess`: contexto autorizado, snapshots para guardar, consultas company/tenant y ownership de trabajador/contrato. `WorkerController` aplica estas reglas y permisos adicionales.
+- `WorkerUserLink`: opciones y validación de vínculo a usuarios activos autorizados para tenant/company, exclusión de vínculos duplicados y resolución transaccional de identidad de venta. `User::worker()` queda contextualizado; `Worker` incorpora BelongsToTenant. La migración recibida aporta identidad de venta/unicidad; no se ejecutaron migraciones en esta resolución.
+- `routes/web.php`: se conservan los cambios de permisos/rutas de otros módulos y la retirada de la ruta legacy de destrucción de QuoteController. Las rutas QuoteSale consumidas por los dos JS conservan sus URLs, verbos y permisos. No se confundió `/destroy/quote/{quote}` legacy con `/destroy/quote/sale/{quote}` vigente.
+
+**Creator filter Backend Sync: OPEN.** `QuoteSaleController@index` e `indexFacturadas` siguen ejecutando `User::select('id','name')->get()`. `User` no recibió un scope global de tenant y dichas consultas no usan WorkerUserLink. Las mejoras en selección de trabajadores no se trasladan automáticamente al catálogo de creadores.
+
+### QA posterior al merge
+
+Servidor local Laravel/PHP 7.3.33 en `http://127.0.0.1:8080`. Se inició para esta revisión porque el puerto no estaba escuchando. Cuentas autorizadas, sin registrar contraseñas:
+
+| Cuenta / tipo | Tenant / company / branch activos | Resultado actual |
+|---|---|---|
+| Owner EDESCE / owner | 1 / 1 / 1, EDESCE CONSULTORA E.I.R.L., Local Principal | General 0, facturadas 0; ambos filtros incluyen Owner Gamarra (id 7) |
+| Owner Gamarra / owner | 3 / 3 / 4, Gamarra Moda, Local Principal | General 0, facturadas 0, históricos 0; ambos filtros incluyen Owner EDESCE (id 4) |
+
+Cambio de sesión/contexto confirmado en navbar y snapshot DOM. Se probaron filtros por creador (id 4 e id 7 respectivamente), búsqueda de descripción y respuesta vacía; no se alteraron las opciones recibidas. Facturadas conserva el pendiente «1 a 0 de 0» de metadata backend.
+
+Rutas reales verificadas en código/route:list y navegador: `/dashboard/cotizaciones/venta`, `/dashboard/cotizaciones/venta/facturadas`, `/dashboard/cotizaciones/venta/pendientes-sucursal`, `/dashboard/cotizaciones/venta/pendientes-sucursal/76`, `/dashboard/ver/cotizacion/venta/76`. Los GET de datos siguen separados en `get/data/quotes/sale/index/v2/{numberPage}` y `get/data/quotes/sale/facturadas/index/v2/{numberPage}` con los mismos nueve parámetros de filtros.
+
+EDESCE: 65 históricos, navegación real a página 2 (primera fila 60), búsqueda COT-00076 con un resultado, detalle histórico y detalle completo correctos; total registrado 58. Gamarra: intento de abrir el detalle completo 76 de EDESCE devuelve 404. Sin datos operativos locales para validar múltiples páginas AJAX reales; no se fabricaron registros para cubrir esa carencia.
+
+Prueba de `cancelQuote` en VM de Node con jQuery/AJAX simulados, sin red: snapshot y POST correctos, guard de doble ejecución, escape de descripción, éxito con recarga tras aceptar, manejo 422 y restauración del botón pasan en ambos JS. Esta prueba no ejecuta ni certifica la transacción comercial de anulación.
+
+Responsive del listado general con filtros expandidos revalidado a 320/375/390/576/768/992/1200/1440: sin overflow horizontal global. CSS y Blades no modificados por la resolución. Carga real EDESCE sin errores/warnings de consola; 404 deliberado en prueba negativa Gamarra. Se conserva QA read-mostly: ninguna cotización creada, editada, anulada o convertida; show puede registrar su auditoría de lectura existente.
+
+Validación: sintaxis Node en ambos JS y `git diff --check`. Stage final limitado a los dos JS resueltos y este documento; los archivos ya fusionados/staged de backend se preservan. Merge pendiente de revisión y commit del usuario.
+
+Evidencia adicional: `real-next-10/merge-gamarra-creator.jpg`, en el directorio local de capturas indicado arriba.

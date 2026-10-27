@@ -212,9 +212,11 @@
 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                        <button type="submit" class="btn btn-primary" id="btn-save-inventory-levels">
-                            Guardar cambios
-                        </button>
+                        @can('update_material')
+                            <button type="submit" class="btn btn-primary" id="btn-save-inventory-levels">
+                                Guardar cambios
+                            </button>
+                        @endcan
                     </div>
                 </form>
             </div>

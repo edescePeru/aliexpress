@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Support\TenantContext;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -53,12 +54,23 @@ class User extends Authenticatable
         'must_change_password' => 'boolean',
     ];
 
-    public function worker()
+    public function workers()
     {
-        return $this->hasOne('App\Worker');
+        return $this->hasMany(Worker::class, 'user_id');
     }
 
-    //protected $dates = ['deleted_at'];
+    // Compatibility relation: only a worker in the active tenant/company.
+    public function worker()
+    {
+        $relation = $this->hasOne(Worker::class, 'user_id');
+        $tenant = TenantContext::tenantIdOrNull();
+        $company = TenantContext::companyIdOrNull();
+        return $tenant && $company
+            ? $relation->where('workers.tenant_id', $tenant)->where('workers.company_id', $company)
+            : $relation->whereRaw('1 = 0');
+    }
+
+
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);

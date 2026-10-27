@@ -17,6 +17,8 @@ class Sale extends Model
         'date_sale',
         'serie',
         'worker_id',
+        'created_by',
+        'created_by_name',
         'caja',
         'currency',
         'op_exonerada',
@@ -93,6 +95,20 @@ class Sale extends Model
         'branch_id' => 'integer',
         'free_sale' => 'boolean',
     ];
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getAttendedByNameAttribute()
+    {
+        $worker = $this->worker;
+        if ($worker && (int) $worker->tenant_id === (int) $this->tenant_id && (int) $worker->company_id === (int) $this->company_id) {
+            return trim($worker->first_name.' '.$worker->last_name);
+        }
+        return $this->created_by_name ?: 'No registrado';
+    }
 
     public function worker()
     {

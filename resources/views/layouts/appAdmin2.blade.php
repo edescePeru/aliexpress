@@ -1101,7 +1101,7 @@
                     <li class="nav-header">MATERIALES</li>
                     @endcanany
                     {{--@canany('list_unitMeasure', 'list_typeScrap', 'list_category', 'list_subcategory', 'list_materialType', 'list_subType', 'list_warrant', 'list_quality', 'list_brand', 'list_exampler')--}}
-                    @can('configGeneral_materialSetting')
+                    @canany(['configGeneral_materialSetting', 'config_materialSetting'])
                     <li class="nav-item has-treeview @yield('openConfig')">
                         <a href="#" class="nav-link @yield('activeConfig')">
                             <i class="fas fa-tools nav-icon"></i>
@@ -1408,35 +1408,6 @@
 
                                 </li>
                             @endcan
-                            {{--@can('list_quality')
-                                <li class="nav-item has-treeview @yield('openQuality')">
-                                    <a href="#" class="nav-link @yield('activeQuality')">
-                                        <i class="far fa-circle nav-icon text-success"></i>
-                                        <p>
-                                            Tallas
-                                            <i class="right fas fa-angle-left"></i>
-                                        </p>
-                                    </a>
-                                    <ul class="nav nav-treeview">
-                                        @can('list_quality')
-                                        <li class="nav-item">
-                                            <a href="{{ route('talla.index') }}" class="nav-link @yield('activeListQuality')">
-                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
-                                                <p>Listar tallas</p>
-                                            </a>
-                                        </li>
-                                        @endcan
-                                        @can('create_quality')
-                                        <li class="nav-item">
-                                            <a href="{{ route('talla.create') }}" class="nav-link @yield('activeCreateQuality')">
-                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
-                                                <p>Crear Tallas</p>
-                                            </a>
-                                        </li>
-                                        @endcan
-                                    </ul>
-                                </li>
-                            @endcan--}}
 
                             @can('list_brand')
                             <li class="nav-item has-treeview @yield('openBrand')">
@@ -1521,7 +1492,7 @@
                                 </li>
                             @endcan
 
-                            @can('enable_materialSetting')
+                            @can('config_materialSetting')
                                 <li class="nav-item has-treeview @yield('openSettingsMaterialDetail')">
                                     <a href="#" class="nav-link @yield('activeSettingsMaterialDetails')">
                                         <i class="far fa-circle nav-icon text-success"></i>
@@ -1531,7 +1502,7 @@
                                         </p>
                                     </a>
                                     <ul class="nav nav-treeview">
-                                        @can('list_exampler')
+                                        @can('config_materialSetting')
                                             <li class="nav-item">
                                                 <a href="{{ route('settings.material-details.index') }}" class="nav-link @yield('activeSettingsMaterialDetails')">
                                                     <i class="far fa-dot-circle nav-icon text-warning"></i>
@@ -1603,7 +1574,7 @@
                                         </a>
                                     </li>
                                 @endcan
-                                @can('separetePacks_material')
+                                @can('separatePacks_material')
                                     <li class="nav-item">
                                         <a href="{{ route('material.separate.pack') }}" class="nav-link @yield('activeSeparatePackMaterial')">
                                             <i class="far fa-circle nav-icon"></i>

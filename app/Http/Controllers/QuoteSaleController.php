@@ -5150,11 +5150,6 @@ class QuoteSaleController extends Controller
         $workforces = Workforce::with('unitMeasure')
             ->get();
 
-        PaymentDeadline::where(
-            'type',
-            'quotes'
-        )->selectable(Quote::query()->where('company_id', TenantContext::companyId())->findOrFail($id)->payment_deadline_id)->get();
-
         /*
          * CRÍTICO:
          * Quote debe pertenecer a la Company actual.
@@ -5188,6 +5183,10 @@ class QuoteSaleController extends Controller
                 },
             ])
             ->firstOrFail();
+
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')
+            ->selectable($quote->payment_deadline_id)
+            ->get();
 
         $images = [];
 
@@ -5588,90 +5587,6 @@ class QuoteSaleController extends Controller
 
     }
 
-    public function destroyO(Quote $quote)
-    {
-        try {
-            DB::transaction(function () use ($quote) {
-
-                $quote = Quote::where('id', $quote->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if ($quote->state === 'canceled') {
-                    throw new \Exception('La cotización ya fue anulada.');
-                }
-
-                /** @var QuoteStockReservationService $reservationService */
-                $reservationService = app(QuoteStockReservationService::class);
-
-                /*
-                 * 0) VALIDAR SI SE PUEDE ANULAR
-                 */
-                $activeSale = Sale::where('quote_id', $quote->id)
-                    ->where('state_annulled', 0)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($quote->state === 'confirmed' && $activeSale) {
-                    throw new \Exception(
-                        'No se puede anular esta cotización porque tiene una venta activa asociada. Primero debe anular la venta.'
-                    );
-                }
-
-                /*
-                 * 1) LIBERAR RESERVAS DE LOTES DE LA COTIZACIÓN
-                 */
-                $reservationService->releaseReservationsByQuote((int) $quote->id);
-
-                /*
-                 * 2) LIMPIAR EQUIPOS Y CONSUMIBLES LIGADOS A LA COTIZACIÓN
-                 *    - Eliminar PromotionUsage por consumible
-                 *    - Eliminar consumibles
-                 *    - Eliminar relaciones hijas
-                 *    - Eliminar equipos
-                 */
-                $equipments = Equipment::where('quote_id', $quote->id)
-                    ->with([
-                        'consumables',
-                        'materials',
-                        'electrics',
-                        'workforces',
-                        'turnstiles',
-                        'workdays',
-                    ])
-                    ->get();
-
-                foreach ($equipments as $equipment) {
-
-                    foreach ($equipment->consumables as $consumable) {
-                        PromotionUsage::where('equipment_consumable_id', $consumable->id)->delete();
-                        //$consumable->delete();
-                    }
-
-                    /*foreach ($equipment->workforces as $workforce) {
-                        $workforce->delete();
-                    }*/
-
-                    //$equipment->delete();
-                }
-
-                /*
-                 * 3) MARCAR LA COTIZACIÓN COMO ANULADA
-                 */
-                $quote->state = 'canceled';
-                $quote->save();
-            });
-
-            return response()->json(['ok' => true]);
-
-        } catch (\Throwable $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
     public function destroy(Quote $quote)
     {
         $begin = microtime(true);
@@ -5709,6 +5624,8 @@ class QuoteSaleController extends Controller
                                 'company_id',
                                 $companyId
                             )
+                            ->where('tenant_id', TenantContext::tenantId())
+                            ->where('branch_id', TenantContext::branchId())
                             ->lockForUpdate()
                             ->firstOrFail();
 
@@ -5738,15 +5655,13 @@ class QuoteSaleController extends Controller
                      *
                      * No dependemos de quote.state para aplicar esta regla.
                      *
-                     * Mientras Sale todavía no haya terminado su migración
-                     * Company-level, quote_id continúa siendo la referencia.
-                     *
-                     * Cuando migremos Sale completamente, aquí también
-                     * agregaremos la validación explícita de company_id.
+                     * Sale se comprueba por tenant, empresa y quote_id.
                      */
 
                     $activeSale =
                         Sale::query()
+                            ->where('tenant_id', TenantContext::tenantId())
+                            ->where('company_id', $companyId)
                             ->where(
                                 'quote_id',
                                 $quote->id
@@ -5871,6 +5786,15 @@ class QuoteSaleController extends Controller
                 'message' =>
                     'La cotización fue anulada correctamente.',
             ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $messages = collect($errors)->flatten()->all();
+            return response()->json([
+                'ok' => false,
+                'message' => $messages[0] ?? 'No se pudo liberar las reservas de la cotización.',
+                'errors' => $errors,
+            ], 422);
 
         } catch (\Throwable $e) {
 
@@ -9529,11 +9453,6 @@ class QuoteSaleController extends Controller
         $branchId = TenantContext::branchId();
         $userId = Auth::id();
 
-        $worker = Worker::query()
-            ->where('tenant_id', $tenantId)
-            ->where('company_id', $companyId)
-            ->where('user_id', $userId)
-            ->firstOrFail();
 
         $settings = app(SettingService::class);
 
@@ -9794,6 +9713,8 @@ class QuoteSaleController extends Controller
             // ===========================
             // 1) Crear venta (Sale)
             // ===========================
+            $identity = app(\App\Services\Workers\WorkerUserLink::class)->saleIdentity();
+
             $sale = Sale::create([
                 'tenant_id' => $tenantId,
                 'company_id' => $companyId,
@@ -9804,8 +9725,10 @@ class QuoteSaleController extends Controller
                     : Carbon::now(),
 
                 'serie'     => $this->generateRandomString(),
-                'worker_id' => $worker->id,
-                'caja'      => $worker->id,
+                'worker_id' => $identity['worker_id'],
+                'created_by' => $identity['created_by'],
+                'created_by_name' => $identity['created_by_name'],
+                'caja'      => $identity['worker_id'], // Legacy field; not a CashBox ID.
                 'currency'  => $currency,
 
                 'op_exonerada'     => $quote->exonerada ?? 0,

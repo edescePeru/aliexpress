@@ -129,7 +129,7 @@
     <p><b>Fecha: </b>{{ \Carbon\Carbon::parse($sale->date_sale)->format('d/m/Y') }} {{ \Carbon\Carbon::parse($sale->date_sale)->format('H:i') }}</p>
     <div class="line"></div>
     {{--<p style="font-size: 10px; margin: 0; text-align: center">
-        {{ $sale->serie }} - {{ $sale->worker->first_name." ".$sale->worker->last_name }} - 4 - 1 - transacción-{{ $sale->serie }}
+        {{ $sale->serie }} - {{ $sale->attended_by_name }} - 4 - 1 - transacción-{{ $sale->serie }}
     </p>--}}
     {{--<div class="line"></div>--}}
     <table class="details-table">
@@ -198,7 +198,7 @@
 
     {{--<div class="separator"></div>
 
-    <p style="text-align: center">Atendido por: {{ $sale->worker->first_name." ".$sale->worker->last_name }}</p>--}}
+    <p style="text-align: center">Atendido por: {{ $sale->attended_by_name }}</p>--}}
     <div class="line"></div>
     <div class="text-center" >
         <p style="text-align: center">¡Gracias por su compra!</p>
