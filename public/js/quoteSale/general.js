@@ -244,50 +244,51 @@ function showLoader(msg = "Procesando solicitud...") {
 }
 
 function cancelQuote() {
-    var quote_id = $(this).data('delete');
-    var description = $(this).data('name');
-
+    const $button = $(this);
+    if ($button.prop('disabled') || $button.data('quoteCancelPending')) return;
+    const id = String($button.attr('data-delete') || '');
+    if (!/^[1-9][0-9]*$/.test(id)) return;
+    const description = $('<div>').text($button.attr('data-name') || '').html();
+    $button.data('quoteCancelPending', true);
+    const original = $button.html();
     $.confirm({
-        icon: 'fas fa-frown',
-        theme: 'modern',
-        closeIcon: true,
-        animation: 'zoom',
-        type: 'red',
-        title: '¿Está seguro de eliminar esta cotización?',
-        content: description,
+        icon: 'fas fa-ban', theme: 'modern', animation: 'zoom', type: 'red',
+        closeIcon: false, escapeKey: false, backgroundDismiss: false,
+        title: 'Anular cotización',
+        content: '¿Desea anular esta cotización y liberar sus reservas?' + (description ? '<br><br>' + description : ''),
+        onClose: function () { $button.removeData('quoteCancelPending'); },
         buttons: {
             confirm: {
-                text: 'CONFIRMAR',
-                action: function (e) {
+                text: 'Anular', btnClass: 'btn-danger',
+                action: function () {
+                    const dialog = this;
+                    if ($button.prop('disabled')) return false;
+                    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Anulando');
+                    dialog.buttons.confirm.disable(); dialog.buttons.cancel.disable();
+                    dialog.buttons.confirm.setText('<i class="fas fa-spinner fa-spin"></i> Anulando');
                     $.ajax({
-                        url: '/dashboard/destroy/quote/sale/'+quote_id,
+                        url: '/dashboard/destroy/quote/sale/' + id,
                         method: 'POST',
                         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-                        processData:false,
-                        contentType:false,
-                        success: function (data) {
-                            console.log(data);
-                            $.alert("Cotización anulada.");
-                            setTimeout( function () {
-                                /*location.reload();*/
-                                getDataQuotes(1);
-                            }, 2000 )
+                        data: quoteSaleSnapshot(),
+                        success: function (response) {
+                            dialog.close();
+                            if (!response.ok) {
+                                $.alert({title: 'No se pudo anular', type: 'red', content: $('<div>').text(response.message || 'Revise la cotización.').html()});
+                                return;
+                            }
+                            $.alert({title: 'Cotización anulada', type: 'green', content: $('<div>').text(response.message).html(),
+                                buttons: {ok: {text: 'Aceptar', action: function () { getDataQuotes(1); }}}});
                         },
-                        error: function (data) {
-                            $.alert("Sucedió un error en el servidor. Intente nuevamente.");
-                        },
+                        error: function (xhr) { dialog.close(); $.alert({title: 'No se pudo anular', type: 'red', content: quoteSaleError(xhr)}); },
+                        complete: function () { $button.prop('disabled', false).html(original).removeData('quoteCancelPending'); }
                     });
-                },
+                    return false;
+                }
             },
-            cancel: {
-                text: 'CANCELAR',
-                action: function (e) {
-                    $.alert("Anulación cancelada.");
-                },
-            },
-        },
+            cancel: {text: 'Cancelar'}
+        }
     });
-
 }
 
 function destroySubCategory() {

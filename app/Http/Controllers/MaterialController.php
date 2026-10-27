@@ -1961,32 +1961,30 @@ class MaterialController extends Controller
                      * ====================================================
                      */
 
-                    if (
-                        $variantId &&
-                        $existingVariants->has(
-                            $variantId
-                        )
-                    ) {
+                    if ($variantId) {
+                        $variant = $material->variants()
+                            ->where('id', $variantId)
+                            ->lockForUpdate()
+                            ->first();
 
-                        /*
-                         * Variante existente.
-                         */
-                        $variant =
-                            $existingVariants
-                                ->get(
-                                    $variantId
-                                );
+                        if (!$variant) {
+                            throw new \RuntimeException(
+                                'La variante no pertenece al producto que está editando.'
+                            );
+                        }
 
+                        if (
+                            (string) $variant->talla_id !== (string) $tallaId ||
+                            (string) $variant->color_id !== (string) $colorId
+                        ) {
+                            throw new \RuntimeException(
+                                'No puede cambiar la talla o el color de una variante '
+                                . 'existente. Cree una variante nueva.'
+                            );
+                        }
                     } else {
-
-                        /*
-                         * Variante nueva.
-                         */
-                        $variant =
-                            new Variant();
-
-                        $variant->material_id =
-                            $material->id;
+                        $variant = new Variant();
+                        $variant->material_id = $material->id;
                     }
 
 
@@ -2419,59 +2417,6 @@ class MaterialController extends Controller
                     $inventoryLevels
                 );
             }
-
-
-            /*
-             * ============================================================
-             * DESCUENTOS POR CANTIDAD
-             * ============================================================
-             */
-
-            MaterialDiscountQuantity::where(
-                'material_id',
-                $material->id
-            )->delete();
-
-
-            $discounts =
-                $request->input(
-                    'discount',
-                    []
-                );
-
-
-            $percentages =
-                $request->input(
-                    'percentage',
-                    []
-                );
-
-
-            foreach (
-                $discounts as $discountId => $value
-            ) {
-
-                if (isset($value)) {
-
-                    $percentage =
-                        $percentages[
-                        $discountId
-                        ] ?? null;
-
-
-                    MaterialDiscountQuantity::create([
-                        'material_id' =>
-                            $material->id,
-
-                        'discount_quantity_id' =>
-                            $discountId,
-
-                        'percentage' =>
-                            $percentage,
-                    ]);
-                }
-            }
-
 
             /*
              * ============================================================

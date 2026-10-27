@@ -85,6 +85,7 @@
     @endif
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('worker.store') }}" enctype="multipart/form-data">
+        @include('worker._systemUser')
         @csrf
         <div class="row">
             <div class="col-md-6">

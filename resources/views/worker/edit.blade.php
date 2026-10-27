@@ -55,6 +55,7 @@
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('worker.update', $worker->id) }}" enctype="multipart/form-data">
+        @include('worker._systemUser')
         @csrf
         <div class="row">
             <div class="col-md-6">

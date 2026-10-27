@@ -14,7 +14,7 @@ class QuoteSaleBranchContext
             'renewQuote', 'destroy', 'raiseQuote', 'storeFromQuote', 'getDataIndividual', 'show', 'printQuoteToCustomer'], true)) {
             app(QuoteBranchCatalog::class)->validateContext();
         }
-        if (in_array($action, ['store', 'update', 'updateEquipmentOfQuote', 'updateDatosGeneral'], true)) {
+        if (in_array($action, ['store', 'update', 'updateEquipmentOfQuote', 'updateDatosGeneral', 'destroy'], true)) {
             $context->validateForm($request);
         }
         $id = null;

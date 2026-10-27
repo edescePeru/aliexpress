@@ -572,7 +572,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('materialtype.destroy')
             ->middleware('permission:destroy_materialType');
         Route::get('/get/types/{subcategory_id}', 'MaterialTypeController@getTypesBySubCategory')
-            ->middleware('permission:list_materialType');
+            ->middleware('permission:create_material|update_material|list_material|list_materialType');
         Route::post('/materialtype/delete-multiple', 'MaterialTypeController@deleteMultiple')
             ->middleware('permission:destroy_materialType');
 
@@ -597,7 +597,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('subtype/destroy', 'SubtypeController@destroy')
             ->name('subtype.destroy')
             ->middleware('permission:destroy_subType');
-        Route::get('/get/subtypes/{type_id}', 'SubtypeController@getSubTypesByType');
+        Route::get('/get/subtypes/{type_id}', 'SubtypeController@getSubTypesByType')
+            ->middleware('permission:create_material|update_material|list_material|list_subType');
         Route::post('/subtype/delete-multiple', 'SubtypeController@deleteMultiple')
             ->middleware('permission:destroy_subType');
 
@@ -623,7 +624,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('category/destroy', 'CategoryController@destroy')
             ->name('category.destroy')
             ->middleware('permission:destroy_category');
-        Route::get('/get/subcategories/{category_id}', 'CategoryController@getSubcategoryByCategory');
+        Route::get('/get/subcategories/{category_id}', 'CategoryController@getSubcategoryByCategory')
+            ->middleware('permission:create_material|update_material|list_material|list_subcategory');
         Route::post('/category/delete-multiple', 'CategoryController@deleteMultiple')
             ->middleware('permission:destroy_category');
 
@@ -724,7 +726,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('brand/destroy', 'BrandController@destroy')
             ->name('brand.destroy')
             ->middleware('permission:destroy_brand');
-        Route::get('/get/exampler/{brand_id}', 'BrandController@getJsonBrands');
+        Route::get('/get/exampler/{brand_id}', 'BrandController@getJsonBrands')
+            ->middleware('permission:create_material|update_material|list_material|list_exampler');
         Route::post('/brand/delete-multiple', 'BrandController@deleteMultiple')
             ->middleware('permission:destroy_brand');
 
@@ -1348,9 +1351,9 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('update/quote', 'QuoteController@update')
             ->name('quote.update')
             ->middleware('permission:update_quote');
-        Route::post('/destroy/quote/{quote}', 'QuoteController@destroy')
+        /*Route::post('/destroy/quote/{quote}', 'QuoteController@destroy')
             ->name('quote.destroy')
-            ->middleware('permission:destroy_quote');
+            ->middleware('permission:destroy_quote');*/
         /*Route::post('/confirm/quote/{quote}', 'QuoteController@confirm')
             ->name('quote.confirm')
             ->middleware('permission:confirm_quote');*/
@@ -3185,10 +3188,13 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         // TODO: Rutas Punto de Venta
         Route::get('/separar/paquetes/materiales', 'MaterialController@materialSeparatePack')
-            ->name('material.separate.pack');
-        Route::get('/get/data/material/pack/V2/{numberPage}', 'MaterialController@getDataMaterialsPack');
+            ->name('material.separate.pack')
+            ->middleware('permission:separatePacks_material');
+        Route::get('/get/data/material/pack/V2/{numberPage}', 'MaterialController@getDataMaterialsPack')
+            ->middleware('permission:separatePacks_material');
         Route::post('/store/separate/pack', 'MaterialController@storeSeparatePack')
-            ->name('save.separate.pack');
+            ->name('save.separate.pack')
+            ->middleware('permission:separatePacks_material');
         Route::get('/generar/combos/materiales', 'ComboController@generateComboMaterials')
             ->name('material.generate.combo');
         Route::post('/store/generate/pack', 'ComboController@storeGeneratePack')
@@ -3462,12 +3468,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 Route::get(
                     'material-details',
                     [MaterialDetailSettingController::class, 'index']
-                )->name('settings.material-details.index');
+                )->name('settings.material-details.index')
+                    ->middleware('permission:config_materialSetting');
 
                 Route::post(
                     'material-details',
                     [MaterialDetailSettingController::class, 'store']
-                )->name('settings.material-details.store');
+                )->name('settings.material-details.store')
+                    ->middleware('permission:config_materialSetting');
 
             });
 
@@ -3574,14 +3582,17 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/view/material/variants/{id}', 'StockItemController@viewMaterialVariants')->name('stockitems.view.variants');
         Route::get('/view/material/all/variants/{id}', 'StockItemController@getItemsMaterial')->name('stockitems.getItemsMaterial');
 
-        Route::get('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@getInventoryLevels')
-            ->name('stockitems.inventory-levels');
+        Route::get('/stock-items/{stockItem}/inventory-levels', 'StockItemController@getInventoryLevels')
+            ->name('stockitems.inventory-levels')
+            ->middleware('permission:list_material|verInventario_material|update_material');
 
-        Route::get('/dashboard/material/{material}/inventory-levels', 'StockItemController@getInventoryLevelsByMaterial')
-            ->name('material.inventory-levels');
+        Route::get('/material/{material}/inventory-levels', 'StockItemController@getInventoryLevelsByMaterial')
+            ->name('material.inventory-levels')
+            ->middleware('permission:list_material|verInventario_material|update_material');
 
-        Route::post('/dashboard/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
-            ->name('stockitems.inventory-levels.update');
+        Route::post('/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
+            ->name('stockitems.inventory-levels.update')
+            ->middleware('permission:update_material');
 
         //COLORS
         Route::get('colors','ColorController@index')
