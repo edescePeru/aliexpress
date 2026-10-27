@@ -14,6 +14,11 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'quoteSale.index',
+        'quoteSale.index.facturadas',
+        'quoteSale.show',
+        'quoteSale.pendingBranches',
+        'quoteSale.pendingBranches.show',
         'material.create',
         'material.edit',
         'material.indexV2',

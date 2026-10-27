@@ -180,21 +180,35 @@ $(document).ready(function () {
 
     getDataQuotes(1);
 
+    // Bootstrap 4 cannot find the trigger after the shared menu portal moves it to body.
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        const menu = event.target.closest('.next-row-actions-menu');
+        const triggerId = menu && menu.getAttribute('aria-labelledby');
+        if (!triggerId || triggerId.indexOf('quote-actions-') !== 0) return;
+        const trigger = document.getElementById(triggerId);
+        if (!trigger) return;
+        event.preventDefault();
+        event.stopPropagation();
+        $(trigger).dropdown('hide');
+        trigger.focus();
+    }, true);
+
     $("#btnBusquedaAvanzada").click(function(e){
         e.preventDefault();
-        $(".busqueda-avanzada").slideToggle();
+        const expanded = $(this).attr('aria-expanded') !== 'true';
+        $(this).attr('aria-expanded', String(expanded));
+        $('.busqueda-avanzada').stop(true, true).slideToggle();
     });
 
     $(document).on('click', '[data-item]', showData);
     $("#btn-search").on('click', showDataSearch);
+    $('.next-list-toolbar').on('submit', function (event) { event.preventDefault(); showDataSearch(); });
 
     $('body').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
 
-    $formDelete = $('#formDelete');
-    $formDelete.on('submit', destroySubCategory);
-    $modalDelete = $('#modalDelete');
     $formDecimals = $('#formDecimals');
     $modalDecimals = $('#modalDecimals');
     $(document).on('click', '[data-delete]', cancelQuote);
@@ -252,7 +266,7 @@ function cancelQuote() {
         closeIcon: true,
         animation: 'zoom',
         type: 'red',
-        title: '¿Está seguro de eliminar esta cotización?',
+        title: '¿Está seguro de anular esta cotización?',
         content: description,
         buttons: {
             confirm: {
@@ -287,68 +301,6 @@ function cancelQuote() {
         },
     });
 
-}
-
-function destroySubCategory() {
-    event.preventDefault();
-    // Obtener la URL
-    var deleteUrl = $formDelete.data('url');
-    $.ajax({
-        url: deleteUrl,
-        method: 'POST',
-        data: new FormData(this),
-        processData:false,
-        contentType:false,
-        success: function (data) {
-            console.log(data);
-            toastr.success(data.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            $modalDelete.modal('hide');
-            setTimeout( function () {
-                location.reload();
-            }, 2000 )
-        },
-        error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-
-
-        },
-    });
 }
 
 function exportExcel() {
@@ -443,14 +395,18 @@ function showDataSearch() {
     getDataQuotes(1)
 }
 
-function showData() {
-    //event.preventDefault();
+function showData(event) {
+    event.preventDefault();
     var numberPage = $(this).attr('data-item');
     console.log(numberPage);
     getDataQuotes(numberPage)
 }
 
+var quoteListRequest = null;
+var quoteListSequence = 0;
 function getDataQuotes($numberPage) {
+    var sequence = ++quoteListSequence;
+    if (quoteListRequest) quoteListRequest.abort();
     $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
@@ -465,7 +421,7 @@ function getDataQuotes($numberPage) {
     var startDate = $('#start').val();
     var endDate = $('#end').val();
 
-    $.get('/dashboard/get/data/quotes/sale/facturadas/index/v2/'+$numberPage, {
+    quoteListRequest = $.get('/dashboard/get/data/quotes/sale/facturadas/index/v2/'+$numberPage, {
         description_quote:description_quote,
         year: year,
         code: code,
@@ -476,6 +432,7 @@ function getDataQuotes($numberPage) {
         startDate: startDate,
         endDate: endDate,
     }, function(data) {
+        if (sequence !== quoteListSequence) return;
         if ( data.data.length == 0 )
         {
             renderDataQuotesEmpty(data);
@@ -485,6 +442,8 @@ function getDataQuotes($numberPage) {
 
 
     }).fail(function(jqXHR, textStatus, errorThrown) {
+        if (textStatus === 'abort' || sequence !== quoteListSequence) return;
+        jqXHR.responseJSON = jqXHR.responseJSON || {message: 'No se pudo cargar el listado. Intenta nuevamente.', errors: {}};
         // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
         if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
@@ -544,6 +503,7 @@ function renderDataQuotesEmpty(data) {
     console.log(dataAccounting);
     console.log(pagination);
 
+    $('.next-row-actions.show > .next-row-actions-trigger').dropdown('hide');
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
@@ -560,6 +520,7 @@ function renderDataQuotes(data) {
     console.log(dataQuotes);
     console.log(pagination);
 
+    $('.next-row-actions.show > .next-row-actions-trigger').dropdown('hide');
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
@@ -598,7 +559,7 @@ function renderDataQuotes(data) {
             {
                 renderDisabledPage();
             }
-            renderItemPage(i, pagination.currentPage);
+            renderItemPage(pagination.totalPages, pagination.currentPage);
         }
 
     }
@@ -616,24 +577,29 @@ function renderDataTableEmpty() {
 
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
-    clone.querySelector("[data-id]").innerHTML = data.id;
-    clone.querySelector("[data-code]").innerHTML = data.code;
-    clone.querySelector("[data-description]").innerHTML = data.description;
-    clone.querySelector("[data-date_quote]").innerHTML = data.date_quote;
-    //clone.querySelector("[data-date_validate]").innerHTML = data.date_validate;
-    clone.querySelector("[data-deadline]").innerHTML = data.deadline;
-    clone.querySelector("[data-time_delivery]").innerHTML = data.time_delivery;
-    clone.querySelector("[data-customer]").innerHTML = data.customer;
-    clone.querySelector("[data-order]").innerHTML = data.order;
-    clone.querySelector("[data-total_sunat]").innerHTML = data.total_sunat;
-    clone.querySelector("[data-total]").innerHTML = data.total_cliente;
-    clone.querySelector("[data-services_add]").innerHTML = data.total_services;
-    clone.querySelector("[data-currency]").innerHTML = data.currency;
+    clone.querySelector("[data-id]").textContent = data.id;
+    clone.querySelector("[data-code]").textContent = data.code;
+    clone.querySelector("[data-description]").textContent = data.description;
+    clone.querySelector("[data-date_quote]").textContent = data.date_quote;
+    //clone.querySelector("[data-date_validate]").textContent = data.date_validate;
+    clone.querySelector("[data-deadline]").textContent = data.deadline;
+    clone.querySelector("[data-time_delivery]").textContent = data.time_delivery;
+    clone.querySelector("[data-customer]").textContent = data.customer;
+    clone.querySelector("[data-order]").textContent = data.order;
+    clone.querySelector("[data-total_sunat]").textContent = data.total_sunat;
+    clone.querySelector("[data-total]").textContent = data.total_cliente;
+    clone.querySelector("[data-services_add]").textContent = data.total_services;
+    clone.querySelector("[data-currency]").textContent = data.currency;
     clone.querySelector("[data-state]").innerHTML = data.stateText;
-    //clone.querySelector("[data-created_at]").innerHTML = data.created_at;
-    clone.querySelector("[data-creator]").innerHTML = data.creator;
-    /*clone.querySelector("[data-decimals]").innerHTML = data.decimals;*/
+    //clone.querySelector("[data-created_at]").textContent = data.created_at;
+    clone.querySelector("[data-creator]").textContent = data.creator;
+    /*clone.querySelector("[data-decimals]").textContent = data.decimals;*/
 
+    $(clone.querySelector('[data-state]')).find('.badge').each(function () {
+        ['primary','success','warning','danger','secondary','info'].forEach(function (color) {
+            if (this.classList.contains('bg-' + color)) { this.classList.remove('bg-' + color); this.classList.add('badge-' + color); }
+        }, this);
+    });
     quoteSaleRenderActions(clone.querySelector("[data-buttons]"), data);
 
     $("#body-table").append(clone);
@@ -853,16 +819,27 @@ function showModalDecimals() { quoteSaleOpenOption(this, 'decimals', '#modalDeci
 function saveDecimals() { quoteSalePost(this, 'decimals', {quote_id: $('#formDecimals [name="quote_id"]').val(), decimals: $('#decimals').val()}, '#modalDecimals'); }
 
 function quoteSaleRenderActions(container, data) {
+    const dropdown = document.createElement('div'); dropdown.className = 'dropdown next-row-actions';
+    const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'btn next-row-actions-trigger';
+    trigger.id = 'quote-actions-' + data.id; trigger.setAttribute('data-toggle', 'dropdown'); trigger.setAttribute('data-boundary', 'viewport');
+    trigger.setAttribute('aria-haspopup', 'true'); trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-label', 'Acciones de cotización ' + (data.code || data.id));
+    trigger.innerHTML = '<i class="fas fa-ellipsis-h" aria-hidden="true"></i>';
+    const menu = document.createElement('div'); menu.className = 'dropdown-menu dropdown-menu-right next-row-actions-menu'; menu.setAttribute('aria-labelledby', trigger.id);
+    dropdown.appendChild(trigger); dropdown.appendChild(menu);
     const can = function (permission) { return $.inArray(permission, $permissions) !== -1; };
     const add = function (permission, title, icon, attribute, color, url) {
         if (!can(permission)) return;
         const element = document.createElement(url ? 'a' : 'button');
-        element.className = 'btn btn-outline-' + color + ' btn-sm';
-        element.setAttribute('title', title); element.setAttribute('data-toggle', 'tooltip');
+        element.className = 'dropdown-item' + (attribute === 'data-delete' ? ' next-row-action-danger' : '');
+        element.setAttribute('title', title);
         if (url) { element.setAttribute('href', url); if (url.indexOf('/imprimir/') !== -1) { element.setAttribute('target', '_blank'); element.setAttribute('rel', 'noopener'); } }
         else { element.setAttribute('type', 'button'); element.setAttribute(attribute, data.id); element.setAttribute('data-name', data.description || ''); if (attribute === 'data-recotizar') element.setAttribute('data-renew', data.id); }
-        const symbol = document.createElement('i'); symbol.className = icon; element.appendChild(symbol); container.appendChild(element);
+        const symbol = document.createElement('i'); symbol.className = icon + ' next-row-action-item-icon'; symbol.setAttribute('aria-hidden', 'true'); element.appendChild(symbol);
+        element.appendChild(document.createTextNode(' ' + title)); menu.appendChild(element);
+        if (!dropdown.parentNode) { container.textContent = ''; container.appendChild(dropdown); }
     };
+    container.textContent = '—';
     add('list_quoteSale', 'Ver detalles', 'fa fa-eye', null, 'primary', '/dashboard/ver/cotizacion/venta/' + data.id);
     add('printCustomer_quote', 'Imprimir para cliente', 'fa fa-print', null, 'info', '/dashboard/imprimir/cotizacion/cliente/' + data.id);
     if (['canceled', 'requote'].indexOf(data.state) !== -1) {
