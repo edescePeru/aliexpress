@@ -1,5 +1,9 @@
 # REAL NEXT 5.12 — Material Configuration: Parámetros
 
+## Alcance de la aclaración posterior — 2026-10-26
+
+La [reclasificación backend](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md) fija maestro tenant compartido e inventario operativo company/branch/general. No define una política nueva para `$enabled`, históricos ocultos, defaults, Platform Admin o descuentos. Esos hallazgos conservan su estado anterior; no se cierran por permitir continuidad frontend. Trigger: contrato backend explícito de preservación/validación de campos deshabilitados. Se conserva debajo la evidencia original y no se modificaron configuración ni comportamiento.
+
 ## Current Contract
 
 Parámetros de materiales no es un CRUD tabular. Es una única pantalla de configuración que controla la visibilidad y disponibilidad de campos de Material para la empresa activa.

@@ -1,5 +1,13 @@
 # REAL NEXT 5.11 — Material Configuration CRUD: Tipo de retacería
 
+## Reclasificación vigente — 2026-10-26
+
+Ver [matriz y evidencia actual](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), commit `20cea30`. Se preserva la auditoría original debajo.
+
+La propagación desde Material Edit a Items `entered`/`exited` es **INTENTIONAL BEHAVIOR — HISTORICAL REVIEW PENDING**, **NON-BLOCKING FOR FRONTEND**. Ya no corresponde preguntar si esa propagación selectiva debe permitirse. No introducir warnings ni bloqueos frontend. Sí faltan conservación de dimensiones originales de movimientos y verificación del alcance company/branch antes de aprobar completamente Save.
+
+La actualización del catálogo mediante `TypescrapController::update` y la propagación desde `MaterialController::update` son operaciones diferentes. La aclaración no ordena añadir cascada al CRUD del catálogo ni resuelve eliminación histórica, bulk, permisos o unidad dimensional. El punto 2 histórico de Backend Sync Notes queda sustituido por revisión histórica/alcance, conservándose los otros pendientes. Trigger: evidencia y pruebas backend de historia y alcance, sin reabrir la intención funcional.
+
 ## Current Contract
 
 Tipo de retacería es un catálogo especial tenant-scoped con dimensiones base. El modelo real es `Typescrap` y usa `SoftDeletes` junto con `BelongsToTenant`.

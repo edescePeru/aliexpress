@@ -1,5 +1,13 @@
 # REAL NEXT — Material Create Contract
 
+## Aclaración posterior — 2026-10-26
+
+Ver [Backend Sync Reclassification](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), código `20cea30`. Se conserva íntegra la evidencia histórica siguiente.
+
+Material/StockItem son maestros compartidos por tenant; inventario operativo corresponde a company y branch activas más almacenes generales. No ampliar alcance para owner ni recalcular indicadores en frontend. Precios se administran mediante listas de precios; la deuda `unit_price → 0` reauditada corresponde al update de Material Edit. Esta aclaración no cambia ni certifica el payload/store de Create y no exige añadir un control de precio a Edit.
+
+El lookup de tipos ya usa `create_material|update_material|list_material|list_materialType`, según `routes/web.php:574`: **RESOLVED** para el permiso incorrecto citado históricamente. Otros pendientes de configuración, campos ocultos y políticas históricas no quedan cerrados. Continuidad visual autorizada no equivale a cierre productivo de persistencia.
+
 Fecha de validación: 2026-09-24  
 Pantalla: `material.create` (`GET /dashboard/crear/material`)  
 Estado: `BASELINE REUSE APPROVED`

@@ -1,5 +1,17 @@
 # REAL NEXT — Material List Contract
 
+## Reclasificación vigente — 2026-10-26
+
+Ver [matriz y evidencia posterior al merge](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), commit `20cea30`. Se preserva debajo la auditoría histórica; las decisiones de alcance ya no son preguntas abiertas.
+
+**FUNCTIONAL DECISION DEFINED — BACKEND IMPLEMENTATION/VALIDATION PENDING**. **NON-BLOCKING FOR VISUAL INTEGRATION**. La superficie operativa corresponde a company activa y almacenes generales o de branch activa. La vista global del owner será independiente; no ampliar esta pantalla.
+
+`Material`/`StockItem` siguen siendo maestros del tenant. Los accessors de stock/min/max filtran company pero aún no branch/general; `stock_actual`, resumen y prioridad conservan fuentes legacy. La consistencia de indicadores NO está resuelta. No recalcular stock, disponible, min/max, resumen o prioridad en JS. Min/max pertenecen al almacén, con permisos/contexto; stock readonly en esta superficie.
+
+Trigger: backend normaliza fuentes/cálculos y aplica alcance operativo de forma consistente; después QA Principal/Outlet/general y entre companies. Pendiente antes del cierre funcional productivo.
+
+Correcciones concretas verificadas en código: `/dashboard/get/types/{subcategory_id}` usa `create_material|update_material|list_material|list_materialType`; inventory-levels ya no duplica `/dashboard` y tiene permisos GET/POST explícitos. **RESOLVED** sólo esos defectos de definición, sin cerrar aislamiento ni equivalencia de indicadores. Los endpoints históricos citados debajo describen el estado anterior.
+
 ## Estado
 
 **APPROVED WITH BACKEND SYNC OPEN**
