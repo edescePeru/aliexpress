@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Brand;
 use App\Http\Requests\DeleteBrandRequest;
+use App\Http\Requests\DeleteMultipleBrandsRequest;
 use App\Http\Requests\StoreBrandRequest;
 use App\Http\Requests\UpdateBrandRequest;
 use App\Material;
+use App\Services\Materials\DeleteBrands;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -151,113 +153,29 @@ class BrandController extends Controller
         ], 200);
     }
 
-    public function destroy(
-        DeleteBrandRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        /*
-         * Brand está protegida por TenantScope.
-         */
-        $brand =
-            Brand::with(
-                'examplers'
-            )
-                ->findOrFail(
-                    $validated[
-                    'brand_id'
-                    ]
-                );
-
-        /*
-         * =========================================================
-         * VALIDAR USO DIRECTO DE BRAND EN MATERIAL
-         * =========================================================
-         */
-
-        $hasMaterialsWithBrand =
-            Material::query()
-                ->where(
-                    'brand_id',
-                    $brand->id
-                )
-                ->exists();
-
-        if ($hasMaterialsWithBrand) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar la marca porque está siendo utilizada por uno o más materiales.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO DE EXAMPLERS EN MATERIAL
-         * =========================================================
-         */
-
-        $examplerIds =
-            $brand
-                ->examplers
-                ->pluck('id');
-
-        if ($examplerIds->isNotEmpty()) {
-
-            $hasMaterialsWithExampler =
-                Material::query()
-                    ->whereIn(
-                        'exampler_id',
-                        $examplerIds
-                    )
-                    ->exists();
-
-            if ($hasMaterialsWithExampler) {
-
-                return response()->json([
-                    'message' =>
-                        'No se puede eliminar la marca porque uno o más de sus modelos están siendo utilizados por materiales.',
-                ], 422);
-            }
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteBrandRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            /*
-             * Nadie utiliza la Brand ni sus Examplers.
-             *
-             * Podemos hacer soft delete de los hijos
-             * y posteriormente de la Brand.
-             */
-            foreach (
-                $brand->examplers
-                as $exampler
-            ) {
-                $exampler->delete();
-            }
-
-            $brand->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(\App\Services\Materials\DeleteBrands::class)->delete(
+                [$validated['brand_id']],
+                'brand_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar la marca.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar la marca.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Marca de material eliminada con éxito.',
+            'message' => 'Marca de material eliminada con éxito.',
         ], 200);
     }
 
@@ -353,157 +271,29 @@ class BrandController extends Controller
         return $array;
     }
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        /*
-         * TenantScope actúa automáticamente.
-         */
-        $brands =
-            Brand::with(
-                'examplers'
-            )
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO DIRECTO DE BRANDS
-         * =========================================================
-         */
-
-        $brandIds =
-            $brands
-                ->pluck('id');
-
-        $usedBrandIds =
-            Material::query()
-                ->whereIn(
-                    'brand_id',
-                    $brandIds
-                )
-                ->pluck(
-                    'brand_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedBrandIds->isNotEmpty()) {
-
-            $usedNames =
-                $brands
-                    ->whereIn(
-                        'id',
-                        $usedBrandIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar las marcas porque están siendo utilizadas por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO DE EXAMPLERS
-         * =========================================================
-         */
-
-        $examplerIds =
-            $brands
-                ->flatMap(
-                    function ($brand) {
-
-                        return $brand
-                            ->examplers
-                            ->pluck('id');
-                    }
-                )
-                ->filter()
-                ->unique();
-
-        if ($examplerIds->isNotEmpty()) {
-
-            $usedExamplerIds =
-                Material::query()
-                    ->whereIn(
-                        'exampler_id',
-                        $examplerIds
-                    )
-                    ->pluck(
-                        'exampler_id'
-                    )
-                    ->filter()
-                    ->unique();
-
-            if ($usedExamplerIds->isNotEmpty()) {
-
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar las marcas porque uno o más de sus modelos están siendo utilizados por materiales.',
-                ], 422);
-            }
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleBrandsRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $brands
-                as $brand
-            ) {
-
-                foreach (
-                    $brand->examplers
-                    as $exampler
-                ) {
-                    $exampler->delete();
-                }
-
-                $brand->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteBrands::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar las marcas.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar las marcas.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Marcas eliminadas correctamente.',
-        ]);
+            'message' => 'Marcas eliminadas correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

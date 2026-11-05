@@ -311,6 +311,7 @@ $(document).ready(function () {
 
                     presentationId: line.presentationId,
                     presentationQty: line.presentationQty,
+                    productQuantity: line.productQuantity,
                     presentationLabel: line.presentationLabel,
 
                     unitsEquivalent: line.unitsEquivalent,
@@ -365,6 +366,7 @@ $(document).ready(function () {
 
             presentationId: draft.presentationId,
             presentationQty: draft.presentationQty,
+            productQuantity: draft.productQuantity,
             presentationLabel: draft.presentationLabel,
 
             unitsEquivalent: draft.unitsEquivalent,
@@ -731,12 +733,24 @@ function buildItemKey(productId, presentationId, selectedItemIds = []) {
     return productId + ':' + presentationKey + itemKey;
 }
 
-function fetchPresentations(productId) {
-    if ($presentationsCache[productId]) {
-        return Promise.resolve($presentationsCache[productId]);
-    }
 
-    return $.get(`/dashboard/materials-presentations/material/${productId}/presentations`)
+function posPresentationName(id, units) {
+    for (const rows of Object.values($presentationsCache)) {
+        const presentation = rows.find(p => String(p.id) === String(id));
+        if (presentation && typeof presentation.label === 'string' && presentation.label.trim() !== '') {
+            return presentation.label;
+        }
+    }
+    return String(units) + ' unidades';
+}
+function posEscapePresentation(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fetchPresentations(productId) {
+
+    return $.get(`/dashboard/pos/materials/${productId}/presentations`)
         .then(res => {
             const actives = (res.presentations || []).filter(p => p.active === true || p.active === 1 || p.active === "1");
             $presentationsCache[productId] = actives;
@@ -746,7 +760,7 @@ function fetchPresentations(productId) {
 
 function renderPresentationsInModal(presentations) {
     if (!presentations || presentations.length === 0) {
-        $('#presentationsArea').html('<div class="text-muted">Este producto no tiene presentaciones configuradas.</div>');
+        $('#presentationsArea').html('<div class="text-muted">Este producto no tiene presentaciones habilitadas en este local.</div>');
         return;
     }
 
@@ -769,8 +783,8 @@ function renderPresentationsInModal(presentations) {
 
         html += `
       <tr data-pres-row data-pres-id="${p.id}" data-pres-qty="${p.quantity}" data-pres-price="${p.price}">
-        <td><strong>${label}</strong><div class="text-muted" style="font-size:12px;">Equivale a ${p.quantity} unidades</div></td>
-        <td>S/. ${parseFloat(p.price).toFixed(2)}</td>
+        <td><strong>${posEscapePresentation(label)}</strong><div class="text-muted" style="font-size:12px;">Equivale a ${p.quantity} unidades</div></td>
+        <td>${window.POS_CURRENCY === 'USD' ? 'US$ ' : 'S/. '}${parseFloat(p.price).toFixed(2)}</td>
         <td>
           <input type="number" min="0" step="1" class="form-control form-control-sm" value="0" data-pres-packs>
         </td>
@@ -1052,7 +1066,8 @@ function addProduct() {
             productType: productType,
 
             presentationId: null,
-            presentationQty: qtyToUse,
+            presentationQty: 1,
+            productQuantity: qtyToUse,
             presentationLabel: 'Unidad',
 
             unitsEquivalent: qtyToUse
@@ -1070,8 +1085,9 @@ function addProduct() {
             productType: productType,
 
             presentationId: row.presentationId,
-            presentationQty: row.packs,
-            presentationLabel: `${row.presentationQty} unidades`,
+            presentationQty: row.presentationQty,
+            productQuantity: row.packs,
+            presentationLabel: posPresentationName(row.presentationId, row.presentationQty),
 
             unitsEquivalent: row.packs * row.presentationQty
         });
@@ -1149,6 +1165,7 @@ function addProduct() {
 
             presentationId: line.presentationId,
             presentationQty: line.presentationQty,
+            productQuantity: line.productQuantity,
             presentationLabel: line.presentationLabel,
 
             unitsEquivalent: line.unitsEquivalent,
@@ -1188,7 +1205,7 @@ function renderDataCartRow(itemKey) {
         ? `Presentación: ${item.presentationLabel}`
         : `Presentación: Unidad`;
 
-    clone.querySelector("[data-presentation_label]").innerHTML = presLabel;
+    clone.querySelector("[data-presentation_label]").textContent = presLabel;
 
     /*
      * Requiere agregar este elemento al template:
@@ -1360,17 +1377,18 @@ function refreshVueltoSubtypeUI() {
 
 function mostrarPopupTrabajador(doneCallback) {
     // construir options
-    let optionsHtml = '<option value="">Seleccione trabajador...</option>';
+    if (!(window.PV_WORKERS || []).length) { window.PV_SELECTED_WORKER_ID = null; doneCallback(); return; }
+    let optionsHtml = '<option value="">Sin selección adicional (opcional)</option>';
     (window.PV_WORKERS || []).forEach(function (w) {
-        optionsHtml += '<option value="'+w.id+'">'+w.name+'</option>';
+        optionsHtml += '<option value="'+w.id+'">'+$('<div>').text(w.name).html()+'</option>';
     });
 
     $.confirm({
-        title: 'Asignar trabajador',
+        title: 'Trabajador (opcional)',
         content:
             '<form>' +
             '<div class="form-group">' +
-            '<label>Seleccione el trabajador que cerrará la venta</label>' +
+            '<label>Trabajador que atiende la venta (opcional)</label>' +
             '<select id="pv-worker-select" class="form-control">' +
             optionsHtml +
             '</select>' +
@@ -1383,10 +1401,6 @@ function mostrarPopupTrabajador(doneCallback) {
                 btnClass: 'btn-primary',
                 action: function () {
                     var workerId = this.$content.find('#pv-worker-select').val();
-                    if (!workerId) {
-                        $.alert('Debe seleccionar un trabajador.');
-                        return false; // mantiene el popup abierto
-                    }
 
                     window.PV_SELECTED_WORKER_ID = workerId;
 
@@ -1566,7 +1580,9 @@ function guardarVenta() {
                     form.append('total_gravada', $fin_total_gravada);
                     form.append('total_descuentos', $fin_total_descuentos);
                     form.append('total_importe', $fin_total_importe);
-                    form.append('total_vuelto', $fin_vuelto);
+                    const submittedChange = !pagosParcialesVenta && $('#pv_cash_box_id option:selected').data('type') === 'cash'
+                        ? Number($('#vuelto').val() || 0) : 0;
+                    form.append('total_vuelto', submittedChange.toFixed(2));
                     /*form.append('type_vuelto', $type_vuelto);
                     form.append('tipo_pago', tipo_pago);*/
                     // ⬇️ NUEVO: worker elegido (si no hay, va vacío)
@@ -1578,6 +1594,11 @@ function guardarVenta() {
                     form.append('vuelto_cash_box_subtype_id', pagosParcialesVenta ? '' : ($('#pv_vuelto_subtype_id').val() || ''));
 
                     form.append('pagos_parciales_venta', pagosParcialesVenta ? 's' : 'n');
+                    const priceContext = document.getElementById('pos-catalog-context').dataset;
+                    form.append('pos_price_list_id', priceContext.priceList || '');
+                    form.append('pos_request_key', priceContext.requestKey);
+                    form.append('pos_currency', priceContext.currency);
+                    ['tenant','company','branch'].forEach(function (key) { form.append('material_inventory_'+key, priceContext[key]); });
 
                     const tipoComprobante = $('input[name="invoice_type"]:checked').val();
 
@@ -1621,6 +1642,9 @@ function guardarVenta() {
                         contentType: false,
                         success: function (data) {
                             console.log(data);
+                            if (data.warnings && data.warnings.length) {
+                                $.alert({title:'Venta registrada: revisar avisos',content:$('<div>').text(data.warnings.join(' ')).html(),type:'orange'});
+                            }
                             toastr.success(data.message, 'Éxito', {
                                 "closeButton": true,
                                 "progressBar": true,
@@ -1785,10 +1809,10 @@ function changeStringPrice(itemKey, quantity) {
 
     if (result.presentationId) {
         // paquetes
-        return `<strong>${quantity}</strong> paquetes (${result.presentationQty} u) a S/. ${parseFloat(result.productPrice).toFixed(2)} / paquete`;
+        return `<strong>${quantity}</strong> paquetes (${result.presentationQty} u) a ${window.POS_CURRENCY === 'USD' ? 'US$ ' : 'S/. '}${parseFloat(result.productPrice).toFixed(2)} / paquete`;
     } else {
         // unidad
-        return `<strong>${quantity}</strong> ${result.productUnit} a S/. ${parseFloat(result.productPrice).toFixed(2)} / unidad`;
+        return `<strong>${quantity}</strong> ${result.productUnit} a ${window.POS_CURRENCY === 'USD' ? 'US$ ' : 'S/. '}${parseFloat(result.productPrice).toFixed(2)} / unidad`;
     }
 }
 
@@ -1845,138 +1869,34 @@ function incrementQuantity(button) {
 }
 
 function updateTotalOrder() {
-    /*
-    * OP. Exonerada:
-- suma de los precios con taxes = 0 o null
-OP. Inafecta
-OP. Gravada:
-- suma ((precios con taxes * cantidad != 0 o != null menos descuentos) dividir entre el 1+porcentaje)
-IGV:
-- suma ((precios con taxes * cantidad != 0 o != null menos descuentos))  menos OP. Gravada
-Descuentos:
-- suma de los productos con descuentos
-Importe Total:
-- OP. Exonerada + OP. Inafecta + OP. Gravada + IGV
-    * */
-    console.log($items);
-    var total_exonerada = 0;
-    var total_gravada = 0;
-    var total_igv = 0;
-    var total_descuentos = 0;
-    var total_importe = 0;
-    var total_igv_bruto=0;
-    for ( let i = 0; i < $items.length; i++ )
-    {
-        if ( $items[i].productTax == 0 )
-        {
-            total_exonerada = total_exonerada + parseFloat($items[i].productTotal);
-        }
-
-        if ( $items[i].productTax != 0 )
-        {
-            total_gravada = total_gravada + (($items[i].productTotal-$items[i].productDiscount)/(1+($items[i].productTax/100)));
-        }
-
-        if ( $items[i].productTax != 0 )
-        {
-            total_igv_bruto = total_igv_bruto + ($items[i].productTotal-$items[i].productDiscount);
-        }
-
-        total_igv = total_igv_bruto-total_gravada;
-
-        if ( $items[i].productDiscount != 0 )
-        {
-            total_descuentos = total_descuentos + $items[i].productDiscount;
-        }
-
-        console.log("Total exonerada "+total_exonerada);
-        console.log("Total gravada "+total_gravada);
-        console.log("Total igv "+total_igv);
-        console.log("Total descuentos "+total_descuentos);
-
-
-    }
-
-    //console.log(total_importe);
-    total_importe=total_importe+total_exonerada+total_gravada+total_igv;
-    // Actualizar los datos
-
-    $fin_total_exonerada = total_exonerada;
-    $fin_total_igv = total_igv;
-    $fin_total_gravada = total_gravada;
-    $fin_total_descuentos = total_descuentos;
-    $fin_total_importe = total_importe;
-
-    console.log("Total exonerada "+$fin_total_exonerada);
-    console.log("Total gravada "+$fin_total_gravada);
-    console.log("Total igv "+$fin_total_igv);
-    console.log("Total descuentos "+$fin_total_descuentos);
-    console.log("Total importe "+$fin_total_importe);
-
-    $("#op_exonerada").html("S/. "+parseFloat($fin_total_exonerada).toFixed(2));
-    //$("#op_inafecta").html("S/. "+parseFloat(op_exonerada).toFixed(2));
-    $("#op_gravada").html("S/. "+parseFloat($fin_total_gravada).toFixed(2));
-    $("#total_igv").html("S/. "+parseFloat($fin_total_igv).toFixed(2));
-    $("#total_descuentos").html("S/. "+parseFloat($fin_total_descuentos).toFixed(2));
-    $("#total_importe").html("S/. "+parseFloat($fin_total_importe).toFixed(2));
-
-
+    const cents={gravada:0n,exonerada:0n,inafecta:0n,igv:0n,total:0n};
+    const fixed4=value=>{
+        const number=Number(value);
+        return !Number.isFinite(number)||number<0||number>=1e21?0n:BigInt(number.toFixed(4).replace('.',''));
+    };
+    $items.forEach(function(item){
+        item.productDiscount=0;
+        const gross=(fixed4(item.productPrice)*fixed4(item.productQuantity)+500000n)/1000000n;
+        item.productTotal=(Number(gross)/100).toFixed(2);
+        const rate=Number(item.productTax);
+        const kind=(window.POS_TAX_KIND_BY_STOCK||{})[item.productId]||(rate>0?'gravada':'exonerada');
+        const divisor=1000000n+fixed4(rate);
+        const net=kind==='gravada'?(gross*1000000n+divisor/2n)/divisor:gross;
+        cents[kind]+=net;cents.igv+=gross-net;cents.total+=gross;
+    });
+    const values={};Object.keys(cents).forEach(key=>values[key]=Number(cents[key])/100);
+    $fin_total_exonerada=values.exonerada;$fin_total_gravada=values.gravada;$fin_total_igv=values.igv;
+    $fin_total_descuentos=0;$fin_total_importe=values.total;
+    const symbol=window.POS_CURRENCY==='USD'?'US$ ':'S/. ';
+    $('#op_exonerada').text(symbol+values.exonerada.toFixed(2));
+    $('#op_inafecta').text(symbol+values.inafecta.toFixed(2));
+    $('#op_gravada').text(symbol+values.gravada.toFixed(2));
+    $('#total_igv').text(symbol+values.igv.toFixed(2));
+    $('#total_descuentos').text(symbol+'0.00');$('#total_importe').text(symbol+values.total.toFixed(2));
 }
 
 function getDiscountMaterial(product_id, quantity) {
-    return $.get('/dashboard/get/discount/product/' + product_id, {
-        quantity: quantity
-    }).then(function(data) {
-        console.log(data.data[0].haveDiscount);
-        if (data.data[0].haveDiscount == true) {
-            console.log(data);
-            var existingProduct = $items.find(item => item.productId == product_id);
-            existingProduct.productDiscount = data.data[0].valueDiscount;
-            return data.data[0];
-        } else {
-            return -1;
-        }
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-    });
+    return $.Deferred().resolve(-1).promise();
 }
 
 function addProductCartO() {
@@ -2181,7 +2101,7 @@ function addProductToCart(productData) {
             );
         } else {
             toastr.error(
-                `El producto ${productData.productName} (${productData.presentationLabel}) ya está agregado. Use + / - para modificar.`,
+                `El producto ${productData.productName} (${posEscapePresentation(productData.presentationLabel)}) ya está agregado. Use + / - para modificar.`,
                 'Error',
                 { closeButton: true }
             );
@@ -2190,7 +2110,17 @@ function addProductToCart(productData) {
         return false;
     }
 
-    const quantityVisible = parseFloat(productData.presentationQty || 1);
+    // Keep packs sold separate from physical units in each package.
+    const quantityVisible = Number(productData.productQuantity
+        ?? (productData.presentationId ? 1 : (productData.unitsEquivalent ?? 1)));
+    const unitsPerPack = productData.presentationId ? Number(productData.presentationQty) : 1;
+    const unitsEquivalent = quantityVisible * unitsPerPack;
+    if (!Number.isFinite(quantityVisible) || !Number.isFinite(unitsPerPack) || quantityVisible <= 0
+        || unitsPerPack <= 0 || (productData.presentationId && (!Number.isInteger(quantityVisible) || !Number.isInteger(unitsPerPack)))
+        || (isItemeable && (!Number.isInteger(unitsEquivalent) || selectedItemIds.length !== unitsEquivalent))) {
+        toastr.error('Revise la cantidad de paquetes, sus unidades y los Items seleccionados.', 'Cantidad inválida');
+        return false;
+    }
     const priceEffective = parseFloat(productData.productPrice || 0);
     const productTax = parseFloat(productData.productTax || 0);
 
@@ -2207,7 +2137,7 @@ function addProductToCart(productData) {
         materialId: parseInt(productData.materialId),
 
         presentationId: productData.presentationId || null,
-        presentationQty: quantityVisible,
+        presentationQty: unitsPerPack,
         presentationLabel: productData.presentationLabel || 'Unidad',
 
         priceEffective: priceEffective,
@@ -2226,7 +2156,7 @@ function addProductToCart(productData) {
         ).toFixed(2),
 
         productQuantity: quantityVisible,
-        unitsEquivalent: parseFloat(productData.unitsEquivalent || quantityVisible),
+        unitsEquivalent: unitsEquivalent,
 
         productDiscount: 0,
         productType: productData.productType,
@@ -2347,75 +2277,26 @@ function renderDataTableEmptyNew() {
 }
 
 function renderDataTableNew(data) {
-    var dataAccounting = data.data;
-    var pagination = data.pagination;
-
-    // Limpiar contenido anterior
-    $("#body-card").html('');
-    $("#pagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' productos.');
-
-    var table = `
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Imagen</th>
-                        <th>Nombre</th>
-                        <th>Precio</th>
-                        <th>Unidad</th>
-                        <th>Impuesto</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    // Agregar las filas de datos
-    for (let j = 0; j < dataAccounting.length; j++) {
-        table += `
-            <tr>
-                <td><img src="${document.location.origin}/images/material/${dataAccounting[j].image}" width="50"></td>
-                <td>${dataAccounting[j].full_name}</td>
-                <td>${dataAccounting[j].price}</td>
-                <td>${dataAccounting[j].unit}</td>
-                <td>${dataAccounting[j].tax}</td>
-                <td>
-                    <button class="btn btn-primary btn-sm add-to-cart" 
-                        data-add_cart
-                        data-product_id="${dataAccounting[j].id}" 
-                        data-product_price="${dataAccounting[j].price}" 
-                        data-product_name="${dataAccounting[j].full_name}" 
-                        data-product_unit="${dataAccounting[j].unit}" 
-                        data-product_tax="${dataAccounting[j].tax}">
-                        ADD TO CART
-                    </button>
-                    <button class="btn btn-success btn-sm add-to-cart" 
-                        data-add_cart_special
-                        data-product_id="${dataAccounting[j].id}" 
-                        data-product_price="${dataAccounting[j].price}" 
-                        data-product_name="${dataAccounting[j].full_name}" 
-                        data-product_unit="${dataAccounting[j].unit}" 
-                        data-product_tax="${dataAccounting[j].tax}"
-                        data-product_type="${dataAccounting[j].type}">
-                        ADD ESPECIAL
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
-
-    // Cerrar la tabla y el div
-    table += `
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    // Insertar la tabla en el contenedor
-    $("#body-card").append(table);
-
-    renderPaginationNew(pagination);
+    $('#body-card, #pagination').empty();
+    var p = data.pagination;
+    $('#textPagination').text('Mostrando '+p.startRecord+' a '+p.endRecord+' de '+p.totalFilteredRecords+' productos.');
+    var table = $('<table class="table table-bordered table-striped"><thead><tr><th>Imagen</th><th>Nombre</th><th>Precio</th><th>Unidad</th><th>Impuesto</th><th>Acción</th></tr></thead><tbody></tbody></table>');
+    data.data.forEach(function (item) {
+        var row = $('<tr>');
+        $('<td>').append($('<img width="50" alt="">').attr('src', item.image_url || '')).appendTo(row);
+        $('<td>').text(item.full_name).appendTo(row);
+        $('<td data-price>').text(item.price).appendTo(row);
+        $('<td>').text(item.unit).appendTo(row);
+        $('<td>').text(item.tax).appendTo(row);
+        var actions = $('<td>').appendTo(row);
+        $('<button type="button" class="btn btn-primary btn-sm" data-add_cart>ADD TO CART</button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
+        $('<button type="button" class="btn btn-success btn-sm" data-add_cart_special>AGREGAR CARRITO</button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
+        $('<button type="button" class="btn btn-outline-info btn-sm mt-2" data-pos-stock title="Consultar existencias en otros almacenes"><i class="fas fa-search"></i> Consultar stock</button>').appendTo(actions);
+        window.posCatalogPrepareProduct(row[0], item);
+        table.find('tbody').append(row);
+    });
+    $('#body-card').append($('<div class="table-responsive">').append(table));
+    renderPaginationNew(p);
 }
 
 function renderPaginationNew(pagination) {
@@ -2658,6 +2539,7 @@ function renderDataCard(data) {
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_sku", data.sku || '');
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_barcode", data.barcode || '');
 
+    window.posCatalogPrepareProduct(clone, data);
     $("#body-card").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();

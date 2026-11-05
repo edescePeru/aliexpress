@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Genero;
 use App\Http\Requests\DeleteGeneroRequest;
+use App\Http\Requests\DeleteMultipleGenerosRequest;
 use App\Http\Requests\StoreGeneroRequest;
 use App\Http\Requests\UpdateGeneroRequest;
 use App\Material;
+use App\Services\Materials\DeleteGeneros;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -173,62 +175,29 @@ class GeneroController extends Controller
     }
 
 
-    public function destroy(
-        DeleteGeneroRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $genero =
-            Genero::findOrFail(
-                $validated['genero_id']
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'genero_id',
-                    $genero->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el género porque está siendo utilizado por uno o más materiales.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteGeneroRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $genero->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteGeneros::class)->delete(
+                [$validated['genero_id']],
+                'genero_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el género.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el género.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Género eliminado con éxito.',
+            'message' => 'Género eliminado con éxito.',
         ], 200);
     }
 
@@ -257,105 +226,29 @@ class GeneroController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        /*
-         * IDs de otros tenants son filtrados
-         * automáticamente por TenantScope.
-         */
-        $generos =
-            Genero::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $generoIds =
-            $generos
-                ->pluck('id');
-
-        $usedGeneroIds =
-            Material::query()
-                ->whereIn(
-                    'genero_id',
-                    $generoIds
-                )
-                ->pluck(
-                    'genero_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedGeneroIds->isNotEmpty()) {
-
-            $usedNames =
-                $generos
-                    ->whereIn(
-                        'id',
-                        $usedGeneroIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los géneros porque están siendo utilizados por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleGenerosRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $generos
-                as $genero
-            ) {
-                $genero->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteGeneros::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los géneros.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los géneros.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Géneros eliminados correctamente.',
-        ]);
+            'message' => 'Géneros eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

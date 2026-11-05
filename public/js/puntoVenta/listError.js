@@ -66,7 +66,7 @@ $(document).ready(function () {
 
     $(document).on('click', '[data-imprimir_comprobante]', function () {
         const orderId = $(this).data('order-id');
-        window.open(`/factura/imprimir/${orderId}`, '_blank');
+        window.open(`/dashboard/imprimir/documento/venta/${orderId}`, '_blank');
     });*/
 
     $(document).on('click', '[data-facturador]', function () {
@@ -1658,6 +1658,7 @@ function renderDataTableEmpty() {
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
 
+    clone.querySelector("[data-created_by_name]").textContent = data.created_by_name || "No registrado";
     clone.querySelector("[data-code]").innerHTML = escapeHtml(data.code);
     clone.querySelector("[data-date]").innerHTML = escapeHtml(data.date);
 

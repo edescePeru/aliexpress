@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Color;
 use App\Http\Requests\DeleteColorRequest;
+use App\Http\Requests\DeleteMultipleColorsRequest;
 use App\Http\Requests\StoreColorRequest;
 use App\Http\Requests\UpdateColorRequest;
+use App\Services\Materials\DeleteColors;
 use App\Variant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -163,62 +165,29 @@ class ColorController extends Controller
     }
 
 
-    public function destroy(
-        DeleteColorRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $color =
-            Color::findOrFail(
-                $validated['color_id']
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN VARIANT
-         * =========================================================
-         */
-
-        $hasVariants =
-            Variant::query()
-                ->where(
-                    'color_id',
-                    $color->id
-                )
-                ->exists();
-
-        if ($hasVariants) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el color porque está siendo utilizado por una o más variantes.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteColorRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $color->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteColors::class)->delete(
+                [$validated['color_id']],
+                'color_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el color.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el color.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Color eliminado con éxito.',
+            'message' => 'Color eliminado con éxito.',
         ], 200);
     }
 
@@ -313,101 +282,29 @@ class ColorController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        $colors =
-            Color::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN VARIANT
-         * =========================================================
-         */
-
-        $colorIds =
-            $colors
-                ->pluck('id');
-
-        $usedColorIds =
-            Variant::query()
-                ->whereIn(
-                    'color_id',
-                    $colorIds
-                )
-                ->pluck(
-                    'color_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedColorIds->isNotEmpty()) {
-
-            $usedNames =
-                $colors
-                    ->whereIn(
-                        'id',
-                        $usedColorIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los colores porque están siendo utilizados por variantes: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleColorsRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $colors
-                as $color
-            ) {
-                $color->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteColors::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los colores.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los colores.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Colores eliminados correctamente.',
-        ]);
+            'message' => 'Colores eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

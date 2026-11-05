@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\Auth;
+use App\Support\TenantContext;
 
 class EnsurePlatformAdmin
 {
@@ -35,6 +36,7 @@ class EnsurePlatformAdmin
          * histórica. Esa integridad la validaremos
          * administrativamente.
          */
+        TenantContext::clear();
 
         return $next($request);
     }

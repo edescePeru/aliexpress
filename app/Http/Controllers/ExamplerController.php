@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Brand;
 use App\Exampler;
 use App\Http\Requests\DeleteExamplerRequest;
+use App\Http\Requests\DeleteMultipleExamplersRequest;
 use App\Http\Requests\StoreExamplerRequest;
 use App\Http\Requests\UpdateExamplerRequest;
 use App\Material;
+use App\Services\Materials\DeleteExamplers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -161,64 +163,29 @@ class ExamplerController extends Controller
     }
 
 
-    public function destroy(
-        DeleteExamplerRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $exampler =
-            Exampler::findOrFail(
-                $validated[
-                'exampler_id'
-                ]
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'exampler_id',
-                    $exampler->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el modelo porque está siendo utilizado por uno o más materiales.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteExamplerRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $exampler->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteExamplers::class)->delete(
+                [$validated['exampler_id']],
+                'exampler_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el modelo.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el modelo.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Modelo eliminado con éxito.',
+            'message' => 'Modelo eliminado con éxito.',
         ], 200);
     }
 
@@ -286,105 +253,29 @@ class ExamplerController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        /*
-         * TenantScope filtra automáticamente
-         * IDs pertenecientes a otros tenants.
-         */
-        $examplers =
-            Exampler::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $examplerIds =
-            $examplers
-                ->pluck('id');
-
-        $usedExamplerIds =
-            Material::query()
-                ->whereIn(
-                    'exampler_id',
-                    $examplerIds
-                )
-                ->pluck(
-                    'exampler_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedExamplerIds->isNotEmpty()) {
-
-            $usedNames =
-                $examplers
-                    ->whereIn(
-                        'id',
-                        $usedExamplerIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los modelos porque están siendo utilizados por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleExamplersRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $examplers
-                as $exampler
-            ) {
-                $exampler->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteExamplers::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los modelos.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los modelos.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Modelos eliminados correctamente.',
-        ]);
+            'message' => 'Modelos eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

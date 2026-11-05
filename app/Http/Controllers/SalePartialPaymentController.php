@@ -102,7 +102,7 @@ class SalePartialPaymentController extends Controller
             $cashBoxId = $request->input('cash_box_id');
             $subtypeId = $request->input('cash_box_subtype_id');
 
-            $cashRegister = CashRegister::where('cash_box_id', $cashBoxId)
+            $cashRegister = CashRegister::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->where('branch_id', \App\Support\TenantContext::branchId())->where('cash_box_id', $cashBoxId)
                 ->where('user_id', Auth::id())
                 ->where('status', 1)
                 ->latest()
@@ -125,7 +125,7 @@ class SalePartialPaymentController extends Controller
                     throw new \Exception('Debe seleccionar el subtipo bancario (Yape/Plin/POS/Transfer).');
                 }
 
-                $subtype = CashBoxSubtype::whereNull('cash_box_id')
+                $subtype = app(\App\Services\Sales\SaleListAccess::class)->subtypes()->where(function ($q) use ($cashBoxId) { $q->whereNull('cash_box_id')->orWhere('cash_box_id', $cashBoxId); })
                     ->where('is_active', 1)
                     ->where('id', (int)$subtypeId)
                     ->first();
@@ -140,6 +140,11 @@ class SalePartialPaymentController extends Controller
             }
 
             $movement = CashMovement::create([
+                'cash_box_id' => $cashBoxId,
+                'tenant_id' => \App\Support\TenantContext::tenantId(),
+                'company_id' => \App\Support\TenantContext::companyId(),
+                'branch_id' => \App\Support\TenantContext::branchId(),
+                'user_id' => Auth::id(),
                 'cash_register_id' => $cashRegister->id,
                 'type' => 'sale',
                 'amount' => $amount,
@@ -157,6 +162,9 @@ class SalePartialPaymentController extends Controller
             }
 
             $payment = SalePartialPayment::create([
+                'tenant_id' => \App\Support\TenantContext::tenantId(),
+                'company_id' => \App\Support\TenantContext::companyId(),
+                'branch_id' => \App\Support\TenantContext::branchId(),
                 'sale_id' => $sale->id,
                 'cash_movement_id' => $movement->id,
                 'user_id' => Auth::id(),
@@ -216,6 +224,11 @@ class SalePartialPaymentController extends Controller
                 $amountToReverse = (float) ($movement->amount_regularize ?? $movement->amount ?? 0);
 
                 CashMovement::create([
+                    'cash_box_id' => $movement->cash_box_id,
+                'tenant_id' => \App\Support\TenantContext::tenantId(),
+                'company_id' => \App\Support\TenantContext::companyId(),
+                'branch_id' => \App\Support\TenantContext::branchId(),
+                'user_id' => Auth::id(),
                     'cash_register_id'    => $movement->cash_register_id,
                     'sale_id'             => $sale->id,
                     'type'                => 'expense',

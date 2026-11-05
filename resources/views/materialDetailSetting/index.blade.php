@@ -50,11 +50,19 @@
 @endsection
 
 @section('content')
+    @if($configurationMissing)
+        <div class="alert alert-warning" role="alert">Esta empresa necesita guardar su configuración. La unidad de medida es obligatoria; las demás secciones son opcionales.</div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">@foreach($errors->all() as $error)<p class="mb-0">{{ $error }}</p>@endforeach</div>
+    @endif
     @if(session('success'))
         <div class="alert alert-success" role="status">{{ session('success') }}</div>
     @endif
 
     @php
+        $parameterSelection = old('enabled_sections', $enabled);
+        $parameterSelection = is_array($parameterSelection) ? $parameterSelection : $enabled;
         $parameterGroups = [
             [
                 'number' => '01',
@@ -100,6 +108,7 @@
 
     <form id="material-detail-settings-form" method="POST" action="{{ route('settings.material-details.store') }}">
         @csrf
+        @include('materialDetailSetting._context')
 
         @foreach($parameterGroups as $group)
             <section class="next-form-section" aria-labelledby="material-parameters-{{ $group['number'] }}">
@@ -120,6 +129,9 @@
                             @endphp
                             <div class="col-md-6 col-xl-4 mb-3">
                                 <div class="custom-control custom-switch">
+                                    @if($key === 'unit_measure')
+                                        <input type="hidden" name="enabled_sections[]" value="unit_measure">
+                                    @endif
                                     <input
                                         type="checkbox"
                                         class="custom-control-input"
@@ -127,9 +139,9 @@
                                         name="enabled_sections[]"
                                         value="{{ $key }}"
                                         @if($helperId) aria-describedby="{{ $helperId }}" @endif
-                                        {{ in_array($key, $enabled, true) ? 'checked' : '' }}>
+                                        @if($key === 'unit_measure') checked disabled aria-disabled="true" @else {{ in_array($key, $parameterSelection, true) ? 'checked' : '' }} @endif>
                                     <label class="custom-control-label" for="{{ $inputId }}">
-                                        {{ $sections[$key]['label'] }}
+                                        {{ $sections[$key]['label'] }} @if($key === 'unit_measure')<span class="text-muted">(obligatoria)</span>@endif
                                     </label>
                                 </div>
                                 @if($helperId)

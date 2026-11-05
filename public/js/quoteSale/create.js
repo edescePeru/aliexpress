@@ -934,13 +934,13 @@ function renderPresentationsInModalConsumable(
                     data-pres-id="${presentation.id}"
                     data-pres-qty="${quantity}"
                     data-pres-price="${price}"
-                    data-pres-label="${label}"
+                    data-pres-label="${escapePresentationName(label)}"
                 >
 
                     <td>
 
                         <strong>
-                            ${label}
+                            ${escapePresentationName(label)}
                         </strong>
 
                         <div
@@ -5156,4 +5156,9 @@ function escapeHtml(
             /'/g,
             '&#039;'
         );
+}
+
+function escapePresentationName(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

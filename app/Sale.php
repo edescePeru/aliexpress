@@ -11,6 +11,7 @@ class Sale extends Model
     use BelongsToTenant;
 
     protected $fillable = [
+        'pos_request_key',
         'tenant_id',
         'company_id',
         'branch_id',

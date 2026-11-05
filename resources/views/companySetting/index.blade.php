@@ -25,8 +25,10 @@
 @endsection
 
 @section('content')
-    <form action="{{ route('companySetting.update') }}" method="POST" id="company-setting-form">
+    <form action="{{ route('companySetting.update') }}" method="POST" id="company-setting-form" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="settings_context_tenant" value="{{ \App\Support\TenantContext::tenantId() }}">
+        <input type="hidden" name="settings_context_company" value="{{ \App\Support\TenantContext::companyId() }}">
 
         <div class="card-body">
 
@@ -102,7 +104,26 @@
                                 <div class="col-md-7">
 
                                     {{-- BOOLEAN --}}
-                                    @if($definition->value_type === 'boolean')
+                                    @if($definition->is_image_upload)
+                                        <div data-setting-image-wrapper="{{ $definition->id }}">
+                                            <input type="file" class="form-control-file" id="{{ $fieldId }}"
+                                                   name="setting_images[{{ $definition->id }}]"
+                                                   accept="image/png,image/jpeg,image/webp" data-setting-image-input>
+                                            <small class="form-text text-muted">
+                                                PNG, JPG o WebP, máximo 2 MB. Si no seleccionas otra imagen, se conserva la actual.
+                                            </small>
+                                            <div class="mt-2">
+                                                <img @if($definition->image_preview_url) src="{{ $definition->image_preview_url }}" @endif
+                                                     data-current-src="{{ $definition->image_preview_url }}"
+                                                     data-setting-image-preview
+                                                     class="img-fluid img-thumbnail {{ $definition->image_preview_url ? '' : 'd-none' }}"
+                                                     width="180" alt="Vista previa de {{ $definition->label }}">
+                                                <small class="form-text text-muted" data-setting-image-status>
+                                                    {{ $definition->image_preview_url ? 'Imagen actual' : 'Sin imagen configurada' }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    @elseif($definition->value_type === 'boolean')
 
                                         <input
                                                 type="hidden"

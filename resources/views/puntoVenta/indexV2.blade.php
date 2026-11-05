@@ -461,6 +461,7 @@
 @endsection
 
 @section('content')
+    @include('puntoVenta._catalogContext')
     <form id="formCreate" class="form-horizontal" data-url="{{ route('puntoVenta.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
@@ -565,7 +566,7 @@
                                                     <option value="">Seleccione subtipo...</option>
                                                     @foreach($subtypes as $st)
                                                         <option value="{{ $st->id }}"
-                                                                data-is_deferred="{{ $st->is_deferred ? 1 : 0 }}">
+                                                                data-cash-box-id="{{ $st->cash_box_id }}" data-is_deferred="{{ $st->is_deferred ? 1 : 0 }}">
                                                             {{ $st->name }}
                                                         </option>
                                                     @endforeach
@@ -757,6 +758,10 @@
                                     <div class="input-group-append">
                                         <button type="button" id="btn_search" class="btn btn-primary">
                                             <i class="fas fa-search"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" data-pos-stock-search
+                                                title="Buscar en otras sucursales" aria-label="Buscar en otras sucursales" data-placement="top">
+                                            <i class="fas fa-search-location" aria-hidden="true"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -1296,6 +1301,7 @@
             </div>
         </div>
     </div>
+    @include('puntoVenta._stockLookup')
 @endsection
 
 @section('plugins')
@@ -1336,7 +1342,7 @@
         window.APP_POS_V2.URLS = window.APP_POS_V2.URLS || {};
 
         window.APP_POS_V2.URLS.AVAILABLE_ITEMS =
-            "{{ route('quotes.stock-items.available-items', ':stockItemId') }}";
+            "{{ route('pos.items.available', ':stockItemId') }}";
         // lista simple de trabajadores para el popup
         window.PV_WORKERS = @json(
             $workers->map(function($w){
@@ -1351,6 +1357,8 @@
         window.PV_SELECTED_WORKER_ID = null;
     </script>
 
+    <script src="{{ asset('js/puntoVenta/catalog-stock.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/puntoVenta/checkout-context.js') }}?v={{ time() }}"></script>
     <script src="{{ asset('js/puntoVenta/indexV2.js') }}?v={{ time() }}"></script>
 
 @endsection

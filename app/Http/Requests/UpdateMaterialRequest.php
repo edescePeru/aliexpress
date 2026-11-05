@@ -29,7 +29,7 @@ class UpdateMaterialRequest extends FormRequest
         $tenantId =
             TenantContext::tenantId();
 
-        return [
+        $rules = [
 
             /*
              * ========================================================
@@ -390,12 +390,24 @@ class UpdateMaterialRequest extends FormRequest
                 }),
             ],
         ];
+        return app(\App\Services\Materials\MaterialParameters::class)
+            ->rules($this, $rules, true);
     }
 
 
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            if ($validator->errors()->any()) { return; }
+            try {
+                app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($this);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                foreach ($e->errors() as $key => $messages) {
+                    foreach ($messages as $message) { $validator->errors()->add($key, $message); }
+                }
+                return;
+            }
+
 
             $tenantId =
                 TenantContext::tenantId();
@@ -431,6 +443,9 @@ class UpdateMaterialRequest extends FormRequest
             if (!$material) {
                 return;
             }
+            app(\App\Services\Materials\MaterialParameters::class)->validateForm($validator, $this, $material);
+            if ($validator->errors()->any()) { return; }
+
 
             /*
              * ========================================================
@@ -1581,7 +1596,7 @@ class UpdateMaterialRequest extends FormRequest
                      */
 
                     $warehouse =
-                        Warehouse::query()
+                        app(\App\Services\Materials\MaterialInventoryScope::class)->warehouses(Warehouse::query())
                             ->where(
                                 'id',
                                 $warehouseId
@@ -1628,7 +1643,7 @@ class UpdateMaterialRequest extends FormRequest
 
 
                     $inventoryLevel =
-                        InventoryLevel::query()
+                        app(\App\Services\Materials\MaterialInventoryScope::class)->levels(InventoryLevel::query())
                             ->where(
                                 'id',
                                 $inventoryLevelId

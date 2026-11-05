@@ -21,6 +21,9 @@ class UpdateTenantBranchRequest extends FormRequest
         $companyId = (int) $this->input('company_id');
 
         return [
+            'price_list_id' => ['nullable', 'integer', Rule::exists('price_lists', 'id')->where(function ($q) use ($tenantId, $companyId) {
+                $q->where('tenant_id', $tenantId)->where('company_id', $companyId)->where('is_active', true);
+            })],
             'company_id' => [
                 'required',
 
@@ -71,6 +74,7 @@ class UpdateTenantBranchRequest extends FormRequest
     public function messages()
     {
         return [
+            'price_list_id.exists' => 'Seleccione una lista activa de la misma empresa.',
             'company_id.required' =>
                 'La empresa es obligatoria.',
 

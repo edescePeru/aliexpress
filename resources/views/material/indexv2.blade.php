@@ -41,9 +41,11 @@
             <span>Consulta, filtra y administra el catálogo operativo.</span>
         </div>
         <div class="next-toolbar-actions">
+            @if($showStockAlerts)
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-resumen-stock">
                 <i class="fas fa-chart-bar mr-1" aria-hidden="true"></i> Ver resumen de stock
             </button>
+            @endif
             @can('create_material')
                 <a href="{{ route('material.create') }}" class="btn btn-primary btn-sm">
                     <i class="fa fa-plus mr-1" aria-hidden="true"></i> Nuevo material
@@ -63,8 +65,10 @@
 @endsection
 
 @section('content')
+    @include('material._inventoryContext')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <input type="hidden" id="hay-alertas" value="{{ $hayAlertas ? '1' : '0' }}">
+    <input type="hidden" id="stock-alert-popup" value="{{ $showStockPopup ? '1' : '0' }}">
     <section class="next-operational-list next-advanced-operational-list next-material-list" aria-label="Listado de materiales">
         <form action="#" class="next-list-toolbar">
             <div class="next-list-search-row">
@@ -97,7 +101,7 @@
                                     ['columnCodigo', 'codigo', 'Código', true],
                                     ['columnDescripcion', 'descripcion', 'Descripción', true],
                                     ['columnUnidadMedida', 'unidad_medida', 'Unidad de medida', in_array('unit_measure', $enabled, true)],
-                                    ['columnStockActual', 'stock_actual', 'Stock actual', true],
+                                    ['columnStockActual', 'stock_actual', 'Stock local', true],
                                     ['columnStockMin', 'stock_min', 'Stock mínimo', true],
                                     ['columnStockMax', 'stock_max', 'Stock máximo', true],
                                     ['columnCategoria', 'categoria', 'Categoría', in_array('category', $enabled, true)],
@@ -242,7 +246,7 @@
             <th class="text-center" data-column="codigo" data-codigo>Código</th>
             <th class="text-left" data-column="descripcion" data-descripcion>Descripcion</th>
             <th class="text-center" data-column="unidad_medida" data-unidad_medida>Unidad Medida</th>
-            <th class="text-center" data-column="stock_actual" data-stock_actual>Stock Actual</th>
+            <th class="text-center" data-column="stock_actual" data-stock_actual>Stock local</th>
             <th class="text-center" data-column="stock_min" data-stock_min>Stock Minimo</th>
             <th class="text-center" data-column="stock_max" data-stock_max>Stock Maximo</th>
             {{--<th data-column="precio_unitario" data-precio_unitario>Precio Costo</th>
@@ -617,7 +621,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalPresentacionesLabel">
-                        Gestionar presentaciones <span class="text-muted" id="mp-material-title"></span>
+                        Presentaciones del local <span class="text-muted" id="mp-material-title"></span>
                     </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
@@ -719,6 +723,7 @@
                                 <th>Ubicación</th>
                                 <th>Stock actual</th>
                                 <th>Reservado</th>
+                                    <th>Disponible</th>
                                 <th>Min</th>
                                 <th>Max</th>
                                 <th>Promedio</th>
@@ -759,12 +764,13 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
     <script type="text/template" id="tpl-mp-wrapper">
         <div class="mb-3 p-2 border rounded">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <strong>Nueva presentación</strong>
-                    <div class="text-muted" style="font-size:12px;">Agrega cantidad y precio. Ej: 12 unidades con descuento.</div>
+                    <strong>Presentaciones de <span id="mp-branch-name"></span> · <span id="mp-branch-currency"></span></strong>
+                    <div class="text-muted" style="font-size:12px;">El nombre es compartido entre los locales que usan esta presentación. El precio y la activación son de este local. La cantidad del paquete no se modifica.</div>
                 </div>
                 <button class="btn btn-sm btn-outline-secondary" data-mp-refresh>
                     <i class="fas fa-sync"></i> Recargar
@@ -772,17 +778,21 @@
             </div>
 
             <div class="form-row mt-2">
-                <div class="form-group col-md-4">
-                    <label class="mb-1">Cantidad</label>
-                    <input type="number" step="0.0001" min="0" class="form-control form-control-sm" data-mp-new-quantity>
+                <div class="form-group col-12">
+                    <label class="mb-1" for="mp-new-label">Nombre de la presentación</label>
+                    <input type="text" id="mp-new-label" class="form-control form-control-sm" maxlength="255" required placeholder="Ej.: Docena, Caja de 6, Paquete familiar" data-mp-new-label>
                 </div>
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Precio</label>
+                    <label class="mb-1">Cantidad</label>
+                    <input type="number" step="1" min="1" max="999999999" class="form-control form-control-sm" data-mp-new-quantity>
+                </div>
+                <div class="form-group col-md-4">
+                    <label class="mb-1">Precio del paquete en este local</label>
                     <input type="number" step="0.01" min="0" class="form-control form-control-sm" data-mp-new-price>
                 </div>
                 <div class="form-group col-md-4 d-flex align-items-end">
                     <button class="btn btn-success btn-sm w-100" data-mp-create>
-                        <i class="fas fa-plus"></i> Crear
+                        <i class="fas fa-plus"></i> Habilitar en este local
                     </button>
                 </div>
             </div>
@@ -794,13 +804,17 @@
     <script type="text/template" id="tpl-mp-row">
         <div class="p-2 border rounded mb-2 {row_class}" data-mp-row data-id="{id}" data-active="{active}">
             <div class="form-row">
+                <div class="form-group col-12">
+                    <label class="mb-1" for="mp-label-{id}">Nombre de la presentación (compartido)</label>
+                    <input type="text" id="mp-label-{id}" class="form-control form-control-sm" maxlength="255" required data-mp-label value="{label}" disabled>
+                </div>
                 <div class="form-group col-md-4">
                     <label class="mb-1">Cantidad</label>
                     <input type="number" step="1" min="1" class="form-control form-control-sm" data-mp-quantity value="{quantity}" disabled>
                 </div>
 
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Precio</label>
+                    <label class="mb-1">Precio del paquete en este local</label>
                     <input type="number" step="0.01" min="0" class="form-control form-control-sm" data-mp-price value="{price}" disabled>
                 </div>
 
@@ -823,7 +837,7 @@
                                 Cancelar
                             </button>
 
-                            <button class="btn {toggle_btn_class} btn-sm" data-mp-toggle>
+                            <button class="btn {toggle_btn_class} btn-sm" data-mp-toggle {toggle_disabled}>
                                 {toggle_text}
                             </button>
                         </div>
@@ -886,5 +900,6 @@
         window.materialInventoryLevelsUrl = "{{ route('material.inventory-levels', ':id') }}";
     </script>
     <script src="{{ asset('js/material/indexV2.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/material/presentations-branch.js') }}?v={{ time() }}"></script>
 
 @endsection

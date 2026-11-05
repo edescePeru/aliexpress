@@ -908,13 +908,15 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('materiales', 'MaterialController@index')->name('material.index')
             ->middleware('permission:list_material');
         Route::get('crear/material', 'MaterialController@create')->name('material.create')
-            ->middleware('permission:create_material');
+            ->middleware('permission:create_material')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':material');
         Route::post('material/store', 'MaterialController@store')->name('material.store')
-            ->middleware('permission:create_material');
+            ->middleware('permission:create_material')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':material');
         Route::get('editar/material/{id}', 'MaterialController@edit')->name('material.edit')
-            ->middleware('permission:update_material');
+            ->middleware('permission:update_material')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':form');
         Route::post('material/update', 'MaterialController@update')->name('material.update')
-            ->middleware('permission:update_material');
+            ->middleware('permission:update_material')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':form');
         Route::post('material/destroy', 'MaterialController@destroy')->name('material.destroy')
             ->middleware('permission:destroy_material');
         Route::get('/all/materials', 'MaterialController@getAllMaterials')->name('all.materials')
@@ -951,10 +953,12 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         // TODO: Listado de materiales version 2
         Route::get('/get/data/material/v2/{numberPage}', 'MaterialController@getDataMaterials')
-            ->middleware('permission:list_material');
+            ->middleware('permission:list_material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':endpoint');
         Route::get('/listado/materiales/v2', 'MaterialController@indexV2')
             ->name('material.indexV2')
-            ->middleware('permission:list_material');
+            ->middleware('permission:list_material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':form');
         Route::get('/enviar/material/a/tienda/{material_id}', 'MaterialController@sendMaterialToStore');
         Route::post('/traslado/guardar', 'MaterialController@guardarTraslado')->name('traslado.guardar');
         Route::get('/listado/materiales/tienda', 'MaterialController@indexMaterialStore')
@@ -971,12 +975,20 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 // Eliminar ubicación ocupada y devolver stock
         Route::post('/ubicaciones/eliminar-ocupada', 'MaterialController@eliminarUbicacionOcupada')->name('ubicaciones.eliminar');
 
-        Route::get('view/stock/material/items/{id}', 'MaterialController@getItemsStockItems')->name('material.stock.getItems');
-        Route::get('view/stock/material/all/items/{id}', 'MaterialController@getItemsStockItemsMaterial')->name('material.stock.getItemsMaterial');
+        Route::get('view/stock/material/items/{id}', 'MaterialController@getItemsStockItems')
+            ->name('material.stock.getItems')
+            ->middleware('permission:verItems_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':page');
+        Route::get('view/stock/material/all/items/{id}', 'MaterialController@getItemsStockItemsMaterial')
+            ->name('material.stock.getItemsMaterial')
+            ->middleware('permission:verItems_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':endpoint');
         Route::put(
             '/stock/material/item/{item}/code',
             'MaterialController@updateCode'
-        )->name('items.update.code')->middleware('permission:editarCodeItems_material');
+        )->name('items.update.code')
+            ->middleware('permission:editarCodeItems_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':endpoint');
 
         //AREAS
         Route::get('areas', 'AreaController@index')->name('area.index')
@@ -3161,30 +3173,42 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         // TODO: Rutas Punto de Venta
         Route::get('/crear/venta/V1', 'PuntoVentaController@index')
-            ->name('puntoVenta.index');
+            ->name('puntoVenta.index')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v1,page');
         Route::get('/crear/venta/V2', 'PuntoVentaController@indexV2')
-            ->name('puntoVenta.indexV2');
-        Route::get('/get/data/products/{page}', 'PuntoVentaController@getDataProducts');
-        Route::get('/get/data/products/v2/{page}', 'PuntoVentaController@getDataProductsV2');
+            ->name('puntoVenta.indexV2')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v2,page');
+        Route::get('/get/data/products/{page}', 'PuntoVentaController@getDataProducts')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v1');
+        Route::get('/get/data/products/v2/{page}', 'PuntoVentaController@getDataProductsV2')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v2');
         Route::get('/get/discount/product/{product_id}', 'PuntoVentaController@getDiscountProduct');
         Route::post('/store/venta/', 'PuntoVentaController@store')
-            ->name('puntoVenta.store');
+            ->name('puntoVenta.store')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':either');
         Route::get('imprimir/documento/venta/{id}', 'PuntoVentaController@printDocumentSale')
-            ->name('puntoVenta.print');
+            ->name('puntoVenta.print')->middleware(\App\Http\Middleware\SaleListGuard::class.':print,route,id');
         Route::get('/listado/ventas/', 'PuntoVentaController@listar')
-            ->name('puntoVenta.list');
-        Route::get('/get/data/sales/{page}', 'PuntoVentaController@getSalesAdmin');
-        Route::get('/sales/{orderId}/details', 'PuntoVentaController@getOrderDetails');
-        Route::post('/anular/order/{order}', 'PuntoVentaController@anularOrder');
+            ->name('puntoVenta.list')->middleware(\App\Http\Middleware\SaleListGuard::class.':read');
+        Route::get('/get/data/sales/{page}', 'PuntoVentaController@getSalesAdmin')->middleware(\App\Http\Middleware\SaleListGuard::class.':read');
+        Route::get('/sales/{orderId}/details', 'PuntoVentaController@getOrderDetails')->middleware(\App\Http\Middleware\SaleListGuard::class.':read,route,orderId');
+        Route::post('/anular/order/{order}', 'PuntoVentaController@anularOrder')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,order');
 
-        Route::post('/sales/update-invoice-data', 'PuntoVentaController@updateInvoiceData');
-        Route::post('/facturador/generar', 'NubefactController@generarComprobante')->name('facturador.generar');
+        Route::post('/sales/update-invoice-data', 'PuntoVentaController@updateInvoiceData')->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,input,order_id');
+        Route::post('/facturador/generar', 'NubefactController@generarComprobante')->name('facturador.generar')->middleware(\App\Http\Middleware\SaleListGuard::class.':emit,input,order_id');
 
         Route::get('/listado/ventas/error/', 'PuntoVentaController@listarErrors')
-            ->name('puntoVenta.listError');
-        Route::get('/get/data/sales/error/{page}', 'PuntoVentaController@getSalesErrorAdmin');
-        Route::post('/sales/errors/{id}/discard', 'PuntoVentaController@discardSunatError');
+            ->name('puntoVenta.listError')->middleware(\App\Http\Middleware\SaleListGuard::class.':errors');
+        Route::get('/get/data/sales/error/{page}', 'PuntoVentaController@getSalesErrorAdmin')->middleware(\App\Http\Middleware\SaleListGuard::class.':errors');
+        Route::post('/sales/errors/{id}/discard', 'PuntoVentaController@discardSunatError')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
         //get/data/products
+        Route::get('/pos/stock-items/{stockItemId}/items', 'PosSaleLookupController@items')
+            ->name('pos.items.available')->where('stockItemId','[1-9][0-9]*')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':either');
+        Route::get('/pos/materials/{materialId}/presentations', 'PosSaleLookupController@presentations')
+            ->name('pos.presentations')->where('materialId','[1-9][0-9]*')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':either');
+
 
         // TODO: Rutas Punto de Venta
         Route::get('/separar/paquetes/materiales', 'MaterialController@materialSeparatePack')
@@ -3469,31 +3493,24 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                     'material-details',
                     [MaterialDetailSettingController::class, 'index']
                 )->name('settings.material-details.index')
-                    ->middleware('permission:config_materialSetting');
+                    ->middleware('permission:config_materialSetting')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':settings');
 
                 Route::post(
                     'material-details',
                     [MaterialDetailSettingController::class, 'store']
                 )->name('settings.material-details.store')
-                    ->middleware('permission:config_materialSetting');
+                    ->middleware('permission:config_materialSetting')->middleware(\App\Http\Middleware\MaterialParametersGuard::class.':settings');
 
             });
 
         Route::prefix('materials-presentations/')->group(function () {
-            Route::get('material/{material}/presentations', [MaterialPresentationController::class, 'index'])
-                ->name('material-presentations.index');
-
-            Route::post('material/{material}/presentations', [MaterialPresentationController::class, 'store'])
-                ->name('material-presentations.store');
-
-            Route::put('presentation/{presentation}', [MaterialPresentationController::class, 'update'])
-                ->name('material-presentations.update');
-
-            Route::delete('presentation/{presentation}', [MaterialPresentationController::class, 'destroy'])
-                ->name('material-presentations.destroy');
-
-            Route::patch('presentation/{presentation}/toggle', [MaterialPresentationController::class, 'toggle'])
-                ->name('material-presentations.toggle');
+            // Lectura existente para cotizaciones: autorización de lectura en el controlador.
+            Route::get('material/{material}/presentations', [\App\Http\Controllers\MaterialPresentationController::class, 'catalog'])->name('material-presentations.index');
+            Route::get('material/{material}/presentations/configuration', [\App\Http\Controllers\MaterialPresentationController::class, 'index'])->name('material-presentations.configuration')->middleware('permission:managePresentations_material');
+            Route::post('material/{material}/presentations', [\App\Http\Controllers\MaterialPresentationController::class, 'store'])->name('material-presentations.store')->middleware('permission:managePresentations_material');
+            Route::put('presentation/{presentation}', [\App\Http\Controllers\MaterialPresentationController::class, 'update'])->name('material-presentations.update')->middleware('permission:managePresentations_material');
+            Route::delete('presentation/{presentation}', [\App\Http\Controllers\MaterialPresentationController::class, 'destroy'])->name('material-presentations.destroy')->middleware('permission:managePresentations_material');
+            Route::patch('presentation/{presentation}/toggle', [\App\Http\Controllers\MaterialPresentationController::class, 'toggle'])->name('material-presentations.toggle')->middleware('permission:managePresentations_material');
         });
 
         // Cash Boxes
@@ -3575,24 +3592,43 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         Route::get('/materials/select2', 'MaterialController@select2')->name('materials.select2');
 
-        Route::get('/stock-items/list', 'StockItemController@list')->name('stockitems.list');
-        Route::get('/stock-items', 'StockItemController@index')->name('stockitems.index');
-        Route::post('/stock-items/{id}/toggle-inventory', 'StockItemController@toggleInventory');
-        Route::post('/stock-items/{id}/toggle-active', 'StockItemController@toggleActive');
+        Route::get('/stock-items/list', 'StockItemController@list')
+            ->name('stockitems.list')
+            ->middleware('permission:listStockitem_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':endpoint');
+        Route::get('/stock-items', 'StockItemController@index')
+            ->name('stockitems.index')
+            ->middleware('permission:listStockitem_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':page');
+        Route::post('/stock-items/{id}/toggle-inventory', 'StockItemController@toggleInventory')
+            ->middleware('permission:configInventariable_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':endpoint');
+        Route::post('/stock-items/{id}/toggle-active', 'StockItemController@toggleActive')
+            ->middleware('permission:configActive_material')
+            ->middleware(\App\Http\Middleware\StockItemScreenGuard::class.':endpoint');
         Route::get('/view/material/variants/{id}', 'StockItemController@viewMaterialVariants')->name('stockitems.view.variants');
         Route::get('/view/material/all/variants/{id}', 'StockItemController@getItemsMaterial')->name('stockitems.getItemsMaterial');
 
         Route::get('/stock-items/{stockItem}/inventory-levels', 'StockItemController@getInventoryLevels')
             ->name('stockitems.inventory-levels')
-            ->middleware('permission:list_material|verInventario_material|update_material');
+            ->middleware('permission:list_material|verInventario_material|update_material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':endpoint');
 
         Route::get('/material/{material}/inventory-levels', 'StockItemController@getInventoryLevelsByMaterial')
             ->name('material.inventory-levels')
-            ->middleware('permission:list_material|verInventario_material|update_material');
+            ->middleware('permission:list_material|verInventario_material|update_material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':endpoint');
 
         Route::post('/stock-items/{stockItem}/inventory-levels', 'StockItemController@updateInventoryLevels')
             ->name('stockitems.inventory-levels.update')
-            ->middleware('permission:update_material');
+            ->middleware('permission:update_material')
+            ->middleware(\App\Http\Middleware\MaterialInventoryGuard::class.':endpoint');
+
+        Route::get('/pos/catalog/stock-items', 'PosAvailabilityController@search')->name('pos.catalog.search')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':either');
+        Route::get('/pos/catalog/stock-items/{stockItem}/availability', 'PosAvailabilityController@show')
+            ->name('pos.catalog.availability')->where('stockItem', '[1-9][0-9]*')
+            ->middleware(\App\Http\Middleware\PosCatalogGuard::class.':either');
 
         //COLORS
         Route::get('colors','ColorController@index')
@@ -3631,7 +3667,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/materials/{material}/stock-items-entry', 'MaterialController@getStockItemsForEntry')
             ->name('materials.stock-items.entry');
 
-        Route::get('/get/material/{material}/stock-items', 'PuntoVentaController@getStockItemsByMaterial')->name('get.stock-items.by.material');
+        Route::get('/get/material/{material}/stock-items', 'PuntoVentaController@getStockItemsByMaterial')
+            ->name('get.stock-items.by.material')->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v2');
 
         Route::get('/customer/search-or-create/{documento}', 'CustomerController@searchOrCreateByDocument')
             ->name('customer.searchOrCreateByDocument');
@@ -3640,19 +3677,19 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('customer.consultarDocumentoDecolecta');
 
 
-        Route::get('/sale/partial-payment/{sale_id}', 'SalePartialPaymentController@getBySale');
-        Route::post('/sale/partial-payment/store', 'SalePartialPaymentController@store');
-        Route::delete('/sale/partial-payment/{id}', 'SalePartialPaymentController@destroy');
-        Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale');
-        Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus');
+        Route::get('/sale/partial-payment/{sale_id}', 'SalePartialPaymentController@getBySale')->middleware(\App\Http\Middleware\SaleListGuard::class.':read,route,sale_id');
+        Route::post('/sale/partial-payment/store', 'SalePartialPaymentController@store')->middleware(\App\Http\Middleware\SaleListGuard::class.':payments,input,sale_id');
+        Route::delete('/sale/partial-payment/{id}', 'SalePartialPaymentController@destroy')->middleware(\App\Http\Middleware\SaleListGuard::class.':payments,payment,id');
+        Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale')->middleware(\App\Http\Middleware\SaleListGuard::class.':emit,input,sale_id');
+        Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus')->middleware(\App\Http\Middleware\SaleListGuard::class.':dispatch,input,sale_id');
 
-        Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion');
+        Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
 
-        Route::post('/generar/nota-credito/total/{id}', 'PuntoVentaController@generarNotaCreditoTotal');
-        Route::post('/consultar/nota-credito/{id}', 'PuntoVentaController@consultarNotaCredito');
+        Route::post('/generar/nota-credito/total/{id}', 'PuntoVentaController@generarNotaCreditoTotal')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
+        Route::post('/consultar/nota-credito/{id}', 'PuntoVentaController@consultarNotaCredito')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
 
-        Route::get('/nota-credito/parcial/data/{id}', 'PuntoVentaController@getCreditNotePartialData');
-        Route::post('/generar/nota-credito/parcial/{id}', 'PuntoVentaController@generarNotaCreditoParcial');
+        Route::get('/nota-credito/parcial/data/{id}', 'PuntoVentaController@getCreditNotePartialData')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
+        Route::post('/generar/nota-credito/parcial/{id}', 'PuntoVentaController@generarNotaCreditoParcial')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
 
         Route::post('/fix/stock-item/output-adjustment', 'InventoryMigrationController@adjustStockItemStockOut')
             ->name('stock-item.output-adjustment');
@@ -3715,30 +3752,32 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 ->name('freeSale.store');
 
             Route::post('/{sale}/anular', [FreeSaleController::class, 'annul'])
-                ->name('freeSale.annul');
+                ->name('freeSale.annul')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,sale');
 
             Route::post(
                 '/{sale}/consultar-anulacion',
                 'FreeSaleController@consultAnnulment'
-            )->name('freeSale.consultAnnulment');
+            )->name('freeSale.consultAnnulment')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,sale');
 
             Route::post(
                 '/generate-invoice',
                 'FreeSaleController@generateInvoice'
-            )->name('freeSale.generateInvoice');
+            )->name('freeSale.generateInvoice')->middleware(\App\Http\Middleware\SaleListGuard::class.':emit,input,sale_id');
         });
 
         Route::post(
             '/ventas/{sale}/recuperar-archivos-nubefact',
             'PuntoVentaController@recuperarArchivosNubefact'
-        )->name('puntoVenta.recuperarArchivosNubefact');
+        )->name('puntoVenta.recuperarArchivosNubefact')->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,route,sale');
 
         if (app()->environment('local')) {
             Route::get(
                 '/punto-venta/probar-consulta-nubefact/{saleId}',
                 'PuntoVentaController@probarConsultaComprobanteNubefact'
-            );
+            )->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,route,saleId');
         }
+
+        Route::get('/sales/{id}/documents/{kind}', 'SaleListDocumentController@show')->where('id', '[0-9]+')->name('sales.list.document')->middleware(\App\Http\Middleware\SaleListGuard::class.':print,route,id');
 
     });
 });

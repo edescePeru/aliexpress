@@ -184,7 +184,7 @@ function openInventoryLevelsModal(stockItemId) {
         beforeSend: function () {
             $('#tbody-modal-inventory-levels').html(`
                 <tr>
-                    <td colspan="8" class="text-center">Cargando...</td>
+                    <td colspan="9" class="text-center">Cargando...</td>
                 </tr>
             `);
             $('#modalInventoryLevels').modal('show');
@@ -225,7 +225,7 @@ function renderInventoryLevelsModalRows(levels) {
     if (!levels.length) {
         $tbody.html(`
             <tr>
-                <td colspan="8" class="text-center text-muted">
+                <td colspan="9" class="text-center text-muted">
                     No hay inventory levels registrados.
                 </td>
             </tr>
@@ -248,6 +248,9 @@ function renderInventoryLevelsModalRows(levels) {
                 </td>
                 <td>
                     <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_reserved)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_available)}" readonly>
                 </td>
                 <td>
                     <input type="number"
@@ -295,8 +298,8 @@ function updateInventoryToggle(id, current) {
             toastr.success('Inventario actualizado');
             loadStockItems();
         },
-        error: function () {
-            toastr.error('Error al actualizar inventario');
+        error: function (xhr) {
+            toastr.error(stockItemErrorMessage(xhr, 'Error al actualizar inventario'));
         }
     });
 }
@@ -314,8 +317,8 @@ function updateActiveToggle(id, variantId, current) {
             toastr.success('Estado actualizado');
             loadStockItems();
         },
-        error: function () {
-            toastr.error('Error al actualizar estado');
+        error: function (xhr) {
+            toastr.error(stockItemErrorMessage(xhr, 'Error al actualizar estado'));
         }
     });
 }
@@ -335,8 +338,8 @@ function loadStockItems(page = 1) {
             renderStockItemsPagination(response);
             renderStockItemsInfo(response);
         },
-        error: function () {
-            toastr.error('No se pudo cargar el listado de stock items.', 'Error');
+        error: function (xhr) {
+            toastr.error(stockItemErrorMessage(xhr, 'No se pudo cargar el listado de stock items.'), 'Error');
         }
     });
 }
@@ -347,7 +350,7 @@ function renderStockItemsTable(items) {
     if (!items || items.length === 0) {
         html = `
                 <tr>
-                    <td colspan="13" class="text-center">No se encontraron registros.</td>
+                    <td colspan="11" class="text-center">No se encontraron registros.</td>
                 </tr>
             `;
         $('#tbody-stock-items').html(html);
@@ -376,17 +379,11 @@ function renderStockItemsTable(items) {
             ? '<span class="badge badge-success">Activo</span>'
             : '<span class="badge badge-secondary">Inactivo</span>';
 
-        //let stockActual = item.inventory_level ? (item.inventory_level.qty_on_hand ?? 0) : 0;
-        //let stockReservado = item.inventory_level ? (item.inventory_level.qty_reserved ?? 0) : 0;
-        let stockActual = 0;
-        let stockReservado = 0;
-
-        if (Array.isArray(item.inventory_levels)) {
-            item.inventory_levels.forEach(function(level) {
-                stockActual += parseFloat(level.qty_on_hand || 0);
-                stockReservado += parseFloat(level.qty_reserved || 0);
-            });
-        }
+        // Quantities are resolved by the backend for the current branch.
+        const stockActual = normalizeNumber(item.stock_current);
+        const stockReservado = normalizeNumber(item.stock_reserved);
+        const stockGeneral = normalizeNumber(item.stock_general);
+        const reservadoGeneral = normalizeNumber(item.stock_general_reserved);
 
         let unitMeasure = item.unit_measure ? (item.unit_measure.name || '') : '';
 
@@ -465,8 +462,8 @@ function renderStockItemsTable(items) {
                 <td>${escapeHtml(unitMeasure)}</td>
                 <td>${inventariable}</td>
                 <td>${activo}</td>
-                <td>${stockActual}</td>
-                <td>${stockReservado}</td>
+                <td>${stockActual}<small class="text-muted d-block">General: ${stockGeneral}</small></td>
+                <td>${stockReservado}<small class="text-muted d-block">General: ${reservadoGeneral}</small></td>
                 <td>${buttons}</td>
             </tr>
         `;
@@ -590,4 +587,12 @@ function renderStockItemsInfo(response) {
 
 function escapeHtml(text) {
     return $('<div>').text(text).html();
+}
+function stockItemErrorMessage(xhr, fallback) {
+    const data = xhr && xhr.responseJSON;
+    if (data && data.errors) {
+        const messages = Object.values(data.errors);
+        if (messages.length) return Array.isArray(messages[0]) ? messages[0][0] : messages[0];
+    }
+    return data && data.message ? data.message : fallback;
 }

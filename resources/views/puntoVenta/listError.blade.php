@@ -180,6 +180,7 @@
 @endsection
 
 @section('content')
+    @include('puntoVenta._listScope')
     {{--<input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">--}}
     <!--begin::Form-->
     <form action="#">
@@ -301,6 +302,7 @@
                 <thead>
                 <tr class="normal-title">
                     <th>Código</th>
+                    <th>Usuario registrador</th>
                     <th>Fecha Venta</th>
                     <th>Cliente</th>
                     <th>Comprobante</th>
@@ -363,6 +365,7 @@
     <template id="item-table">
         <tr>
             <td data-code></td>
+            <td data-created_by_name></td>
             <td data-date></td>
             <td data-customer></td>
             <td data-comprobante></td>
@@ -376,7 +379,7 @@
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="6" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="10" align="center">No se ha encontrado ningún dato</td>
         </tr>
     </template>
 
@@ -794,6 +797,8 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/puntoVenta/list-access.js') }}?v={{ time() }}"></script>
+
     <script>
         $(function () {
             //Initialize Select2 Elements

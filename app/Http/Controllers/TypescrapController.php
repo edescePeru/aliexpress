@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteMultipleTypeScrapsRequest;
 use App\Http\Requests\DeleteTypeScrapRequest;
 use App\Http\Requests\StoreTypeScrapRequest;
 use App\Http\Requests\UpdateTypeScrapRequest;
 use App\Material;
+use App\Services\Materials\DeleteTypeScraps;
 use App\Typescrap;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -141,64 +143,29 @@ class TypescrapController extends Controller
     }
 
 
-    public function destroy(
-        DeleteTypeScrapRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $typeScrap =
-            Typescrap::findOrFail(
-                $validated[
-                'typeScrap_id'
-                ]
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'typescrap_id',
-                    $typeScrap->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el tipo de retacería porque está siendo utilizado por uno o más materiales.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteTypeScrapRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $typeScrap->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteTypeScraps::class)->delete(
+                [$validated['typeScrap_id']],
+                'typeScrap_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el tipo de retacería.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el tipo de retacería.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Tipo de retacería eliminado con éxito.',
+            'message' => 'Tipo de retacería eliminado con éxito.',
         ], 200);
     }
 
@@ -249,101 +216,29 @@ class TypescrapController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        $typescraps =
-            Typescrap::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $typeScrapIds =
-            $typescraps
-                ->pluck('id');
-
-        $usedTypeScrapIds =
-            Material::query()
-                ->whereIn(
-                    'typescrap_id',
-                    $typeScrapIds
-                )
-                ->pluck(
-                    'typescrap_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedTypeScrapIds->isNotEmpty()) {
-
-            $usedNames =
-                $typescraps
-                    ->whereIn(
-                        'id',
-                        $usedTypeScrapIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los tipos de retacería porque están siendo utilizados por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleTypeScrapsRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $typescraps
-                as $typeScrap
-            ) {
-                $typeScrap->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteTypeScraps::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los tipos de retacería.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los tipos de retacería.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Tipos de retacería eliminados correctamente.',
-        ]);
+            'message' => 'Tipos de retacería eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

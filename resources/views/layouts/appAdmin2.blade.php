@@ -418,27 +418,25 @@
 
                         </li>
 
-                        @can('list_percentageWorker')
-                            <li class="nav-item @yield('openPercentageWorker')">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-list-alt nav-icon"></i>
-                                    <p>
-                                        Parámetros laborales
-                                        <i class="right fas fa-angle-left"></i>
-                                    </p>
-                                </a>
-                                <ul class="nav nav-treeview">
-                                    @can('list_percentageWorker')
-                                        <li class="nav-item">
-                                            <a href="{{ route('platformPercentageWorker.index') }}" class="nav-link @yield('activeListPercentageWorker')">
-                                                <i class="far fa-dot-circle nav-icon text-warning"></i>
-                                                <p>Listar parámetros</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                </ul>
-                            </li>
-                        @endcan
+                        <li class="nav-item @yield('openPercentageWorker')">
+                            <a href="#" class="nav-link">
+                                <i class="far fa-list-alt nav-icon"></i>
+                                <p>
+                                    Parámetros laborales
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+
+                                <li class="nav-item">
+                                    <a href="{{ route('platformPercentageWorker.index') }}" class="nav-link @yield('activeListPercentageWorker')">
+                                        <i class="far fa-dot-circle nav-icon text-warning"></i>
+                                        <p>Listar parámetros</p>
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </li>
 
                         <li class="nav-item @yield('openTypeTax')">
                             <a href="#" class="nav-link @yield('activeTypeTax')">

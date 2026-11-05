@@ -63,6 +63,8 @@
 
 @section('content')
     <form id="formEdit" class="form-horizontal next-material-page" data-url="{{ route('material.update') }}" enctype="multipart/form-data">
+        @include('materialDetailSetting._context')
+        @include('material._inventoryContext')
         @csrf
         <input type="hidden" name="material_id" value="{{ $material->id }}">
 
@@ -195,7 +197,7 @@
                     <div class="col-md-6 col-xl-3"><div class="form-group">
                         <label for="unit_measure">Unidad de medida</label>
                         <div class="input-group next-field-action">
-                            <select id="unit_measure" name="unit_measure" class="form-control select2"><option></option>@foreach($unitMeasures as $unitMeasure)<option value="{{ $unitMeasure->id }}" {{ (string) $selectedUnitMeasure === (string) $unitMeasure->id ? 'selected' : '' }}>{{ $unitMeasure->name }}</option>@endforeach</select>
+                            <select id="unit_measure" name="unit_measure" class="form-control select2" required aria-required="true"><option></option>@foreach($unitMeasures as $unitMeasure)<option value="{{ $unitMeasure->id }}" {{ (string) $selectedUnitMeasure === (string) $unitMeasure->id ? 'selected' : '' }}>{{ $unitMeasure->name }}</option>@endforeach</select>
                             <div class="input-group-append">@can('create_unitMeasure')<button type="button" class="btn btn-outline-primary next-field-action-button" data-toggle="modal" data-target="#modalUnitMeasure" title="Crear unidad de medida" aria-label="Crear unidad de medida"><i class="fas fa-plus" aria-hidden="true"></i></button>@endcan</div>
                         </div>
                     </div></div>
@@ -343,7 +345,7 @@
                         @endif
                         <div class="col-lg-2 d-flex align-items-end"><button type="button" id="btn-generate_variantes" class="btn btn-outline-primary btn-block mb-3 next-variants-generate"><i class="fas fa-layer-group mr-1" aria-hidden="true"></i> Generar</button></div>
                     </div>
-                        <div class="next-variants-results" aria-live="polite"><table class="table next-variants-table" aria-describedby="material-section-four-title"><colgroup><col class="next-variant-col next-variant-col--identity"><col class="next-variant-col next-variant-col--sku"><col class="next-variant-col next-variant-col--barcode"><col class="next-variant-col next-variant-col--image"><col class="next-variant-col next-variant-col--inventory"><col class="next-variant-col next-variant-col--stock"><col class="next-variant-col next-variant-col--status"><col class="next-variant-col next-variant-col--action"></colgroup><thead><tr><th>Variante</th><th>SKU</th><th>Código de barras</th><th>Imagen</th><th class="text-center">Inventariable</th><th class="text-center">Stock total</th><th class="text-center">Estado</th><th class="text-center">Inventario</th></tr></thead><tbody id="body-variantes" class="next-variants-body"></tbody></table></div>
+                        <div class="next-variants-results" aria-live="polite"><table class="table next-variants-table" aria-describedby="material-section-four-title"><colgroup><col class="next-variant-col next-variant-col--identity"><col class="next-variant-col next-variant-col--sku"><col class="next-variant-col next-variant-col--barcode"><col class="next-variant-col next-variant-col--image"><col class="next-variant-col next-variant-col--inventory"><col class="next-variant-col next-variant-col--stock"><col class="next-variant-col next-variant-col--status"><col class="next-variant-col next-variant-col--action"></colgroup><thead><tr><th>Variante</th><th>SKU</th><th>Código de barras</th><th>Imagen</th><th class="text-center">Inventariable</th><th class="text-center">Stock local</th><th class="text-center">Estado</th><th class="text-center">Inventario</th></tr></thead><tbody id="body-variantes" class="next-variants-body"></tbody></table></div>
                     </div>
                 </div>
             @endif
@@ -925,7 +927,7 @@
             <td><input type="text" class="form-control form-control-sm" data-codigo_barras aria-label="Código de barras de variante"></td>
             <td><input type="file" class="form-control-file form-control-sm" data-image_variante aria-label="Imagen de variante"><small class="text-muted d-block mt-1" data-variant-file-name></small></td>
             <td class="text-center"><input type="checkbox" data-afecto_inventario_variante data-bootstrap-switch data-size="normal" data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success" checked></td>
-            <td class="text-center"><input type="number" class="form-control form-control-sm text-center" data-stock_total readonly aria-label="Stock total de variante"></td>
+            <td class="text-center"><input type="number" class="form-control form-control-sm text-center" data-stock_total readonly aria-label="Stock físico de la variante en el local actual"><small class="text-muted d-block mt-1">General: <span data-stock_general>0</span></small></td>
             <td class="text-center"><input type="checkbox" data-is_active_variante data-bootstrap-switch data-size="normal" data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success" checked></td>
             <td class="text-center"><button type="button" class="btn btn-outline-info btn-sm" data-toggle_inventory_levels aria-expanded="false"><i class="fas fa-warehouse mr-1" aria-hidden="true"></i> Ver</button></td>
         </tr>
@@ -951,6 +953,7 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
     <script>
         $(function () {
             //Initialize Select2 Elements

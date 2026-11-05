@@ -3,265 +3,42 @@
 namespace App\Http\Controllers;
 
 use App\MaterialDetailSetting;
+use App\Services\Materials\MaterialParameters;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class MaterialDetailSettingController extends Controller
 {
-    public function index()
+    public function index(MaterialParameters $policy)
     {
-        $companyId =
-            TenantContext::companyId();
-
-        $setting =
-            MaterialDetailSetting::query()
-                ->forCompany(
-                    $companyId
-                )
-                ->first();
-
-        $sections =
-            config(
-                'material_details.sections'
-            );
-
-        $enabled = [];
-
-        if (
-            $setting &&
-            is_array(
-                $setting->enabled_sections
-            )
-        ) {
-            $enabled =
-                $setting->enabled_sections;
+        $setting=$policy->current();$sections=config('material_details.sections');
+        $enabled=$policy->enabled($setting);
+        $configurationMissing=$enabled===null;
+        if($enabled===null){
+            $raw=$setting&&is_array($setting->enabled_sections)?$setting->enabled_sections:[];
+            $raw=array_values(array_filter($raw,function($key)use($sections){return is_string($key)&&array_key_exists($key,$sections);}));
+            $enabled=$policy->normalize(array_merge(['unit_measure'],$raw));
         }
-
-        return view(
-            'materialDetailSetting.index',
-            [
-                'setting' =>
-                    $setting,
-
-                'sections' =>
-                    $sections,
-
-                'enabled' =>
-                    $enabled,
-            ]
-        );
+        $materialParameterVersion=$policy->version($setting);
+        return view('materialDetailSetting.index',compact('setting','sections','enabled','configurationMissing','materialParameterVersion'));
     }
 
-    public function store(Request $request) {
-        $tenantId =
-            TenantContext::tenantId();
-
-        $companyId =
-            TenantContext::companyId();
-
-
-        $validKeys =
-            array_keys(
-                config(
-                    'material_details.sections'
-                )
-            );
-
-
-        $enabled = [];
-
-
-        if (
-        $request->has(
-            'enabled_sections'
-        )
-        ) {
-
-            foreach (
-                $request->enabled_sections
-                as $key
-            ) {
-
-                if (
-                in_array(
-                    $key,
-                    $validKeys,
-                    true
-                )
-                ) {
-                    $enabled[] =
-                        $key;
-                }
-            }
-        }
-
-
-        /*
-         * =========================================================
-         * DEPENDENCIAS
-         * =========================================================
-         */
-
-
-        /*
-         * Subcategory necesita Category.
-         */
-        if (
-        in_array(
-            'subcategory',
-            $enabled,
-            true
-        )
-        ) {
-            $this->ensureEnabled(
-                $enabled,
-                'category'
-            );
-        }
-
-
-        /*
-         * Exampler necesita Brand.
-         */
-        if (
-        in_array(
-            'exampler',
-            $enabled,
-            true
-        )
-        ) {
-            $this->ensureEnabled(
-                $enabled,
-                'brand'
-            );
-        }
-
-
-        /*
-         * MaterialType necesita:
-         *
-         * Category
-         * └── Subcategory
-         *     └── MaterialType
-         */
-        if (
-        in_array(
-            'material_type',
-            $enabled,
-            true
-        )
-        ) {
-            $this->ensureEnabled(
-                $enabled,
-                'category'
-            );
-
-            $this->ensureEnabled(
-                $enabled,
-                'subcategory'
-            );
-        }
-
-
-        /*
-         * Subtype necesita toda la cadena:
-         *
-         * Category
-         * └── Subcategory
-         *     └── MaterialType
-         *         └── Subtype
-         */
-        if (
-        in_array(
-            'subtype',
-            $enabled,
-            true
-        )
-        ) {
-            $this->ensureEnabled(
-                $enabled,
-                'category'
-            );
-
-            $this->ensureEnabled(
-                $enabled,
-                'subcategory'
-            );
-
-            $this->ensureEnabled(
-                $enabled,
-                'material_type'
-            );
-        }
-
-        if (
-            in_array(
-                'talla',
-                $enabled,
-                true
-            ) ||
-            in_array(
-                'color',
-                $enabled,
-                true
-            )
-        ) {
-
-            $this->ensureEnabled(
-                $enabled,
-                'talla'
-            );
-
-            $this->ensureEnabled(
-                $enabled,
-                'color'
-            );
-        }
-
-        /*
-         * Eliminamos posibles duplicados.
-         */
-        $enabled =
-            array_values(
-                array_unique(
-                    $enabled
-                )
-            );
-
-
-        MaterialDetailSetting::updateOrCreate(
-            [
-                'tenant_id' =>
-                    $tenantId,
-
-                'company_id' =>
-                    $companyId,
-            ],
-            [
-                'enabled_sections' =>
-                    $enabled,
-            ]
-        );
-
-
-        return redirect()
-            ->back()
-            ->with(
-                'success',
-                'Configuración de detalles de producto guardada correctamente.'
-            );
+    public function store(Request $request,MaterialParameters $policy)
+    {
+        $data=$request->validate([
+            'enabled_sections'=>['required','array','min:1'],
+            'enabled_sections.*'=>['required','string','distinct',Rule::in(array_keys(config('material_details.sections')))],
+        ]);
+        $enabled=$policy->normalize($data['enabled_sections']);
+        DB::transaction(function()use($request,$policy,$enabled){
+            $setting=$policy->current(true);$policy->snapshot($request,$setting);
+            MaterialDetailSetting::updateOrCreate([
+                'tenant_id'=>TenantContext::tenantId(),'company_id'=>TenantContext::companyId(),
+            ],['enabled_sections'=>$enabled]);
+        });
+        return redirect()->back()->with('success','Configuración de materiales de esta empresa guardada correctamente.');
     }
 
-    private function ensureEnabled(array &$enabled,$key) {
-        if (
-        !in_array(
-            $key,
-            $enabled,
-            true
-        )
-        ) {
-            $enabled[] =
-                $key;
-        }
-    }
 }

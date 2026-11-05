@@ -8,6 +8,7 @@ class Branch extends Model
 {
     protected $fillable = [
         'company_id',
+        'price_list_id',
         'code',
         'name',
         'address',
@@ -17,10 +18,16 @@ class Branch extends Model
     ];
 
     protected $casts = [
+        'price_list_id' => 'integer',
         'is_main' => 'boolean',
         'is_active' => 'boolean',
         'default_entry_warehouse_id' => 'integer',
     ];
+
+    public function priceList()
+    {
+        return $this->belongsTo(PriceList::class, 'price_list_id');
+    }
 
     public function company()
     {

@@ -3,10 +3,13 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToTenant;
 
 class MaterialPresentation extends Model
 {
+    use BelongsToTenant;
     protected $fillable = [
+        'tenant_id',
         'label',
         'material_id',
         'quantity',

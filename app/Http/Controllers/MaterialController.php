@@ -25,6 +25,8 @@ use App\PriceList;
 use App\PriceListItem;
 use App\Quality;
 use App\Services\InventoryCostService;
+use App\Services\Materials\MaterialCompanyCatalog;
+use App\Services\Materials\MaterialInventoryScope;
 use App\Shelf;
 use App\Specification;
 use App\Item;
@@ -81,20 +83,13 @@ class MaterialController extends Controller
          * ============================================================
          */
 
-        $setting = MaterialDetailSetting::query()
-            ->forCompany(
-                TenantContext::companyId()
-            )
-            ->first();
-
-        $enabled = [];
-
-        if (
-            $setting &&
-            is_array($setting->enabled_sections)
-        ) {
-            $enabled = $setting->enabled_sections;
+        $materialParameters = app(\App\Services\Materials\MaterialParameters::class);
+        $setting = $materialParameters->current();
+        $enabled = $materialParameters->enabled($setting);
+        if ($enabled === null) {
+            return response()->view('materialDetailSetting.required', [], 409);
         }
+        $materialParameterVersion = $materialParameters->version($setting);
 
 
         /*
@@ -234,6 +229,7 @@ class MaterialController extends Controller
             'material.create',
             compact(
                 'enabled',
+                'materialParameterVersion',
                 'discountQuantities',
                 'tipoVentas',
                 'tallas',
@@ -245,7 +241,7 @@ class MaterialController extends Controller
                 'colors',
                 'typeTaxes',
                 'defaultTypeTax',
-            )
+                )
         );
     }
 
@@ -254,6 +250,8 @@ class MaterialController extends Controller
         DB::beginTransaction();
 
         try {
+            $materialParameters = app(\App\Services\Materials\MaterialParameters::class);
+            $enabledParameters = $materialParameters->forWrite($request);
 
             /*
              * ============================================================
@@ -814,24 +812,13 @@ class MaterialController extends Controller
          * ============================================================
          */
 
-        $setting =
-            MaterialDetailSetting::query()
-                ->forCompany(
-                    TenantContext::companyId()
-                )
-                ->first();
-
-        $enabled = [];
-
-        if (
-            $setting &&
-            is_array(
-                $setting->enabled_sections
-            )
-        ) {
-            $enabled =
-                $setting->enabled_sections;
+        $materialParameters = app(\App\Services\Materials\MaterialParameters::class);
+        $setting = $materialParameters->current();
+        $enabled = $materialParameters->enabled($setting);
+        if ($enabled === null) {
+            return response()->view('materialDetailSetting.required', [], 409);
         }
+        $materialParameterVersion = $materialParameters->version($setting);
 
 
         /*
@@ -1324,6 +1311,7 @@ class MaterialController extends Controller
             'material.edit',
             compact(
                 'enabled',
+                'materialParameterVersion',
                 'materialsDiscounts',
                 'discountQuantities',
                 'generos',
@@ -1342,7 +1330,7 @@ class MaterialController extends Controller
                 'tieneVariantes',
                 'variantesEdit',
                 'typeTaxes',
-            )
+                )
         );
     }
 
@@ -1356,7 +1344,7 @@ class MaterialController extends Controller
             TenantContext::companyId();
 
         $levels =
-            $stockItem->inventoryLevels()
+            app(MaterialInventoryScope::class)->levels($stockItem->inventoryLevels())
                 ->where(
                     'company_id',
                     $companyId
@@ -1384,6 +1372,8 @@ class MaterialController extends Controller
                         optional(
                             $level->warehouse
                         )->name,
+
+                    'warehouse_branch_id' => optional($level->warehouse)->branch_id,
 
                     'location_id' =>
                         $level->location_id,
@@ -1421,6 +1411,9 @@ class MaterialController extends Controller
         DB::beginTransaction();
 
         try {
+            $materialParameters = app(\App\Services\Materials\MaterialParameters::class);
+            $enabledParameters = $materialParameters->forWrite($request);
+            app(MaterialInventoryScope::class)->snapshot($request);
 
             /*
              * ============================================================
@@ -1529,26 +1522,21 @@ class MaterialController extends Controller
              * ============================================================
              */
 
+            $materialParameters->apply($material, $request, $enabledParameters);
+
             $material->full_name =
                 $request->input('name');
 
             $material->description =
                 $request->input('description');
 
-            $material->unit_measure_id =
-                $request->input('unit_measure');
 
-            $material->unit_price =
-                $request->input(
-                    'unit_price',
-                    0
-                );
 
-            $material->category_id =
-                $request->input('category');
+            // Los precios se administran por listas; conservar los valores legacy.
 
-            $material->subcategory_id =
-                $request->input('subcategory');
+
+
+
 
             /*
              * Jerarquía nueva:
@@ -1558,25 +1546,16 @@ class MaterialController extends Controller
              * -> MaterialType
              * -> Subtype
              */
-            $material->material_type_id =
-                $request->input(
-                    'material_type'
-                );
-
-            $material->subtype_id =
-                $request->input(
-                    'subtype'
-                );
 
 
-            $material->brand_id =
-                $request->input('brand');
 
-            $material->exampler_id =
-                $request->input('exampler');
 
-            $material->typescrap_id =
-                $request->input('typescrap');
+
+
+
+
+
+
 
 
             /*
@@ -1584,19 +1563,14 @@ class MaterialController extends Controller
              *
              * YA NO usamos warrant_id.
              */
-            $material->genero_id =
-                $request->input('genero');
 
 
-            $material->tipo_venta_id =
-                $request->input(
-                    'tipo_venta'
-                );
 
-            $material->perecible =
-                $request->input(
-                    'perecible'
-                );
+            if (array_key_exists('tipo_venta', $request->all())) {
+                $material->tipo_venta_id = $request->input('tipo_venta');
+            }
+
+
 
             $material->type_tax_id =
                 $request->input(
@@ -1609,11 +1583,7 @@ class MaterialController extends Controller
              *
              * Pricing se rediseñará posteriormente.
              */
-            $material->list_price =
-                (float) $request->input(
-                    'unit_price',
-                    0
-                );
+            // Los precios se administran por listas; conservar los valores legacy.
 
 
             /*
@@ -2432,6 +2402,9 @@ class MaterialController extends Controller
                     'Cambios guardados con éxito.',
             ], 200);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Revise los datos de inventario.', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
 
             DB::rollBack();
@@ -2446,124 +2419,9 @@ class MaterialController extends Controller
         }
     }
 
-    private function syncInventoryLevels(StockItem $stockItem, array $inventoryLevelsData = []) {
-        $companyId =
-            TenantContext::companyId();
-
-        foreach (
-            $inventoryLevelsData as $levelData
-        ) {
-
-            $inventoryLevelId =
-                $levelData['id'] ?? null;
-
-            $warehouseId =
-                $levelData['warehouse_id'] ?? null;
-
-            $minAlert =
-                ($levelData['min_alert'] ?? '') !== ''
-                    ? (float) $levelData['min_alert']
-                    : 0;
-
-            $maxAlert =
-                ($levelData['max_alert'] ?? '') !== ''
-                    ? (float) $levelData['max_alert']
-                    : 0;
-
-
-            /*
-             * Desde Edit solo actualizamos InventoryLevels
-             * que ya existen.
-             *
-             * Los niveles nuevos se crean mediante
-             * DefaultInventoryLocationResolver.
-             */
-            if (!$inventoryLevelId) {
-                continue;
-            }
-
-
-            $inventoryLevel =
-                InventoryLevel::query()
-                    ->where(
-                        'id',
-                        $inventoryLevelId
-                    )
-                    ->where(
-                        'company_id',
-                        $companyId
-                    )
-                    ->where(
-                        'stock_item_id',
-                        $stockItem->id
-                    )
-                    ->first();
-
-
-            if (!$inventoryLevel) {
-
-                throw new \RuntimeException(
-                    'Uno de los niveles de inventario no pertenece al producto o empresa actual.'
-                );
-            }
-
-
-            /*
-             * Segunda barrera:
-             * el Warehouse recibido debe coincidir
-             * con el InventoryLevel existente.
-             */
-            if (
-                $warehouseId &&
-                (int) $inventoryLevel->warehouse_id !==
-                (int) $warehouseId
-            ) {
-
-                throw new \RuntimeException(
-                    'El almacén enviado no corresponde al nivel de inventario.'
-                );
-            }
-
-
-            if ($minAlert < 0 || $maxAlert < 0) {
-
-                throw new \RuntimeException(
-                    'Los niveles mínimo y máximo de inventario no pueden ser negativos.'
-                );
-            }
-
-
-            if ($minAlert > $maxAlert) {
-
-                throw new \RuntimeException(
-                    'El stock mínimo no puede ser mayor al stock máximo.'
-                );
-            }
-
-
-            /*
-             * No permitimos modificar desde aquí:
-             *
-             * qty_on_hand
-             * qty_reserved
-             * average_cost
-             * last_cost
-             * warehouse_id
-             * location_id
-             * company_id
-             *
-             * Esos datos pertenecen a procesos
-             * operativos de inventario.
-             */
-
-            $inventoryLevel->min_alert =
-                $minAlert;
-
-            $inventoryLevel->max_alert =
-                $maxAlert;
-
-            $inventoryLevel->save();
-        }
+    private function syncInventoryLevels(StockItem $stockItem, array $inventoryLevelsData = [])
+    {
+        app(MaterialInventoryScope::class)->sync($stockItem, $inventoryLevelsData);
     }
 
     private function createInitialInventoryLevel(StockItem $stockItem) {
@@ -2677,6 +2535,8 @@ class MaterialController extends Controller
     }
 
     public function getDataMaterials(Request $request, $pageNumber = 1) {
+        app(MaterialInventoryScope::class)->snapshot($request);
+        $stockReadModel = app(\App\Services\Materials\MaterialStockReadModel::class);
         $perPage = 10;
 
         $description =
@@ -2719,7 +2579,7 @@ class MaterialController extends Controller
          */
 
         $query =
-            Material::query()
+            app(MaterialCompanyCatalog::class)->apply(Material::query())
                 ->with([
                     'category:id,name',
                     'subcategory:id,name',
@@ -2920,6 +2780,9 @@ class MaterialController extends Controller
          * ============================================================
          */
 
+        $materialIds = $materials->pluck('id')->all();
+        $indicatorRows = $stockReadModel->rows($materialIds)->groupBy('material_id');
+        $indicatorItems = $stockReadModel->items($materialIds)->groupBy('material_id');
         $array = [];
 
 
@@ -2927,60 +2790,8 @@ class MaterialController extends Controller
             $materials as $material
         ) {
 
-            /*
-             * Prioridad legacy.
-             *
-             * Después revisaremos estos valores para
-             * asegurarnos de que sean Company-aware.
-             */
-
-            $priority = '';
-
-
-            if (
-                $material->stock_current >
-                $material->stock_max
-            ) {
-
-                $priority =
-                    'Completo';
-
-            } elseif (
-                $material->stock_current ==
-                $material->stock_max
-            ) {
-
-                $priority =
-                    'Aceptable';
-
-            } elseif (
-                $material->stock_current >
-                $material->stock_min &&
-                $material->stock_current <
-                $material->stock_max
-            ) {
-
-                $priority =
-                    'Aceptable';
-
-            } elseif (
-                $material->stock_current ==
-                $material->stock_min
-            ) {
-
-                $priority =
-                    'Por agotarse';
-
-            } elseif (
-                $material->stock_current <
-                $material->stock_min ||
-                $material->stock_current == 0
-            ) {
-
-                $priority =
-                    'Agotado';
-            }
-
+            $metrics = $stockReadModel->metrics($indicatorItems->get($material->id, collect()), $indicatorRows->get($material->id, collect()));
+            $priority = $metrics['prioridad'];
 
             /*
              * Rotación.
@@ -3087,16 +2898,16 @@ class MaterialController extends Controller
                  */
 
                 'stock_max' =>
-                    $material->stock_max_total,
+                    $metrics['stock_max'],
 
                 'stock_min' =>
-                    $material->stock_min_total,
+                    $metrics['stock_min'],
 
                 'stock_actual' =>
-                    $material->stock_current,
+                    $metrics['stock_current'],
 
                 'stock_current' =>
-                    $material->stock_current_total,
+                    $metrics['stock_current'],
 
 
                 /*
@@ -3104,6 +2915,12 @@ class MaterialController extends Controller
                  * OTROS
                  * ========================================================
                  */
+
+                'stock_general' => $metrics['stock_general'],
+                'stock_reserved' => $metrics['stock_reserved'],
+                'stock_available' => $metrics['stock_available'],
+                'stock_alert_count' => $metrics['stock_alert_count'],
+                'has_local_inventory' => $metrics['has_local_inventory'],
 
                 'prioridad' =>
                     $priority,
@@ -3197,6 +3014,7 @@ class MaterialController extends Controller
 
     public function indexV2()
     {
+        app(MaterialInventoryScope::class)->context();
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
@@ -3235,7 +3053,7 @@ class MaterialController extends Controller
             ["value" => "b", "display" => "BAJA"]
         ];
 
-        $materials = Material::where('isPack', 0)
+        $materials = app(MaterialCompanyCatalog::class)->apply(Material::query())->where('isPack', 0)
             ->where('enable_status', 1)->get();
 
         $arrayMaterials = [];
@@ -3247,29 +3065,11 @@ class MaterialController extends Controller
             ]);
         }
 
-        $rows = Material::where('enable_status', 1)->resumenPorMaterial()->get();
-
-        // Calculamos el estado de stock
-        foreach ($rows as $row) {
-            if ($row->stock_total <= 0) {
-                $row->estado = 'desabastecido';
-            } elseif ($row->stock_total <= $row->stock_min) {
-                $row->estado = 'por_desabastecer';
-            } else {
-                $row->estado = 'ok';
-            }
-        }
-
-        $showStockAlerts = app(SettingService::class)->get('inventory.minimum_stock.show_alerts');
-
-        $hayAlertas = false;
-
-        if ($showStockAlerts) {
-            $hayAlertas = $rows->contains(function ($r) {
-                return $r->estado === 'desabastecido'
-                    || $r->estado === 'por_desabastecer';
-            });
-        }
+        $settings = app(SettingService::class);
+        $showStockAlerts = (bool) $settings->get('inventory.minimum_stock.show_alerts');
+        $showStockPopup = $showStockAlerts && (bool) $settings->get('inventory.stock_notifications.popup');
+        $rows = $showStockAlerts ? app(\App\Services\Materials\MaterialStockReadModel::class)->alerts() : collect();
+        $hayAlertas = $showStockAlerts && $rows->isNotEmpty();
 
         return view(
             'material.indexv2',
@@ -3282,7 +3082,9 @@ class MaterialController extends Controller
                 'arrayRotations',
                 'arrayMaterials',
                 'rows',
-                'hayAlertas'
+                'hayAlertas',
+                'showStockAlerts',
+                'showStockPopup'
             )
         );
 
@@ -3590,10 +3392,12 @@ class MaterialController extends Controller
 
     public function getItemsStockItems($id)
     {
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('verItems_material');
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        $stockMaterial = StockItem::find($id);
+        $stockMaterial = $access->stockItem($id);
         return view('material.stockItems_items', compact('stockMaterial', 'permissions'));
     }
 
@@ -3656,27 +3460,13 @@ class MaterialController extends Controller
 
     }
 
-    /*public function getItemsStockItemsMaterial($id)
-    {
-
-        $items = Item::where('stock_item_id', $id)
-            ->whereIn('state_item', ['entered', 'scraped'])
-            ->with(['location' => function ($query) {
-                $query->with(['area', 'warehouse', 'shelf', 'level', 'container', 'position']);
-            }])
-            ->with('material')
-            ->with('typescrap')
-            ->with('stockItem')
-            ->with('DetailEntry')->get();
-
-        //dd(datatables($items)->toJson());
-        return datatables($items)->toJson();
-
-    }*/
-
     public function getItemsStockItemsMaterial($id)
     {
-        $items = Item::query()
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('verItems_material');
+        app(MaterialInventoryScope::class)->snapshot(request());
+        $access->stockItem($id);
+        $items = $access->items()
             ->where('stock_item_id', $id)
             ->whereIn('state_item', ['entered', 'scraped', 'reserved'])
             ->with([
@@ -3691,6 +3481,10 @@ class MaterialController extends Controller
             ]);
 
         return datatables($items)
+            ->makeHidden(['material'])
+            ->addColumn('material', function ($item) {
+                return $item->material ? ['id' => $item->material->id, 'full_name' => $item->material->full_name] : null;
+            })
             ->addColumn('material_description', function ($item) {
                 return optional($item->material)->full_description ?? '';
             })
@@ -3699,30 +3493,24 @@ class MaterialController extends Controller
 
     public function updateCode(Request $request, Item $item)
     {
-        $request->validate([
-            'code' => 'required|string|max:255'
-        ]);
-
-        $code = trim($request->code);
-
-        $exists = Item::where('code', $code)
-            ->where('id', '!=', $item->id)
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este código ya está registrado en otro ítem.'
-            ], 422);
-        }
-
-        $item->code = $code;
-        $item->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Código actualizado correctamente.'
-        ]);
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('editarCodeItems_material');
+        app(MaterialInventoryScope::class)->snapshot($request);
+        if (is_string($request->input('code'))) { $request->merge(['code' => trim($request->input('code'))]); }
+        $request->validate(['code' => 'required|string|max:255']);
+        DB::transaction(function () use ($access, $request, $item) {
+            app(MaterialInventoryScope::class)->snapshot($request);
+            $target = $access->item($item->id, true);
+            $code = $request->input('code');
+            $exists = Item::query()->where('tenant_id', TenantContext::tenantId())->where('code', $code)
+                ->where('id', '!=', $target->id)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['code' => 'Este código ya está registrado en otro ítem.']);
+            }
+            $target->code = $code;
+            if (!$target->save()) { throw new \RuntimeException('No se pudo guardar el código.'); }
+        });
+        return response()->json(['success' => true, 'message' => 'Código actualizado correctamente.']);
     }
 
     public function disableMaterial(Request $request)

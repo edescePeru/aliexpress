@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteMultipleTallasRequest;
 use App\Http\Requests\DeleteTallaRequest;
 use App\Http\Requests\StoreTallaRequest;
 use App\Http\Requests\UpdateTallaRequest;
+use App\Services\Materials\DeleteTallas;
 use App\Talla;
 use App\Variant;
 use Illuminate\Http\Request;
@@ -167,62 +169,29 @@ class TallaController extends Controller
     }
 
 
-    public function destroy(
-        DeleteTallaRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $talla =
-            Talla::findOrFail(
-                $validated['talla_id']
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN VARIANT
-         * =========================================================
-         */
-
-        $hasVariants =
-            Variant::query()
-                ->where(
-                    'talla_id',
-                    $talla->id
-                )
-                ->exists();
-
-        if ($hasVariants) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar la talla porque está siendo utilizada por una o más variantes.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteTallaRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $talla->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(\App\Services\Materials\DeleteTallas::class)->delete(
+                [$validated['talla_id']],
+                'talla_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar la talla.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar la talla.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Talla eliminada con éxito.',
+            'message' => 'Talla eliminada con éxito.',
         ], 200);
     }
 
@@ -303,101 +272,29 @@ class TallaController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        $tallas =
-            Talla::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN VARIANT
-         * =========================================================
-         */
-
-        $tallaIds =
-            $tallas
-                ->pluck('id');
-
-        $usedTallaIds =
-            Variant::query()
-                ->whereIn(
-                    'talla_id',
-                    $tallaIds
-                )
-                ->pluck(
-                    'talla_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedTallaIds->isNotEmpty()) {
-
-            $usedNames =
-                $tallas
-                    ->whereIn(
-                        'id',
-                        $usedTallaIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar las tallas porque están siendo utilizadas por variantes: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleTallasRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $tallas
-                as $talla
-            ) {
-                $talla->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteTallas::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar las tallas.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar las tallas.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Tallas eliminadas correctamente.',
-        ]);
+            'message' => 'Tallas eliminadas correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

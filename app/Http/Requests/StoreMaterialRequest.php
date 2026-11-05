@@ -20,7 +20,7 @@ class StoreMaterialRequest extends FormRequest
     {
         $tenantId = TenantContext::tenantId();
 
-        return [
+        $rules = [
             'description' => [
                 'required',
                 'string',
@@ -219,11 +219,17 @@ class StoreMaterialRequest extends FormRequest
                     }),
             ],
         ];
+        return app(\App\Services\Materials\MaterialParameters::class)
+            ->rules($this, $rules, false);
     }
 
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            if ($validator->errors()->any()) { return; }
+            app(\App\Services\Materials\MaterialParameters::class)->validateForm($validator, $this);
+            if ($validator->errors()->any()) { return; }
+
 
             $tenantId =
                 TenantContext::tenantId();

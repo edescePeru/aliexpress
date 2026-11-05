@@ -115,6 +115,18 @@
                     </div>
 
 
+                    <div class="form-group">
+                        <label for="branch_price_list_id">Lista de precios para ventas</label>
+                        <select id="branch_price_list_id" name="price_list_id" class="form-control">
+                            <option value="">Usar predeterminada de la empresa</option>
+                            @foreach($priceLists as $priceList)
+                                <option value="{{ $priceList->id }}" {{ (string) old('price_list_id', null) === (string) $priceList->id ? 'selected' : '' }}>{{ $priceList->name }} ({{ $priceList->currency }})</option>
+                            @endforeach
+                        </select>
+                        <small class="form-text text-muted">Los precios especiales de variante prevalecen sobre el precio base del producto, dentro de esta lista.</small>
+
+                    </div>
+
                     <div class="text-right">
 
                         <a

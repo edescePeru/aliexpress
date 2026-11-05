@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'viewBranch_puntoVenta' => 'Consultar todas las ventas del local activo',
+    'print_puntoVenta' => 'Imprimir documentos de ventas autorizadas',
+    'updateDispatch_puntoVenta' => 'Actualizar despacho de ventas autorizadas',
+    'managePayments_puntoVenta' => 'Gestionar pagos de ventas autorizadas',
+    'manageDocuments_puntoVenta' => 'Gestionar comprobantes de ventas autorizadas',
+    'annul_puntoVenta' => 'Anular ventas autorizadas y gestionar notas de crédito',
+
     'confirm_quoteSale' => 'Confirmar cotizaciones de venta',
     'send_quoteSale' => 'Marcar cotizaciones de venta como enviadas',
     'finish_quoteSale' => 'Cerrar y reabrir cotizaciones de venta',

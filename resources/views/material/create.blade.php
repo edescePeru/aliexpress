@@ -70,6 +70,7 @@
 
 @section('content')
     <form id="formCreate" class="form-horizontal next-material-page" data-url="{{ route('material.store') }}" enctype="multipart/form-data">
+        @include('materialDetailSetting._context')
         @csrf
 
         @php
@@ -284,7 +285,7 @@
                         <div class="form-group">
                             <label for="unit_measure">Unidad de medida</label>
                             <div class="input-group next-field-action">
-                                <select id="unit_measure" name="unit_measure" class="form-control select2">
+                                <select id="unit_measure" name="unit_measure" class="form-control select2" required aria-required="true">
                                     <option></option>
                                     @foreach($unitMeasures as $unitMeasure)
                                         <option value="{{ $unitMeasure->id }}">{{ $unitMeasure->name }}</option>
