@@ -29,6 +29,7 @@ use App\QuoteMaterialReservation;
 use App\QuoteStockLot;
 use App\SalePartialPayment;
 use App\Services\InventoryCostService;
+use App\Services\Sales\PosCatalogReadService;
 use App\Services\SettingService;
 use App\StockItem;
 use App\StockLot;
@@ -71,549 +72,31 @@ class PuntoVentaController extends Controller
 
     public function index()
     {
-        $categories = Category::all();
-        $tipoPagos  = TipoPago::all();
-
-        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
-
-        $pagos_parciales = $allowPartialPayments ? 's': 'n';
-
-        $askWorker = app(SettingService::class)->get('pos.require_worker');
-
-        // Lista de trabajadores habilitados
-        $workers = Worker::where('enable', true)
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get();
-
-        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
-
-
-        return view('puntoVenta.index', compact(
-            'categories',
-            'tipoPagos',
-            'askWorker',
-            'workers',
-            'cashBoxes','subtypes', 'pagos_parciales'
-        ));
+        return view('puntoVenta.index', app(\App\Services\Sales\PosScreenOptions::class)->data('v1'));
     }
 
     public function indexV2()
     {
-        $categories = Category::all();
-        $tipoPagos  = TipoPago::all();
-
-        $askWorker = app(SettingService::class)->get('pos.require_worker');
-
-        // Lista de trabajadores habilitados
-        $workers = Worker::where('enable', true)
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get();
-
-        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
-
-        $allowPartialPayments = app(SettingService::class)->get('sales.allow_partial_payments');
-
-        $pagos_parciales = $allowPartialPayments ? 's': 'n';
-
-        return view('puntoVenta.indexV2', compact(
-            'categories',
-            'tipoPagos',
-            'askWorker',
-            'workers',
-            'cashBoxes','subtypes', 'pagos_parciales'
-        ));
-    }
-
-    public function getDataProductsO(Request $request, $pageNumber = 1)
-    {
-        $perPage = 10;
-        $category_id = $request->input('category_id');
-        $product_search = $request->input('product_search');
-
-        $query = Material::where('enable_status', 1)
-            ->where('stock_current', '>', 0)
-            ->orderBy('id');
-
-        // Aplicar filtros si se proporcionan
-
-        if ($category_id != "") {
-            $query->where('category_id', $category_id);
-
-        }
-
-        if ($product_search != "") {
-            $search = trim($product_search);
-
-            $query->where(function ($q) use ($search) {
-                $q->where('codigo', $search) // <-- código/barcode exacto
-                ->orWhere('full_name', 'like', '%'.$search.'%');
-            });
-
-            // Opcional: PRIORIDAD a los que matchean por código exacto (sale primero)
-            $query->orderByRaw("CASE WHEN codigo = ? THEN 0 ELSE 1 END", [$search]);
-        }
-
-        $totalFilteredRecords = $query->count();
-        $totalPages = ceil($totalFilteredRecords / $perPage);
-
-        $startRecord = ($pageNumber - 1) * $perPage + 1;
-        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
-
-        $products = $query->skip(($pageNumber - 1) * $perPage)
-            ->take($perPage)
-            ->get();
-
-        $arrayProducts = [];
-
-        foreach ( $products as $product )
-        {
-            $stock = Material::where('id', $product->id)
-                    ->select('stock_current')
-                    ->first()
-                    ->stock_current ?? 0;
-            array_push($arrayProducts, [
-                "id" => $product->id,
-                "full_name" => $product->full_name,
-                "category" => ($product->category_id == null) ? '': $product->category->description,
-                "price" => $product->list_price,
-                "stock" => $stock,
-                "image" => $product->image,
-                "unit" => $product->unitMeasure->description,
-                "tax" => ($product->type_tax_id == null) ? 18 : $product->typeTax->tax,
-                "rating" => 4,
-                "type" => ($product->tipo_venta_id == null) ? 0 : $product->tipoVenta->id,
-            ]);
-        }
-
-        $pagination = [
-            'currentPage' => (int)$pageNumber,
-            'totalPages' => (int)$totalPages,
-            'startRecord' => $startRecord,
-            'endRecord' => $endRecord,
-            'totalRecords' => $totalFilteredRecords,
-            'totalFilteredRecords' => $totalFilteredRecords
-        ];
-
-        return ['data' => $arrayProducts, 'pagination' => $pagination];
+        return view('puntoVenta.indexV2', app(\App\Services\Sales\PosScreenOptions::class)->data('v2'));
     }
 
     public function getDataProducts(Request $request, $pageNumber = 1)
     {
-        $perPage = 12;
-        $categoryId = trim((string) $request->input('category_id', ''));
-        $productSearch = trim((string) $request->input('product_search', ''));
-
-        $defaultPriceList = PriceList::where('is_default', 1)
-            ->where('is_active', 1)
-            ->first();
-
-        /**
-         * =========================================================
-         * 1) STOCK ITEMS (nuevo modelo)
-         * =========================================================
-         */
-        $stockItemsQuery = StockItem::with([
-            'material.category:id,description',
-            'material.unitMeasure:id,description',
-            'material.typeTax:id,tax',
-            'material.tipoVenta:id',
-            'variant',
-            'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
-            'priceListItems' => function ($q) use ($defaultPriceList) {
-                if ($defaultPriceList) {
-                    $q->where('price_list_id', $defaultPriceList->id);
-                } else {
-                    $q->whereRaw('1 = 0');
-                }
-            }
-        ])
-            ->where('is_active', 1)
-            ->whereHas('material', function ($q) use ($categoryId) {
-                $q->where('enable_status', 1);
-
-                if ($categoryId !== '') {
-                    $q->where('category_id', $categoryId);
-                }
-            });
-
-        if ($productSearch !== '') {
-            $search = $productSearch;
-
-            $stockItemsQuery->where(function ($q) use ($search) {
-                $q->where('sku', 'like', '%' . $search . '%')
-                    ->orWhere('barcode', 'like', '%' . $search . '%')
-                    ->orWhere('display_name', 'like', '%' . $search . '%')
-                    ->orWhereHas('material', function ($mq) use ($search) {
-                        $mq->where('full_name', 'like', '%' . $search . '%')
-                            ->orWhere('code', 'like', '%' . $search . '%')
-                            ->orWhere('codigo', 'like', '%' . $search . '%');
-                    });
-            });
-
-            $stockItemsQuery->orderByRaw("
-            CASE
-                WHEN sku = ? THEN 0
-                WHEN barcode = ? THEN 0
-                ELSE 1
-            END
-        ", [$search, $search]);
-        }
-
-        $stockItems = $stockItemsQuery->get()
-            ->map(function ($stockItem) {
-                $material = $stockItem->material;
-
-                $stockCurrent = (float) $stockItem->inventoryLevels->sum(function ($level) {
-                    return (float) ($level->qty_on_hand ?? 0);
-                });
-
-                $stockReserved = (float) $stockItem->inventoryLevels->sum(function ($level) {
-                    return (float) ($level->qty_reserved ?? 0);
-                });
-
-                $stockAvailable = max(0, $stockCurrent - $stockReserved);
-
-                if ($stockAvailable <= 0) {
-                    return null;
-                }
-
-                $price = optional($stockItem->priceListItems->first())->price ?? 0;
-
-                return [
-                    'source' => 'stock_item',
-                    'id' => $stockItem->id, // importante: ahora el id es stock_item_id
-                    'material_id' => $material->id ?? null,
-                    'full_name' => $stockItem->display_name ?: optional($material)->full_name ?: '',
-                    'category' => optional(optional($material)->category)->description ?? '',
-                    'price' => (float) $price,
-                    'stock' => (float) $stockAvailable,
-                    'image' => $stockItem->display_image,
-                    'image_url' => $stockItem->display_image_url,
-                    'unit' => optional(optional($material)->unitMeasure)->description ?? '',
-                    'tax' => optional(optional($material)->typeTax)->tax ?? 18,
-                    'rating' => 4,
-                    'type' => optional(optional($material)->tipoVenta)->id ?? 0,
-                    'sku' => $stockItem->sku ?? '',
-                    'barcode' => $stockItem->barcode ?? '',
-                ];
-            })
-            ->filter()
-            ->values();
-
-        /**
-         * =========================================================
-         * 2) MATERIALES LEGACY SIN STOCK ITEM
-         * =========================================================
-         */
-
-        $materialsLegacy = [];
-
-        /**
-         * =========================================================
-         * 3) Unir y paginar
-         * =========================================================
-         */
-        $allProducts = $stockItems
-            ->concat($materialsLegacy)
-            ->values();
-
-        $totalFilteredRecords = $allProducts->count();
-        $totalPages = $totalFilteredRecords > 0
-            ? (int) ceil($totalFilteredRecords / $perPage)
-            : 1;
-
-        $pageNumber = max(1, (int) $pageNumber);
-
-        $pagedProducts = $allProducts
-            ->slice(($pageNumber - 1) * $perPage, $perPage)
-            ->values();
-
-        $startRecord = $totalFilteredRecords > 0
-            ? (($pageNumber - 1) * $perPage + 1)
-            : 0;
-
-        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
-
-        $pagination = [
-            'currentPage' => (int) $pageNumber,
-            'totalPages' => (int) $totalPages,
-            'startRecord' => $startRecord,
-            'endRecord' => $endRecord,
-            'totalRecords' => $totalFilteredRecords,
-            'totalFilteredRecords' => $totalFilteredRecords,
-        ];
-
-        return [
-            'data' => $pagedProducts->toArray(),
-            'pagination' => $pagination,
-        ];
+        return response()->json(app(PosCatalogReadService::class)->v1($request, $pageNumber));
     }
+
 
     public function getStockItemsByMaterial($materialId)
     {
-        $defaultPriceList = PriceList::where('is_default', 1)
-            ->where('is_active', 1)
-            ->first();
-
-        $stockItems = StockItem::with([
-            'material.unitMeasure:id,description',
-            'material.typeTax:id,tax',
-            'material.tipoVenta:id',
-
-            'variant',
-            'variant.talla:id,name,short_name',
-            'variant.color:id,name',
-
-            'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
-
-            'priceListItems' => function ($q) use ($defaultPriceList) {
-                if ($defaultPriceList) {
-                    $q->where('price_list_id', $defaultPriceList->id);
-                } else {
-                    $q->whereRaw('1 = 0');
-                }
-            }
-        ])
-            ->where('material_id', $materialId)
-            ->where('is_active', 1)
-            ->get()
-            ->map(function ($stockItem) {
-                $material = $stockItem->material;
-
-                $stockCurrent = $stockItem->inventoryLevels->sum(function ($level) {
-                    return (float) ($level->qty_on_hand ?? 0);
-                });
-
-                $stockReserved = $stockItem->inventoryLevels->sum(function ($level) {
-                    return (float) ($level->qty_reserved ?? 0);
-                });
-
-                $stockAvailable = max(0, $stockCurrent - $stockReserved);
-
-                if ($stockAvailable <= 0) {
-                    return null;
-                }
-
-                $variantText = 'Presentación única';
-
-                if ($stockItem->variant) {
-                    if ($stockItem->variant->attribute_summary) {
-                        $variantText = $stockItem->variant->attribute_summary;
-                    } else {
-                        $talla = optional($stockItem->variant->talla)->short_name
-                            ?: optional($stockItem->variant->talla)->name;
-
-                        $color = optional($stockItem->variant->color)->name;
-
-                        $variantText = collect([$talla, $color])
-                            ->filter()
-                            ->implode(' / ');
-                    }
-                }
-
-                return [
-                    'stock_item_id' => $stockItem->id,
-                    'material_id' => $stockItem->material_id,
-
-                    'variant_id' => $stockItem->variant_id,
-                    'variant_text' => $variantText,
-
-                    'sku' => $stockItem->sku ?? '',
-                    'barcode' => $stockItem->barcode ?? '',
-                    'display_name' => $stockItem->display_name
-                        ?: optional($material)->full_name
-                            ?: '',
-
-                    'stock_available' => (float) $stockAvailable,
-                    'price' => (float) (
-                        optional($stockItem->priceListItems->first())->price ?? 0
-                    ),
-
-                    /*
-                     * Necesarios para la fila del modal V2.
-                     */
-                    'unit' => optional(optional($material)->unitMeasure)->description ?? 'UND',
-                    'tax' => (float) (optional(optional($material)->typeTax)->tax ?? 18),
-                    'type' => (int) (optional(optional($material)->tipoVenta)->id ?? 0),
-                ];
-            })
-            ->filter()
-            ->values();
-
-        return response()->json([
-            'success' => true,
-            'data' => $stockItems,
-        ]);
+        return response()->json(app(PosCatalogReadService::class)->variants(request(), $materialId));
     }
+
 
     public function getDataProductsV2(Request $request, $pageNumber = 1)
     {
-        $perPage = 12;
-        $categoryId = trim((string) $request->input('category_id', ''));
-        $productSearch = trim((string) $request->input('product_search', ''));
-
-        $defaultPriceList = PriceList::where('is_default', 1)
-            ->where('is_active', 1)
-            ->first();
-
-        /**
-         * =========================================================
-         * 1) MATERIALS PADRES
-         *    La búsqueda sigue usando stock_items:
-         *    sku, barcode, display_name + material.full_name
-         * =========================================================
-         */
-        $materialsQuery = Material::with([
-            'category:id,description',
-            'unitMeasure:id,description',
-            'typeTax:id,tax',
-            'tipoVenta:id',
-            'stockItems' => function ($q) use ($defaultPriceList) {
-                $q->where('is_active', 1)
-                    ->with([
-                        'variant',
-                        'inventoryLevels:id,stock_item_id,qty_on_hand,qty_reserved',
-                        'priceListItems' => function ($pq) use ($defaultPriceList) {
-                            if ($defaultPriceList) {
-                                $pq->where('price_list_id', $defaultPriceList->id);
-                            } else {
-                                $pq->whereRaw('1 = 0');
-                            }
-                        }
-                    ]);
-            }
-        ])
-            ->where('enable_status', 1);
-
-        if ($categoryId !== '') {
-            $materialsQuery->where('category_id', $categoryId);
-        }
-
-        if ($productSearch !== '') {
-            $search = $productSearch;
-
-            $materialsQuery->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', '%' . $search . '%')
-                    ->orWhere('code', 'like', '%' . $search . '%')
-                    ->orWhere('codigo', 'like', '%' . $search . '%')
-                    ->orWhereHas('stockItems', function ($sq) use ($search) {
-                        $sq->where('is_active', 1)
-                            ->where(function ($ssq) use ($search) {
-                                $ssq->where('sku', 'like', '%' . $search . '%')
-                                    ->orWhere('barcode', 'like', '%' . $search . '%')
-                                    ->orWhere('display_name', 'like', '%' . $search . '%');
-                            });
-                    });
-            });
-
-            $materialsQuery->orderByRaw("
-            CASE
-                WHEN full_name = ? THEN 0
-                WHEN code = ? THEN 0
-                WHEN codigo = ? THEN 0
-                ELSE 1
-            END
-        ", [$search, $search, $search]);
-        }
-
-        $materials = $materialsQuery->get()
-            ->map(function ($material) {
-                $stockItems = $material->stockItems ?? collect();
-
-                $stockCurrent = $stockItems->sum(function ($stockItem) {
-                    return $stockItem->inventoryLevels->sum(function ($level) {
-                        return (float) ($level->qty_on_hand ?? 0);
-                    });
-                });
-
-                $stockReserved = $stockItems->sum(function ($stockItem) {
-                    return $stockItem->inventoryLevels->sum(function ($level) {
-                        return (float) ($level->qty_reserved ?? 0);
-                    });
-                });
-
-                $stockAvailable = max(0, $stockCurrent - $stockReserved);
-
-                if ($stockAvailable <= 0) {
-                    return null;
-                }
-
-                $firstStockItem = $stockItems->first();
-
-                $price = 0;
-
-                if ($firstStockItem) {
-                    $price = optional($firstStockItem->priceListItems->first())->price ?? 0;
-                }
-
-                return [
-                    'source' => 'material',
-                    'id' => $material->id,
-                    'material_id' => $material->id,
-                    'full_name' => $material->full_name ?? '',
-                    'category' => optional($material->category)->description ?? '',
-                    'price' => (float) $price,
-                    'stock' => (float) $stockAvailable,
-                    'image' => $material->image ?? optional($firstStockItem)->display_image,
-                    'image_url' => $material->image_url ?? optional($firstStockItem)->display_image_url,
-                    'unit' => optional($material->unitMeasure)->description ?? '',
-                    'tax' => optional($material->typeTax)->tax ?? 18,
-                    'rating' => 4,
-                    'type' => optional($material->tipoVenta)->id ?? 0,
-
-                    // Datos referenciales del primer stock item
-                    'sku' => optional($firstStockItem)->sku ?? '',
-                    'barcode' => optional($firstStockItem)->barcode ?? '',
-
-                    // Útil para saber si debe abrir modal de variantes
-                    'has_variants' => $stockItems->whereNotNull('variant_id')->count() > 0,
-                    'stock_items_count' => $stockItems->count(),
-                ];
-            })
-            ->filter()
-            ->values();
-
-        /**
-         * =========================================================
-         * 2) Paginar
-         * =========================================================
-         */
-        $totalFilteredRecords = $materials->count();
-
-        $totalPages = $totalFilteredRecords > 0
-            ? (int) ceil($totalFilteredRecords / $perPage)
-            : 1;
-
-        $pageNumber = max(1, (int) $pageNumber);
-
-        $pagedProducts = $materials
-            ->slice(($pageNumber - 1) * $perPage, $perPage)
-            ->values();
-
-        $startRecord = $totalFilteredRecords > 0
-            ? (($pageNumber - 1) * $perPage + 1)
-            : 0;
-
-        $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
-
-        $pagination = [
-            'currentPage' => (int) $pageNumber,
-            'totalPages' => (int) $totalPages,
-            'startRecord' => $startRecord,
-            'endRecord' => $endRecord,
-            'totalRecords' => $totalFilteredRecords,
-            'totalFilteredRecords' => $totalFilteredRecords,
-        ];
-
-        return [
-            'data' => $pagedProducts->toArray(),
-            'pagination' => $pagination,
-        ];
+        return response()->json(app(PosCatalogReadService::class)->v2($request, $pageNumber));
     }
+
 
     public function getDiscountProduct(Request $request, $product_id)
     {
@@ -1676,1063 +1159,51 @@ class PuntoVentaController extends Controller
 
     public function store(Request $request)
     {
-        $begin = microtime(true);
-        $workerDefault = Worker::where('user_id', Auth::user()->id)->firstOrFail();
-        $workerId = $request->input('worker_id');
-
-        DB::beginTransaction();
         try {
-            $items = json_decode($request->get('items'));
-
-            if (!is_array($items) && !($items instanceof \Traversable)) {
-                throw new \Exception('El formato de items es inválido.');
-            }
-
-            $selectedItemIdsUsedInRequest = [];
-
-            foreach ($items as $item) {
-                $stockItemId = (int) ($item->productId ?? 0);
-                $materialId  = (int) ($item->materialId ?? 0);
-
-                $stockItem = StockItem::with(['material', 'inventoryLevels'])->find($stockItemId);
-
-                if (!$stockItem) {
-                    throw new \Exception("StockItem con ID {$stockItemId} no encontrado.");
-                }
-
-                if ((int) $stockItem->material_id !== $materialId) {
-                    throw new \Exception("El stock item {$stockItemId} no pertenece al material {$materialId}.");
-                }
-
-                $material = $stockItem->material;
-                if (!$material) {
-                    throw new \Exception("El material padre del stock item {$stockItemId} no existe.");
-                }
-
-                $presentationId = $item->presentationId ?? null;
-
-                if (!empty($presentationId)) {
-                    $packs = (int) ($item->productQuantity ?? 0);
-                    if ($packs < 1) {
-                        throw new \Exception("Cantidad de paquetes inválida para el producto '{$material->full_name}'.");
-                    }
-
-                    $presentation = MaterialPresentation::where('id', $presentationId)
-                        ->where('material_id', $materialId)
-                        ->where('active', 1)
-                        ->first();
-
-                    if (!$presentation) {
-                        throw new \Exception("La presentación seleccionada no es válida o no pertenece al material '{$material->full_name}'.");
-                    }
-
-                    $unitsPerPack = (int) $presentation->quantity;
-                    if ($unitsPerPack < 1) {
-                        throw new \Exception("La presentación tiene cantidad inválida para el material '{$material->full_name}'.");
-                    }
-
-                    $units = $packs * $unitsPerPack;
-                } else {
-                    $units = (float) ($item->unitsEquivalent ?? $item->productQuantity ?? 0);
-                    if ($units <= 0) {
-                        throw new \Exception("Cantidad inválida para el producto '{$material->full_name}'.");
-                    }
-                }
-
-                $isItemeable = (int) ($material->tipo_venta_id ?? 0) === 3;
-
-                if ($isItemeable) {
-                    if (floor($units) != $units) {
-                        throw new \Exception(
-                            "Los productos itemeables solo aceptan cantidades enteras. Producto: '{$stockItem->display_name}'."
-                        );
-                    }
-
-                    $rawSelectedItemIds = $item->selected_item_ids ?? [];
-
-                    if (is_string($rawSelectedItemIds)) {
-                        $decodedItemIds = json_decode($rawSelectedItemIds, true);
-
-                        $rawSelectedItemIds = is_array($decodedItemIds)
-                            ? $decodedItemIds
-                            : [];
-                    }
-
-                    if (!is_array($rawSelectedItemIds)) {
-                        $rawSelectedItemIds = [];
-                    }
-
-                    $selectedItemIds = collect($rawSelectedItemIds)
-                        ->map(function ($itemId) {
-                            return (int) $itemId;
-                        })
-                        ->filter(function ($itemId) {
-                            return $itemId > 0;
-                        })
-                        ->values()
-                        ->toArray();
-
-                    if (count($selectedItemIds) !== (int) $units) {
-                        throw new \Exception(
-                            "La cantidad de ítems físicos seleccionados no coincide con la cantidad requerida para '{$stockItem->display_name}'. " .
-                            "Requerido: {$units}. Seleccionados: " . count($selectedItemIds) . '.'
-                        );
-                    }
-
-                    if (count($selectedItemIds) !== count(array_unique($selectedItemIds))) {
-                        throw new \Exception(
-                            "Se detectaron ítems físicos repetidos en '{$stockItem->display_name}'."
-                        );
-                    }
-
-                    foreach ($selectedItemIds as $selectedItemId) {
-                        if (in_array($selectedItemId, $selectedItemIdsUsedInRequest, true)) {
-                            throw new \Exception(
-                                "El ítem físico con ID {$selectedItemId} fue agregado más de una vez en el carrito."
-                            );
-                        }
-
-                        $selectedItemIdsUsedInRequest[] = $selectedItemId;
-                    }
-
-                    $selectedItems = Item::whereIn('id', $selectedItemIds)
-                        ->where('stock_item_id', $stockItemId)
-                        ->where('percentage', 1)
-                        ->where('state_item', 'entered')
-                        ->get();
-
-                    if ($selectedItems->count() !== count($selectedItemIds)) {
-                        throw new \Exception(
-                            "Uno o más ítems seleccionados ya no están disponibles para '{$stockItem->display_name}'."
-                        );
-                    }
-                } else {
-                    $available = $this->getAvailableStockByStockItem($stockItemId);
-
-                    if ($available < $units) {
-                        throw new \Exception(
-                            "Stock insuficiente para el producto '{$stockItem->display_name}'. " .
-                            "Disponible: {$available}, requerido: {$units}"
-                        );
-                    }
-                }
-            }
-
-            $type_document = null;
-            $numero_documento_cliente = null;
-            $nombre_cliente = null;
-            $direccion_cliente = null;
-            $tipo_documento_cliente = null;
-            $email_cliente = null;
-
-            if ($request->invoice_type === 'boleta') {
-                $type_document = '03';
-                $numero_documento_cliente = $request->dni;
-                $nombre_cliente = $request->name;
-                $direccion_cliente = $request->address;
-                $tipo_documento_cliente = '1';
-                $email_cliente = $request->email_invoice_boleta;
-
-                if (!preg_match('/^\d{8}$/', $numero_documento_cliente)) {
-                    throw new \Exception("El DNI debe contener exactamente 8 dígitos.");
-                }
-            } elseif ($request->invoice_type === 'factura') {
-                $type_document = '01';
-                $numero_documento_cliente = $request->ruc;
-                $nombre_cliente = $request->razon_social;
-                $direccion_cliente = $request->direccion_fiscal;
-                $tipo_documento_cliente = '6';
-                $email_cliente = $request->email_invoice_factura;
-
-                if (!preg_match('/^\d{11}$/', $numero_documento_cliente)) {
-                    throw new \Exception("El RUC debe contener exactamente 11 dígitos.");
-                }
-
-            }
-
-            $negocioAceptaPagosParciales = $request->input('negocio_acepta_pagos_parciales', 'n');
-            $pagosParcialesVenta = $request->input('pagos_parciales_venta', 'n');
-
-            if (!in_array($pagosParcialesVenta, ['s', 'n'])) {
-                throw new \Exception("Valor inválido para pagos parciales.");
-            }
-
-            if ($pagosParcialesVenta === 's' && $negocioAceptaPagosParciales !== 's') {
-                throw new \Exception("Este negocio no tiene habilitados los pagos parciales.");
-            }
-
-            $sale = Sale::create([
-                'date_sale' => Carbon::now(),
-                'serie' => $this->generateRandomString(),
-                'worker_id' => null,
-                'caja' => null,
-                'currency' => 'PEN',
-                'op_exonerada' => $request->get('total_exonerada'),
-                'op_inafecta' => 0,
-                'op_gravada' => $request->get('total_gravada'),
-                'igv' => $request->get('total_igv'),
-                'total_descuentos' => $request->get('total_descuentos'),
-                'importe_total' => $request->get('total_importe'),
-                'vuelto' => $request->get('total_vuelto'),
-                'tipo_pago_id' => $request->get('tipo_pago'),
-                'dispatch_status' => ($pagosParcialesVenta === 's') ? 'pendiente':'despachado',
-                'type_document' => $type_document,
-                'pagos_parciales_venta' => $pagosParcialesVenta,
-                'numero_documento_cliente' => $numero_documento_cliente,
-                'tipo_documento_cliente' => $tipo_documento_cliente,
-                'nombre_cliente' => $nombre_cliente,
-                'direccion_cliente' => $direccion_cliente,
-                'email_cliente' => $email_cliente,
-                'serie_sunat' => null,
-                'numero' => null,
-                'sunat_ticket' => null,
-                'sunat_status' => null,
-                'sunat_message' => null,
-                'xml_path' => null,
-                'cdr_path' => null,
-                'pdf_path' => null,
-                'fecha_emision' => null,
-            ]);
-
-            if ($workerId) {
-                $sale->worker_id = $workerId;
-                $sale->caja = $workerId;
-                $sale->save();
-            } else {
-                $sale->worker_id = $workerDefault->id;
-                $sale->caja = $workerDefault->id;
-                $sale->save();
-            }
-
-            $output = Output::create([
-                'execution_order'  => "VENTA DE POS",
-                'request_date'     => $sale->date_sale ?? Carbon::now(),
-                'requesting_user'  => Auth::id(),
-                'responsible_user' => Auth::id(),
-                'state'            => 'confirmed',
-                'indicator'        => 'or',
-            ]);
-
-            for ($i = 0; $i < sizeof($items); $i++) {
-                $row = $items[$i];
-
-                $stockItemId = (int) ($row->productId ?? 0);
-                $materialId  = (int) ($row->materialId ?? 0);
-
-                $stockItem = StockItem::with(['material'])->findOrFail($stockItemId);
-                $material = $stockItem->material;
-
-                if (!$material) {
-                    throw new \Exception("El material padre del stock item {$stockItemId} no existe.");
-                }
-
-                if ((int) $stockItem->material_id !== $materialId) {
-                    throw new \Exception("El stock item {$stockItemId} no pertenece al material {$materialId}.");
-                }
-
-                $presentationId = $row->presentationId ?? null;
-                $packs = null;
-                $unitsPerPack = null;
-
-                if (!empty($presentationId)) {
-                    $packs = (int) ($row->productQuantity ?? 0);
-                    if ($packs < 1) {
-                        throw new \Exception("Cantidad de paquetes inválida para el producto '{$stockItem->display_name}'.");
-                    }
-
-                    $presentation = MaterialPresentation::where('id', $presentationId)
-                        ->where('material_id', $materialId)
-                        ->where('active', 1)
-                        ->first();
-
-                    if (!$presentation) {
-                        throw new \Exception("La presentación seleccionada no es válida o no pertenece al material '{$material->full_name}'.");
-                    }
-
-                    $unitsPerPack = (int) $presentation->quantity;
-                    if ($unitsPerPack < 1) {
-                        throw new \Exception("La presentación tiene cantidad inválida.");
-                    }
-
-                    $unitsEquivalent = $packs * $unitsPerPack;
-                } else {
-                    $unitsEquivalent = (float) ($row->unitsEquivalent ?? $row->productQuantity ?? 0);
-                    if ($unitsEquivalent <= 0) {
-                        throw new \Exception("Cantidad inválida para el producto '{$stockItem->display_name}'.");
-                    }
-                }
-
-                $qtyReal = (float) $unitsEquivalent;
-                $qtyForSunat = (!empty($presentationId)) ? (float) ($packs ?? 0) : (float) $qtyReal;
-
-                if ($qtyForSunat <= 0) {
-                    throw new \Exception("Cantidad inválida (qtyForSunat) para producto {$stockItem->display_name}.");
-                }
-
-                $totalLine = (float) ($row->productTotal ?? 0);
-                $priceWithTax = (float) ($row->productTotalTaxes ?? 0);
-                $discount = (float) ($row->productDiscount ?? 0);
-
-                $precioUnitario = (float) ($row->priceEffective ?? $row->productPrice ?? 0);
-                if ($precioUnitario <= 0) {
-                    $precioUnitario = $priceWithTax > 0 ? ($priceWithTax / $qtyForSunat) : 0;
-                }
-
-                $valorUnitario = $precioUnitario / 1.18;
-
-                $isItemeable = (int) ($material->tipo_venta_id ?? 0) === 3;
-
-                /*
-                |--------------------------------------------------------------------------
-                | ITEMEABLES
-                |--------------------------------------------------------------------------
-                | Se consumen exactamente los Items seleccionados desde POS.
-                | No usamos FIFO ni buscamos otros Items disponibles.
-                */
-                if ($isItemeable) {
-                    if (floor($qtyReal) != $qtyReal) {
-                        throw new \Exception(
-                            "Cantidad decimal no soportada para material itemeable: {$stockItem->display_name}"
-                        );
-                    }
-
-                    $rawSelectedItemIds = $row->selected_item_ids ?? [];
-
-                    if (is_string($rawSelectedItemIds)) {
-                        $decodedItemIds = json_decode($rawSelectedItemIds, true);
-
-                        $rawSelectedItemIds = is_array($decodedItemIds)
-                            ? $decodedItemIds
-                            : [];
-                    }
-
-                    if (!is_array($rawSelectedItemIds)) {
-                        $rawSelectedItemIds = [];
-                    }
-
-                    $selectedItemIds = collect($rawSelectedItemIds)
-                        ->map(function ($itemId) {
-                            return (int) $itemId;
-                        })
-                        ->filter(function ($itemId) {
-                            return $itemId > 0;
-                        })
-                        ->unique()
-                        ->values()
-                        ->toArray();
-
-                    if (count($selectedItemIds) !== (int) $qtyReal) {
-                        throw new \Exception(
-                            "La cantidad de ítems físicos seleccionados no coincide con la venta de '{$stockItem->display_name}'. " .
-                            "Requerido: {$qtyReal}. Seleccionados: " . count($selectedItemIds) . '.'
-                        );
-                    }
-
-                    /*
-                     * Bloqueamos exactamente los Items elegidos por el usuario.
-                     * Deben seguir en entered para impedir doble venta desde
-                     * dos carritos o terminales POS diferentes.
-                     */
-                    $selectedItems = Item::whereIn('id', $selectedItemIds)
-                        ->where('stock_item_id', $stockItemId)
-                        ->where('percentage', 1)
-                        ->where('state_item', 'entered')
-                        ->lockForUpdate()
-                        ->get();
-
-                    if ($selectedItems->count() !== count($selectedItemIds)) {
-                        throw new \Exception(
-                            "Uno o más ítems seleccionados ya no están disponibles para '{$stockItem->display_name}'."
-                        );
-                    }
-
-                    $itemSnapshot = $selectedItems->map(function ($itemObj) {
-                        return [
-                            'id' => (int) $itemObj->id,
-                            'code' => (string) $itemObj->code,
-                        ];
-                    })->values()->toArray();
-
-                    /*
-                     * Agrupamos los Items por lote real.
-                     * Un mismo detalle de venta puede contener Items de varios lotes.
-                     */
-                    $itemsByLot = $selectedItems->groupBy('stock_lot_id');
-
-                    $lotsForConsumption = [];
-                    $totalCost = 0.0;
-
-                    foreach ($itemsByLot as $stockLotId => $itemsOfLot) {
-                        if (!$stockLotId) {
-                            throw new \Exception(
-                                "Uno de los ítems seleccionados para '{$stockItem->display_name}' no tiene lote asociado."
-                            );
-                        }
-
-                        $lot = StockLot::where('id', $stockLotId)
-                            ->where('stock_item_id', $stockItemId)
-                            ->lockForUpdate()
-                            ->first();
-
-                        if (!$lot) {
-                            throw new \Exception(
-                                "No se encontró el lote {$stockLotId} de '{$stockItem->display_name}'."
-                            );
-                        }
-
-                        $quantityInLot = (float) $itemsOfLot->count();
-
-                        if ((float) $lot->qty_on_hand < $quantityInLot) {
-                            throw new \Exception(
-                                "El lote {$lot->id} no tiene stock suficiente para completar la venta."
-                            );
-                        }
-
-                        foreach ($itemsOfLot as $itemObj) {
-                            if (
-                                (int) $itemObj->warehouse_id !== (int) $lot->warehouse_id ||
-                                (int) $itemObj->location_id !== (int) $lot->location_id
-                            ) {
-                                throw new \Exception(
-                                    "El Item {$itemObj->id} no coincide con la ubicación del lote {$lot->id}."
-                                );
-                            }
-
-                            $itemUnitCost = (float) (
-                                $itemObj->unit_cost ?? $lot->unit_cost
-                            );
-
-                            $totalCost += $itemUnitCost;
-                        }
-
-                        $lotsForConsumption[] = [
-                            'lot' => $lot,
-                            'items' => $itemsOfLot,
-                            'quantity' => $quantityInLot,
-                        ];
-                    }
-
-                    $unitCost = $qtyReal > 0
-                        ? ($totalCost / $qtyReal)
-                        : 0;
-
-                    /*
-                     * Un SaleDetail por cada línea del carrito.
-                     * Puede tener varios OutputDetail si hay varios Items.
-                     */
-                    $saleDetail = SaleDetail::create([
-                        'sale_id' => $sale->id,
-                        'material_id' => $materialId,
-                        'stock_item_id' => $stockItemId,
-                        'material_presentation_id' => $presentationId,
-                        'valor_unitario' => $valorUnitario,
-                        'price' => $precioUnitario,
-                        'quantity' => $qtyReal,
-                        'packs' => $packs,
-                        'units_per_pack' => $unitsPerPack,
-                        'percentage_tax' => $row->productTax ?? 18,
-                        'total' => $totalLine,
-                        'discount' => $discount,
-                        'unit_cost' => $unitCost,
-                        'total_cost' => $totalCost,
-
-                        // Snapshot de los Items físicos vendidos
-                        'item_snapshot' => $itemSnapshot,
-                    ]);
-
-                    foreach ($lotsForConsumption as $lotData) {
-                        /** @var StockLot $lot */
-                        $lot = $lotData['lot'];
-
-                        /** @var \Illuminate\Support\Collection $itemsOfLot */
-                        $itemsOfLot = $lotData['items'];
-
-                        $consumeQty = (float) $lotData['quantity'];
-
-                        foreach ($itemsOfLot as $itemObj) {
-                            $itemUnitCost = (float) (
-                                $itemObj->unit_cost ?? $lot->unit_cost
-                            );
-
-                            /*
-                             * Un OutputDetail por cada Item físico.
-                             */
-                            OutputDetail::create([
-                                'output_id' => $output->id,
-                                'sale_detail_id' => $saleDetail->id,
-                                'item_id' => $itemObj->id,
-
-                                'material_id' => $materialId,
-                                'stock_item_id' => $itemObj->stock_item_id,
-                                'stock_lot_id' => $itemObj->stock_lot_id,
-                                'warehouse_id' => $itemObj->warehouse_id,
-                                'location_id' => $itemObj->location_id,
-
-                                'quote_id' => $sale->quote_id ?? null,
-                                'custom' => 0,
-                                'percentage' => 1,
-
-                                'price' => $precioUnitario,
-                                'length' => $itemObj->length,
-                                'width' => $itemObj->width,
-
-                                'unit_cost' => $itemUnitCost,
-                                'total_cost' => $itemUnitCost,
-                            ]);
-
-                            $itemObj->state_item = 'exited';
-                            $itemObj->save();
-                        }
-
-                        $lot->qty_on_hand = max(
-                            0,
-                            (float) $lot->qty_on_hand - $consumeQty
-                        );
-
-                        $lot->save();
-
-                        $this->syncInventoryLevelFromLots(
-                            $stockItemId,
-                            $lot->warehouse_id,
-                            $lot->location_id
-                        );
-                    }
-
-                    /*
-                     * Ya terminamos este detalle itemeable.
-                     * Evitamos que entre a la lógica FIFO normal de abajo.
-                     */
-                    continue;
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | PRODUCTOS NORMALES
-                |--------------------------------------------------------------------------
-                | Se mantiene tu flujo FIFO actual.
-                */
-                $lots = StockLot::where('stock_item_id', $stockItemId)
-                    ->whereRaw('(qty_on_hand - qty_reserved) > 0')
-                    ->orderByRaw('CASE WHEN expiration_date IS NULL THEN 1 ELSE 0 END ASC')
-                    ->orderBy('expiration_date', 'asc')
-                    ->orderBy('id', 'asc')
-                    ->lockForUpdate()
-                    ->get();
-
-                $available = (float) $lots->sum(function ($lot) {
-                    return (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
-                });
-
-                if ($available < $qtyReal) {
-                    throw new \Exception(
-                        "Stock insuficiente para '{$stockItem->display_name}'. Disponible: {$available}, requerido: {$qtyReal}."
-                    );
-                }
-
-                $remaining = $qtyReal;
-                $lotConsumptions = [];
-                $totalCost = 0.0;
-
-                foreach ($lots as $lot) {
-                    if ($remaining <= 0) {
-                        break;
-                    }
-
-                    $availableInLot = (float) $lot->qty_on_hand - (float) $lot->qty_reserved;
-
-                    if ($availableInLot <= 0) {
-                        continue;
-                    }
-
-                    $toConsume = min($remaining, $availableInLot);
-
-                    $lotConsumptions[] = [
-                        'lot_id' => $lot->id,
-                        'warehouse_id' => $lot->warehouse_id,
-                        'location_id' => $lot->location_id,
-                        'quantity' => $toConsume,
-                        'unit_cost' => (float) $lot->unit_cost,
-                    ];
-
-                    $totalCost += ((float) $lot->unit_cost * $toConsume);
-                    $remaining -= $toConsume;
-                }
-
-                if ($remaining > 0) {
-                    throw new \Exception(
-                        "No se pudo completar el consumo para '{$stockItem->display_name}'."
-                    );
-                }
-
-                $unitCost = $qtyReal > 0
-                    ? ($totalCost / $qtyReal)
-                    : 0;
-
-                $saleDetail = SaleDetail::create([
-                    'sale_id' => $sale->id,
-                    'material_id' => $materialId,
-                    'stock_item_id' => $stockItemId,
-                    'material_presentation_id' => $presentationId,
-                    'valor_unitario' => $valorUnitario,
-                    'price' => $precioUnitario,
-                    'quantity' => $qtyReal,
-                    'packs' => $packs,
-                    'units_per_pack' => $unitsPerPack,
-                    'percentage_tax' => $row->productTax ?? 18,
-                    'total' => $totalLine,
-                    'discount' => $discount,
-                    'unit_cost' => $unitCost,
-                    'total_cost' => $totalCost,
-                    'item_snapshot' => null,
-                ]);
-
-                foreach ($lotConsumptions as $consumption) {
-                    $consumeQty = (float) $consumption['quantity'];
-
-                    $lot = StockLot::where('id', $consumption['lot_id'])
-                        ->lockForUpdate()
-                        ->firstOrFail();
-
-                    if ((float) $lot->qty_on_hand < $consumeQty) {
-                        throw new \Exception("El lote {$lot->id} no tiene stock suficiente.");
-                    }
-
-                    $lot->qty_on_hand = max(0, (float) $lot->qty_on_hand - $consumeQty);
-                    $lot->save();
-
-                    $this->syncInventoryLevelFromLots(
-                        $stockItemId,
-                        $lot->warehouse_id,
-                        $lot->location_id
-                    );
-
-                    OutputDetail::create([
-                        'output_id' => $output->id,
-                        'sale_detail_id' => $saleDetail->id,
-                        'item_id' => null,
-                        'material_id' => $materialId,
-                        'stock_item_id' => $stockItemId,
-                        'stock_lot_id' => $lot->id,
-                        'warehouse_id' => $lot->warehouse_id,
-                        'location_id' => $lot->location_id,
-                        'quote_id' => $sale->quote_id ?? null,
-                        'custom' => 0,
-                        'percentage' => $consumeQty,
-                        'price' => $precioUnitario,
-                        'length' => null,
-                        'width' => null,
-                        'unit_cost' => (float) $consumption['unit_cost'],
-                        'total_cost' => (float) $consumption['unit_cost'] * $consumeQty,
-                    ]);
-                }
-            }
-
-            if ($pagosParcialesVenta === 'n') {
-                $cashBoxId = $request->input('cash_box_id');
-                $subtypeId = $request->input('cash_box_subtype_id');
-                $vuelto = (float)$request->get('total_vuelto');
-                $vueltoBoxId = $request->input('vuelto_cash_box_id');
-
-                if (!$cashBoxId) {
-                    return response()->json(['message' => 'Debe seleccionar una caja (CashBox).'], 422);
-                }
-
-                $cashRegister = CashRegister::where('cash_box_id', $cashBoxId)
-                    ->where('user_id', Auth::id())
-                    ->where('status', 1)
-                    ->latest()
-                    ->first();
-
-                if (!$cashRegister) {
-                    return response()->json(['message' => 'No hay sesión abierta para la caja seleccionada.'], 422);
-                }
-
-                $cashBox = $cashRegister->cashBox;
-                if (!$cashBox) {
-                    return response()->json(['message' => 'La sesión seleccionada no tiene CashBox asociado.'], 422);
-                }
-
-                $regularize = 1;
-                if ($cashBox->type === 'bank' && (int)$cashBox->uses_subtypes === 1) {
-                    if (!$subtypeId) {
-                        return response()->json(['message' => 'Debe seleccionar el subtipo bancario (Yape/Plin/POS/Transfer).'], 422);
-                    }
-
-                    $subtype = CashBoxSubtype::findOrFail($subtypeId);
-                    $regularize = $subtype->is_deferred ? 0 : 1;
-                } else {
-                    $subtypeId = null;
-                }
-
-                $amountSale = (float)$request->get('total_importe') + (float)$request->get('total_vuelto');
-
-                CashMovement::create([
-                    'cash_register_id' => $cashRegister->id,
-                    'type' => 'sale',
-                    'amount' => $amountSale,
-                    'description' => 'Venta registrada',
-                    'observation' => ($cashBox->type === 'bank') ? 'Pago bancario' : 'Pago efectivo',
-                    'regularize' => $regularize,
-                    'cash_box_subtype_id' => $subtypeId,
-                    'sale_id' => $sale->id,
-                ]);
-
-                if ($regularize == 1) {
-                    $cashRegister->current_balance += $amountSale;
-                    $cashRegister->total_sales += $amountSale;
-                    $cashRegister->save();
-                }
-
-                if ($vuelto > 0) {
-                    $vueltoSubtypeId = $request->input('vuelto_cash_box_subtype_id');
-
-                    if (!$vueltoBoxId) {
-                        return response()->json(['message' => 'Seleccione la caja desde donde se dará el vuelto.'], 422);
-                    }
-
-                    $vueltoRegister = CashRegister::where('cash_box_id', $vueltoBoxId)
-                        ->where('user_id', Auth::id())
-                        ->where('status', 1)
-                        ->latest()
-                        ->first();
-
-                    if (!$vueltoRegister) {
-                        return response()->json(['message' => 'No hay sesión abierta para la caja del vuelto.'], 422);
-                    }
-
-                    $vueltoCashBox = $vueltoRegister->cashBox;
-                    if (!$vueltoCashBox) {
-                        return response()->json(['message' => 'La sesión del vuelto no tiene CashBox asociado.'], 422);
-                    }
-
-                    $vueltoSubtypeToSave = null;
-                    if ($vueltoCashBox->type === 'bank' && (int)$vueltoCashBox->uses_subtypes === 1) {
-                        if (!$vueltoSubtypeId) {
-                            return response()->json(['message' => 'Seleccione el subtipo bancario para el vuelto (Yape/Plin/Transfer/POS).'], 422);
-                        }
-                        $vueltoSubtypeToSave = CashBoxSubtype::findOrFail($vueltoSubtypeId)->id;
-                    }
-
-                    CashMovement::create([
-                        'cash_register_id' => $vueltoRegister->id,
-                        'type' => 'expense',
-                        'amount' => $vuelto,
-                        'description' => 'Vuelto entregado de la venta',
-                        'observation' => 'Vuelto aplicado',
-                        'regularize' => 1,
-                        'cash_box_subtype_id' => $vueltoSubtypeToSave,
-                        'sale_id' => $sale->id
-                    ]);
-
-                    $vueltoRegister->current_balance -= $vuelto;
-                    $vueltoRegister->total_expenses += $vuelto;
-                    $vueltoRegister->save();
-                }
-            }
-
-            $notification = Notification::create([
-                'content' => 'Venta creada por '.Auth::user()->name,
-                'reason_for_creation' => 'create_quote',
-                'user_id' => Auth::user()->id,
-                'url_go' => route('puntoVenta.index')
-            ]);
-
-            $users = User::role(['admin', 'owner' , 'principal'])->get();
-            foreach ($users as $user) {
-                if ($user->id != Auth::user()->id) {
-                    foreach ($user->roles as $role) {
-                        NotificationUser::create([
-                            'notification_id' => $notification->id,
-                            'role_id' => $role->id,
-                            'user_id' => $user->id,
-                            'read' => false,
-                            'date_read' => null,
-                            'date_delete' => null
-                        ]);
-                    }
-                }
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Guardar venta',
-                'time' => $end
-            ]);
-
-            DB::commit();
-
-            /*$nubefactResult = null;
-
-            $urlPrint = route('puntoVenta.print', $sale->id);
-            $printType = 'ticket';
-
-            if ($pagosParcialesVenta === 'n') {
-
-                if (in_array($sale->type_document, ['01', '03'])) {
-                    try {
-                        $sale->loadMissing(['details.material', 'details.stockItem']);
-
-                        $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
-
-                        $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
-
-                    } catch (\Throwable $e) {
-                        $sale->update([
-                            'sunat_status'  => 'Error',
-                            'sunat_message' => $e->getMessage(),
-                        ]);
-                    }
-                }
-
-                if (in_array($sale->type_document, ['01', '03'])) {
-                    if (!empty($nubefactResult['enlace_del_pdf'])) {
-                        $urlPrint = $nubefactResult['enlace_del_pdf'];
-                    }
-
-                    if (!empty($sale->pdf_path)) {
-                        $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
-
-                        if (file_exists($localPath)) {
-                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
-                            $printType = 'sunat_pdf';
-                        }
-                    } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
-                        $urlPrint  = $nubefactResult['enlace_del_pdf'];
-                        $printType = 'sunat_pdf';
-                    }
-                }
-
-            } else {
-                // Pago parcial: siempre ticket local
-                $urlPrint = route('puntoVenta.print', $sale->id);
-                $printType = 'ticket';
-
-                // Opcional pero recomendado:
-                // asegurar que no quede como boleta/factura
-                // si por alguna manipulación llegó type_document 01 o 03
-                $sale->update([
-                    'type_document' => null, // o '00' si usas código para ticket
-                    'sunat_status' => null,
-                    'sunat_message' => null,
-                ]);
-            }*/
-
-            $nubefactResult = null;
-
-            $urlPrint = route('puntoVenta.print', $sale->id);
-            $printType = 'ticket';
-
-            if ($pagosParcialesVenta === 'n') {
-
-                /*
-                 * Solo enviamos a Nubefact cuando el documento es:
-                 * 01 = Factura
-                 * 03 = Boleta
-                 */
-                if (in_array($sale->type_document, ['01', '03'])) {
-
-                    // =====================================================
-                    // 1. EMITIR EL COMPROBANTE EN NUBEFACT
-                    // =====================================================
-                    try {
-                        $sale->loadMissing([
-                            'details.material',
-                            'details.stockItem',
-                        ]);
-
-                        $nubefactResult = $this
-                            ->generarComprobanteNubefactParaVenta($sale);
-
-                        /*
-                         * Guardamos inmediatamente la información tributaria.
-                         *
-                         * En este punto Nubefact ya respondió correctamente.
-                         * Si después falla la descarga del PDF, no debemos
-                         * cambiar el estado del comprobante a Error.
-                         */
-                        $sale->update([
-                            'serie_sunat' => $nubefactResult['serie'] ?? null,
-
-                            'numero' => $nubefactResult['numero'] ?? null,
-
-                            'sunat_ticket' =>
-                                $nubefactResult['sunat_ticket'] ?? null,
-
-                            'sunat_status' =>
-                                $nubefactResult['sunat_description']
-                                ?? 'Enviado',
-
-                            'sunat_message' =>
-                                $nubefactResult['sunat_note'] ?? '',
-
-                            'fecha_emision' => now()->toDateString(),
-                        ]);
-
-                    } catch (\Throwable $e) {
-                        /*
-                         * Este catch corresponde únicamente a una falla
-                         * durante la emisión del comprobante.
-                         */
-                        Log::error(
-                            'Error al emitir comprobante POS en Nubefact',
-                            [
-                                'sale_id' => $sale->id,
-                                'error' => $e->getMessage(),
-                            ]
-                        );
-
-                        $sale->update([
-                            'sunat_status' => 'Error',
-                            'sunat_message' => $e->getMessage(),
-                        ]);
-                    }
-
-                    // =====================================================
-                    // 2. DESCARGAR PDF, XML Y CDR
-                    // =====================================================
-                    if (is_array($nubefactResult)) {
-                        try {
-                            $resultadoArchivos =
-                                $this->persistNubefactFilesAndUpdateSale(
-                                    $sale,
-                                    $nubefactResult
-                                );
-
-                            /*
-                             * La función intenta descargar cada archivo
-                             * independientemente.
-                             *
-                             * Puede descargar PDF y XML correctamente,
-                             * aunque el CDR falle temporalmente.
-                             */
-                            if (!empty($resultadoArchivos['errores'])) {
-                                Log::warning(
-                                    'Comprobante POS emitido con archivos pendientes',
-                                    [
-                                        'sale_id' => $sale->id,
-                                        'errores' =>
-                                            $resultadoArchivos['errores'],
-                                    ]
-                                );
-                            }
-
-                        } catch (\Throwable $e) {
-                            /*
-                             * Este error ya no modifica sunat_status.
-                             *
-                             * El comprobante pudo haberse emitido correctamente,
-                             * aunque exista un problema de carpetas, permisos
-                             * o almacenamiento local.
-                             */
-                            Log::error(
-                                'Comprobante POS emitido, pero falló el almacenamiento de archivos',
-                                [
-                                    'sale_id' => $sale->id,
-                                    'error' => $e->getMessage(),
-                                ]
-                            );
-                        }
-
-                        /*
-                         * Recargamos la venta para obtener los valores actuales
-                         * de pdf_path, xml_path y cdr_path.
-                         */
-                        $sale->refresh();
-                    }
-
-                    // =====================================================
-                    // 3. DETERMINAR EL ARCHIVO PARA IMPRESIÓN
-                    // =====================================================
-
-                    /*
-                     * Primera prioridad:
-                     * utilizar el PDF local, pero solo cuando sea realmente
-                     * un archivo PDF válido.
-                     */
-                    if (!empty($sale->pdf_path)) {
-                        $localPath = public_path(
-                            'comprobantes/pdfs/' . $sale->pdf_path
-                        );
-
-                        if (
-                            is_file($localPath) &&
-                            filesize($localPath) >= 5
-                        ) {
-                            $cabeceraPdf = file_get_contents(
-                                $localPath,
-                                false,
-                                null,
-                                0,
-                                5
-                            );
-
-                            if ($cabeceraPdf === '%PDF-') {
-                                $urlPrint = asset(
-                                    'comprobantes/pdfs/' . $sale->pdf_path
-                                );
-
-                                $printType = 'sunat_pdf';
-                            }
-                        }
-                    }
-
-                    /*
-                     * Segunda prioridad:
-                     * si no existe un PDF local válido, utilizamos el enlace
-                     * directo que Nubefact devolvió en esta operación.
-                     */
-                    if (
-                        $printType !== 'sunat_pdf' &&
-                        !empty($nubefactResult['enlace_del_pdf'])
-                    ) {
-                        $urlPrint =
-                            $nubefactResult['enlace_del_pdf'];
-
-                        $printType = 'sunat_pdf';
-                    }
-                }
-
-            } else {
-                // =========================================================
-                // PAGO PARCIAL: SIEMPRE TICKET LOCAL
-                // =========================================================
-                $urlPrint = route(
-                    'puntoVenta.print',
-                    $sale->id
-                );
-
-                $printType = 'ticket';
-
-                /*
-                 * Evitamos que una venta con pago parcial quede
-                 * accidentalmente asociada a una boleta o factura.
-                 */
-                $sale->update([
-                    'type_document' => null,
-                    'sunat_status' => null,
-                    'sunat_message' => null,
-                ]);
-            }
-
-            return response()->json([
-                'message' => 'Venta guardada con éxito.' . ($nubefactResult ? ' Comprobante generado.' : ''),
-                'sale_id' => $sale->id,
-                'nubefact' => $nubefactResult,
-                'url_print' => $urlPrint,
-                'print_type' => $printType,
-            ], 200);
-
+            $record = app(\App\Services\Sales\PosSaleService::class)->store($request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message'=>'Revise los datos de la venta.','errors'=>$e->errors()],422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-                'trace'   => collect($e->getTrace())->take(8),
-            ], 422);
+            report($e);
+            return response()->json(['message'=>'No se registró la venta. Revise la disponibilidad y la sesión de caja antes de intentar nuevamente.'],422);
         }
+        // All business data is committed. Never roll back or resend on a later failure.
+        $sale=$record['sale'];$warnings=[];$result=null;$outcome=null;
+        $urlPrint=null;$printType='ticket';
+        if(!$record['replayed']){
+            try { app(\App\Services\Sales\PosSaleNotice::class)->send($sale); }
+            catch(\Throwable $e){$warnings[]='La venta está registrada, pero no se completaron sus notificaciones internas.';}
+        }
+        try {
+            $urlPrint=route('puntoVenta.print',$sale->id);
+            if(!$record['replayed']&&in_array($sale->type_document,['01','03'],true)){
+                $outcome=app(\App\Services\SaleEmissionService::class)->emit($sale,
+                    function(\App\Sale $locked,\App\Services\NubefactCompanyConnection $connection){
+                        return app(\App\Services\Sales\PosEmissionPayload::class)->build($locked,$connection);
+                    });
+                $result=$outcome['result'];$warnings=array_merge($warnings,$outcome['warnings']);
+                if($outcome['emission_status']==='confirmed'&&is_array($result)){
+                    try {
+                        $files=$this->persistNubefactFilesAndUpdateSale($sale,$result);
+                        $warnings=array_merge($warnings,$files['errores']??[]);
+                    } catch(\Throwable $e) {
+                        $warnings[]='El comprobante está confirmado, pero falta recuperar sus archivos.';
+                    }
+                    if(!empty($sale->pdf_path)){$urlPrint=asset('comprobantes/pdfs/'.$sale->pdf_path);$printType='sunat_pdf';}
+                    elseif(!empty($result['enlace_del_pdf'])){$urlPrint=$result['enlace_del_pdf'];$printType='sunat_pdf';}
+                }
+            }
+            if($sale->emission_status==='confirmed'&&!empty($sale->pdf_path)){
+                $urlPrint=asset('comprobantes/pdfs/'.$sale->pdf_path);$printType='sunat_pdf';
+            }
+            if($record['replayed'])$warnings[]='La operación ya estaba registrada. No se repitió el cobro, el consumo ni el envío al proveedor.';
+        } catch(\Throwable $e) {
+            $warnings[]='La venta está registrada; revise el estado de emisión antes de repetir cualquier envío.';
+        }
+        return response()->json(['message'=>$warnings?'Venta registrada con advertencias.':'Venta guardada con éxito.',
+            'sale_id'=>$sale->id,'sale_created'=>true,'warnings'=>array_values(array_unique($warnings)),
+            'nubefact'=>$result,'url_print'=>$urlPrint,'print_type'=>$printType,
+            'emission_status'=>$outcome['emission_status']??$sale->emission_status,'replayed'=>$record['replayed']],200);
     }
 
     protected function getAvailableStockByStockItem(int $stockItemId): float
@@ -3040,21 +1511,9 @@ class PuntoVentaController extends Controller
 
     }
 
-    public function listar() {
-        $registros = Sale::all();
-
-        $arrayYears = $registros->pluck('created_at')->map(function ($date) {
-            return Carbon::parse($date)->format('Y');
-        })->unique()->toArray();
-
-        $arrayYears = array_values($arrayYears);
-
-        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
-
-        $customers = Customer::orderBy('business_name')->get();
-
-        return view('puntoVenta.list', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
+    public function listar()
+    {
+        return view('puntoVenta.list', app(\App\Services\Sales\SaleListOptions::class)->data(false));
     }
 
     private function cleanUtf8($value)
@@ -3076,6 +1535,10 @@ class PuntoVentaController extends Controller
 
     public function getSalesAdmin(Request $request, $pageNumber = 1)
     {
+        $saleList = app(\App\Services\Sales\SaleListAccess::class);
+        $saleList->context(false);
+        $saleList->validateFilters($request);
+        abort_unless(ctype_digit((string) $pageNumber) && (int) $pageNumber > 0, 422);
         $perPage = 10;
         $code = $request->input('code');
         $year = $request->input('year');
@@ -3093,14 +1556,14 @@ class PuntoVentaController extends Controller
 
         if ( $startDate == "" || $endDate == "" )
         {
-            $query = Sale::with(['quote.customer', 'worker.user', 'customer'])
+            $query = $saleList->visible(Sale::query(), false)->with(['quote.customer', 'worker.user', 'customer'])
                 /*->where('state_annulled', 0)*/
                 ->orderBy('created_at', 'DESC');
         } else {
             $fechaInicio = Carbon::createFromFormat('d/m/Y', $startDate);
             $fechaFinal = Carbon::createFromFormat('d/m/Y', $endDate);
 
-            $query = Sale::with(['quote.customer', 'worker.user', 'customer'])
+            $query = $saleList->visible(Sale::query(), false)->with(['quote.customer', 'worker.user', 'customer'])
                 /*->where('state_annulled', 0)*/
                 ->whereDate('created_at', '>=', $fechaInicio)
                 ->whereDate('created_at', '<=', $fechaFinal)
@@ -3113,15 +1576,7 @@ class PuntoVentaController extends Controller
             $query->where('state_annulled', 0);
         }
 
-        $user = Auth::user();
-
-        $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
-
-        if (!$canSeeAllSales) {
-            $query->whereHas('worker.user', function ($q) use ($user) {
-                $q->where('id', $user->id);
-            });
-        }
+        if ($request->filled('created_by_id')) { $query->where('sales.created_by', (int) $request->input('created_by_id')); }
 
         // Aplicar filtros si se proporcionan
         if ($code != "") {
@@ -3143,8 +1598,8 @@ class PuntoVentaController extends Controller
                     $q->whereNull('customer_id');
                 });
             } else {
-                $query->whereHas('quote', function ($q) use ($customerId) {
-                    $q->where('customer_id', $customerId);
+                $query->where(function ($customerQuery) use ($customerId) {
+                    $customerQuery->where('sales.customer_id', $customerId)->orWhereHas('quote', function ($q) use ($customerId) { $q->where('customer_id', $customerId); });
                 });
             }
         }
@@ -3244,7 +1699,7 @@ class PuntoVentaController extends Controller
         $totalFilteredRecords = $query->count();
         $totalPages = ceil($totalFilteredRecords / $perPage);
 
-        $startRecord = ($pageNumber - 1) * $perPage + 1;
+        $startRecord = $totalFilteredRecords > 0 ? ($pageNumber - 1) * $perPage + 1 : 0;
         $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
 
         $sales = $query->skip(($pageNumber - 1) * $perPage)
@@ -3275,7 +1730,7 @@ class PuntoVentaController extends Controller
 
             if (!empty($sale->pdf_path)) {
                 // PDF local guardado
-                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                $printUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
             }*/
             $esComprobanteElectronico = in_array(
                 $sale->type_document,
@@ -3315,7 +1770,7 @@ class PuntoVentaController extends Controller
              */
             if ($esComprobanteElectronico) {
                 $printUrl = $pdfLocalValido
-                    ? asset('comprobantes/pdfs/' . $sale->pdf_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf'])
                     : null;
             } else {
                 $printUrl = route('puntoVenta.print', $sale->id);
@@ -3528,10 +1983,7 @@ class PuntoVentaController extends Controller
                     );
 
                     if (is_file($pdfPath)) {
-                        $acceptedCreditNotePdfUrl = asset(
-                            'comprobantes/notas_credito/pdfs/' .
-                            $acceptedCreditNote->pdf_path
-                        );
+                        $acceptedCreditNotePdfUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_pdf', 'note_id' => $acceptedCreditNote->id]);
                     }
                 }
 
@@ -3542,10 +1994,7 @@ class PuntoVentaController extends Controller
                     );
 
                     if (is_file($xmlPath)) {
-                        $acceptedCreditNoteXmlUrl = asset(
-                            'comprobantes/notas_credito/xmls/' .
-                            $acceptedCreditNote->xml_path
-                        );
+                        $acceptedCreditNoteXmlUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_xml', 'note_id' => $acceptedCreditNote->id]);
                     }
                 }
 
@@ -3556,10 +2005,7 @@ class PuntoVentaController extends Controller
                     );
 
                     if (is_file($cdrPath)) {
-                        $acceptedCreditNoteCdrUrl = asset(
-                            'comprobantes/notas_credito/cdrs/' .
-                            $acceptedCreditNote->cdr_path
-                        );
+                        $acceptedCreditNoteCdrUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_cdr', 'note_id' => $acceptedCreditNote->id]);
                     }
                 }
             }
@@ -3582,10 +2028,7 @@ class PuntoVentaController extends Controller
                 );
 
                 if (is_file($partialPdfPath)) {
-                    $acceptedPartialCreditNotePdfUrl = asset(
-                        'comprobantes/notas_credito/pdfs/' .
-                        $acceptedPartialCreditNote->pdf_path
-                    );
+                    $acceptedPartialCreditNotePdfUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_pdf', 'note_id' => $acceptedPartialCreditNote->id]);
                 }
             }
 
@@ -3596,6 +2039,8 @@ class PuntoVentaController extends Controller
 
             array_push($arraySales, [
                 "id" => $sale->id,
+                'created_by' => $sale->created_by,
+                'created_by_name' => $sale->created_by_name ?: 'No registrado',
                 "free_sale" => (bool) $sale->free_sale,
                 "customer_id" => $sale->customer_id,
                 "code" => "VENTA - ".$sale->id,
@@ -3646,15 +2091,15 @@ class PuntoVentaController extends Controller
                     : '',
 
                 "annulment_pdf_url_local" => $sale->annulment_pdf_path
-                    ? asset('comprobantes/anulaciones/pdfs/' . $sale->annulment_pdf_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'annul_pdf'])
                     : null,
 
                 "annulment_xml_url_local" => $sale->annulment_xml_path
-                    ? asset('comprobantes/anulaciones/xmls/' . $sale->annulment_xml_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'annul_xml'])
                     : null,
 
                 "annulment_cdr_url_local" => $sale->annulment_cdr_path
-                    ? asset('comprobantes/anulaciones/cdrs/' . $sale->annulment_cdr_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'annul_cdr'])
                     : null,
 
                 'has_pending_credit_note' => !is_null($pendingCreditNote),
@@ -3673,15 +2118,15 @@ class PuntoVentaController extends Controller
                 "is_credit_note_annulment" => !is_null($acceptedCreditNote),
 
                 /*"credit_note_pdf_url_local" => $acceptedCreditNote && $acceptedCreditNote->pdf_path
-                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedCreditNote->pdf_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_pdf', 'note_id' => $acceptedCreditNote->id])
                     : null,
 
                 "credit_note_xml_url_local" => $acceptedCreditNote && $acceptedCreditNote->xml_path
-                    ? asset('comprobantes/notas_credito/xmls/' . $acceptedCreditNote->xml_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_xml', 'note_id' => $acceptedCreditNote->id])
                     : null,
 
                 "credit_note_cdr_url_local" => $acceptedCreditNote && $acceptedCreditNote->cdr_path
-                    ? asset('comprobantes/notas_credito/cdrs/' . $acceptedCreditNote->cdr_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_cdr', 'note_id' => $acceptedCreditNote->id])
                     : null,*/
                 "credit_note_pdf_url_local" => $acceptedCreditNotePdfUrl,
 
@@ -3694,7 +2139,7 @@ class PuntoVentaController extends Controller
                 "has_partial_credit_note" => !is_null($acceptedPartialCreditNote),
 
                 /*"partial_credit_note_pdf_url_local" => $acceptedPartialCreditNote && $acceptedPartialCreditNote->pdf_path
-                    ? asset('comprobantes/notas_credito/pdfs/' . $acceptedPartialCreditNote->pdf_path)
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'credit_pdf', 'note_id' => $acceptedPartialCreditNote->id])
                     : null,*/
                 "partial_credit_note_pdf_url_local" => $acceptedPartialCreditNotePdfUrl,
 
@@ -6327,6 +4772,10 @@ class PuntoVentaController extends Controller
 
     public function getSalesErrorAdmin(Request $request, $pageNumber = 1)
     {
+        $saleList = app(\App\Services\Sales\SaleListAccess::class);
+        $saleList->context(true);
+        $saleList->validateFilters($request);
+        abort_unless(ctype_digit((string) $pageNumber) && (int) $pageNumber > 0, 422);
         $perPage = 10;
 
         $code = $request->input('code');
@@ -6341,7 +4790,7 @@ class PuntoVentaController extends Controller
         $cashBoxSubtypeId = $request->input('cash_box_subtype_id');
         $documentType = $request->input('document_type'); // 01 factura, 03 boleta
 
-        $query = Sale::with(['quote.customer', 'worker.user'])
+        $query = $saleList->visible(Sale::query(), true)->with(['quote.customer', 'worker.user'])
             ->where('state_annulled', 0)
             ->whereIn('type_document', ['01', '03'])
             ->where('sunat_status', 'Error')
@@ -6366,14 +4815,7 @@ class PuntoVentaController extends Controller
          * PERMISOS POR USUARIO
          * ============================================================
          */
-        $user = Auth::user();
-        $canSeeAllSales = $user->hasRole('admin') || $user->hasRole('owner');
-
-        if (!$canSeeAllSales) {
-            $query->whereHas('worker.user', function ($q) use ($user) {
-                $q->where('id', $user->id);
-            });
-        }
+        if ($request->filled('created_by_id')) { $query->where('sales.created_by', (int) $request->input('created_by_id')); }
 
         /*
          * ============================================================
@@ -6405,8 +4847,8 @@ class PuntoVentaController extends Controller
                     $q->whereNull('customer_id');
                 });
             } else {
-                $query->whereHas('quote', function ($q) use ($customerId) {
-                    $q->where('customer_id', $customerId);
+                $query->where(function ($customerQuery) use ($customerId) {
+                    $customerQuery->where('sales.customer_id', $customerId)->orWhereHas('quote', function ($q) use ($customerId) { $q->where('customer_id', $customerId); });
                 });
             }
         }
@@ -6504,7 +4946,7 @@ class PuntoVentaController extends Controller
         $totalFilteredRecords = $query->count();
         $totalPages = ceil($totalFilteredRecords / $perPage);
 
-        $startRecord = ($pageNumber - 1) * $perPage + 1;
+        $startRecord = $totalFilteredRecords > 0 ? ($pageNumber - 1) * $perPage + 1 : 0;
         $endRecord = min($totalFilteredRecords, $pageNumber * $perPage);
 
         $sales = $query->skip(($pageNumber - 1) * $perPage)
@@ -6552,7 +4994,7 @@ class PuntoVentaController extends Controller
             $printUrl = route('puntoVenta.print', $sale->id);
 
             if (!empty($sale->pdf_path)) {
-                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                $printUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
             }
 
             /*
@@ -6641,6 +5083,8 @@ class PuntoVentaController extends Controller
 
             array_push($arraySales, [
                 'id' => $sale->id,
+                'created_by' => $sale->created_by,
+                'created_by_name' => $sale->created_by_name ?: 'No registrado',
                 'code' => 'VENTA - ' . $sale->id,
                 'date' => ($sale->date_sale != null) ? $sale->formatted_sale_date : '',
                 'created_at' => $sale->created_at ? Carbon::parse($sale->created_at)->format('d/m/Y h:i A') : '',
@@ -6695,21 +5139,9 @@ class PuntoVentaController extends Controller
         ];
     }
 
-    public function listarErrors() {
-        $registros = Sale::all();
-
-        $arrayYears = $registros->pluck('created_at')->map(function ($date) {
-            return Carbon::parse($date)->format('Y');
-        })->unique()->toArray();
-
-        $arrayYears = array_values($arrayYears);
-
-        $cashBoxes = CashBox::where('is_active', 1)->orderBy('position')->get();
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')->where('is_active', 1)->orderBy('position')->get();
-
-        $customers = Customer::orderBy('business_name')->get();
-
-        return view('puntoVenta.listError', compact('arrayYears', 'cashBoxes', 'subtypes', 'customers'));
+    public function listarErrors()
+    {
+        return view('puntoVenta.listError', app(\App\Services\Sales\SaleListOptions::class)->data(true));
     }
 
     public function discardSunatError(Request $request, $id)

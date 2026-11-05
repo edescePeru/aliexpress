@@ -73,12 +73,11 @@
                         ?? optional($detail->material)->full_name
                         ?? ($detail->description ?: 'Producto');
 
-            $hasPresentation = !empty($detail->material_presentation_id)
-                && !empty($detail->packs)
+            $hasPresentation = !empty($detail->packs)
                 && !empty($detail->units_per_pack);
 
             if ($hasPresentation) {
-                $presentationText = (int) $detail->units_per_pack . 'und';
+                $presentationText = ($detail->presentation_label_snapshot ?: 'Paquete') . ' / ' . (int) $detail->units_per_pack . 'und';
                 $qtyToShow = (int) $detail->packs;
             } else {
                 $presentationText = '1und';

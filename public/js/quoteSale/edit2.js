@@ -99,9 +99,9 @@ function renderPresentationsInModalConsumable(presentations) {
           data-pres-id="${p.id}"
           data-pres-qty="${p.quantity}"
           data-pres-price="${p.price}"
-          data-pres-label="${label}">
+          data-pres-label="${escapePresentationName(label)}">
         <td>
-          <strong>${label}</strong>
+          <strong>${escapePresentationName(label)}</strong>
           <div class="text-muted" style="font-size:12px;">Equivale a ${p.quantity} unidades</div>
         </td>
         <td>S/. ${parseFloat(p.price).toFixed(2)}</td>
@@ -808,4 +808,10 @@ function saveEquipmentEdit() {
             cancel: { text: 'CANCELAR' }
         }
     });
+}
+
+
+function escapePresentationName(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

@@ -10,8 +10,11 @@ class SaleDetail extends Model
     use BelongsToTenant;
 
     protected $fillable = [
+        'presentation_label_snapshot',
+        'type_tax_id', 'tax_kind', 'tax_provider_code', 'tax_rate_snapshot',
         'tenant_id',
         'company_id',
+        'price_list_id', 'price_list_name', 'catalog_unit_price', 'catalog_price_source',
         'sale_id',
         'material_id',
         'stock_item_id',

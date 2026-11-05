@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteMultipleUnitMeasuresRequest;
 use App\Http\Requests\DeleteUnitMeasureRequest;
 use App\Http\Requests\StoreUnitMeasureRequest;
 use App\Http\Requests\UpdateUnitMeasureRequest;
 use App\Material;
+use App\Services\Materials\DeleteUnitMeasures;
 use App\StockItem;
 use App\UnitMeasure;
 use Illuminate\Http\Request;
@@ -156,90 +158,29 @@ class UnitMeasureController extends Controller
     }
 
 
-    public function destroy(
-        DeleteUnitMeasureRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        /*
-         * Fuera del try/catch para conservar
-         * correctamente el 404 de TenantScope.
-         */
-        $unitMeasure =
-            UnitMeasure::findOrFail(
-                $validated[
-                'unitMeasure_id'
-                ]
-            );
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'unit_measure_id',
-                    $unitMeasure->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar la unidad de medida porque está siendo utilizada por uno o más materiales.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN STOCK ITEM
-         * =========================================================
-         */
-
-        $hasStockItems =
-            StockItem::query()
-                ->where(
-                    'unit_measure_id',
-                    $unitMeasure->id
-                )
-                ->exists();
-
-        if ($hasStockItems) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar la unidad de medida porque está siendo utilizada por uno o más productos.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteUnitMeasureRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $unitMeasure->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteUnitMeasures::class)->delete(
+                [$validated['unitMeasure_id']],
+                'unitMeasure_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar la unidad de medida.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar la unidad de medida.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Unidad de medida eliminada con éxito.',
+            'message' => 'Unidad de medida eliminada con éxito.',
         ], 200);
     }
 
@@ -296,142 +237,29 @@ class UnitMeasureController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        /*
-         * IDs de otros tenants simplemente
-         * no son devueltos por TenantScope.
-         */
-        $unitMeasures =
-            UnitMeasure::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        $unitMeasureIds =
-            $unitMeasures
-                ->pluck('id');
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $usedInMaterialIds =
-            Material::query()
-                ->whereIn(
-                    'unit_measure_id',
-                    $unitMeasureIds
-                )
-                ->pluck(
-                    'unit_measure_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedInMaterialIds->isNotEmpty()) {
-
-            $usedNames =
-                $unitMeasures
-                    ->whereIn(
-                        'id',
-                        $usedInMaterialIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar las unidades de medida porque están siendo utilizadas por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN STOCK ITEM
-         * =========================================================
-         */
-
-        $usedInStockItemIds =
-            StockItem::query()
-                ->whereIn(
-                    'unit_measure_id',
-                    $unitMeasureIds
-                )
-                ->pluck(
-                    'unit_measure_id'
-                )
-                ->filter()
-                ->unique();
-
-        if ($usedInStockItemIds->isNotEmpty()) {
-
-            $usedNames =
-                $unitMeasures
-                    ->whereIn(
-                        'id',
-                        $usedInStockItemIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar las unidades de medida porque están siendo utilizadas por productos: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleUnitMeasuresRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $unitMeasures
-                as $unitMeasure
-            ) {
-                $unitMeasure->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteUnitMeasures::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar las unidades de medida.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar las unidades de medida.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Unidades eliminadas correctamente.',
-        ]);
+            'message' => 'Unidades eliminadas correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DeleteMaterialTypeRequest;
+use App\Http\Requests\DeleteMultipleMaterialTypesRequest;
 use App\Http\Requests\StoreMaterialTypeRequest;
 use App\Http\Requests\UpdateMaterialTypeRequest;
 use App\Material;
 use App\MaterialType;
+use App\Services\Materials\DeleteMaterialTypes;
 use App\Subcategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -162,87 +164,29 @@ class MaterialTypeController extends Controller
     }
 
 
-    public function destroy(
-        DeleteMaterialTypeRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $materialType =
-            MaterialType::findOrFail(
-                $validated[
-                'materialtype_id'
-                ]
-            );
-
-        /*
-         * No permitir eliminar si algún Material
-         * utiliza este MaterialType.
-         */
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'material_type_id',
-                    $materialType->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el tipo de material porque está siendo utilizado por uno o más materiales.',
-            ], 422);
-        }
-
-        /*
-         * Tampoco eliminar si alguno de sus Subtypes
-         * está siendo utilizado por un Material.
-         */
-        $subtypeIds =
-            $materialType
-                ->subtypes()
-                ->pluck('id');
-
-        $hasSubtypeMaterials =
-            Material::query()
-                ->whereIn(
-                    'subtype_id',
-                    $subtypeIds
-                )
-                ->exists();
-
-        if ($hasSubtypeMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el tipo de material porque uno o más de sus subtipos están siendo utilizados por materiales.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteMaterialTypeRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $materialType->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteMaterialTypes::class)->delete(
+                [$validated['materialtype_id']],
+                'materialtype_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el tipo de material.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el tipo de material.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Tipo de material eliminado con éxito.',
+            'message' => 'Tipo de material eliminado con éxito.',
         ], 200);
     }
 
@@ -352,145 +296,29 @@ class MaterialTypeController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        $materialTypes =
-            MaterialType::with(
-                'subtypes'
-            )
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $usedMaterialTypeIds =
-            Material::query()
-                ->whereIn(
-                    'material_type_id',
-                    $materialTypes->pluck('id')
-                )
-                ->pluck('material_type_id')
-                ->filter()
-                ->unique();
-
-        if ($usedMaterialTypeIds->isNotEmpty()) {
-
-            $usedNames =
-                $materialTypes
-                    ->whereIn(
-                        'id',
-                        $usedMaterialTypeIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los tipos de material porque están siendo utilizados por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO DE SUBTYPES
-         * =========================================================
-         */
-
-        $subtypeIds =
-            $materialTypes
-                ->flatMap(
-                    function ($materialType) {
-
-                        return $materialType
-                            ->subtypes
-                            ->pluck('id');
-                    }
-                )
-                ->filter()
-                ->unique();
-
-        if ($subtypeIds->isNotEmpty()) {
-
-            $usedSubtypeIds =
-                Material::query()
-                    ->whereIn(
-                        'subtype_id',
-                        $subtypeIds
-                    )
-                    ->pluck('subtype_id')
-                    ->filter()
-                    ->unique();
-
-            if ($usedSubtypeIds->isNotEmpty()) {
-
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar los tipos de material porque uno o más de sus subtipos están siendo utilizados por materiales.',
-                ], 422);
-            }
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleMaterialTypesRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $materialTypes
-                as $materialType
-            ) {
-
-                foreach (
-                    $materialType->subtypes
-                    as $subtype
-                ) {
-                    $subtype->delete();
-                }
-
-                $materialType->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteMaterialTypes::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los tipos de material.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los tipos de material.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Tipos de material eliminados correctamente.',
-        ]);
+            'message' => 'Tipos de material eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

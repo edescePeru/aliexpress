@@ -44,9 +44,10 @@ class TenantBranchController extends Controller
             ->where('is_active', true)
             ->findOrFail($companyId);
 
+        $priceLists = app(\App\Services\BranchPriceListService::class)->availableForCompany((int) $company->id);
         return view(
             'tenantBranch.create',
-            compact('company')
+            compact('company', 'priceLists')
         );
     }
 
@@ -89,7 +90,9 @@ class TenantBranchController extends Controller
                     $user
                 ) {
 
+                    $priceListId = app(\App\Services\BranchPriceListService::class)->assignment((int) $company->id, $validated['price_list_id'] ?? null, true);
                     $branch = Branch::create([
+                        'price_list_id' => $priceListId,
                         'company_id' =>
                             $company->id,
 
@@ -146,6 +149,8 @@ class TenantBranchController extends Controller
                 }
             );
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
 
             report($e);
@@ -197,9 +202,10 @@ class TenantBranchController extends Controller
             ->with('company')
             ->findOrFail($id);
 
+        $priceLists = app(\App\Services\BranchPriceListService::class)->availableForCompany((int) $branch->company_id);
         return view(
             'tenantBranch.edit',
-            compact('branch')
+            compact('branch', 'priceLists')
         );
     }
 
@@ -240,6 +246,10 @@ class TenantBranchController extends Controller
         DB::beginTransaction();
 
         try {
+            $branch = Branch::query()->where('id', $branch->id)->where('company_id', $branch->company_id)->lockForUpdate()->firstOrFail();
+            if (array_key_exists('price_list_id', $validated)) {
+                $branch->price_list_id = app(\App\Services\BranchPriceListService::class)->assignment((int) $branch->company_id, $validated['price_list_id'], true);
+            }
 
             $branch->code =
                 strtoupper(
@@ -271,6 +281,9 @@ class TenantBranchController extends Controller
 
             DB::commit();
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (\Throwable $e) {
 
             DB::rollBack();

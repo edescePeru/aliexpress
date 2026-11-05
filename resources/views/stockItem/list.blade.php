@@ -119,6 +119,7 @@
 @endsection
 
 @section('content')
+    @include('material._inventoryContext')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
     <div class="row mb-3">
@@ -145,8 +146,8 @@
                 <th>UM</th>
                 <th>Inventariable</th>
                 <th>Activo</th>
-                <th>Stock actual</th>
-                <th>Reservado</th>
+                <th>Stock local</th>
+                <th>Reservado local</th>
                 <th>Acción</th>
             </tr>
             </thead>
@@ -198,6 +199,7 @@
                                     <th>Ubicación</th>
                                     <th>Stock actual</th>
                                     <th>Reservado</th>
+                                    <th>Disponible</th>
                                     <th>Min</th>
                                     <th>Max</th>
                                     <th>Promedio</th>
@@ -287,6 +289,7 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
     <script>
         window.stockItemInventoryLevelsUrl = "{{ route('stockitems.inventory-levels', ':id') }}";
         window.stockItemInventoryLevelsUpdateUrl = "{{ route('stockitems.inventory-levels.update', ':id') }}";

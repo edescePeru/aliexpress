@@ -1,104 +1,55 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Material;
-use App\MaterialPresentation;
+use App\{Material,MaterialPresentation};
+use App\Services\Sales\BranchPresentationService;
 use Illuminate\Http\Request;
 
 class MaterialPresentationController extends Controller
 {
-    public function index(Material $material)
+    // Existing quotation clients consume this read URL. They do not need maintenance permission.
+    public function catalog(Request $request,Material $material)
     {
-        $items = MaterialPresentation::where('material_id', $material->id)
-            ->orderBy('quantity', 'asc')
-            ->get(['id','material_id','quantity','price','active']);
-
-        return response()->json([
-            'material' => [
-                'id' => $material->id,
-                'description' => $material->full_name ?? null,
-            ],
-            'presentations' => $items,
-        ]);
+        app(\App\Services\Materials\MaterialInventoryScope::class)->context();
+        $user=\Illuminate\Support\Facades\Auth::user();
+        abort_unless($user->can('managePresentations_material')||$user->can('create_quoteSale')
+            ||$user->can('edit_quoteSale')||$user->can('create_puntoVenta')||$user->can('createV2_puntoVenta'),403);
+        $service=app(BranchPresentationService::class);
+        $service->material($material->id);
+        return response()->json(['material'=>['id'=>$material->id,'description'=>$material->full_name],
+            'presentations'=>$service->available($material->id)]);
     }
-
-    public function store(Request $request, Material $material)
+    public function index(Request $request,Material $material)
     {
-        $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-            'price'    => ['required', 'numeric', 'min:0'],
-        ]);
-
-        // (Opcional) evitar duplicados exactos por cantidad
-        /*$exists = MaterialPresentation::where('material_id', $material->id)
-            ->where('quantity', $data['quantity'])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Ya existe una presentación con esa cantidad.'
-            ], 422);
-        }*/
-
-        $item = MaterialPresentation::create([
-            'material_id' => $material->id,
-            'quantity' => $data['quantity'],
-            'price' => $data['price'],
-        ]);
-
-        $item->refresh(); // ✅ vuelve a consultar la fila y trae defaults (active=1)
-
-        return response()->json([
-            'message' => 'Presentación creada.',
-            'presentation' => $item->only(['id','material_id','quantity','price', 'active']),
-        ]);
+        $service=app(BranchPresentationService::class);$service->manage($request);
+        return response()->json($service->listing($material->id));
     }
-
-    public function update(Request $request, MaterialPresentation $presentation)
+    public function store(Request $request,Material $material)
     {
-        $data = $request->validate([
-            'quantity' => ['required', 'numeric', 'min:0.0001'],
-            'price'    => ['required', 'numeric', 'min:0'],
-        ]);
-
-        // (Opcional) evitar duplicados por cantidad dentro del mismo material
-        /*$dup = MaterialPresentation::where('material_id', $presentation->material_id)
-            ->where('quantity', $data['quantity'])
-            ->where('id', '!=', $presentation->id)
-            ->exists();
-
-        if ($dup) {
-            return response()->json([
-                'message' => 'Otra presentación ya tiene esa cantidad.'
-            ], 422);
-        }*/
-
-        $presentation->update($data);
-
-        return response()->json([
-            'message' => 'Presentación actualizada.',
-            'presentation' => $presentation->only(['id','material_id','quantity','price']),
-        ]);
+        $service=app(BranchPresentationService::class);$service->manage($request);
+        $request->validate(['label'=>'required|string|max:255']);
+        $row=$service->create($material->id,$request->only(['quantity','price','label']));
+        return response()->json(['message'=>'Presentación habilitada con su precio en este local.','presentation'=>$row]);
     }
-
-    public function destroy(MaterialPresentation $presentation)
+    public function update(Request $request,MaterialPresentation $presentation)
     {
-        $presentation->delete();
-
-        return response()->json([
-            'message' => 'Presentación eliminada.'
-        ]);
+        $service=app(BranchPresentationService::class);$service->manage($request);
+        $request->validate(['label'=>'required|string|max:255','label_original'=>'required|string|max:255']);
+        $row=$service->update($presentation->id,$request->only(['quantity','price','label','label_original']));
+        return response()->json(['message'=>'Nombre compartido y precio del local guardados.','presentation'=>$row]);
     }
-
-    public function toggle(MaterialPresentation $presentation)
+    public function toggle(Request $request,MaterialPresentation $presentation)
     {
-        $presentation->active = !$presentation->active;
-        $presentation->save();
-
-        return response()->json([
-            'message' => $presentation->active ? 'Presentación activada.' : 'Presentación desactivada.',
-            'presentation' => $presentation->only(['id','active'])
+        $service=app(BranchPresentationService::class);$service->manage($request);
+        $row=$service->toggle($presentation->id);
+        return response()->json(['message'=>$row['active']?'Presentación activada en este local.':'Presentación desactivada en este local.','presentation'=>$row]);
+    }
+    public function destroy(Request $request,MaterialPresentation $presentation)
+    {
+        $service=app(BranchPresentationService::class);$service->manage($request);
+        $service->definition($presentation->id);
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'presentation'=>'Las presentaciones se conservan para el historial. Desactívela en el local.',
         ]);
     }
 }

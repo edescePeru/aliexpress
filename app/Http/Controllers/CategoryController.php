@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Category;
 use App\Http\Requests\DeleteCategoryRequest;
+use App\Http\Requests\DeleteMultipleCategoriesRequest;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Material;
+use App\Services\Materials\DeleteCategories;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -141,107 +143,29 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    public function destroy(
-        DeleteCategoryRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        /*
-         * TenantScope protege el Tenant actual.
-         */
-        $category =
-            Category::with(
-                'subcategories'
-            )
-                ->findOrFail(
-                    $validated[
-                    'category_id'
-                    ]
-                );
-
-        /*
-         * =========================================================
-         * VALIDAR USO DIRECTO DE CATEGORY
-         * =========================================================
-         */
-
-        $hasMaterialsWithCategory =
-            Material::query()
-                ->where(
-                    'category_id',
-                    $category->id
-                )
-                ->exists();
-
-        if ($hasMaterialsWithCategory) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar la categoría porque está siendo utilizada por uno o más materiales.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO DE SUBCATEGORIES
-         * =========================================================
-         */
-
-        $subcategoryIds =
-            $category
-                ->subcategories
-                ->pluck('id');
-
-        if ($subcategoryIds->isNotEmpty()) {
-
-            $hasMaterialsWithSubcategory =
-                Material::query()
-                    ->whereIn(
-                        'subcategory_id',
-                        $subcategoryIds
-                    )
-                    ->exists();
-
-            if ($hasMaterialsWithSubcategory) {
-
-                return response()->json([
-                    'message' =>
-                        'No se puede eliminar la categoría porque una o más de sus subcategorías están siendo utilizadas por materiales.',
-                ], 422);
-            }
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteCategoryRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $category->subcategories
-                as $subcategory
-            ) {
-                $subcategory->delete();
-            }
-
-            $category->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteCategories::class)->delete(
+                [$validated['category_id']],
+                'category_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar la categoría.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar la categoría.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Categoría de material eliminada con éxito.',
+            'message' => 'Categoría de material eliminada con éxito.',
         ], 200);
     }
 
@@ -332,165 +256,29 @@ class CategoryController extends Controller
         return $array;
     }
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        /*
-         * TenantScope filtra automáticamente.
-         */
-        $categories =
-            Category::with(
-                'subcategories'
-            )
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO DIRECTO DE CATEGORIES
-         * =========================================================
-         */
-
-        $categoryIds =
-            $categories
-                ->pluck('id');
-
-        $usedCategoryIds =
-            Material::query()
-                ->whereIn(
-                    'category_id',
-                    $categoryIds
-                )
-                ->pluck(
-                    'category_id'
-                )
-                ->filter()
-                ->unique();
-
-        if (
-        $usedCategoryIds
-            ->isNotEmpty()
-        ) {
-
-            $usedNames =
-                $categories
-                    ->whereIn(
-                        'id',
-                        $usedCategoryIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar las categorías porque están siendo utilizadas por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        /*
-         * =========================================================
-         * VALIDAR USO DE SUBCATEGORIES
-         * =========================================================
-         */
-
-        $subcategoryIds =
-            $categories
-                ->flatMap(
-                    function ($category) {
-
-                        return $category
-                            ->subcategories
-                            ->pluck('id');
-                    }
-                )
-                ->filter()
-                ->unique();
-
-        if (
-        $subcategoryIds
-            ->isNotEmpty()
-        ) {
-
-            $usedSubcategoryIds =
-                Material::query()
-                    ->whereIn(
-                        'subcategory_id',
-                        $subcategoryIds
-                    )
-                    ->pluck(
-                        'subcategory_id'
-                    )
-                    ->filter()
-                    ->unique();
-
-            if (
-            $usedSubcategoryIds
-                ->isNotEmpty()
-            ) {
-
-                return response()->json([
-                    'message' =>
-                        'No se pueden eliminar las categorías porque una o más de sus subcategorías están siendo utilizadas por materiales.',
-                ], 422);
-            }
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleCategoriesRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $categories
-                as $category
-            ) {
-
-                foreach (
-                    $category->subcategories
-                    as $subcategory
-                ) {
-                    $subcategory->delete();
-                }
-
-                $category->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteCategories::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar las categorías.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar las categorías.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Categorías eliminadas correctamente.',
-        ]);
+            'message' => 'Categorías eliminadas correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteMultipleSubtypesRequest;
 use App\Http\Requests\DeleteSubtypeRequest;
 use App\Http\Requests\StoreSubtypeRequest;
 use App\Http\Requests\UpdateSubtypeRequest;
 use App\Material;
 use App\MaterialType;
+use App\Services\Materials\DeleteSubtypes;
 use App\Subtype;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -161,62 +163,29 @@ class SubtypeController extends Controller
     }
 
 
-    public function destroy(
-        DeleteSubtypeRequest $request
-    ) {
-        $validated =
-            $request->validated();
-
-        $subtype =
-            Subtype::findOrFail(
-                $validated[
-                'subtype_id'
-                ]
-            );
-
-        /*
-         * No permitir eliminar si algún Material
-         * utiliza este Subtype.
-         */
-        $hasMaterials =
-            Material::query()
-                ->where(
-                    'subtype_id',
-                    $subtype->id
-                )
-                ->exists();
-
-        if ($hasMaterials) {
-
-            return response()->json([
-                'message' =>
-                    'No se puede eliminar el subtipo porque está siendo utilizado por uno o más materiales.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function destroy(DeleteSubtypeRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            $subtype->delete();
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            app(DeleteSubtypes::class)->delete(
+                [$validated['subtype_id']],
+                'subtype_id'
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudo eliminar el subtipo.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudo eliminar el subtipo.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'Sub Tipo eliminado con éxito.',
+            'message' => 'Subtipo eliminado con éxito.',
         ], 200);
     }
 
@@ -351,94 +320,29 @@ class SubtypeController extends Controller
     }
 
 
-    public function deleteMultiple(
-        Request $request
-    ) {
-        $ids =
-            $request->input(
-                'ids'
-            );
-
-        if (
-            !$ids ||
-            !is_array($ids)
-        ) {
-            return response()->json([
-                'message' =>
-                    'Datos inválidos.',
-            ], 400);
-        }
-
-        $subtypes =
-            Subtype::query()
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
-
-        /*
-         * =========================================================
-         * VALIDAR USO EN MATERIAL
-         * =========================================================
-         */
-
-        $usedSubtypeIds =
-            Material::query()
-                ->whereIn(
-                    'subtype_id',
-                    $subtypes->pluck('id')
-                )
-                ->pluck('subtype_id')
-                ->filter()
-                ->unique();
-
-        if ($usedSubtypeIds->isNotEmpty()) {
-
-            $usedNames =
-                $subtypes
-                    ->whereIn(
-                        'id',
-                        $usedSubtypeIds
-                    )
-                    ->pluck('name')
-                    ->implode(', ');
-
-            return response()->json([
-                'message' =>
-                    'No se pueden eliminar los subtipos porque están siendo utilizados por materiales: ' .
-                    $usedNames .
-                    '.',
-            ], 422);
-        }
-
-        DB::beginTransaction();
+    public function deleteMultiple(DeleteMultipleSubtypesRequest $request)
+    {
+        $validated = $request->validated();
 
         try {
-
-            foreach (
-                $subtypes as $subtype
-            ) {
-                $subtype->delete();
-            }
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
+            $count = app(DeleteSubtypes::class)
+                ->delete($validated['ids']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' =>
-                    'No se pudieron eliminar los subtipos.',
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'message' => 'No se pudieron eliminar los subtipos.',
             ], 422);
         }
 
         return response()->json([
-            'message' =>
-                'SubTipos eliminados correctamente.',
-        ]);
+            'message' => 'Subtipos eliminados correctamente.',
+            'deleted_count' => $count,
+        ], 200);
     }
+
 }

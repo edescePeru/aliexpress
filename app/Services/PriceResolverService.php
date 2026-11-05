@@ -88,20 +88,10 @@ class PriceResolverService
     public function getDefaultPriceListForCompany(
         int $companyId
     ): ?PriceList {
-        return PriceList::query()
-            ->where(
-                'company_id',
-                $companyId
-            )
-            ->where(
-                'is_default',
-                true
-            )
-            ->where(
-                'is_active',
-                true
-            )
-            ->first();
+        $lists = PriceList::query()->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)
+            ->where('is_default', true)->where('is_active', true)->orderBy('id')->limit(2)->get();
+        if ($lists->count() > 1) throw \Illuminate\Validation\ValidationException::withMessages(['price_list_id' => 'La empresa tiene más de una lista predeterminada activa.']);
+        return $lists->first();
     }
 
     /**
@@ -119,6 +109,11 @@ class PriceResolverService
         StockItem $stockItem,
         PriceList $priceList
     ): array {
+        if ((int) $priceList->tenant_id !== TenantContext::tenantId() || !$priceList->is_active
+            || (int) $stockItem->tenant_id !== TenantContext::tenantId()
+            || !\Illuminate\Support\Facades\DB::table('companies')->where('id', $priceList->company_id)->where('tenant_id', TenantContext::tenantId())->exists()) {
+            throw new \RuntimeException('La lista no está activa o no pertenece al grupo empresarial.');
+        }
         /*
          * ============================================================
          * SEGURIDAD
@@ -152,20 +147,13 @@ class PriceResolverService
          * Resultado StockItem 95 = S/ 25.
          */
 
-        $priceListItem = PriceListItem::query()
-            ->where(
-                'price_list_id',
-                $priceList->id
-            )
-            ->where(
-                'stock_item_id',
-                $stockItem->id
-            )
-            ->first();
+        $priceListItem = $stockItem->relationLoaded('priceListItems')
+            ? $stockItem->priceListItems->first(function ($row) use ($priceList, $stockItem) { return (int) $row->price_list_id === (int) $priceList->id && (int) $row->stock_item_id === (int) $stockItem->id; })
+            : PriceListItem::query()->where('price_list_id', $priceList->id)->where('stock_item_id', $stockItem->id)->first();
 
         if ($priceListItem) {
             return [
-                'price' => (float) $priceListItem->price,
+                'price' => $this->validPrice($priceListItem->price),
 
                 'source' => 'stock_item',
 
@@ -183,20 +171,15 @@ class PriceResolverService
          * ============================================================
          */
 
-        $priceListMaterial = PriceListMaterial::query()
-            ->where(
-                'price_list_id',
-                $priceList->id
-            )
-            ->where(
-                'material_id',
-                $stockItem->material_id
-            )
-            ->first();
+        $material = $stockItem->material;
+        if (!$material || (int) $material->tenant_id !== TenantContext::tenantId()) throw new \RuntimeException('El producto padre no pertenece al grupo empresarial.');
+        $priceListMaterial = $material->relationLoaded('priceListMaterials')
+            ? $material->priceListMaterials->first(function ($row) use ($priceList, $material) { return (int) $row->price_list_id === (int) $priceList->id && (int) $row->material_id === (int) $material->id; })
+            : PriceListMaterial::query()->where('price_list_id', $priceList->id)->where('material_id', $material->id)->first();
 
         if ($priceListMaterial) {
             return [
-                'price' => (float) $priceListMaterial->price,
+                'price' => $this->validPrice($priceListMaterial->price),
 
                 'source' => 'material',
 
@@ -226,4 +209,10 @@ class PriceResolverService
             'stock_item_id' => $stockItem->id,
         ];
     }
+    private function validPrice($value): float
+    {
+        if (!is_numeric($value) || !is_finite((float) $value) || (float) $value < 0) throw new \RuntimeException('El precio configurado no es válido.');
+        return (float) $value;
+    }
+
 }

@@ -1062,14 +1062,26 @@ function renderInventoryLevelsVariant($row, item) {
     });
 }
 
-function getStockTotalFromLevels(levels) {
-    if (!Array.isArray(levels) || levels.length === 0) {
-        return 0;
+function getStockByScopeFromLevels(levels) {
+    const context = document.getElementById('material-inventory-context');
+    const branch = context ? context.getAttribute('data-branch') : null;
+    if (!branch || !Array.isArray(levels)) return {local: null, general: null};
+    let local = 0;
+    let general = 0;
+    for (const level of levels) {
+        // Never infer general/local from warehouse names or default IDs.
+        if (!level || !Object.prototype.hasOwnProperty.call(level, 'warehouse_branch_id')) {
+            return {local: null, general: null};
+        }
+        const quantity = Number(level.qty_on_hand);
+        if (!Number.isFinite(quantity)) return {local: null, general: null};
+        if (level.warehouse_branch_id === null) {
+            general += quantity;
+        } else if (String(level.warehouse_branch_id) === String(branch)) {
+            local += quantity;
+        }
     }
-
-    return levels.reduce(function(total, level) {
-        return total + parseFloat(level.qty_on_hand || 0);
-    }, 0);
+    return {local: Number(local.toFixed(10)), general: Number(general.toFixed(10))};
 }
 
 function normalizeNumber(value) {
@@ -1143,9 +1155,10 @@ function renderVariantRowEdit(item) {
         }
     }
 
-    // Stock total = suma de qty_on_hand de todos los inventory levels
-    let stockTotal = getStockTotalFromLevels(item.inventory_levels || []);
-    $row.find('[data-stock_total]').val(stockTotal);
+    // Physical stock of the current branch, with general stock shown separately.
+    const stockByScope = getStockByScopeFromLevels(item.inventory_levels || []);
+    $row.find('[data-stock_total]').val(stockByScope.local === null ? '' : stockByScope.local);
+    $row.find('[data-stock_general]').text(stockByScope.general === null ? '—' : stockByScope.general);
 
     // Pintar inventory levels
     renderInventoryLevelsVariant($row, item);

@@ -51,6 +51,7 @@
 @endsection
 
 @section('content')
+    @include('material._inventoryContext')
     <div class="table-responsive">
         <table class="table table-bordered table-hover" id="dynamic-table">
             <thead>
@@ -121,6 +122,7 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
     <script>
         window.permissions = @json($permissions);
     </script>

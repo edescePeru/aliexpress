@@ -360,7 +360,7 @@ class Material extends Model
 
     public function talla()
     {
-        return $this->belongsTo('App\Quality');
+        return $this->belongsTo(Talla::class, 'talla_id');
     }
 
     public function typeScrap()

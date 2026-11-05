@@ -15,6 +15,10 @@ class StockItemController extends Controller
 {
     public function list(Request $request)
     {
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('listStockitem_material');
+        app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($request);
+        $request->validate(['search' => 'nullable|string|max:250', 'page' => 'nullable|integer|min:1']);
         $companyId =
             TenantContext::companyId();
 
@@ -28,7 +32,7 @@ class StockItemController extends Controller
 
 
         $query =
-            StockItem::query()
+            $access->stockItems()
 
                 /*
                  * StockItem habilitado comercialmente
@@ -62,6 +66,8 @@ class StockItemController extends Controller
                      * SOLO Company actual.
                      */
                     'inventoryLevels' => function ($q) use ($companyId) {
+                        app(\App\Services\Materials\MaterialInventoryScope::class)->levels($q);
+                        $q->with('warehouse:id,name,branch_id');
 
                         $q->where(
                             'company_id',
@@ -120,8 +126,32 @@ class StockItemController extends Controller
                     'id',
                     'desc'
                 )
-                ->paginate(10);
+                ->paginate(10, ['*'], 'page', (int) $request->input('page', 1));
 
+
+        $stockItems->setCollection($stockItems->getCollection()->map(function ($stockItem) {
+            $local = $stockItem->inventoryLevels->filter(function ($level) {
+                return $level->warehouse && $level->warehouse->branch_id !== null
+                    && (int) $level->warehouse->branch_id === TenantContext::branchId();
+            });
+            $general = $stockItem->inventoryLevels->filter(function ($level) {
+                return $level->warehouse && $level->warehouse->branch_id === null;
+            });
+            // Do not serialize legacy Material stock accessors from other warehouses.
+            if ($stockItem->material) { $stockItem->material->setAppends([]); }
+            foreach ($stockItem->inventoryLevels as $level) {
+                $level->setAttribute('qty_available', \App\Services\Materials\MaterialStockReadModel::available($level));
+                $level->setAttribute('warehouse_branch_id', $level->warehouse->branch_id);
+            }
+            $data = $stockItem->toArray();
+            $data['stock_current'] = (float) $local->sum('qty_on_hand');
+            $data['stock_reserved'] = (float) $local->sum('qty_reserved');
+            $data['stock_available'] = round($data['stock_current'] - $data['stock_reserved'], 10);
+            $data['stock_general'] = (float) $general->sum('qty_on_hand');
+            $data['stock_general_reserved'] = (float) $general->sum('qty_reserved');
+            $data['stock_general_available'] = round($data['stock_general'] - $data['stock_general_reserved'], 10);
+            return $data;
+        }));
 
         return response()->json(
             $stockItems
@@ -130,6 +160,7 @@ class StockItemController extends Controller
 
     public function index()
     {
+        app(\App\Services\Materials\StockItemScreenAccess::class)->permission('listStockitem_material');
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
         return view('stockItem.list', compact('permissions'));
@@ -137,46 +168,45 @@ class StockItemController extends Controller
 
     public function toggleInventory(Request $request, $id)
     {
-        $stockItem = StockItem::findOrFail($id);
-
-        $stockItem->tracks_inventory = $request->value;
-        $stockItem->save();
-
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('configInventariable_material');
+        app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($request);
+        $request->validate(['value' => 'required|boolean']);
+        DB::transaction(function () use ($access, $request, $id) {
+            app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($request);
+            $stockItem = $access->stockItem($id, true);
+            $stockItem->tracks_inventory = (bool) $request->input('value');
+            if (!$stockItem->save()) { throw new \RuntimeException('No se pudo guardar la configuración de inventario.'); }
+        });
         return response()->json(['success' => true]);
     }
 
     public function toggleActive(Request $request, $id)
     {
-        DB::beginTransaction();
-
-        try {
-            $stockItem = StockItem::findOrFail($id);
-
-            $stockItem->is_active = $request->value;
-            $stockItem->save();
-
-            // 🔥 Si tiene variante → actualizar también variant
+        $access = app(\App\Services\Materials\StockItemScreenAccess::class);
+        $access->permission('configActive_material');
+        app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($request);
+        $request->validate(['value' => 'required|boolean']);
+        DB::transaction(function () use ($access, $request, $id) {
+            app(\App\Services\Materials\MaterialInventoryScope::class)->snapshot($request);
+            $stockItem = $access->stockItem($id, true);
+            $variant = null;
             if ($stockItem->variant_id) {
-                $variant = Variant::find($stockItem->variant_id);
-
-                if ($variant) {
-                    $variant->is_active = $request->value;
-                    $variant->save();
+                $variant = Variant::query()->where('tenant_id', TenantContext::tenantId())
+                    ->where('material_id', $stockItem->material_id)->where('id', $stockItem->variant_id)
+                    ->lockForUpdate()->first();
+                if (!$variant) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['value' => 'La variante no pertenece al producto.']);
                 }
             }
-
-            DB::commit();
-
-            return response()->json(['success' => true]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'error' => true,
-                'message' => $e->getMessage()
-            ], 500);
-        }
+            $stockItem->is_active = (bool) $request->input('value');
+            if (!$stockItem->save()) { throw new \RuntimeException('No se pudo guardar el estado.'); }
+            if ($variant) {
+                $variant->is_active = (bool) $request->input('value');
+                if (!$variant->save()) { throw new \RuntimeException('No se pudo guardar el estado de la variante.'); }
+            }
+        });
+        return response()->json(['success' => true]);
     }
 
     public function viewMaterialVariants($id)
@@ -210,6 +240,8 @@ class StockItemController extends Controller
     }
 
     public function getInventoryLevels( StockItem $stockItem) {
+        app(\App\Services\Materials\MaterialInventoryScope::class)->context();
+        app(\App\Services\Materials\MaterialInventoryScope::class)->stockItem($stockItem);
         $companyId =
             TenantContext::companyId();
 
@@ -254,13 +286,13 @@ class StockItemController extends Controller
 
             'inventoryLevels' => function ($q) use ($companyId) {
 
-                $q->where(
+                app(\App\Services\Materials\MaterialInventoryScope::class)->levels($q)->where(
                     'company_id',
                     $companyId
                 )
                     ->with([
                         'location:id,description',
-                        'warehouse:id,name',
+                        'warehouse:id,name,branch_id',
                     ]);
             },
 
@@ -351,6 +383,11 @@ class StockItemController extends Controller
                         'qty_reserved' =>
                             (float) $level->qty_reserved,
 
+                        'qty_available' => \App\Services\Materials\MaterialStockReadModel::available($level),
+
+                        'warehouse_branch_id' => optional($level->warehouse)->branch_id,
+
+
                         'min_alert' =>
                             (float) $level->min_alert,
 
@@ -407,160 +444,30 @@ class StockItemController extends Controller
         ]);
     }
 
-    public function updateInventoryLevels(Request $request, StockItem $stockItem) {
-        $companyId =
-            TenantContext::companyId();
-
-
-        /*
-         * La Company debe tener habilitado
-         * este StockItem.
-         */
-
-        $isEnabledForCompany =
-            $stockItem
-                ->companyStockItems()
-                ->where(
-                    'company_id',
-                    $companyId
-                )
-                ->where(
-                    'is_active',
-                    true
-                )
-                ->exists();
-
-
-        if (!$isEnabledForCompany) {
-
-            return response()->json([
-                'message' =>
-                    'El producto no está habilitado para la empresa actual.',
-            ], 404);
-        }
-
-
+    public function updateInventoryLevels(Request $request, StockItem $stockItem)
+    {
+        $scope = app(\App\Services\Materials\MaterialInventoryScope::class);
+        $scope->snapshot($request);
+        $scope->stockItem($stockItem);
         $request->validate([
-            'inventory_levels' =>
-                'required|array|min:1',
-
-            'inventory_levels.*.id' =>
-                'required|integer',
-
-            'inventory_levels.*.min_alert' =>
-                'nullable|numeric|min:0',
-
-            'inventory_levels.*.max_alert' =>
-                'nullable|numeric|min:0',
+            'inventory_levels' => 'required|array|min:1|max:500',
+            'inventory_levels.*' => 'required|array',
+            'inventory_levels.*.id' => 'required|integer|min:1|distinct',
+            'inventory_levels.*.min_alert' => 'sometimes|nullable|numeric|min:0',
+            'inventory_levels.*.max_alert' => 'sometimes|nullable|numeric|min:0',
         ]);
-
-
-        DB::beginTransaction();
-
-
-        try {
-
-            foreach (
-                $request->inventory_levels
-                as $row
-            ) {
-
-                /*
-                 * CRÍTICO:
-                 *
-                 * StockItem
-                 * +
-                 * Company
-                 * +
-                 * InventoryLevel
-                 */
-
-                $inventoryLevel =
-                    InventoryLevel::query()
-                        ->where(
-                            'id',
-                            $row['id']
-                        )
-                        ->where(
-                            'stock_item_id',
-                            $stockItem->id
-                        )
-                        ->where(
-                            'company_id',
-                            $companyId
-                        )
-                        ->lockForUpdate()
-                        ->first();
-
-
-                if (!$inventoryLevel) {
-
-                    throw new \RuntimeException(
-                        'Uno de los niveles de inventario no pertenece a la empresa actual.'
-                    );
-                }
-
-
-                $min =
-                    (
-                        $row['min_alert'] !== '' &&
-                        $row['min_alert'] !== null
-                    )
-                        ? (float) $row['min_alert']
-                        : 0;
-
-
-                $max =
-                    (
-                        $row['max_alert'] !== '' &&
-                        $row['max_alert'] !== null
-                    )
-                        ? (float) $row['max_alert']
-                        : 0;
-
-
-                if ($min > $max) {
-
-                    throw new \RuntimeException(
-                        'El stock mínimo no puede ser mayor que el stock máximo.'
-                    );
-                }
-
-
-                $inventoryLevel->min_alert =
-                    $min;
-
-                $inventoryLevel->max_alert =
-                    $max;
-
-                $inventoryLevel->save();
-            }
-
-
-            DB::commit();
-
-
-            return response()->json([
-                'message' =>
-                    'Niveles de inventario actualizados correctamente.',
-            ], 200);
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            report($e);
-
-
-            return response()->json([
-                'message' =>
-                    $e->getMessage(),
-            ], 422);
-        }
+        DB::transaction(function () use ($scope, $stockItem, $request) {
+            $scope->snapshot($request);
+            $scope->stockItem($stockItem);
+            $scope->sync($stockItem, $request->input('inventory_levels'));
+        });
+        return response()->json(['message' => 'Niveles de inventario actualizados correctamente.'], 200);
     }
 
     public function getInventoryLevelsByMaterial(Material $material)
     {
+        app(\App\Services\Materials\MaterialInventoryScope::class)->context();
+        abort_unless((int) $material->tenant_id === TenantContext::tenantId(), 404);
         $companyId =
             TenantContext::companyId();
 
@@ -603,13 +510,13 @@ class StockItemController extends Controller
                          */
                         'inventoryLevels' => function ($q) use ($companyId) {
 
-                            $q->where(
+                            app(\App\Services\Materials\MaterialInventoryScope::class)->levels($q)->where(
                                 'company_id',
                                 $companyId
                             )
                                 ->with([
                                     'location:id,description',
-                                    'warehouse:id,name',
+                                    'warehouse:id,name,branch_id',
                                 ]);
                         },
 
@@ -736,6 +643,11 @@ class StockItemController extends Controller
                                 'qty_reserved' =>
                                     (float) $level->qty_reserved,
 
+                                'qty_available' => \App\Services\Materials\MaterialStockReadModel::available($level),
+
+                                'warehouse_branch_id' => optional($level->warehouse)->branch_id,
+
+
                                 'min_alert' =>
                                     (float) $level->min_alert,
 
@@ -775,4 +687,5 @@ class StockItemController extends Controller
                     ->toArray(),
         ]);
     }
+
 }

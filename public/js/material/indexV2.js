@@ -325,175 +325,7 @@ $(document).ready(function () {
         });
     });
 
-    // Abrir modal
-    $(document).on('click', '[data-manage_presentations]', function () {
-        currentMaterialId = $(this).data('material');
-        const desc = $(this).data('description') || '';
-
-        $('#mp-material-title').text(desc ? `— ${desc}` : '');
-        $('#presentaciones-content').html('<div class="text-muted">Cargando...</div>');
-
-        $('#modalPresentaciones').modal('show');
-        loadPresentations(currentMaterialId);
-    });
-
-    // Recargar
-    $(document).on('click', '[data-mp-refresh]', function () {
-        if (!currentMaterialId) return;
-        loadPresentations(currentMaterialId);
-    });
-
-    // Crear
-    $(document).on('click', '[data-mp-create]', function () {
-        if (!currentMaterialId) return;
-
-        const quantity = $('[data-mp-new-quantity]').val();
-        const price = $('[data-mp-new-price]').val();
-
-        if (!quantity || !price) {
-            return $.alert({ title: 'Validación', content: 'Completa cantidad y precio.' });
-        }
-
-        $.confirm({
-            title: 'Confirmar',
-            content: '¿Deseas crear esta presentación?',
-            buttons: {
-                cancelar: function () {},
-                confirmar: {
-                    btnClass: 'btn-success',
-                    action: function () {
-                        return $.post(`/dashboard/materials-presentations/material/${currentMaterialId}/presentations`, { quantity, price })
-                            .done(res => {
-                                const p = res.presentation;
-                                const $list = $('#mp-list');
-
-                                const rowHtml = buildRowHtml(p); // ✅ aquí
-
-                                if ($list.find('[data-mp-row]').length === 0) $list.empty();
-
-                                $list.prepend(rowHtml);
-
-                                $('[data-mp-new-quantity]').val('');
-                                $('[data-mp-new-price]').val('');
-
-                                $.alert({ title: 'OK', content: res.message });
-                            })
-                            .fail(xhr => {
-                                $.alert({
-                                    title: 'Error',
-                                    content: xhr.responseJSON?.message || 'No se pudo crear.'
-                                });
-                            });
-                    }
-                }
-            }
-        });
-    });
-
-    // Editar (habilita inputs)
-    $(document).on('click', '[data-mp-edit]', function () {
-        const $row = $(this).closest('[data-mp-row]');
-        $row.find('[data-mp-quantity],[data-mp-price]').prop('disabled', false);
-
-        // guardar valores originales para cancelar
-        $row.data('origQuantity', $row.find('[data-mp-quantity]').val());
-        $row.data('origPrice', $row.find('[data-mp-price]').val());
-
-        $row.find('[data-mp-edit]').addClass('d-none');
-        $row.find('[data-mp-save],[data-mp-cancel]').removeClass('d-none');
-    });
-
-    // Cancelar edición
-    $(document).on('click', '[data-mp-cancel]', function () {
-        const $row = $(this).closest('[data-mp-row]');
-        $row.find('[data-mp-quantity]').val($row.data('origQuantity')).prop('disabled', true);
-        $row.find('[data-mp-price]').val($row.data('origPrice')).prop('disabled', true);
-
-        $row.find('[data-mp-edit]').removeClass('d-none');
-        $row.find('[data-mp-save],[data-mp-cancel]').addClass('d-none');
-    });
-
-    // Guardar edición
-    $(document).on('click', '[data-mp-save]', function () {
-        const $row = $(this).closest('[data-mp-row]');
-        const id = $row.data('id');
-
-        const quantity = $row.find('[data-mp-quantity]').val();
-        const price = $row.find('[data-mp-price]').val();
-
-        if (!quantity || !price) {
-            return $.alert({ title: 'Validación', content: 'Completa cantidad y precio.' });
-        }
-
-        $.confirm({
-            title: 'Confirmar',
-            content: '¿Guardar cambios en esta presentación?',
-            buttons: {
-                cancelar: function () {},
-                confirmar: {
-                    btnClass: 'btn-primary',
-                    action: function () {
-                        return $.ajax({
-                            url: `/dashboard/materials-presentations/presentation/${id}`,
-                            method: 'PUT',
-                            data: { quantity, price }
-                        })
-                            .done(res => {
-                                $row.find('[data-mp-quantity],[data-mp-price]').prop('disabled', true);
-
-                                $row.find('[data-mp-edit]').removeClass('d-none');
-                                $row.find('[data-mp-save],[data-mp-cancel]').addClass('d-none');
-
-                                $.alert({ title: 'OK', content: res.message });
-                            })
-                            .fail(xhr => {
-                                $.alert({
-                                    title: 'Error',
-                                    content: xhr.responseJSON?.message || 'No se pudo actualizar.'
-                                });
-                            });
-                    }
-                }
-            }
-        });
-    });
-
-    // Eliminar
-    $(document).on('click', '[data-mp-toggle]', function () {
-        const $row = $(this).closest('[data-mp-row]');
-        const id = $row.data('id');
-        const active = parseInt($row.attr('data-active'), 10) === 1;
-
-        $.confirm({
-            title: active ? 'Desactivar' : 'Activar',
-            content: active
-                ? '¿Seguro que deseas desactivar esta presentación? No aparecerá al vender, pero quedará para historial.'
-                : '¿Seguro que deseas activar esta presentación? Volverá a estar disponible en ventas.',
-            buttons: {
-                cancelar: function () {},
-                confirmar: {
-                    btnClass: active ? 'btn-danger' : 'btn-success',
-                    action: function () {
-                        return $.ajax({
-                            url: `/dashboard/materials-presentations/presentation/${id}/toggle`,
-                            method: 'PATCH'
-                        })
-                            .done(res => {
-                                // Lo más simple y seguro: recargar lista desde server
-                                loadPresentations(currentMaterialId);
-                                $.alert({ title: 'OK', content: res.message });
-                            })
-                            .fail(xhr => {
-                                $.alert({
-                                    title: 'Error',
-                                    content: xhr.responseJSON?.message || 'No se pudo cambiar el estado.'
-                                });
-                            });
-                    }
-                }
-            }
-        });
-    });
+    // Presentations are managed by presentations-branch.js for the rendered branch.
 
     $('#btn-resumen-stock').on('click', function (e) {
         e.preventDefault();
@@ -514,7 +346,7 @@ $(document).ready(function () {
         });
     });
 
-    if ($('#hay-alertas').val() === '1') {
+    if ($('#hay-alertas').val() === '1' && $('#stock-alert-popup').val() === '1') {
         var resumenHtml = $('#resumen-stock-html').html();
 
         $.confirm({
@@ -585,7 +417,7 @@ function openInventoryLevelsModal(materialId) {
         beforeSend: function () {
             $('#tbody-modal-inventory-levels').html(`
                 <tr>
-                    <td colspan="8" class="text-center">Cargando...</td>
+                    <td colspan="10" class="text-center">Cargando...</td>
                 </tr>
             `);
             $('#modalInventoryLevels').modal('show');
@@ -627,7 +459,7 @@ function renderInventoryLevelsModalRows(levels) {
         $tbody.html(`
             <tr>
                 <td colspan="10" class="text-center text-muted">
-                    No hay inventory levels registrados.
+                    No hay inventario registrado en los almacenes generales y del local actual.
                 </td>
             </tr>
         `);
@@ -659,6 +491,9 @@ function renderInventoryLevelsModalRows(levels) {
                 </td>
                 <td>
                     <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_reserved)}" readonly>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_available)}" readonly>
                 </td>
                 <td>
                     <input type="number"
@@ -707,54 +542,6 @@ function moneyFormat(v) {
     // si quieres forzar 2 decimales visualmente:
     // return (parseFloat(v) || 0).toFixed(2);
     return v;
-}
-
-function renderModal(material, presentations) {
-    $('#mp-material-title').text(material?.description ? `— ${material.description}` : '');
-    $('#presentaciones-content').html(tpl('#tpl-mp-wrapper'));
-
-    const $list = $('#mp-list');
-    $list.empty();
-
-    if (!presentations || !presentations.length) {
-        $list.html('<div class="text-muted">No hay presentaciones registradas aún.</div>');
-        return;
-    }
-
-    presentations.forEach(p => {
-        $list.append(buildRowHtml(p));
-    });
-}
-
-function loadPresentations(materialId) {
-    return $.get(`/dashboard/materials-presentations/material/${materialId}/presentations`)
-        .done(res => renderModal(res.material, res.presentations))
-        .fail(xhr => {
-            $.alert({
-                title: 'Error',
-                content: xhr.responseJSON?.message || 'No se pudo cargar las presentaciones.'
-            });
-        });
-}
-
-function buildRowHtml(p) {
-    const isActive = (p.active === true || p.active === 1 || p.active === "1");
-
-    return tpl('#tpl-mp-row', {
-        id: p.id,
-        quantity: p.quantity,
-        price: moneyFormat(p.price),
-        active: isActive ? 1 : 0,
-
-        row_class: isActive ? '' : 'bg-light text-muted',
-        badge_class: isActive ? 'badge-success' : 'badge-secondary',
-        status_text: isActive ? 'ACTIVA' : 'INACTIVA',
-
-        toggle_text: isActive ? 'Desactivar' : 'Activar',
-        toggle_btn_class: isActive ? 'btn-outline-danger' : 'btn-outline-success',
-
-        edit_disabled: isActive ? '' : 'disabled'
-    });
 }
 
 function submitAssignChild() {
@@ -1790,21 +1577,7 @@ function renderDataTable(data, activeColumns) {
     clone.querySelector("[data-unidad_medida]").innerHTML = data.unidad_medida;
     /*clone.querySelector("[data-stock_max]").innerHTML = data.stock_max;
     clone.querySelector("[data-stock_min]").innerHTML = data.stock_min;*/
-    let stockContainer = clone.querySelector("[data-stock_actual]");
-
-    if (data.stock_current !== null) {
-        stockContainer.innerHTML = data.stock_current;
-    } else {
-        stockContainer.innerHTML = `
-            <div class="d-flex flex-column align-items-center">
-                <button class="btn btn-sm btn-outline-secondary next-table-cell-action"
-                    data-material-id="${data.id}"
-                    data-ver-inventario>
-                    Ver Inv.
-                </button>
-            </div>
-        `;
-    }
+    renderMaterialStockCell(clone.querySelector("[data-stock_actual]"), data);
 
     let stockMinContainer = clone.querySelector("[data-stock_min]");
 
@@ -2035,4 +1808,46 @@ function renderNextPage($numberPage) {
     var clone = activateTemplate('#next-page');
     clone.querySelector("[data-item]").setAttribute('data-item', $numberPage);
     $("#pagination").append(clone);
+}
+
+
+// Keep contextual stock quantities unchanged; move supplementary labels into a tooltip.
+function renderMaterialStockCell(container, data) {
+    container.textContent = '';
+    const content = document.createElement('span');
+    content.className = 'd-inline-flex align-items-center flex-nowrap';
+    if (data.stock_current !== null) {
+        const quantity = document.createElement('span');
+        quantity.textContent = data.stock_current;
+        content.appendChild(quantity);
+    } else {
+        // Variant parents retain the existing inventory action: never invent an aggregate.
+        const inventory = document.createElement('button');
+        inventory.type = 'button';
+        inventory.className = 'btn btn-sm btn-outline-secondary next-table-cell-action';
+        inventory.setAttribute('data-material-id', data.id);
+        inventory.setAttribute('data-ver-inventario', '');
+        inventory.textContent = 'Ver Inv.';
+        content.appendChild(inventory);
+    }
+    const details = [];
+    if (data.stock_current !== null) details.push('General: '+data.stock_general);
+    if (data.stock_alert_count > 0) details.push(data.stock_alert_count+' alerta(s) en el local');
+    else if (!data.has_local_inventory) details.push('Sin inventario registrado en el local');
+    if (details.length) {
+        const info = document.createElement('button');
+        info.type = 'button';
+        info.className = 'btn btn-link btn-sm p-0 ml-1 '+(data.stock_alert_count > 0 ? 'text-danger' : 'text-muted');
+        info.setAttribute('data-toggle', 'tooltip');
+        info.setAttribute('data-placement', 'top');
+        info.setAttribute('data-html', 'false');
+        info.setAttribute('title', details.join('. '));
+        info.setAttribute('aria-label', details.join('. '));
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle';
+        icon.setAttribute('aria-hidden', 'true');
+        info.appendChild(icon);
+        content.appendChild(info);
+    }
+    container.appendChild(content);
 }
