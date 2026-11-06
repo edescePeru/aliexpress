@@ -14,6 +14,8 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'cashBox.index',
+        'cashBoxSubtype.index',
         'puntoVenta.list',
         'quoteSale.index',
         'quoteSale.index.facturadas',

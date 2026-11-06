@@ -8,39 +8,14 @@
     Cajas
 @endsection
 
-@section('styles')
-    <style>
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif;
-            font-size: 15px;
-        }
-        .normal-title {
-            background-color: #203764;
-            color: #fff;
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .badge-pill { padding: .35rem .6rem; }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Listado de Cajas</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Cajas</h1><p class="next-page-description">Administra las cajas y su alcance en la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de Cajas</h5>
-    @can('create_cashBox')
-        <button data-btn_create class="btn btn-outline-success btn-sm float-right">
-            <i class="fa fa-plus font-20"></i> Nueva Caja
-        </button>
-    @endcan
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Mantenimiento de empresa</strong><span>Configuración independiente de las sesiones operativas POS.</span></div><div class="next-toolbar-actions">
+@can('create_cashBox')<button type="button" data-btn_create class="btn btn-primary btn-sm"><i class="fas fa-plus mr-1" aria-hidden="true"></i> Nueva caja</button>@endcan
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -59,97 +34,46 @@
     <input type="hidden" id="permissions" value="{{ json_encode($permissions ?? []) }}">
 
     <!-- Filtros -->
-    <form action="#" onsubmit="return false;">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="input-group">
-                    <input type="text" id="search" class="form-control" placeholder="Buscar por nombre / banco / cuenta..." autocomplete="off">
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
-                    </div>
-                </div>
-            </div>
+    <section class="next-operational-list" aria-label="Listado de cajas">
+    <form action="#" class="next-list-toolbar" onsubmit="return false;">
+        <div class="next-list-search-row">
+            <div class="input-group next-list-search-control"><input type="text" id="search" class="form-control" placeholder="Buscar por nombre / banco / cuenta…" aria-label="Buscar cajas" autocomplete="off"><div class="input-group-append"><button class="btn btn-primary next-list-search" type="button" id="btn-search"><i class="fas fa-search mr-1" aria-hidden="true"></i>Buscar</button></div></div>
+
         </div>
     </form>
+    <div id="list-feedback" class="alert alert-danger mx-3 d-none" role="alert"></div>
+    <div class="next-list-summary" aria-live="polite"><div class="next-list-summary-copy"><strong id="numberItems" class="next-list-count">—</strong><span>Cajas encontradas</span></div><span class="next-list-sort-context">Por posición e ID</span></div>
+    <div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="Tabla de cajas; desplazamiento horizontal local">
+    <table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th scope="col" class="text-center">ID</th><th scope="col" class="text-left">Nombre</th><th scope="col" class="text-center">Tipo</th><th scope="col" class="text-left">Alcance</th><th scope="col" class="text-center">Subtipos</th><th scope="col" class="text-left">Cuenta bancaria</th><th scope="col" class="text-center">Moneda</th><th scope="col" class="text-center">Estado</th><th scope="col" class="text-center">Acciones</th></tr></thead><tbody id="body-table"></tbody></table>
+    </div></div>
+    <div class="next-list-pagination"><div id="textPagination" aria-live="polite"></div><nav aria-label="Paginación de cajas"><ul class="pagination" id="pagination"></ul></nav></div>
+    </section>
 
-    <div class="d-flex flex-wrap flex-stack pb-2 mt-3">
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1">
-                <span id="numberItems"></span> Cajas encontradas
-                <span class="text-gray-400 fs-6">por nombre ↓</span>
-            </h3>
-        </div>
-    </div>
-
-    <hr>
-
-    <div class="table-responsive">
-        <table class="table table-bordered letraTabla table-hover table-sm mb-2">
-            <thead>
-            <tr class="normal-title">
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Alcance</th>
-                <th>Subtipos</th>
-                <th>Cuenta bancaria</th>
-                <th>Moneda</th>
-                <th>Estado</th>
-                <th style="min-width: 140px;">Acciones</th>
-            </tr>
-            </thead>
-            <tbody id="body-table"></tbody>
-        </table>
-    </div>
-
-    <div class="d-flex flex-stack flex-wrap pt-1">
-        <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-        <ul class="pagination" style="margin-left: auto;" id="pagination"></ul>
-    </div>
-
-    {{-- Templates --}}
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-name></td>
-            <td data-type></td>
-            <td data-scope></td>
-            <td data-uses_subtypes></td>
-            <td data-bank-account></td>
-            <td data-currency></td>
-            <td data-status></td>
-            <td data-buttons></td>
+            <td class="text-center" data-id></td>
+            <td class="text-left" data-name></td>
+            <td class="text-center" data-type></td>
+            <td class="text-left" data-scope></td>
+            <td class="text-center" data-uses_subtypes></td>
+            <td class="text-left" data-bank-account></td>
+            <td class="text-center" data-currency></td>
+            <td class="text-center" data-status></td>
+            <td class="text-center" data-buttons></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="10" align="center">No se ha encontrado ninguna caja</td>
+            <td colspan="9" class="text-center py-4">No se ha encontrado ninguna caja</td>
         </tr>
     </template>
 
-    <template id="template-btn-edit">
-        <button
-                class="btn btn-outline-warning btn-sm"
-                data-editar
-                data-toggle="tooltip"
-                data-placement="top"
-                title="Editar">
-            <i class="fa fa-pen"></i>
-        </button>
-    </template>
+    <template id="template-btn-edit"><button type="button" class="dropdown-item" role="menuitem" data-editar><i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i>Editar</button></template>
 
-    <template id="template-btn-toggle">
-        <button
-                class="btn btn-outline-secondary btn-sm"
-                data-toggle-active
-                data-toggle="tooltip"
-                data-placement="top"
-                title="Activar/Desactivar">
-            <i class="fa fa-power-off"></i>
-        </button>
-    </template>
+    <template id="template-btn-toggle"><button type="button" class="dropdown-item" role="menuitem" data-toggle-active><i class="fas fa-power-off next-row-action-item-icon" aria-hidden="true"></i><span data-toggle-label>Activar/Desactivar</span></button></template>
 
+    <template id="template-row-actions"><div class="dropdown next-row-actions"><button type="button" class="btn btn-sm next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu" role="menu"></div></div></template>
     <template id="badge-yes">
         <span class="badge badge-success badge-pill">Sí</span>
     </template>
@@ -164,15 +88,16 @@
     </template>
 
     {{-- Modal --}}
-    <div class="modal fade" id="modalCashBox" tabindex="-1" aria-labelledby="cashBoxLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="formCashBox"
+    <div class="modal fade next-aux-modal" id="modalCashBox" tabindex="-1" aria-labelledby="cashBoxTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <form class="next-aux-modal-form" id="formCashBox"
                       data-url_list="{{ route('cashBox.list') }}"
                       data-url_create="{{ route('cashBox.store') }}"
                       data-url_update="{{ route('cashBox.update') }}"
                       data-url_toggle="{{ route('cashBox.toggle') }}"
                 >
+                    @csrf
+                    <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="cashBoxTitle">Nueva Caja</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
@@ -224,8 +149,7 @@
 
                             <small class="form-text text-muted">
 
-                                Si selecciona "Toda la empresa",
-                                esta caja podrá utilizarse desde todas las tiendas.
+                                Toda la empresa indica una caja general. La disponibilidad en POS depende del local y de la sesión operativa.
 
                             </small>
 
@@ -292,7 +216,7 @@
 
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" id="wrap_currency">
                             <label for="cb_currency">Moneda (opcional)</label>
                             <select class="form-control" name="currency" id="cb_currency">
                                 <option value="">(Sin definir)</option>
@@ -318,15 +242,15 @@
                                 Guardar
                             </button>
                         @endcanany
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                    </div>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
 
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/cashBox/index.js') }}"></script>
+    <script src="{{ asset('js/cashBox/index.js') }}?v={{ filemtime(public_path('js/cashBox/index.js')) }}"></script>
 @endsection
