@@ -2721,14 +2721,14 @@ table.next-data-table .bootstrap-switch .bootstrap-switch-handle-off.bootstrap-s
   }
 
   .next-variants-table,
-  .next-variants-table tbody {
+  .next-variants-table > tbody {
     display: block;
     width: 100%;
     min-width: 0;
   }
 
-  .next-variants-table colgroup,
-  .next-variants-table thead {
+  .next-variants-table > colgroup,
+  .next-variants-table > thead {
     display: none;
   }
 

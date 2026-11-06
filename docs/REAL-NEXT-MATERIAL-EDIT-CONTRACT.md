@@ -1,5 +1,11 @@
 # REAL NEXT — Material Edit Contract
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+POST-MERGE FRONTEND ALIGNED. Precio unit_price/list_price: RESOLVED mediante update con rollback; descuentos: RESOLVED en código y colección conservada (dataset probado sin descuentos; regresión poblada pendiente). Campos ausentes/deshabilitados, jerarquía efectiva, snapshots e impuesto revalidados. PERSISTED VARIANT SIZE/COLOR IMMUTABILITY — QA PASSED con baseline válido y errores específicos; variantes omitidas conservadas. MATERIAL EDIT SAVE STILL BLOCKED FOR PRODUCTION: política histórica SKU/barcode/estado/inventariable, retacería, QA ampliado y granularidad multinivel. El request aún rechaza warehouses repetidos aunque el service trabaja por InventoryLevel. Inventario branch/general implementado, pero el dataset sólo contiene almacenes generales; no se certifica Principal vs Outlet. Se corrigió overflow de inventario expandido reutilizando utilidades y acotando selectores existentes, sin reglas CSS nuevas.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Reclasificación vigente — 2026-10-26
 
 La [matriz posterior al merge](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md) prevalece sobre las preguntas y estados históricos siguientes. Código auditado: `20cea30`. No se modificaron frontend ni backend ni se ejecutó el guardado.

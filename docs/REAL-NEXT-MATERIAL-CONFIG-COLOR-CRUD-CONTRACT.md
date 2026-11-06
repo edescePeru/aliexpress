@@ -1,5 +1,11 @@
 # REAL NEXT 5.8 — Material Configuration CRUD: Colores
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+FRONTEND READY / BACKEND IMPLEMENTED — DESTRUCTIVE QA PENDING. El backend actual implementa requests/services de borrado seguro; esto sustituye las afirmaciones históricas de ausencia de implementación. Bulk permanece deshabilitado. En los once requests se rechazaron colecciones vacías, inexistentes, mixtas y duplicadas. IDs de otro tenant rechazados donde existen datos aptos; Colores y Tipo Retacería no tienen muestra ajena apta. No se ejecutaron deletes, cascadas ni pruebas de atomicidad destructiva sobre la BD compartida. Permisos/dependencias/históricos se conservan como contratos backend; cerrar QA destructivo requiere ambiente aislado.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Current Contract
 
 Color is a tenant-scoped material configuration catalog implemented by `ColorController`, the `Color` model and the `BelongsToTenant` global scope. It uses its own server-paginated AJAX adapter; it does not use DataTables.

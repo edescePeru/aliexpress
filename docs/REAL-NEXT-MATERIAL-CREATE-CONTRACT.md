@@ -1,5 +1,11 @@
 # REAL NEXT — Material Create Contract
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+MATERIAL CREATE — FINAL QA PASSED en el alcance de lectura/render y validación no persistente documentado. Lookups vigentes sin 403 inesperado para Material; padres ajenos rechazados; catálogos separados EDESCE/Gamarra y configuración por company. Impuestos activos/default comprobados; ausencia de default y old fiscal mediante render transaccional. No se creó Material ni se certificó el POST completo/restauración de todos los campos.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Aclaración posterior — 2026-10-26
 
 Ver [Backend Sync Reclassification](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), código `20cea30`. Se conserva íntegra la evidencia histórica siguiente.

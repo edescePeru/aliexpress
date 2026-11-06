@@ -14,6 +14,7 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'puntoVenta.list',
         'quoteSale.index',
         'quoteSale.index.facturadas',
         'quoteSale.show',

@@ -1,5 +1,11 @@
 # REAL NEXT 5.12 — Material Configuration: Parámetros
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+MATERIAL PARAMETERS — FINAL QA PASSED en lectura/permisos y pruebas con rollback. Company sin configuración, unidad obligatoria, dependencias, versión/snapshot stale, campos deshabilitados, rechazo de usuario sin config_materialSetting y Platform Admin sin contexto comprobados. Store de parámetros ejecutado exclusivamente bajo rollback y restauración verificada; no cambios persistentes ni certificación de concurrencia.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Alcance de la aclaración posterior — 2026-10-26
 
 La [reclasificación backend](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md) fija maestro tenant compartido e inventario operativo company/branch/general. No define una política nueva para `$enabled`, históricos ocultos, defaults, Platform Admin o descuentos. Esos hallazgos conservan su estado anterior; no se cierran por permitir continuidad frontend. Trigger: contrato backend explícito de preservación/validación de campos deshabilitados. Se conserva debajo la evidencia original y no se modificaron configuración ni comportamiento.

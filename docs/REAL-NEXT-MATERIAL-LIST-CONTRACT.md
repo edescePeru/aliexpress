@@ -1,5 +1,11 @@
 # REAL NEXT — Material List Contract
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+FINAL QA PASSED — READ PATH para dataset actual EDESCE/Gamarra. MaterialCompanyCatalog/MaterialStockReadModel mantienen físico local y general separados; null de variantes/umbrales no se convierte en cero. Inventario detallado Gamarra comprobado. Indicadores probados adicionalmente con colecciones en memoria; no sustituyen datos reales de almacenes locales/reservas. SEPARAR PAQUETE — STILL BLOCKED FOR FRONTEND por fuente stock legacy/ownership; flujo no ejecutado.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Reclasificación vigente — 2026-10-26
 
 Ver [matriz y evidencia posterior al merge](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), commit `20cea30`. Se preserva debajo la auditoría histórica; las decisiones de alcance ya no son preguntas abiertas.

@@ -932,7 +932,7 @@
             <td class="text-center"><button type="button" class="btn btn-outline-info btn-sm" data-toggle_inventory_levels aria-expanded="false"><i class="fas fa-warehouse mr-1" aria-hidden="true"></i> Ver</button></td>
         </tr>
         <tr class="next-variant-inventory-row d-none" data-inventory_levels_wrapper>
-            <td colspan="8">
+            <td colspan="8" class="d-block d-xl-table-cell">
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered mb-0">
                         <thead><tr><th>Almacén</th><th>Ubicación</th><th class="text-center">Stock actual</th><th class="text-center">Reservado</th><th class="text-center">Stock mínimo</th><th class="text-center">Stock máximo</th><th class="text-right">Costo prom.</th><th class="text-right">Últ. costo</th></tr></thead>

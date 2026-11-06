@@ -1,5 +1,11 @@
 # REAL NEXT 5.11 — Material Configuration CRUD: Tipo de retacería
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+FRONTEND READY / BACKEND IMPLEMENTED — DESTRUCTIVE QA PENDING. El backend actual implementa requests/services de borrado seguro; esto sustituye las afirmaciones históricas de ausencia de implementación. Bulk permanece deshabilitado. En los once requests se rechazaron colecciones vacías, inexistentes, mixtas y duplicadas. IDs de otro tenant rechazados donde existen datos aptos; Colores y Tipo Retacería no tienen muestra ajena apta. No se ejecutaron deletes, cascadas ni pruebas de atomicidad destructiva sobre la BD compartida. Permisos/dependencias/históricos se conservan como contratos backend; cerrar QA destructivo requiere ambiente aislado.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 ## Reclasificación vigente — 2026-10-26
 
 Ver [matriz y evidencia actual](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), commit `20cea30`. Se preserva la auditoría original debajo.
