@@ -601,3 +601,57 @@ does not create a second design system.
 The visual layer must not add a tenant scope to global models, remove an
 explicit tenant filter, invent granular permissions or expose a mutating
 endpoint that the backend does not already own.
+
+
+## Surface Spacing Standard
+
+The main `.content > .card > .card-body` deliberately has `padding: 0`.
+It is a composition container, not a padded form. This allows operational
+lists to remain edge-to-edge. Raw forms must supply an existing section wrapper.
+
+| Pattern | Actual class / structure | Desktop | Below 768px |
+| --- | --- | --- | --- |
+| Surface | `.content > .card` | 16px outer horizontal margin | Existing compact shell gutter |
+| Surface Header | direct `.card-header`, containing `.next-page-toolbar` | 12px vertical / 20px horizontal | 12px |
+| Surface Body / Section | `.next-form-section` | 20px all sides (`--next-space-5`) | 16px (`--next-space-4`) |
+| Section Header | `.next-section-header` inside section | 16px bottom gap | 12px bottom gap |
+| Form Grid | `.row` then Bootstrap `.col-*` | Current AdminLTE gutter: -7.5px row / 7.5px column; `.form-row`: -5px / 5px | Same gutter, columns stack |
+| Toolbar | `.next-list-toolbar` | 16px vertical / 20px horizontal | 12px |
+| Action Bar | `.next-list-toolbar` + `.next-page-toolbar` + `.next-toolbar-actions.flex-wrap` | 8px action gap (`--next-space-2`) | Existing wrap rules; no button margins |
+| Summary / Pagination | `.next-list-summary` / `.next-list-pagination` | 12px vertical / 20px horizontal | 12px horizontal |
+| Nested Surface | `.card` or existing operational panel inside `.next-form-section` | Parent provides 20px; child retains its component padding | Parent provides 16px |
+| Auxiliary Modal | `.next-aux-modal` with `.modal-header/.modal-body/.modal-footer` | Existing shared modal padding | Existing shared modal responsive rules |
+| Edge-to-edge table exception | `.next-list-content > .table-responsive > table` or existing table wrapper | No outer form padding; local scroll | No document overflow |
+
+The 4px difference between compact mobile headers/toolbars (12px) and form
+sections (16px) belongs to the approved baseline. Create/edit must use the same
+pattern; do not compensate with individual input margins. Desktop primary
+section axes are 20px. Rows belong *inside* sections, never on the same element.
+
+### Permissions composition
+
+Role Templates and Tenant Roles reuse two `.next-form-section` blocks for
+identity and permissions, followed by the existing sticky action bar with
+`.next-list-toolbar`. The redundant outer permission card is removed, but every
+module card remains. This aligns the heading, search, select-all control and
+first module boundary. The old action bar's negative margins and private padding
+are removed; its sticky position, colors, border and shadow are preserved.
+No permission IDs, names, AJAX URLs or handler classes are changed.
+
+### DataTables loading-state exception
+
+`.next-list-summary .dataTables_info` uses one shared flex/wrap rule with existing
+4px/8px gap tokens. Existing JS adds matching Bootstrap utilities in
+`initComplete`, but `drawCallback` can render the count and sort context earlier.
+The CSS makes the initial loading summary safe without changing functional JS.
+This is not a table-padding rule and does not alter local horizontal scrolling.
+
+### Repeatable check
+
+Run `scripts/qa/venti-next-spacing-inventory.php` with PHP 7.3 to list the current
+allowlist, controller actions and view names. Visit each concrete GET route with
+an authorized account and an existing non-deleted record; do not submit forms.
+Measure `document.documentElement.scrollWidth - document.documentElement.clientWidth`
+at 320, 375, 390, 576, 768, 992, 1200 and 1440. Expected: 0. Also inspect field
+insets, action wrapping, nested surfaces and AJAX loading states. A wide table
+inside `.table-responsive` is valid; a document-wide scrollbar is not.

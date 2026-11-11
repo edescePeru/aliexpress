@@ -45,5 +45,5 @@
             </tbody>
         </table>
     </div>
-    {{ $quotes->links() }}
+    <div class="next-list-pagination">{{ $quotes->links() }}</div>
 @endsection

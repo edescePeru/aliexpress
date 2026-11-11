@@ -37,7 +37,7 @@
         <button type="submit" class="btn btn-primary">Guardar cambios</button>
     </div></div>
 </form>
-@include('inventory.managedWarehouses', ['branchWarehouseContext' => true, 'warehouseCompanyId' => $branch->company_id, 'warehouseBranchId' => $branch->id])
+@include('inventory.managedWarehouses', ['branchWarehouseContext' => true, 'warehouseCompanyId' => $branch->company_id, 'warehouseBranchId' => $branch->id, 'warehouseSurfaceClass' => 'next-form-section'])
 @endsection
 @section('scripts')
 <script src="{{ asset('js/tenantBranch/edit.js') }}"></script>

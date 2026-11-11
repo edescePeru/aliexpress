@@ -43,12 +43,6 @@
         bottom: 0;
         z-index: 1000;
 
-        margin-left: -20px;
-        margin-right: -20px;
-        margin-bottom: -20px;
-        margin-top: 25px;
-
-        padding: 12px 10px;
 
         background: #ffffff;
         border-top: 1px solid #dee2e6;
@@ -57,18 +51,5 @@
                 0 -2px 7px rgba(0, 0, 0, 0.08);
     }
 
-    @media (max-width: 767.98px) {
-
-        .role-template-action-bar {
-            margin-left: -10px;
-            margin-right: -10px;
-        }
-
-        .role-template-action-bar .btn {
-            padding-left: 12px;
-            padding-right: 12px;
-        }
-
-    }
 
 </style>

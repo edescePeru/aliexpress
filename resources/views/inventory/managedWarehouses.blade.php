@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="{{ $warehouseSurfaceClass ?? 'container-fluid' }}">
     <div class="card js-managed-warehouses"
          data-url="{{ $branchWarehouseContext
              ? route('managedWarehouse.branch', [$warehouseCompanyId, $warehouseBranchId])

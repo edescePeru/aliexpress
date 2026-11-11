@@ -1,3 +1,4 @@
+<section class="next-form-section">
 <div class="row">
 
     <div class="col-lg-4 col-md-6">
@@ -130,7 +131,8 @@
 </div>
 
 
-<hr>
+</section>
+<section class="next-form-section">
 
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
@@ -184,12 +186,12 @@
     </div>
 
 
-    <div class="col-lg-6 col-md-12 text-lg-right">
+    <div class="col-lg-6 col-md-12 next-toolbar-actions flex-wrap justify-content-lg-end">
 
         <button
                 type="button"
                 id="btnExpandAll"
-                class="btn btn-outline-secondary btn-sm mb-1"
+                class="btn btn-outline-secondary btn-sm"
         >
             <i class="fas fa-expand-alt"></i>
             Expandir todos
@@ -198,7 +200,7 @@
         <button
                 type="button"
                 id="btnCollapseAll"
-                class="btn btn-outline-secondary btn-sm mb-1"
+                class="btn btn-outline-secondary btn-sm"
         >
             <i class="fas fa-compress-alt"></i>
             Contraer todos
@@ -207,7 +209,7 @@
         <button
                 type="button"
                 id="btnClearPermissions"
-                class="btn btn-outline-danger btn-sm mb-1"
+                class="btn btn-outline-danger btn-sm"
         >
             <i class="fas fa-times"></i>
             Limpiar
@@ -218,9 +220,9 @@
 </div>
 
 
-<div class="card card-outline card-secondary">
+<div>
 
-    <div class="card-header">
+    <div class="mb-3">
 
         <div class="custom-control custom-checkbox">
 
@@ -242,7 +244,7 @@
     </div>
 
 
-    <div class="card-body">
+    <div>
 
         <div
                 id="permissionsContainer"
@@ -264,15 +266,14 @@
 </div>
 
 
-<div class="role-template-action-bar">
+</section>
+<div class="role-template-action-bar next-list-toolbar">
 
-    <div class="container-fluid">
+    <div class="next-page-toolbar">
 
         <div
                 class="
-                d-flex
-                justify-content-between
-                align-items-center
+                next-page-toolbar
             "
         >
 
@@ -284,11 +285,11 @@
             </span>
 
 
-            <div class="ml-auto">
+            <div class="next-toolbar-actions flex-wrap ml-auto">
 
                 <a
                         href="{{ route('roleTemplate.index') }}"
-                        class="btn btn-outline-secondary mr-2"
+                        class="btn btn-outline-secondary"
                 >
                     Cancelar
                 </a>

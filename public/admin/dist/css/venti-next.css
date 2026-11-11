@@ -1404,6 +1404,16 @@ body > .datepicker-dropdown,
   font-weight: 600;
 }
 
+/* Keep the summary contained before DataTables initComplete adds its utilities. */
+.next-list-summary .dataTables_info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--next-space-1) var(--next-space-2);
+  width: 100%;
+}
+
 .next-list-sort-context {
   display: inline-flex;
   align-items: center;

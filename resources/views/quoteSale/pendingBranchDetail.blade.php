@@ -11,13 +11,15 @@
 @endsection
 @section('content')
     <div class="alert alert-warning" role="status">Pendiente de asignación de sucursal. Revise su origen y sus reservas antes de habilitar operaciones.</div>
-    <dl class="row next-form-section">
+    <div class="next-form-section">
+    <dl class="row mb-0">
         <dt class="col-sm-3">Código</dt><dd class="col-sm-9">{{ $quote->code }}</dd>
         <dt class="col-sm-3">Descripción</dt><dd class="col-sm-9">{{ $quote->description_quote }}</dd>
         <dt class="col-sm-3">Fecha</dt><dd class="col-sm-9">{{ $quote->date_quote ? \Carbon\Carbon::parse($quote->date_quote)->format('d/m/Y') : '—' }}</dd>
         <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">{{ $quote->state }}</dd>
     </dl>
-    <div class="next-section-header"><h2>Productos registrados</h2></div>
+    </div>
+    <div class="next-list-toolbar"><div class="next-section-header mb-0"><h2>Productos registrados</h2></div></div>
     <div class="table-responsive" tabindex="0" role="region" aria-label="Cotizaciones históricas">
         <table class="table table-bordered table-hover table-sm next-data-table">
             <thead><tr><th scope="col" class="text-center">Detalle</th><th scope="col" class="text-center">StockItem</th><th scope="col" class="text-left">Producto / variante</th><th scope="col" class="text-center">Cantidad cotizada</th></tr></thead>
@@ -30,5 +32,5 @@
             </tbody>
         </table>
     </div>
-    <p>Las cantidades cotizadas no certifican stock disponible ni reservas vigentes. Use el diagnóstico de reservas para revisar la trazabilidad.</p>
+    <p class="next-form-section mb-0">Las cantidades cotizadas no certifican stock disponible ni reservas vigentes. Use el diagnóstico de reservas para revisar la trazabilidad.</p>
 @endsection
