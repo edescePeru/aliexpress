@@ -74,7 +74,9 @@ $(document).ready(function () {
 
         if (type === 'bank' && uses) {
             if ($wrap.length) $wrap.show();
-            pvFillSubtypes('#pv_cash_box_subtype_id', window.PV_SUBTYPES || []);
+            pvFillSubtypes('#pv_cash_box_subtype_id', (window.PV_SUBTYPES || []).filter(function (subtype) {
+                return subtype.cash_box_id === null || String(subtype.cash_box_id) === String($cash.val());
+            }));
         } else {
             if ($wrap.length) $wrap.hide();
             pvFillSubtypes('#pv_cash_box_subtype_id', []);
@@ -82,27 +84,19 @@ $(document).ready(function () {
         }
     }
 
-    // OJO: aquí NO rellenamos cajas por JS porque el Blade ya las imprime.
-    pvToggleSubtypesByCashBox();
-
-    pvSelectDefaultCashBox();          // 👈 AQUÍ
-
-    $('#pv_cash_box_id').on('change', function () {
-        pvToggleSubtypesByCashBox();
-    });
-
-    $('#btn-currency').on('switchChange.bootstrapSwitch', function (event, state) {
-
-        if (this.checked) // if changed state is "CHECKED"
-        {
-            console.log($(this));
-            $('.moneda').html('USD');
-
-        } else {
-            console.log($(this));
-            $('.moneda').html('PEN');
-        }
-    });
+    const $cashSelect = $('#pv_cash_box_id');
+    const $cashOptions = $cashSelect.find('option').clone();
+    function refreshFinanceBoxes() {
+        const currency = $('#btn-currency').prop('checked') ? 'USD' : 'PEN';
+        $cashSelect.empty().append($cashOptions.filter(function () {
+            return this.value === '' || this.dataset.currency === currency;
+        }).clone()).val('').trigger('change');
+        $('.moneda').text(currency);
+        pvSelectDefaultCashBox();
+    }
+    $cashSelect.on('change', pvToggleSubtypesByCashBox);
+    $('#btn-currency').on('switchChange.bootstrapSwitch change', refreshFinanceBoxes);
+    refreshFinanceBoxes();
 
     $('.typeahead').typeahead({
             hint: true,
@@ -333,20 +327,20 @@ function saveTableItems() {
 }
 
 function updateSummaryInvoice() {
-    var subtotal = 0;
-    var total = 0;
-    var taxes = 0;
-
-    for ( var i=0; i<$items.length; i++ )
-    {
-        subtotal += parseFloat( (parseFloat($items[i].price)*parseFloat($items[i].quantity))/1.18 );
-        total += parseFloat((parseFloat($items[i].price)*parseFloat($items[i].quantity)));
-        taxes = subtotal*0.18;
-    }
-
-    $('#subtotal').html(subtotal.toFixed(2));
-    $('#taxes').html(taxes.toFixed(2));
-    $('#total').html(total.toFixed(2));
+    const bases = { gravada: 0, exonerada: 0, inafecta: 0 };
+    let gross = 0;
+    let tax = 0;
+    $items.forEach(function (line) {
+        bases[line.tax_kind] += Math.round(Number(line.subtotal) * 100);
+        gross += Math.round(Number(line.total) * 100);
+        tax += Math.round(Number(line.taxes) * 100);
+    });
+    Object.keys(bases).forEach(function (kind) {
+        $('#finance-' + kind).text((bases[kind] / 100).toFixed(2));
+    });
+    $('#subtotal').text(((gross - tax) / 100).toFixed(2));
+    $('#taxes').text((tax / 100).toFixed(2));
+    $('#total').text((gross / 100).toFixed(2));
 }
 
 function addItems() {
@@ -442,19 +436,25 @@ function addItems() {
         return;
     }
 
-    let material_name = $('#material_search').val();
-    let material_unit = $( "#material_unit option:selected" ).text();
-    let material_quantity = parseFloat($('#quantity').val()).toFixed(2);
-    // TODO: Este precio ahora es total
-    let material_price = parseFloat($('#price').val()).toFixed(2);
-
-    var subtotal = parseFloat(material_price/1.18).toFixed(2);
-    var taxes = parseFloat(subtotal*0.18).toFixed(2);
-    var total = parseFloat(material_price).toFixed(2);
-
-    $items.push({ 'id': $items.length+1, 'price': parseFloat(parseFloat(material_price)/parseFloat(material_quantity)).toFixed(4), 'material': material_name, 'quantity': material_quantity, 'unit': material_unit, 'subtotal': subtotal, 'taxes': taxes, 'total':total});
-
-    renderTemplateMaterial($items.length, material_name, material_quantity, material_unit, parseFloat(material_price/material_quantity).toFixed(2), subtotal, taxes, total);
+    const material_name = $('#material_search').val().trim();
+    const unitId = $('#material_unit').val();
+    const material_unit = $('#material_unit option:selected').text();
+    const quantity = Number($('#quantity').val());
+    const gross = Math.round(Number($('#price').val()) * 100);
+    const kind = $('#finance-tax-kind').val();
+    if (!unitId || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(gross) || gross <= 0) {
+        toastr.error('Ingrese unidad, cantidad e importe mayor a cero.', 'Error');
+        return;
+    }
+    const base = kind === 'gravada' ? Math.round(gross / 1.18) : gross;
+    const total = (gross / 100).toFixed(2);
+    const subtotal = (base / 100).toFixed(2);
+    const taxes = ((gross - base) / 100).toFixed(2);
+    const id = $items.reduce(function (max, line) { return Math.max(max, line.id); }, 0) + 1;
+    const price = (gross / 100 / quantity).toFixed(2);
+    $items.push({ id: id, material: material_name, quantity: quantity.toFixed(2), unit_id: unitId,
+        unit: material_unit, tax_kind: kind, subtotal: subtotal, taxes: taxes, total: total });
+    renderTemplateMaterial(id, material_name, quantity.toFixed(2), material_unit, price, subtotal, taxes, total);
 
     $('#material_search').val('');
     $('#quantity').val('');
@@ -485,7 +485,7 @@ function deleteItem() {
 function renderTemplateMaterial(id, description, quantity, unit, price, subtotal, taxes, total) {
     var clone = activateTemplate('#materials-selected');
     clone.querySelector("[data-id]").innerHTML = id;
-    clone.querySelector("[data-description]").innerHTML = description;
+    clone.querySelector("[data-description]").textContent = description;
     clone.querySelector("[data-quantity]").innerHTML = quantity;
     clone.querySelector("[data-unit]").innerHTML = unit;
     clone.querySelector("[data-price]").innerHTML = price;

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 trait FreeSaleFinancialReversalTrait
 {
     private function reverseFreeSaleFinancially(Sale $sale,string $reason) {
+
         if (
             $sale->internal_reversal_status ===
             'reversed'
@@ -84,7 +85,14 @@ trait FreeSaleFinancialReversalTrait
             ->sortBy('id')
             ->values();
 
+        $refundService = app(\App\Services\Sales\DeferredSaleRefund::class);
+        $deferredRefunds = $refundService->plan($sale);
+        $refundService->post($sale, $deferredRefunds);
+
         foreach ($movements as $movement) {
+            if (array_key_exists($movement->id, $deferredRefunds)) {
+                continue;
+            }
             $this->reverseFreeSaleCashMovement(
                 $movement,
                 $sale,

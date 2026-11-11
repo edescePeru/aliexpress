@@ -1434,6 +1434,8 @@ class CashBoxController extends Controller
                      * Movimiento.
                      */
                     'cash_movements.id',
+                    'cash_movements.balance_effect',
+                    'cash_movements.regularization_source_id',
 
                     'cash_movements.type',
 
@@ -1731,6 +1733,8 @@ class CashBoxController extends Controller
                                 (int)
                                 $row
                                     ->regularize,
+                            'balance_effect' => $row->balance_effect !== false,
+                            'regularization_source_id' => $row->regularization_source_id,
 
                             /*
                              * Montos.
@@ -1886,4 +1890,5 @@ class CashBoxController extends Controller
             ],
         ]);
     }
+
 }

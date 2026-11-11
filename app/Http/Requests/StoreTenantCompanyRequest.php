@@ -18,6 +18,8 @@ class StoreTenantCompanyRequest extends FormRequest
         $tenantId = TenantContext::tenantId();
 
         return [
+            'catalog_slug' => \App\Services\PublicCatalogSlug::companyRules(),
+            'branch_catalog_slug' => \App\Services\PublicCatalogSlug::branchRules(),
             'ruc' => [
                 'required',
                 'digits:11',

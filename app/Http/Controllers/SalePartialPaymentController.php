@@ -206,6 +206,8 @@ class SalePartialPaymentController extends Controller
                 throw new \Exception('No se encontró el movimiento asociado al pago.');
             }
 
+            app(\App\Services\CashRegularizationGuard::class)->movement($movement);
+
             $cashBoxSubType = $movement->cash_box_subtype_id
                 ? CashBoxSubtype::find($movement->cash_box_subtype_id)
                 : null;
@@ -225,10 +227,10 @@ class SalePartialPaymentController extends Controller
 
                 CashMovement::create([
                     'cash_box_id' => $movement->cash_box_id,
-                'tenant_id' => \App\Support\TenantContext::tenantId(),
-                'company_id' => \App\Support\TenantContext::companyId(),
-                'branch_id' => \App\Support\TenantContext::branchId(),
-                'user_id' => Auth::id(),
+                    'tenant_id' => \App\Support\TenantContext::tenantId(),
+                    'company_id' => \App\Support\TenantContext::companyId(),
+                    'branch_id' => \App\Support\TenantContext::branchId(),
+                    'user_id' => Auth::id(),
                     'cash_register_id'    => $movement->cash_register_id,
                     'sale_id'             => $sale->id,
                     'type'                => 'expense',

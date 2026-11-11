@@ -41,18 +41,27 @@ $(document).ready(function () {
         autoclose: true
     });
 
-    $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
-    
     $('#submitButton').click(function () {
-        var startDate = $('#start').val();
-        var endDate = $('#end').val();
-        console.log(startDate, endDate);
-        $("#element_loader").LoadingOverlay("show", {
-            background  : "rgba(236, 91, 23, 0.5)"
-        });
+        const $button = $(this);
+        const $results = $('#element_loader');
+        const startDate = $('#start').val();
+        const endDate = $('#end').val();
 
-        //checkDateRange(startDate, endDate);
+        if ($button.prop('disabled')) {
+            return;
+        }
+        if (!startDate || !endDate) {
+            toastr.warning('Selecciona ambas fechas.', 'Reporte de entradas');
+            return;
+        }
+
+        $button.prop('disabled', true);
+        $results.attr('aria-busy', 'true').LoadingOverlay('show', {
+            background: 'rgba(255, 255, 255, 0.94)',
+            imageColor: '#495057',
+            text: 'Buscando…',
+            textColor: '#343a40'
+        });
 
         $.ajax({
             type: 'POST',
@@ -63,29 +72,15 @@ $(document).ready(function () {
                 'end': endDate
             },
             success: function (data) {
-                console.log(data);
                 renderDataTable(data.data);
             },
-            error: function (error) {
-                console.log(error);
-                toastr.error(error.responseJSON.error, 'Error', {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-                $("#element_loader").LoadingOverlay("hide", true);
+            error: function (xhr) {
+                const response = xhr.responseJSON || {};
+                toastr.error(response.error || response.message || 'No se pudo cargar el reporte.', 'Error');
+            },
+            complete: function () {
+                $results.LoadingOverlay('hide', true).removeAttr('aria-busy');
+                $button.prop('disabled', false);
             }
         });
     });
@@ -130,7 +125,6 @@ let $caracteres = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 
 let $longitud = 20;
 
-var $permissions;
 
 function cancelEntry() {
     var entry_id = $(this).data('delete');
@@ -451,20 +445,6 @@ function renderDataTable(data){
                         text = text + ' <button data-detail="'+item.id+'" '+
                             ' class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fa fa-eye"></i></button>';
 
-                        if ( $.inArray('update_entryPurchase', $permissions) !== -1 ) {
-                            text = text + '<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>  ';
-                        }
-                        /*
-                        if ( $.inArray('destroy_entryPurchase', $permissions) !== -1 ) {
-                            text = text + ' <button data-delete="'+item.id+'" '+
-                                ' class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>';
-                        }
-                        if ( $.inArray('update_entryPurchase', $permissions) !== -1 ) {
-                            text = text + '<a href="'+document.location.origin+ '/dashboard/agregar/documentos/extras/entrada/'+item.id+
-                                '" class="btn bg-lime color-palette btn-sm" data-toggle="tooltip" data-placement="top" title="Agregar Facturas y Guias extras"><i class="fas fa-images"></i></a> ';
-                        }
-                        */
-
                         return text; 
                     }
                 },
@@ -611,5 +591,4 @@ function renderDataTable(data){
 
         } );
     });
-    $("#element_loader").LoadingOverlay("hide", true);
 }

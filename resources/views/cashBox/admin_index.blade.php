@@ -189,9 +189,11 @@
         </button>
     </template>
 
+    @include('cashRegister._regularization')
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/cashRegister/regularization.js') }}?v={{ time() }}"></script>
     <script>
         window.CASH_MOVEMENT_LIST_URL = "{{ route('cashMovement.admin.list') }}";
         window.CASH_REGISTER_OPEN_URL = "{{ route('cashRegister.open') }}";

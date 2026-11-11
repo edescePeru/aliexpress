@@ -281,46 +281,7 @@
         </div>
     </div>
 
-    <div id="modalRegularize" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Regularizar movimiento diferido</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-
-                <form id="formRegularize" data-url="{{ route('cashMovement.regularize') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <input type="hidden" id="cash_movement_id" name="cash_movement_id">
-
-                        <div class="col-md-12">
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <strong>Importante!</strong> Ingrese el monto real abonado (neto). La comisión se calculará automáticamente.
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Monto abonado (neto)</label>
-                            <input type="number" class="form-control" step="0.01" min="0" id="regularize_amount" name="amount_regularize">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Observación (opcional)</label>
-                            <textarea class="form-control" id="regularize_observation" name="observation" rows="2"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" id="btn_regularizar" class="btn btn-success">Regularizar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    @include('cashRegister._regularization')
 
     <div id="modalArqueo" class="modal fade" tabindex="-1">
         <div class="modal-dialog">
@@ -337,7 +298,7 @@
                     <div class="modal-body">
 
                         <div class="alert alert-warning">
-                            <strong>Importante:</strong> Este arqueo cerrará tu sesión y enviará los montos al administrador (según reglas).
+                            <strong>Importante:</strong> El arqueo cerrará tu sesión y consolidará el monto confirmado en esta caja. Los cobros pendientes quedarán registrados para su regularización.
                         </div>
 
                         <p><b>Caja:</b> {{ $active }}</p>
@@ -447,5 +408,6 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/cashRegister/regularization.js') }}?v={{ time() }}"></script>
     <script src="{{ asset('js/cashRegister/session.js') }}?v={{ time() }}"></script>
 @endsection

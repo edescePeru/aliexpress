@@ -24,7 +24,7 @@ class DeleteCategoryInvoiceRequest extends FormRequest
     public function rules()
     {
         return [
-            'category_id' => 'required|exists:category_invoices,id',
+            'category_id' => ['required', 'integer', \App\CategoryInvoice::currentCategoryRule()],
         ];
     }
 

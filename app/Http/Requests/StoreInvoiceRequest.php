@@ -24,13 +24,16 @@ class StoreInvoiceRequest extends FormRequest
     public function rules()
     {
         return [
+            'category_invoice_id' => ['nullable', 'integer', \App\CategoryInvoice::currentCategoryRule()],
             'purchase_order' => 'nullable|string|min:5|max:255',
             'invoice' => 'required|string|min:5|max:255',
             'entry_type' => 'required',
             'type_order' => 'required',
             'deferred_invoice' => 'nullable',
-            'supplier_id' => 'nullable|exists:suppliers,id',
-            'items' => 'required',
+            'supplier_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('suppliers', 'id')->where('tenant_id', \App\Support\TenantContext::tenantId())],
+            'items' => 'required|string|json',
+            'pv_cash_box_id' => 'required|integer|min:1',
+            'pv_cash_box_subtype_id' => 'nullable|integer|min:1',
             //'image' => 'image',
             'date_invoice' => 'required'
         ];

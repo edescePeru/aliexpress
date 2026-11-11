@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Audit;
+use App\Services\FinanceInvoiceContext;
+use App\Services\FinanceInvoiceAmounts;
+use App\Support\TenantContext;
 use App\CashBox;
 use App\CashBoxSubtype;
 use App\CashMovement;
@@ -58,35 +61,25 @@ class InvoiceController extends Controller
     {
         $suppliers = Supplier::all();
         $unitMeasures = UnitMeasure::all();
-        $categories = CategoryInvoice::all();
+        $categories = CategoryInvoice::forCurrentCompany()->orderBy('name')->get();
 
-        // ✅ NUEVO: Cajas + subtipos (igual que PV)
-        $cashBoxes = CashBox::where('is_active', 1)
-            ->orderBy('position')
-            ->get()
-            ->map(function ($b) {
-                return [
-                    'id'            => (int) $b->id,
-                    'name'          => (string) $b->name,
-                    'type'          => (string) $b->type,
-                    'uses_subtypes' => (bool) $b->uses_subtypes,
-                ];
-            })
-            ->values();
-
-        $subtypes = CashBoxSubtype::whereNull('cash_box_id')
-            ->where('is_active', 1)
-            ->orderBy('position')
-            ->get()
-            ->map(function ($s) {
-                return [
-                    'id'   => (int) $s->id,
-                    'name' => (string) $s->name,
-                ];
-            })
-            ->values();
+        $context = app(FinanceInvoiceContext::class);
+        $sessionBoxes = $context->sessions()->groupBy('cash_box_id')->havingRaw('COUNT(*) = 1')->select('cash_box_id');
+        $cashBoxes = $context->boxes()->whereIn('id', $sessionBoxes)->orderBy('position')
+            ->get(['id', 'name', 'type', 'uses_subtypes', 'currency']);
+        $subtypes = $context->subtypes()->orderBy('position')->get(['id', 'name', 'cash_box_id']);
 
         return view('invoice.create_invoice', compact('suppliers', 'unitMeasures', 'categories', 'cashBoxes','subtypes'));
+    }
+
+    private function financeEntries()
+    {
+        return Entry::query()->where(app(FinanceInvoiceContext::class)->ids())->where('finance', true);
+    }
+
+    private function lockFinanceCategory($id)
+    {
+        return $id ? CategoryInvoice::forCurrentCompany()->lockForUpdate()->findOrFail($id)->id : null;
     }
 
     public function storeInvoice(StoreInvoiceRequest $request)
@@ -94,6 +87,11 @@ class InvoiceController extends Controller
         $begin = microtime(true);
         //dd($request->get('deferred_invoice'));
         $validated = $request->validated();
+        $context = app(FinanceInvoiceContext::class);
+        $lines = app(FinanceInvoiceAmounts::class)->lines($validated['items']);
+        $amount = array_sum(array_map(function ($line) {
+            return (int) round($line['total_detail'] * 100);
+        }, $lines)) / 100;
 
         $fecha = Carbon::createFromFormat('d/m/Y', $request->get('date_invoice'));
         $fechaFormato = $fecha->format('Y-m-d');
@@ -114,12 +112,16 @@ class InvoiceController extends Controller
 
         DB::beginTransaction();
         try {
-            $entry = Entry::create([
+            [$cashBox, $subtype, $cashRegister] = $context->payment(
+                $validated['pv_cash_box_id'], $validated['pv_cash_box_subtype_id'] ?? null, $tipoMoneda
+            );
+            $categoryId = $this->lockFinanceCategory($validated['category_invoice_id'] ?? null);
+            $entry = Entry::create($context->ids() + [
                 'purchase_order' => null,
                 'invoice' => $request->get('invoice'),
                 'deferred_invoice' => 'off',
                 'supplier_id' => $request->get('supplier_id'),
-                'entry_type' => $request->get('entry_type'),
+                'entry_type' => 'Por compra',
                 'type_order' => $request->get('type_order'),
                 'date_entry' => Carbon::createFromFormat('d/m/Y', $request->get('date_invoice')),
                 'finance' => true,
@@ -127,7 +129,7 @@ class InvoiceController extends Controller
                 'currency_compra' => (float) $precioCompra,
                 'currency_venta' => (float) $precioVenta,
                 'observation' => $request->get('observation'),
-                'category_invoice_id' => $request->get('category_invoice_id'),
+                'category_invoice_id' => $categoryId,
             ]);
 
             // TODO: Tratamiento de un archivo de forma tradicional
@@ -156,148 +158,27 @@ class InvoiceController extends Controller
                 }
             }
 
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                $detail_entry = DetailEntry::create([
-                    'entry_id' => $entry->id,
-                    'material_name' => $items[$i]->material,
-                    'ordered_quantity' => $items[$i]->quantity,
-                    'entered_quantity' => $items[$i]->quantity,
-                    'unit_price' => (float) round((float)$items[$i]->price,2),
-                    'material_unit' => $items[$i]->unit,
-                    'total_detail' => (float) $items[$i]->total
-                ]);
+            foreach ($lines as $line) {
+                DetailEntry::create($context->ids() + ['entry_id' => $entry->id] + $line);
             }
 
-            if ( $entry->invoice != '' || $entry->invoice != null )
-            {
-                if ( $entry->purchase_order != '' || $entry->purchase_order != null )
-                {
-                    $credit = SupplierCredit::with('deadline')
-                        ->where('code_order', $entry->purchase_order)
-                        ->where('state_credit', 'outstanding')->first();
-
-                    if ( isset($credit) )
-                    {
-                        //$credit->delete();
-                        $deadline = PaymentDeadline::find($credit->deadline->id);
-                        $fecha_issue = Carbon::parse($entry->date_entry);
-                        $fecha_expiration = $fecha_issue->addDays($deadline->days);
-                        $credit->supplier_id = $entry->date_entry;
-                        $credit->invoice = $entry->invoice;
-                        $credit->image_invoice = $entry->image;
-                        $credit->total_soles = ((float)$credit->total_soles>0) ? $entry->total:null;
-                        $credit->total_dollars = ((float)$credit->total_dollars>0) ? $entry->total:null;
-                        $credit->date_issue = $entry->date_entry;
-                        $credit->days_to_expiration = $fecha_expiration;
-                        $credit->code_order = $entry->purchase_order;
-                        $credit->save();
-
-                    }
-                }
-            }
-
-            $end = microtime(true) - $begin;
-
-            // ===========================
-            // MOVIMIENTO DE CAJA / BANCO
-            // ===========================
-            $cashBoxId = $request->input('pv_cash_box_id');
-            $cashBoxSubtypeId = $request->input('pv_cash_box_subtype_id');
-
-            if (!$cashBoxId) {
-                throw new \Exception('Seleccione una caja.');
-            }
-
-            $cashBox = CashBox::find($cashBoxId);
-
-            if (!$cashBox || !(bool) $cashBox->is_active) {
-                throw new \Exception('La caja seleccionada no es válida o está inactiva.');
-            }
-
-            $needSubtype = ($cashBox->type === 'bank' && (bool) $cashBox->uses_subtypes);
-
-            if ($needSubtype) {
-                if (!$cashBoxSubtypeId) {
-                    throw new \Exception('Seleccione el canal/subtipo.');
-                }
-
-                $validSubtype = CashBoxSubtype::whereNull('cash_box_id')
-                    ->where('is_active', 1)
-                    ->where('id', (int) $cashBoxSubtypeId)
-                    ->first();
-
-                if (!$validSubtype) {
-                    throw new \Exception('El subtipo seleccionado no es válido o está inactivo.');
-                }
-            } else {
-                $cashBoxSubtypeId = null;
-            }
-
-            $cashRegisterQuery = CashRegister::where('cash_box_id', $cashBox->id)
-                ->where('user_id', Auth::id())
-                ->where('status', 1)
-                ->latest();
-
-            if ($needSubtype && $cashBoxSubtypeId && Schema::hasColumn('cash_registers', 'cash_box_subtype_id')) {
-                $cashRegisterQuery->where('cash_box_subtype_id', (int) $cashBoxSubtypeId);
-            }
-
-            $cashRegister = $cashRegisterQuery->first();
-
-            if (!$cashRegister) {
-                throw new \Exception('No hay caja abierta para la caja/canal seleccionado.');
-            }
-
-            $amount = (float) $entry->total;
-
-            if ($amount <= 0) {
-                $amount = collect($items)->sum(function ($item) {
-                    return (float) ($item->total ?? 0);
-                });
-            }
-
-            $regularize = 1;
-
-            /*if ($cashBox->type === 'bank' && (int) $cashBox->uses_subtypes === 1) {
-                $subtype = CashBoxSubtype::findOrFail($cashBoxSubtypeId);
-                $regularize = $subtype->is_deferred ? 0 : 1;
-            }*/
-
-            $description = 'Pago de factura/servicio - ' . ($cashBox->name ?? 'Caja');
-
-            if ($needSubtype && $cashBoxSubtypeId) {
-                $sub = CashBoxSubtype::find((int) $cashBoxSubtypeId);
-                if ($sub) {
-                    $description .= ' (' . $sub->name . ')';
-                }
-            }
-
-            $movement = [
+            CashMovement::create($context->ids() + [
+                'branch_id' => TenantContext::branchId(),
+                'user_id' => Auth::id(),
+                'cash_box_id' => $cashBox->id,
                 'cash_register_id' => $cashRegister->id,
+                'cash_box_subtype_id' => $subtype ? $subtype->id : null,
+                'entry_id' => $entry->id,
                 'type' => 'expense',
                 'amount' => $amount,
-                'description' => $description,
-                'observation' => $entry->invoice ? 'Factura: ' . $entry->invoice : 'Factura financiera',
-                'entry_id' => $entry->id,
-                'sale_id' => null,
-                'regularize' => $regularize,
-            ];
-
-            if (!is_null($cashBoxSubtypeId)) {
-                $movement['cash_box_subtype_id'] = (int) $cashBoxSubtypeId;
-            }
-
-            CashMovement::create($movement);
-
-            if ($regularize == 1) {
-                $cashRegister->current_balance -= $amount;
-                $cashRegister->total_expenses += $amount;
-                $cashRegister->save();
-            }
-
+                'description' => 'Pago de factura/servicio - ' . $cashBox->name,
+                'observation' => 'Factura: ' . $entry->invoice,
+                'regularize' => true,
+            ]);
+            $cashRegister->current_balance = bcsub((string) $cashRegister->current_balance, (string) $amount, 2);
+            $cashRegister->total_expenses = bcadd((string) $cashRegister->total_expenses, (string) $amount, 2);
+            $cashRegister->save();
+            $end = microtime(true) - $begin;
 
             Audit::create([
                 'user_id' => Auth::user()->id,
@@ -306,7 +187,10 @@ class InvoiceController extends Controller
             ]);
 
             DB::commit();
-        } catch ( \Throwable $e ) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -318,25 +202,16 @@ class InvoiceController extends Controller
     {
         $begin = microtime(true);
         $dateCurrent = Carbon::now('America/Lima');
-        $entries = Entry::with('supplier')->with('category_invoice')
+        $entries = $this->financeEntries()->with(['supplier', 'details'])->with('category_invoice')
             //->where('date_entry', '>=', $date4MonthAgo)
             ->where('entry_type', 'Por compra')
-            ->where('finance', 1)
             ->where('state_annulled', 0)
-            ->orderBy('created_at', 'desc')
-            ->get();
-        $orderServices = OrderService::with('supplier')
-            ->where('regularize', 'r')
             ->orderBy('created_at', 'desc')
             ->get();
         $array = [];
         foreach ( $entries as $entry )
         {
             array_push($array, $entry);
-        }
-        foreach ( $orderServices as $orderService )
-        {
-            array_push($array, $orderService);
         }
         //dd(datatables($entries)->toJson());
         $end = microtime(true) - $begin;
@@ -353,10 +228,9 @@ class InvoiceController extends Controller
     {
         $begin = microtime(true);
         $dateCurrent = Carbon::now('America/Lima');
-        $entries = Entry::with('supplier')->with('category_invoice')
+        $entries = $this->financeEntries()->with(['supplier', 'details'])->with('category_invoice')
             //->where('date_entry', '>=', $date4MonthAgo)
             ->where('entry_type', 'Por compra')
-            ->where('finance', 1)
             ->where('state_annulled', 1)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -382,6 +256,7 @@ class InvoiceController extends Controller
         $entry = Entry::with('supplier')->with(['details' => function ($query) {
             $query->with('material');
         }])
+            ->where(app(FinanceInvoiceContext::class)->ids())
             ->where('id', $id)
             ->get();
         return json_encode($entry);
@@ -407,7 +282,7 @@ class InvoiceController extends Controller
     {
         $begin = microtime(true);
 
-        $entries = Entry::with('supplier')
+        $entries = $this->financeEntries()->with(['supplier', 'details'])
             ->with(['details' => function ($query) {
             $query->with('material')->with(['items' => function ($query) {
                 $query->where('state_item', 'entered')
@@ -435,17 +310,19 @@ class InvoiceController extends Controller
 
     public function verInvoice(Entry $entry)
     {
+        $this->financeEntries()->findOrFail($entry->id);
         $suppliers = Supplier::all();
         $unitMeasures = UnitMeasure::all();
-        $categories = CategoryInvoice::all();
+        $categories = CategoryInvoice::forCurrentCompany()->orderBy('name')->get();
         return view('invoice.show_invoice', compact('entry', 'suppliers', 'categories', 'unitMeasures'));
     }
 
     public function editInvoice(Entry $entry)
     {
+        $this->financeEntries()->findOrFail($entry->id);
         $suppliers = Supplier::all();
         $unitMeasures = UnitMeasure::all();
-        $categories = CategoryInvoice::all();
+        $categories = CategoryInvoice::forCurrentCompany()->orderBy('name')->get();
         return view('invoice.edit_invoice', compact('entry', 'suppliers', 'categories', 'unitMeasures'));
     }
 
@@ -453,9 +330,15 @@ class InvoiceController extends Controller
     {
         $begin = microtime(true);
         $validated = $request->validated();
+        $items = json_decode((string) $request->get('items', '[]'), true);
+        if (!is_array($items) || collect($items)->contains(function ($item) {
+            return !is_array($item) || (int) ($item['old'] ?? 0) !== 1;
+        })) {
+            return response()->json(['message' => 'Para agregar líneas, anule la factura y registre otra.'], 422);
+        }
         DB::beginTransaction();
         try {
-            $entry = Entry::find($request->get('entry_id'));
+            $entry = $this->financeEntries()->where('state_annulled', false)->lockForUpdate()->findOrFail($request->get('entry_id'));
             $entry->purchase_order = $request->get('purchase_order');
             $entry->invoice = $request->get('invoice');
             $entry->deferred_invoice = ($request->get('deferred_invoice') === 'true') ? 'on': 'off';
@@ -463,8 +346,11 @@ class InvoiceController extends Controller
             $entry->date_entry = Carbon::createFromFormat('d/m/Y', $request->get('date_invoice'));
             $entry->type_order = $request->get('type_order');
             $entry->observation = $request->get('observation');
-            $entry->category_invoice_id = $request->get('category_invoice_id');
-            $entry->currency_invoice = ($request->get('currency_invoice') === 'true') ? 'USD': 'PEN';
+            $entry->category_invoice_id = $this->lockFinanceCategory($validated['category_invoice_id'] ?? null);
+            $currency = $request->get('currency_invoice') === 'true' ? 'USD' : 'PEN';
+            if ($currency !== $entry->currency_invoice) {
+                throw new \RuntimeException('Para cambiar la moneda, anule la factura y registre otra.');
+            }
             $entry->save();
 
             // TODO: Tratamiento de un archivo de forma tradicional
@@ -496,24 +382,6 @@ class InvoiceController extends Controller
 
             }
 
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-                if ( $items[$i]->old == 0 )
-                {
-                    $detail_entry = DetailEntry::create([
-                        'entry_id' => $entry->id,
-                        'material_name' => $items[$i]->material,
-                        'ordered_quantity' => $items[$i]->quantity,
-                        'entered_quantity' => $items[$i]->quantity,
-                        'unit_price' => (float) round((float)$items[$i]->price,2),
-                        'material_unit' => $items[$i]->unit,
-                        'total_detail' => (float) $items[$i]->total
-                    ]);
-                }
-            }
-
             $end = microtime(true) - $begin;
 
             Audit::create([
@@ -533,20 +401,7 @@ class InvoiceController extends Controller
 
     public function destroyDetailInvoice(Request $request, $idDetail)
     {
-        DB::beginTransaction();
-        try {
-            $detail = DetailEntry::find($idDetail);
-
-            $detail->delete();
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['message' => 'Detalle de factura eliminado.'], 200);
-
+        return response()->json(['message' => 'Para cambiar los importes, anule la factura financiera y registre otra.'], 422);
     }
 
     public function destroyInvoiceO( Request $request, $id )
@@ -577,7 +432,7 @@ class InvoiceController extends Controller
         DB::beginTransaction();
 
         try {
-            $entry = Entry::with('details')->findOrFail($id);
+            $entry = $this->financeEntries()->lockForUpdate()->findOrFail($id);
 
             if ((int) $entry->finance !== 1) {
                 throw new \Exception('Solo se pueden anular facturas financieras desde esta opción.');
@@ -587,36 +442,37 @@ class InvoiceController extends Controller
                 throw new \Exception('La factura ya fue anulada previamente.');
             }
 
-            $movements = CashMovement::where('entry_id', $entry->id)
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($movements as $movement) {
-                if ($movement->type === 'expense') {
-                    CashMovement::create([
-                        'cash_register_id' => $movement->cash_register_id,
-                        'entry_id' => $entry->id,
-                        'sale_id' => null,
-                        'type' => 'income',
-                        'amount' => $movement->amount,
-                        'description' => 'Reversión de egreso por anulación de factura financiera',
-                        'observation' => 'Anulación de factura: ' . ($entry->invoice ?? ''),
-                        'regularize' => $movement->regularize,
-                        'cash_box_subtype_id' => $movement->cash_box_subtype_id,
-                    ]);
-
-                    if ((int) $movement->regularize === 1) {
-                        $cashRegister = CashRegister::find($movement->cash_register_id);
-
-                        if ($cashRegister) {
-                            $cashRegister->current_balance += (float) $movement->amount;
-                            $cashRegister->total_incomes += (float) $movement->amount;
-                            $cashRegister->total_expenses -= (float) $movement->amount;
-                            $cashRegister->save();
-                        }
-                    }
-                }
+            $context = app(FinanceInvoiceContext::class);
+            $movements = CashMovement::where('entry_id', $entry->id)->where('type', 'expense')
+                ->lockForUpdate()->get();
+            if ($movements->count() !== 1) {
+                throw new \RuntimeException('El egreso de la factura requiere conciliación.');
             }
+            $movement = $movements->first();
+            if (!$movement->regularize || (int) $movement->company_id !== (int) $entry->company_id
+                || (int) $movement->branch_id !== (int) TenantContext::branchId()
+                || CashMovement::where('cash_movement_origin_id', $movement->id)->where('type', 'income')->exists()) {
+                throw new \RuntimeException('Anule desde el local del egreso. Si falta contexto o ya existe una reversión, concilie primero.');
+            }
+            [$box, $subtype, $register] = $context->payment(
+                $movement->cash_box_id, $movement->cash_box_subtype_id, $entry->currency_invoice
+            );
+            CashMovement::create($context->ids() + [
+                'branch_id' => TenantContext::branchId(),
+                'user_id' => Auth::id(),
+                'cash_box_id' => $box->id,
+                'cash_register_id' => $register->id,
+                'cash_box_subtype_id' => $subtype ? $subtype->id : null,
+                'cash_movement_origin_id' => $movement->id,
+                'entry_id' => $entry->id,
+                'type' => 'income',
+                'amount' => $movement->amount,
+                'description' => 'Reversión de egreso por anulación de factura financiera',
+                'regularize' => true,
+            ]);
+            $register->current_balance = bcadd((string) $register->current_balance, (string) $movement->amount, 2);
+            $register->total_incomes = bcadd((string) $register->total_incomes, (string) $movement->amount, 2);
+            $register->save();
 
             $fecha = Carbon::now()->format('d/m/Y');
 
@@ -648,9 +504,8 @@ class InvoiceController extends Controller
     public function getJsonInvoicesFinance()
     {
         $begin = microtime(true);
-        $entries = Entry::with('supplier')
+        $entries = $this->financeEntries()->with(['supplier', 'details'])
             ->with('category_invoice')
-            ->where('finance', 1)
             ->orderBy('created_at', 'desc')
             ->get();
         $array = [];
@@ -688,9 +543,8 @@ class InvoiceController extends Controller
     public function getJsonInvoicesFinanceSinOrden()
     {
         $begin = microtime(true);
-        $entries = Entry::with('supplier')
+        $entries = $this->financeEntries()->with(['supplier', 'details'])
             ->with('category_invoice')
-            ->where('finance', 1)
             ->where('purchase_order', '=',null)
             ->whereIn('type_order', ['purchase', 'service'])
             ->orderBy('created_at', 'desc')
@@ -722,9 +576,8 @@ class InvoiceController extends Controller
         {
             //dump('Descargar todos');
             $dates = 'TOTALES';
-            $invoices = Entry::with('supplier')
+            $invoices = $this->financeEntries()->with(['supplier', 'details'])
                 ->with('category_invoice')
-                ->where('finance', 1)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -737,7 +590,7 @@ class InvoiceController extends Controller
                     'invoice' => $invoice->invoice,
                     'type_order' => ($invoice->type_order == 'purchase' || $invoice->type_order == null) ? 'Por compra':'Por servicio',
                     'supplier' => ($invoice->supplier_id != null) ? $invoice->supplier->business_name:'No tiene',
-                    'category' => ($invoice->category_invoice_id != null) ? $invoice->category_invoice->name:'No tiene',
+                    'category' => optional($invoice->category_invoice)->name ?? 'No tiene',
                     'currency' => $invoice->currency_invoice,
                     'subtotal' => $invoice->sub_total,
                     'taxes' => $invoice->taxes,
@@ -751,9 +604,8 @@ class InvoiceController extends Controller
             $end_start = Carbon::createFromFormat('d/m/Y', $end);
 
             $dates = 'DEL '. $start .' AL '. $end;
-            $invoices = Entry::with('supplier')
+            $invoices = $this->financeEntries()->with(['supplier', 'details'])
                 ->with('category_invoice')
-                ->where('finance', 1)
                 ->whereDate('date_entry', '>=',$date_start)
                 ->whereDate('date_entry', '<=',$end_start)
                 ->orderBy('created_at', 'desc')
@@ -768,7 +620,7 @@ class InvoiceController extends Controller
                     'invoice' => $invoice->invoice,
                     'type_order' => ($invoice->type_order == 'purchase' || $invoice->type_order == null) ? 'Por compra':'Por servicio',
                     'supplier' => ($invoice->supplier_id != null) ? $invoice->supplier->business_name:'No tiene',
-                    'category' => ($invoice->category_invoice_id != null) ? $invoice->category_invoice->name:'No tiene',
+                    'category' => optional($invoice->category_invoice)->name ?? 'No tiene',
                     'currency' => $invoice->currency_invoice,
                     'subtotal' => $invoice->sub_total,
                     'taxes' => $invoice->taxes,

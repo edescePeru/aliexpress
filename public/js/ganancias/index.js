@@ -170,7 +170,7 @@ function renderDataTable(data) {
     clone.querySelector("[data-date_resumen]").innerHTML = data.date_resumen;
     clone.querySelector("[data-quantity_sale]").innerHTML = data.quantity_sale;
     clone.querySelector("[data-total_sale]").innerHTML = data.total_sale;
-    clone.querySelector("[data-total_utility]").innerHTML = data.total_utility;
+    clone.querySelector("[data-total_utility]").textContent = data.total_utility === null ? 'Sin costo registrado' : data.total_utility;
 
     var botones = clone.querySelector("[data-buttons]");
 

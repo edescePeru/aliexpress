@@ -84,27 +84,9 @@ class GananciasResumenSheet implements FromArray, WithTitle, WithEvents
 
     private function buildBaseQuery()
     {
-        $query = Sale::with([
-            'worker',
-            'details.material',
-            'details.stockItem.inventoryLevels',
-        ])
-            ->where('state_annulled', false)
-            ->orderBy('created_at', 'DESC');
-
-        if (!empty($this->startDate) && !empty($this->endDate)) {
-            $fechaInicio = Carbon::createFromFormat('d/m/Y', $this->startDate);
-            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $this->endDate);
-
-            $query->whereDate('created_at', '>=', $fechaInicio)
-                ->whereDate('created_at', '<=', $fechaFinal);
-        }
-
-        if (!empty($this->creator)) {
-            $query->where('worker_id', $this->creator);
-        }
-
-        return $query;
+        return app(\App\Services\Sales\UserProfitReport::class)->query($this->creator, $this->startDate, $this->endDate)
+            ->with(['details.material', 'details.stockItem'])
+            ->orderByDesc('date_sale')->orderByDesc('id');
     }
 
     private function calculateTotalsO(): array
@@ -147,43 +129,7 @@ class GananciasResumenSheet implements FromArray, WithTitle, WithEvents
 
     private function calculateTotals(): array
     {
-        $total_quantity_sale_global = 0;
-        $total_total_sale_global    = 0;
-        $total_total_utility_global = 0;
-
-        $allSales = $this->buildBaseQuery()->get();
-
-        foreach ($allSales as $sale) {
-            foreach ($sale->details as $detail) {
-
-                // Solo productos/materiales, excluye servicios/workforces
-                if (empty($detail->stock_item_id) && empty($detail->material_id)) {
-                    continue;
-                }
-
-                $qty       = (float) ($detail->quantity ?? 0);
-                $lineTotal = (float) ($detail->total ?? 0);
-                $lineDisc  = (float) ($detail->discount ?? 0);
-
-                $netLine = $lineTotal - $lineDisc;
-
-                $unitCost = $this->resolveUnitCost($detail);
-
-                $costLine = !is_null($detail->total_cost) && (float) $detail->total_cost > 0
-                    ? (float) $detail->total_cost
-                    : $unitCost * $qty;
-
-                $total_quantity_sale_global += $qty;
-                $total_total_sale_global    += $netLine;
-                $total_total_utility_global += ($netLine - $costLine);
-            }
-        }
-
-        return [
-            'quantity_sale_sum' => $total_quantity_sale_global,
-            'total_sale_sum'    => round($total_total_sale_global, 2),
-            'total_utility_sum' => round($total_total_utility_global, 2),
-        ];
+        return app(\App\Services\Sales\UserProfitReport::class)->totals($this->buildBaseQuery()->get());
     }
 
     public function array(): array
@@ -191,17 +137,17 @@ class GananciasResumenSheet implements FromArray, WithTitle, WithEvents
         $totals = $this->calculateTotals();
 
         return [
-            ['REPORTE DE GANANCIAS POR TRABAJADOR'],
+            ['REPORTE DE GANANCIAS POR USUARIO (PEN)'],
             [''],
             ['Filtros'],
-            ['Trabajador', $this->getWorkerName()],
+            ['Usuario', $this->getWorkerName()],
             ['Fecha inicio', $this->startDate ?: 'TODAS'],
             ['Fecha fin', $this->endDate ?: 'TODAS'],
             [''],
-            ['Totales (solo materiales)'],
+            ['Totales en soles'],
             ['Cantidad total vendida', $totals['quantity_sale_sum']],
             ['Total vendido', $totals['total_sale_sum']],
-            ['Utilidad total', $totals['total_utility_sum']],
+            ['Utilidad total', $totals['total_utility_sum'] ?? 'Sin costo registrado'],
         ];
     }
 
@@ -223,9 +169,11 @@ class GananciasResumenSheet implements FromArray, WithTitle, WithEvents
 
     private function getWorkerName(): string
     {
-        if (empty($this->creator)) return 'TODOS';
-
-        $worker = Worker::find($this->creator);
-        return $worker ? $worker->first_name." ".$worker->last_name : ('ID ' . $this->creator);
+        if (!$this->creator) {
+            return 'TODOS';
+        }
+        $report = app(\App\Services\Sales\UserProfitReport::class);
+        $sale = $report->query($this->creator)->latest('id')->first();
+        return $sale ? $report->author($sale) : 'Sin ventas en el local';
     }
 }

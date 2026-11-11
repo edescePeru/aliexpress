@@ -24,6 +24,8 @@ class DetailEntry extends Model
         'material_name',
         'material_unit',
         'total_detail',
+        'finance_tax_kind',
+        'finance_tax_amount',
         'date_vence',
 
         'tenant_id',
@@ -75,6 +77,9 @@ class DetailEntry extends Model
 
     public function getSubTotalAttribute()
     {
+        if ($this->finance_tax_amount !== null) {
+            return number_format((float) $this->total_detail - (float) $this->finance_tax_amount, 2);
+        }
         if ( $this->total_detail != null )
         {
             $number = ($this->total_detail)/1.18;
@@ -87,6 +92,9 @@ class DetailEntry extends Model
 
     public function getTaxesAttribute()
     {
+        if ($this->finance_tax_amount !== null) {
+            return number_format((float) $this->finance_tax_amount, 2);
+        }
         if ( $this->total_detail != null )
         {
             $number = (($this->total_detail)/1.18)*0.18;

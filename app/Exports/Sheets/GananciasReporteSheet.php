@@ -85,27 +85,9 @@ class GananciasReporteSheet implements FromCollection, WithHeadings, WithMapping
 
     private function buildBaseQuery()
     {
-        $query = Sale::with([
-            'worker',
-            'details.material', // fallback legacy
-            'details.stockItem.inventoryLevels',
-        ])
-            ->where('state_annulled', false)
-            ->orderBy('created_at', 'DESC');
-
-        if (!empty($this->startDate) && !empty($this->endDate)) {
-            $fechaInicio = Carbon::createFromFormat('d/m/Y', $this->startDate);
-            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $this->endDate);
-
-            $query->whereDate('created_at', '>=', $fechaInicio)
-                ->whereDate('created_at', '<=', $fechaFinal);
-        }
-
-        if (!empty($this->creator)) {
-            $query->where('worker_id', $this->creator);
-        }
-
-        return $query;
+        return app(\App\Services\Sales\UserProfitReport::class)->query($this->creator, $this->startDate, $this->endDate)
+            ->with(['details.material', 'details.stockItem'])
+            ->orderByDesc('date_sale')->orderByDesc('id');
     }
 
     public function collection(): Collection
@@ -119,7 +101,7 @@ class GananciasReporteSheet implements FromCollection, WithHeadings, WithMapping
         return [
             'ID Venta',
             'Fecha',
-            'Trabajador',
+            'Usuario',
             'Cantidad Vendida',
             'Total Venta',
             'Total Costo',
@@ -129,43 +111,16 @@ class GananciasReporteSheet implements FromCollection, WithHeadings, WithMapping
 
     public function map($sale): array
     {
-        $quantity_sale = 0;
-        $total_sale    = 0;
-        $total_cost    = 0;
-        $total_utility = 0;
-
-        foreach ($sale->details as $detail) {
-
-            // ✅ Solo materiales
-            if (empty($detail->material_id)) {
-                continue;
-            }
-
-            $qty        = (float)$detail->quantity;
-            $lineTotal  = (float)$detail->total;
-            $lineDisc   = (float)$detail->discount;
-            $netLine    = $lineTotal - $lineDisc;
-
-            $unitCost   = $this->resolveUnitCost($detail);
-            $costLine   = $unitCost * $qty;
-
-            $quantity_sale += $qty;
-            $total_sale    += $netLine;
-            $total_cost    += $costLine;
-            $total_utility += ($netLine - $costLine);
-        }
-
+        $report = app(\App\Services\Sales\UserProfitReport::class);
+        $totals = $report->totals([$sale]);
         return [
             $sale->id,
-            optional($sale->created_at)->format('d/m/Y'),
-            trim(
-                (optional($sale->worker)->first_name ?? '') . ' ' .
-                (optional($sale->worker)->last_name ?? '')
-            ),
-            $quantity_sale,
-            round($total_sale, 2),
-            round($total_cost, 2),
-            round($total_utility, 2),
+            \Carbon\Carbon::parse($sale->date_sale)->format('d/m/Y'),
+            $report->author($sale),
+            $totals['quantity_sale_sum'],
+            $totals['total_sale_sum'],
+            $totals['total_cost_sum'] ?? 'Sin costo registrado',
+            $totals['total_utility_sum'] ?? 'Sin costo registrado',
         ];
     }
 }

@@ -54,6 +54,13 @@
                 >
 
                     @csrf
+                    <div class="form-group">
+                        <label for="catalog_slug">Nombre para el enlace público</label>
+                        <input type="text" class="form-control" name="catalog_slug" id="catalog_slug" maxlength="80"
+                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('catalog_slug') }}" placeholder="local_outlet">
+                        <small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Déjalo vacío para mantener el catálogo sin publicar.</small>
+                    </div>
+
 
                     <input
                             type="hidden"

@@ -331,6 +331,28 @@
                 </div>
             </div>
             @endcan
+            @php($catalogCompany = \App\Support\TenantContext::companyOrNull())
+            @if($catalogCompany && $catalogCompany->is_active && $catalogCompany->catalog_slug)
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <a href="{{ route('publicCatalog.company', $catalogCompany->catalog_slug) }}" target="_blank" rel="noopener noreferrer" class="d-block">Tienda Web</a>
+                    </div>
+                </div>
+
+            @else
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+                        <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
+                    </div>
+                    <div class="info">
+                        <span class="d-block text-muted">Catálogo sin publicar</span>
+                    </div>
+                </div>
+
+            @endif
             <!-- Sidebar Menu -->
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
@@ -635,7 +657,7 @@
                             <li class="nav-item">
                                 <a href="{{ route('ganancia.index.trabajador') }}" class="nav-link @yield('activeGananciaDiariaTrabajador')">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Ganancia x Trabajador</p>
+                                    <p>Ganancia por Usuario</p>
                                 </a>
                             </li>
                             @endcan
@@ -1848,7 +1870,7 @@
                         </ul>
                     </li>
                     @endcan
-                    @can('list_entryScrap')
+                    {{--@can('list_entryScrap')
                     <li class="nav-item has-treeview @yield('openEntryScrap')">
                         <a href="#" class="nav-link @yield('activeEntryScrap')">
                             <i class="nav-icon fas fa-archive"></i>
@@ -1867,12 +1889,6 @@
                             </li>
                             @endcan
                             @can('create_entryScrap')
-                            {{--<li class="nav-item">
-                                <a href="{{ route('entry.scrap.create') }}" class="nav-link @yield('activeCreateEntryScrap')">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Crear entrada</p>
-                                </a>
-                            </li>--}}
                             <li class="nav-item">
                                 <a href="{{ route('entry.create.scrap') }}" class="nav-link @yield('activeCreateScrap')">
                                     <i class="far fa-circle nav-icon"></i>
@@ -1882,8 +1898,8 @@
                             @endcan
                         </ul>
                     </li>
-                    @endcan
-                    @can('list_entryInventory')
+                    @endcan--}}
+                    {{--@can('list_entryInventory')
                     <li class="nav-item has-treeview @yield('openEntryInventory')">
                         <a href="#" class="nav-link @yield('activeEntryInventory')">
                             <i class="nav-icon fas fa-archive"></i>
@@ -1903,7 +1919,7 @@
                             @endcan
                         </ul>
                     </li>
-                    @endcan
+                    @endcan--}}
 
                     @can('showReportEntries_entryPurchase')
                     <li class="nav-item has-treeview @yield('openEntryPurchaseReport')">

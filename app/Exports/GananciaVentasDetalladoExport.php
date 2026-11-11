@@ -59,36 +59,9 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
     private function buildBaseQuery()
     {
-        $query = Sale::with([
-            'worker',
-
-            // 🔥 NUEVO
-            'details.stockItem.inventoryLevels',
-
-            // 🔁 fallback legacy (no lo quites aún)
-            'details.material',
-
-            'details.materialPresentation',
-
-            'cashMovements.cashBoxSubtype',
-            'cashMovements.cashRegister.cashBox',
-        ])
-            ->where('state_annulled', false)
-            ->orderBy('created_at', 'DESC');
-
-        if (!empty($this->startDate) && !empty($this->endDate)) {
-            $fechaInicio = Carbon::createFromFormat('d/m/Y', $this->startDate);
-            $fechaFinal  = Carbon::createFromFormat('d/m/Y', $this->endDate);
-
-            $query->whereDate('created_at', '>=', $fechaInicio)
-                ->whereDate('created_at', '<=', $fechaFinal);
-        }
-
-        if (!empty($this->creator)) {
-            $query->where('worker_id', $this->creator);
-        }
-
-        return $query;
+        return app(\App\Services\Sales\UserProfitReport::class)->query($this->creator, $this->startDate, $this->endDate)
+            ->with(['details.material', 'details.stockItem'])
+            ->orderByDesc('date_sale')->orderByDesc('id');
     }
 
     private function resolveUnitCostO($detail): float
@@ -167,8 +140,7 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
     private function resolveWorkerFullName($sale): string
     {
-        $w = $sale->worker;
-        return trim(($w->first_name ?? '') . ' ' . ($w->last_name ?? ''));
+        return app(\App\Services\Sales\UserProfitReport::class)->author($sale);
     }
 
     private function resolveOrigen($sale): string
@@ -251,7 +223,7 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
             'Origen',
             'Venta ID',
             'Fecha Venta',
-            'Trabajador',
+            'Usuario',
             'Fecha Emisión',
             'Cliente',
             'Forma de Pago',
@@ -285,10 +257,7 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
         foreach ($sales as $sale) {
 
-            // filtrar detalles SOLO materiales
-            $details = $sale->details->filter(function ($d) {
-                return !empty($d->material_id);
-            })->values();
+            $details = $sale->details->values();
 
             if ($details->count() === 0) {
                 continue;
@@ -304,19 +273,9 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
             foreach ($details as $idx => $detail) {
 
-                $qty = (float)$detail->quantity;
-
-                $lineTotal    = (float)$detail->total;
-                $lineDiscount = (float)$detail->discount;
-                $netLine      = $lineTotal - $lineDiscount;
-
-                $puv = (float)$detail->price; // precio unitario venta
-                $ptv = $netLine;              // total neto de línea
-
-                $unitCost  = $this->resolveUnitCost($detail);
-                $totalCost = $this->resolveTotalCost($detail, $unitCost, $qty);
-
-                $ganancia = $netLine - $totalCost;
+                [$qty, $ptv, $totalCost, $ganancia] = app(\App\Services\Sales\UserProfitReport::class)->line($detail);
+                $puv = (float) $detail->price;
+                $unitCost = $totalCost !== null && $qty > 0 ? $totalCost / $qty : null;
 
                 // ✅ Cabecera solo en la primera fila de cada venta
                 $isFirst = ($idx === 0);
@@ -335,9 +294,9 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
                     $this->resolveDescripcion($detail),
                     round($puv, 2),
                     round($ptv, 2),
-                    round($unitCost, 2),
-                    round($totalCost, 2),
-                    round($ganancia, 2),
+                    $unitCost === null ? 'Sin costo registrado' : round($unitCost, 2),
+                    $totalCost === null ? 'Sin costo registrado' : round($totalCost, 2),
+                    $ganancia === null ? 'Sin costo registrado' : round($ganancia, 2),
                 ]);
             }
         }
