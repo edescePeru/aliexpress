@@ -31,11 +31,11 @@ $(document).ready(function () {
 
     $("#btn_egreso").on("click", egresoCaja);
 
-    $(document).on("click", '[data-regularizar]', regularizeCashRegister);
+
 
     $modalRegularize = $("#modalRegularize");
 
-    $("#btn_regularizar").on("click", regularizarCaja);
+    $(document).on('cash:regularized', function () { getDataMovements(1); });
 
     $(document).on('click', '[data-item]', showData);
 
@@ -161,67 +161,6 @@ function updateBalanceUI(newBalance) {
         // Si quieres con S/. directo:
         // $("#arqueo_teorico").html("S/." + newBalance);
     }
-}
-
-function regularizarCaja(e) {
-    e.preventDefault();
-
-    const url = $('#formRegularize').data('url');
-    const movementId = $('#cash_movement_id').val();
-    const amountReg = $('#regularize_amount').val();
-    const obs = $('#regularize_observation').val();
-
-    if (!amountReg || parseFloat(amountReg) <= 0) {
-        toastr.error('Ingrese un monto neto válido.', 'Error');
-        return;
-    }
-
-    $.ajax({
-        url: url,
-        headers: { 'Accept': 'application/json' },
-        method: 'POST',
-        dataType: 'json',
-        data: {
-            _token: $('meta[name="csrf-token"]').attr('content'),
-            cash_movement_id: movementId,
-            amount_regularize: amountReg,
-            observation: obs
-        },
-        success: function (res) {
-            toastr.success(res.message || 'Regularizado', 'Éxito');
-
-            // actualizar balance header + modal arqueo si usas updateBalanceUI
-            if (typeof updateBalanceUI === 'function' && res.balance_total !== undefined) {
-                updateBalanceUI(res.balance_total);
-            } else if (res.balance_total !== undefined) {
-                $("#balance_total").val(res.balance_total);
-                $("#valueBalanceTotal").html("S/." + res.balance_total);
-                if ($("#arqueo_teorico").length) $("#arqueo_teorico").html(res.balance_total);
-            }
-
-            $('#modalRegularize').modal('hide');
-
-            // refrescar tabla
-            setTimeout(function () {
-                getDataMovements(1);
-            }, 400);
-        },
-        error: function (jqXHR) {
-            showAjaxErrors(jqXHR, 'Error'); // <- aquí el título real, no 'msg'
-        }
-    });
-}
-
-function regularizeCashRegister(e) {
-    e.preventDefault();
-
-    const movementId = $(this).data('id');
-
-    $('#cash_movement_id').val(movementId);
-    $('#regularize_amount').val('');
-    $('#regularize_observation').val('');
-
-    $('#modalRegularize').modal('show');
 }
 
 function setButtonLoading($btn, loading, loadingText = 'Procesando...') {
@@ -671,7 +610,7 @@ function renderDataTable(data) {
     if (data.regularize === 0 || data.regularize === '0') {
         statusHtml = '<span class="badge badge-warning">Pendiente</span>';
     } else if (data.regularize === 1 || data.regularize === '1') {
-        statusHtml = '<span class="badge badge-success">Confirmado</span>';
+        statusHtml = (data.balance_effect === false ? '<span class="badge badge-info">Regularizado en otra sesión</span>' : '<span class="badge badge-success">Confirmado</span>');
     }
     clone.querySelector("[data-status]").innerHTML = statusHtml;
 
@@ -724,6 +663,7 @@ function renderDataTable(data) {
         var regularizarBtn = cloneBtn2.querySelector("[data-regularizar]");
         if (data.regularize === 0 || data.regularize === '0') {
             regularizarBtn.setAttribute("data-id", data.id);
+        regularizarBtn.setAttribute("data-regularization-amount", data.amount);
         } else {
             regularizarBtn.style.display = 'none';
         }
@@ -764,6 +704,7 @@ function renderDataTable(data) {
 
     if (canRegularize && isPending && canBeRegularized) {
         regularizarBtn.setAttribute("data-id", data.id);
+        regularizarBtn.setAttribute("data-regularization-amount", data.amount);
     } else {
         regularizarBtn.style.display = 'none';
     }

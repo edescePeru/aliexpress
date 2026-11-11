@@ -133,11 +133,11 @@
         const focusTriggers = document.querySelectorAll('[data-catalog-search-focus]');
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        function updateClearButton() {
+        const updateClearButton = function () {
             clearButton.hidden = searchInput.value.length === 0;
-        }
+        };
 
-        function focusSearch() {
+        const focusSearch = function () {
             const inputBounds = searchInput.getBoundingClientRect();
             const inputIsVisible = inputBounds.top >= 0 && inputBounds.bottom <= window.innerHeight;
 
@@ -150,9 +150,11 @@
 
             searchInput.focus({ preventScroll: true });
             searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
-        }
+        };
 
-        searchForm.addEventListener('submit', (event) => event.preventDefault());
+        if (!searchForm.hasAttribute('data-public-catalog-search')) {
+            searchForm.addEventListener('submit', (event) => event.preventDefault());
+        }
         searchInput.addEventListener('input', updateClearButton);
         clearButton.addEventListener('click', function () {
             searchInput.value = '';

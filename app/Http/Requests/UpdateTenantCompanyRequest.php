@@ -21,6 +21,7 @@ class UpdateTenantCompanyRequest extends FormRequest
             (int) $this->route('id');
 
         return [
+            'catalog_slug' => \App\Services\PublicCatalogSlug::companyRules((int) $this->route('id')),
             'ruc' => [
                 'required',
                 'digits:11',

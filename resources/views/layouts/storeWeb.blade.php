@@ -1,9 +1,15 @@
-{{-- Frozen shell: fixture rendering requires the explicit local preview bridge.
-     Do not derive this flag from a request/query/session. This is not a SW-01 resolver.
-     Production stays closed while SW-01 is unresolved. --}}
 @php
-    abort_unless(app()->environment('local') && config('store-web.preview') === true &&
-        (($storeWebFixture ?? false) === true || ($storeWebAuthenticatedDataBridge ?? false) === true), 404);
+    $publicStoreWeb = request()->routeIs('publicCatalog.company', 'publicCatalog.branch', 'publicCatalog.product', 'publicCatalog.branchProduct');
+    if ($publicStoreWeb) {
+        $storeWebHomeUrl = route('publicCatalog.company', $company->catalog_slug);
+        $storeWebCatalogUrl = $branch
+            ? route('publicCatalog.branch', [$company->catalog_slug, $branch->catalog_slug])
+            : $storeWebHomeUrl;
+        $storeWebBusinessName = $company->trade_name ?: $company->business_name;
+    } else {
+        abort_unless(app()->environment('local') && config('store-web.preview') === true &&
+            (($storeWebFixture ?? false) === true || ($storeWebAuthenticatedDataBridge ?? false) === true), 404);
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="es">
@@ -13,16 +19,17 @@
     <meta name="keywords" content="@yield('keywords')">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    @unless($publicStoreWeb)
     <meta name="robots" content="noindex, nofollow">
     <meta name="store-web-status" content="{{ ($storeWebFixture ?? false) ? 'FRONTEND FIXTURE / BACKEND CONTRACT PENDING' : 'LOCAL AUTHENTICATED BRIDGE — NON PRODUCTION / SW-01 BACKEND SYNC OPEN' }}">
-    <title>{{ ($storeWebFixture ?? false) ? '[FIXTURE FRONTEND]' : '[LOCAL QA — NON PRODUCTION]' }} @yield('title')</title>
+    @endunless
+    <title>@unless($publicStoreWeb){{ ($storeWebFixture ?? false) ? '[FIXTURE FRONTEND]' : '[LOCAL QA — NON PRODUCTION]' }} @endunless @yield('title')</title>
     <link rel="stylesheet" href="{{ asset('store-web/css/bootstrap.min.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ asset('store-web/css/font-awesome.min.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ asset('store-web/css/elegant-icons.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ asset('store-web/css/style.css') }}" type="text/css">
 </head>
 <body class="catalog-page catalog-page--{{ $storeWebPage }}" data-store-web-fixture="{{ ($storeWebFixture ?? false) ? 'true' : 'false' }}">
-    <!-- LOCAL QA ONLY. Authenticated data uses CURRENT TEMPORARY BACKEND CONTRACT; SW-01 remains OPEN. -->
     @include('shop.partials.store-web.mobile-menu')
     @include('shop.partials.store-web.header')
     @yield('content')

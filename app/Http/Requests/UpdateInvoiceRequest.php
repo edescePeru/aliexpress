@@ -24,12 +24,13 @@ class UpdateInvoiceRequest extends FormRequest
     public function rules()
     {
         return [
+            'category_invoice_id' => ['nullable', 'integer', \App\CategoryInvoice::currentCategoryRule()],
             'purchase_order' => 'nullable|string|min:5|max:255',
             'invoice' => 'required|string|min:5|max:255',
             'entry_type' => 'required',
             'type_order' => 'required',
             'deferred_invoice' => 'nullable',
-            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('suppliers', 'id')->where('tenant_id', \App\Support\TenantContext::tenantId())],
             //'image' => 'image',
             'date_invoice' => 'required'
         ];

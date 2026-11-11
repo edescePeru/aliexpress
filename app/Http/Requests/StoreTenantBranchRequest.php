@@ -20,6 +20,7 @@ class StoreTenantBranchRequest extends FormRequest
         $companyId = (int) $this->input('company_id');
 
         return [
+            'catalog_slug' => \App\Services\PublicCatalogSlug::branchRules($companyId),
             'price_list_id' => ['nullable', 'integer', Rule::exists('price_lists', 'id')->where(function ($q) use ($tenantId, $companyId) {
                 $q->where('tenant_id', $tenantId)->where('company_id', $companyId)->where('is_active', true);
             })],

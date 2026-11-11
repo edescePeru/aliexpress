@@ -40,6 +40,10 @@ class Entry extends Model
         $subtotal = 0;
         foreach ( $this->details as $detail )
         {
+            if ($this->finance && $detail->finance_tax_amount !== null) {
+                $subtotal += (float) $detail->total_detail - (float) $detail->finance_tax_amount;
+                continue;
+            }
             if ( $detail->total_detail != null )
             {
                 $subtotal += ($detail->total_detail)/1.18;
@@ -57,6 +61,10 @@ class Entry extends Model
         $taxes = 0;
         foreach ( $this->details as $detail )
         {
+            if ($this->finance && $detail->finance_tax_amount !== null) {
+                $taxes += (float) $detail->finance_tax_amount;
+                continue;
+            }
             if ( $detail->total_detail != null )
             {
                 $taxes += (($detail->total_detail)/1.18)*0.18;
@@ -97,7 +105,7 @@ class Entry extends Model
 
     public function category_invoice()
     {
-        return $this->belongsTo('App\CategoryInvoice');
+        return $this->belongsTo('App\CategoryInvoice')->withTrashed();
     }
 
     public function credit()

@@ -50,7 +50,7 @@
 @section('page-header')
     <div class="row">
         <div class="col-md-5">
-            <h1 class="page-title">Ganancias Diarias</h1>
+            <h1 class="page-title">Ganancia por Usuario (PEN)</h1>
         </div>
     </div>
 
@@ -66,7 +66,7 @@
                     <i class="fas fa-exclamation-triangle mr-1"></i> Importante
                 </h5>
                 <p class="mb-0">
-                    Los filtros de <b>Trabajador</b> y <b>Rango de Fechas</b> también se aplicarán
+                    Los filtros de <b>Usuario</b> y <b>Rango de Fechas</b> también se aplicarán
                     al <b>Excel de Ganancia de Ventas Detallado</b>.
                 </p>
             </div>
@@ -99,11 +99,11 @@
 
     <div class="row">
         <div class="col-md-4">
-            <label for="creator">Trabajador:</label>
+            <label for="creator">Usuario:</label>
             <select id="creator" name="creator" class="form-control form-control-sm select2" style="width: 100%;">
                 <option value="">TODOS</option>
-                @foreach($workers as $worker)
-                    <option value="{{ $worker->id }}">{{ $worker->name }}</option>
+                @foreach($authors as $author)
+                    <option value="{{ $author->created_by }}">{{ $report->author($author) }}</option>
                 @endforeach
             </select>
         </div>
@@ -164,6 +164,7 @@
                 <tr class="normal-title">
                     <th>N°</th>
                     <th>Fecha</th>
+                    <th>Usuario</th>
                     <th>Cantidad Vendida</th>
                     <th>Total Venta</th>
                     <th>Total Utilidad</th>
@@ -266,6 +267,7 @@
         <tr>
             <td data-id></td>
             <td data-date_resumen></td>
+            <td data-author></td>
             <td data-quantity_sale></td>
             <td data-total_sale></td>
             <td data-total_utility></td>
@@ -275,12 +277,12 @@
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="6" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="7" align="center">No se ha encontrado ningún dato</td>
         </tr>
     </template>
 
     <template id="template-button">
-        <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Detalles</a>
+        <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Comprobante</a>
     </template>
 
     <div id="export-overlay" style="display:none; position:fixed; z-index:9999; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.35);">

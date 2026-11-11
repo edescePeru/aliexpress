@@ -14,7 +14,7 @@
                         <{{ $homeBranding['socials']['youtube'] ? 'a' : 'span' }} class="catalog-social-links__item" @if($homeBranding['socials']['youtube'])href="{{ $homeBranding['socials']['youtube'] }}" target="_blank" rel="noopener noreferrer"@else role="img" aria-disabled="true"@endif data-social="youtube" aria-label="YouTube"><i class="fa fa-youtube-play" aria-hidden="true"></i></{{ $homeBranding['socials']['youtube'] ? 'a' : 'span' }}>
                     </nav>
                 </div>
-                <a href="{{ route('store-web.catalog') }}">Ver productos</a>
+                <a href="{{ ($storeWebCatalogUrl ?? route('store-web.catalog')) }}">Ver productos</a>
             </div>
             <div class="footer__copyright__text catalog-home-footer__copyright">
                 <p>&copy; 2026 Venti360. Todos los derechos reservados. &middot; <a href="https://venti360.com" target="_blank" rel="noopener noreferrer">Venti360.com</a></p>
@@ -35,7 +35,7 @@
                         <a class="catalog-social-links__item" href="#" target="_blank" rel="noopener noreferrer" data-social="youtube" aria-label="YouTube"><i class="fa fa-youtube-play" aria-hidden="true"></i></a>
                     </nav>
                 </div>
-                <a href="{{ route('store-web.home') }}">Volver al inicio</a>
+                <a href="{{ ($storeWebHomeUrl ?? route('store-web.home')) }}">Volver al inicio</a>
             </div>
             <div class="footer__copyright__text catalog-shop-footer__copyright">
                 <p>&copy; 2026 Venti360. Todos los derechos reservados. &middot; <a href="https://venti360.com" target="_blank" rel="noopener noreferrer">Venti360.com</a></p>
@@ -72,7 +72,7 @@
 @endif
                     </nav>
                 </div>
-                <a href="{{ route('store-web.catalog') }}">Ver más productos</a>
+                <a href="{{ ($storeWebCatalogUrl ?? route('store-web.catalog')) }}">Ver más productos</a>
             </div>
             <div class="footer__copyright__text catalog-product-detail-footer__copyright">
                 <p>&copy; 2026 Venti360. Todos los derechos reservados. &middot; <a href="https://venti360.com" target="_blank" rel="noopener noreferrer">Venti360.com</a></p>

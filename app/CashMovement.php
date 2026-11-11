@@ -10,6 +10,7 @@ class CashMovement extends Model
     use BelongsToTenant;
 
     protected $fillable = [
+        'balance_effect', 'regularization_source_id',
         'tenant_id',
         'company_id',
         'branch_id',
@@ -52,6 +53,7 @@ class CashMovement extends Model
     ];
 
     protected $casts = [
+        'balance_effect' => 'boolean', 'regularization_source_id' => 'integer',
         'tenant_id' =>
             'integer',
 
@@ -211,7 +213,7 @@ class CashMovement extends Model
 
     public function impactAmount()
     {
-        if (!$this->regularize) {
+        if ($this->balance_effect === false || !$this->regularize) {
             return 0.0;
         }
 
@@ -258,4 +260,18 @@ class CashMovement extends Model
             'cash_settlement_id'
         );
     }
+    // NULL retains historical behavior. Informational originals never post cash a second time.
+    public function scopeAffectingBalance($query)
+    {
+        $column=$this->qualifyColumn('balance_effect');
+        return $query->where($this->qualifyColumn('regularize'),true)->where(function($q)use($column){
+            $q->whereNull($column)->orWhere($column,true);
+        });
+    }
+
+    public function regularizationSource()
+    {
+        return $this->belongsTo(self::class,'regularization_source_id');
+    }
+
 }

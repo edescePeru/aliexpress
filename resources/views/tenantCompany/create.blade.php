@@ -46,6 +46,19 @@
                 >
 
                     @csrf
+                    <div class="form-group">
+                        <label for="catalog_slug">Nombre para el enlace público</label>
+                        <input type="text" class="form-control" name="catalog_slug" id="catalog_slug" maxlength="80"
+                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('catalog_slug') }}" placeholder="company">
+                        <small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Déjalo vacío para mantener el catálogo sin publicar.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="branch_catalog_slug">Nombre para el enlace del local principal</label>
+                        <input type="text" class="form-control" name="branch_catalog_slug" id="branch_catalog_slug" maxlength="80"
+                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('branch_catalog_slug') }}" placeholder="local_principal">
+                        <small class="form-text text-muted">Completa este campo para incluir el local principal en el catálogo.</small>
+                    </div>
+
 
 
                     <h5 class="mb-3">

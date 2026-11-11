@@ -10,7 +10,7 @@
     let permissions = [];
     try { permissions = JSON.parse($('#permissions').val() || '[]'); } catch (e) { permissions = []; }
     // TODO: Cambiar el regularize
-    const canRegularize = $.inArray('regularizes_caja', permissions) !== -1;
+    const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
 
     let currentPage = 1;
 
@@ -118,6 +118,7 @@
 
         if (canRegularize && isPending && canBeRegularized) {
             regBtn.setAttribute('data-id', data.id);
+            regBtn.setAttribute('data-regularization-amount', data.amount);
         } else {
             regBtn.style.display = 'none';
         }
@@ -149,7 +150,7 @@
 
         // Tipo label
         const elType = row.querySelector('[data-type]');
-        if (elType) elType.textContent = formatTypeLabel(typeRaw, data.regularize);
+        if (elType) elType.textContent = (data.regularization_source_id ? 'Abono por regularización' : formatTypeLabel(typeRaw, data.regularize));
 
         // Subtipo
         const elSubtype = row.querySelector('[data-subtype]');
@@ -160,7 +161,7 @@
         if (elStatus) {
             elStatus.innerHTML = isPending
                 ? '<span class="badge badge-warning">Pendiente</span>'
-                : '<span class="badge badge-success">Confirmado</span>';
+                : (data.balance_effect === false ? '<span class="badge badge-info">Regularizado en otra sesión</span>' : '<span class="badge badge-success">Confirmado</span>');
         }
 
         // Fecha
@@ -253,6 +254,7 @@
     });
 
     // Init list
+    $(document).on('cash:regularized', function () { fetchList(currentPage); });
     $(function () { fetchList(1); });
 
     // ===============================

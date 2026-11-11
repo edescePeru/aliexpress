@@ -259,9 +259,10 @@ class GraphsController extends Controller
         INGRESOS:
         Sales
         Ingresos de caja
-        **/
+         **/
         // Sumar ingresos (type = income) + (type = sale con regularize = 1)
         $incomeTotal = CashMovement::whereDate('created_at', '>=', $startDate)
+            ->where(function ($q) { $q->whereNull('balance_effect')->orWhere('balance_effect', true); })
             ->whereDate('created_at', '<=', $endDate)
             ->where('arqueo', false)
             ->where(function ($query) {
@@ -274,10 +275,10 @@ class GraphsController extends Controller
 
         /**
         EGRESOS:
-            Egresos de caja
-            Facturas de Finanzas con el flag egreso
-            Ordenes de compra y servicios
-            Paga al personal (Si hubiese),
+        Egresos de caja
+        Facturas de Finanzas con el flag egreso
+        Ordenes de compra y servicios
+        Paga al personal (Si hubiese),
          **/
 
         // Sumar egresos (type = expense)

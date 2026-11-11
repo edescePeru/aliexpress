@@ -390,59 +390,11 @@ class CashRegisterController extends Controller
         return ['data' => $array, 'pagination' => $pagination];
     }
 
-    public function regularizeCashRegister( Request $request )
+    public function regularizeCashRegister(Request $request)
     {
-        //dd($request);
-        DB::beginTransaction();
-        try {
-            $type = strtolower($request->get('type'));
-            $cash_movement_id = $request->get('cash_movement_id');
-            $amount = round((float)$request->get('amount'), 2);
-
-            $cashRegister = CashRegister::where('type', $type)->latest()->first();
-
-            if ( !isset($cashRegister) )
-            {
-                // TODO: No existe
-                return response()->json(['message' => "No se puede hacer un ingreso a una caja inexistente."], 422);
-            } else {
-                // TODO: Existe
-
-                if ( $cashRegister->status == 1 )
-                {
-                    // abierta
-
-                    // 1. Registrar el movimiento en la tabla `CashMovement`
-                    $cashMovement = CashMovement::find($cash_movement_id);
-                    $cashMovement->amount = $amount;
-                    $cashMovement->regularize = 1;
-                    $cashMovement->save();
-
-                    // 2. Actualizar los datos de `CashRegister`
-                    $cashRegister->current_balance += $amount; // Actualizamos el saldo actual
-                    $cashRegister->total_sales += $amount; // Actualizamos el total de ingresos
-
-                    // Guardar los cambios en la caja
-                    $cashRegister->save();
-                } else {
-                    // cerrada
-                    return response()->json(['message' => "No se puede hacer un ingreso a una caja cerrada."], 422);
-                }
-
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Regularización registrada con éxito.',
-                'balance_total' => round($cashRegister->current_balance, 2)
-            ], 200);
-
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
+        return response()->json([
+            'message'=>'La regularización antigua fue retirada. Use la opción Regularizar de los movimientos de caja.',
+        ],410);
     }
 
     public function store(Request $request)
@@ -1313,6 +1265,8 @@ class CashRegisterController extends Controller
 
                 'regularize' =>
                     (int) $movement->regularize,
+                'balance_effect' => $movement->balance_effect !== false,
+                'regularization_source_id' => $movement->regularization_source_id,
 
                 'status_label' =>
                     (int) $movement->regularize === 1
@@ -3010,142 +2964,15 @@ class CashRegisterController extends Controller
 
     public function regularize(Request $request)
     {
-        $data = $request->validate(
-            [
-                'cash_movement_id' => 'required|integer|exists:cash_movements,id',
-                'amount_regularize' => 'required|numeric|min:0.01',
-                'observation' => 'nullable|string|max:1000',
-            ],
-            [
-                // cash_movement_id
-                'cash_movement_id.required' => 'No se envió el movimiento a regularizar.',
-                'cash_movement_id.integer'  => 'El identificador del movimiento no es válido.',
-                'cash_movement_id.exists'   => 'El movimiento seleccionado no existe o ya fue eliminado.',
-
-                // amount_regularize
-                'amount_regularize.required' => 'Debe ingresar el monto neto recibido.',
-                'amount_regularize.numeric'  => 'El monto neto debe ser un número válido.',
-                'amount_regularize.min'      => 'El monto neto debe ser mayor a 0.',
-
-                // observation
-                'observation.string' => 'La observación contiene caracteres inválidos.',
-                'observation.max'    => 'La observación no puede superar los 1000 caracteres.',
-            ],
-            [
-                // nombres amigables (MUY importante para toastr)
-                'cash_movement_id'  => 'movimiento',
-                'amount_regularize' => 'monto neto',
-                'observation'       => 'observación',
-            ]
-        );
-
-        // ✅ Solo admin/owner (según tu regla)
-        // Si prefieres permiso en vez de owner, reemplaza este bloque.
-        if ((int)Auth::user()->owner !== 1) {
-            return response()->json(['message' => 'No autorizado para regularizar.'], 403);
-        }
-
-        DB::beginTransaction();
         try {
-            // Bloquear movimiento central
-            $movement = CashMovement::lockForUpdate()->findOrFail($data['cash_movement_id']);
-
-            // Debe estar pendiente
-            if ((int)$movement->regularize === 1) {
-                return response()->json(['message' => 'Este movimiento ya está regularizado.'], 422);
-            }
-
-            // Debe ser sale o income
-            if (!in_array($movement->type, ['sale', 'income'], true)) {
-                return response()->json(['message' => 'Solo se pueden regularizar movimientos de tipo venta o ingreso.'], 422);
-            }
-
-            // Debe tener subtipo
-            if (!$movement->cash_box_subtype_id) {
-                return response()->json(['message' => 'Este movimiento no tiene subtipo bancario.'], 422);
-            }
-
-            $subtype = CashBoxSubtype::findOrFail($movement->cash_box_subtype_id);
-
-            // Debe ser diferido
-            if (!$subtype->is_deferred) {
-                return response()->json(['message' => 'Este subtipo no requiere regularización.'], 422);
-            }
-
-            $amount = (float)$movement->amount;
-            $amountReg = (float)$data['amount_regularize'];
-
-            if ($amountReg > $amount) {
-                return response()->json(['message' => 'El monto regularizado no puede ser mayor al monto original.'], 422);
-            }
-
-            // Calcular comisión
-            $commission = $amount - $amountReg;
-
-            // Si no requiere comisión, forzar valores estándar
-            if (!$subtype->requires_commission) {
-                $amountReg = $amount;
-                $commission = 0;
-            }
-
-            // Obtener cashRegister central del movimiento
-            $centralRegister = CashRegister::lockForUpdate()->findOrFail($movement->cash_register_id);
-
-            // Validación extra: central debe estar abierto
-            if ((int)$centralRegister->status !== 1) {
-                return response()->json(['message' => 'La sesión central está cerrada.'], 422);
-            }
-
-            // ✅ Actualizar movimiento central
-            $obs = $movement->observation ? trim($movement->observation) : '';
-            if (!empty($data['observation'])) {
-                $extra = trim($data['observation']);
-                $obs = $obs ? ($obs . ' | ' . $extra) : $extra;
-            }
-            $obs = $obs ?: null;
-
-            $movement->amount_regularize = $amountReg;
-            $movement->commission = $commission;
-            $movement->regularize = 1;
-            $movement->observation = $obs;
-            $movement->save();
-
-            // ✅ Actualizar balance central (solo ahora que se confirma)
-            $centralRegister->current_balance = (float)$centralRegister->current_balance + $amountReg;
-            $centralRegister->total_incomes   = (float)$centralRegister->total_incomes + $amountReg;
-            $centralRegister->save();
-
-            // ✅ Actualizar origen del cajero si existe
-            if ($movement->cash_movement_origin_id) {
-                $origin = CashMovement::lockForUpdate()->find($movement->cash_movement_origin_id);
-                if ($origin) {
-                    $origin->amount_regularize = $amountReg;
-                    $origin->commission = $commission;
-                    $origin->regularize = 1;
-
-                    // vínculo al regularizador (central)
-                    $origin->cash_movement_regularize_id = $movement->id;
-
-                    // observation trazable
-                    $oobs = $origin->observation ? trim($origin->observation) : '';
-                    $oExtra = "Regularizado en central. ID: {$movement->id}. Neto: {$amountReg}. Comisión: {$commission}.";
-                    $origin->observation = $oobs ? ($oobs . ' | ' . $oExtra) : $oExtra;
-
-                    $origin->save();
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Regularización aplicada correctamente.',
-                'balance_total' => $centralRegister->current_balance,
-                'movement_id' => $movement->id,
-            ]);
-
+            return response()->json(app(\App\Services\CashRegularizationService::class)->regularize($request));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message'=>'Revise los datos de la regularización.','errors'=>$e->errors()],422);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json(['message'=>$e->getMessage()?:'No autorizado para regularizar.'],$e->getStatusCode());
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            report($e);
+            return response()->json(['message'=>'No se pudo regularizar el movimiento. Intente nuevamente.'],422);
         }
     }
 
@@ -3181,7 +3008,7 @@ class CashRegisterController extends Controller
         $commissionsConfirmed = 0.0;
         if (!empty($registerIds)) {
             $commissionsConfirmed = (float) CashMovement::whereIn('cash_register_id', $registerIds)
-                ->where('regularize', 1)
+                ->affectingBalance()
                 ->whereNotNull('commission')
                 ->where('commission', '>', 0)
                 ->sum('commission');
@@ -3249,4 +3076,5 @@ class CashRegisterController extends Controller
             'pendingTotal'
         ));
     }
+
 }

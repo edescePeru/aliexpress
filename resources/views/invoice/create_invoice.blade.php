@@ -170,6 +170,7 @@
                                                 <option
                                                         value="{{ $b['id'] }}"
                                                         data-type="{{ $b['type'] }}"
+                                                        data-currency="{{ $b['currency'] }}"
                                                         data-uses_subtypes="{{ $b['uses_subtypes'] ? 1 : 0 }}"
                                                 >
                                                     {{ $b['name'] }}
@@ -241,11 +242,19 @@
                             </div>
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="price">Precio Total C/IGV <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="price">Importe total <span class="right badge badge-danger">(*)</span></label>
                                     <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                     this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
                                     ">
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="finance-tax-kind">Afectación de IGV</label>
+                                <select id="finance-tax-kind" class="form-control">
+                                    <option value="gravada">Gravada (18 % incluido)</option>
+                                    <option value="exonerada">Exonerada</option>
+                                    <option value="inafecta">Inafecta</option>
+                                </select>
                             </div>
                             <div class="col-md-2">
                                 <label for="btn-add"> &nbsp; </label>
@@ -315,6 +324,9 @@
 
                                 <div class="table-responsive">
                                     <table class="table">
+                                        <tr><th>Gravada</th><td><span class="moneda">PEN</span> <span id="finance-gravada">0.00</span></td></tr>
+                                        <tr><th>Exonerada</th><td><span class="moneda">PEN</span> <span id="finance-exonerada">0.00</span></td></tr>
+                                        <tr><th>Inafecta</th><td><span class="moneda">PEN</span> <span id="finance-inafecta">0.00</span></td></tr>
                                         <tr>
                                             <th style="width:50%">Subtotal: </th>
                                             <td ><span class="moneda">PEN</span> <span id="subtotal">0.00</span> </td>

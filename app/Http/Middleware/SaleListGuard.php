@@ -27,6 +27,18 @@ class SaleListGuard
             abort_unless($movement && DB::table('cash_registers')->where('id', $movement->cash_register_id)->where('tenant_id', TenantContext::tenantId())->where('company_id', TenantContext::companyId())->where('branch_id', TenantContext::branchId())->exists(), 404);
         }
         $sale = $source !== '' ? $access->sale($id) : null;
+        if ($sale && ($operation === 'annul' || ($operation === 'payments' && $request->isMethod('DELETE')))) {
+            $method = $request->route()->getActionMethod();
+            $supportsFullRefund = $operation === 'annul' && in_array($method, [
+                    'anularOrder', 'consultarAnulacion', 'generarNotaCreditoTotal',
+                    'consultarNotaCredito', 'annul', 'consultAnnulment',
+                ], true);
+            if ($supportsFullRefund) {
+                app(\App\Services\Sales\DeferredSaleRefund::class)->plan($sale);
+            } else {
+                app(\App\Services\CashRegularizationGuard::class)->sale($sale);
+            }
+        }
         if ($operation === 'emit') {
             $type = $request->input('tipo_comprobante', $sale->type_document);
             if (in_array($type, ['factura', '01'], true)) { $access->permission('generarFactura_puntoVenta'); }
@@ -49,4 +61,5 @@ class SaleListGuard
         }
         return $next($request);
     }
+
 }

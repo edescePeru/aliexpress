@@ -1668,15 +1668,20 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('destroy/total/invoice/{id}', 'InvoiceController@destroyInvoice')
             ->middleware('permission:destroy_invoice');
 
-        Route::get('/get/json/invoices/purchase', 'InvoiceController@getJsonInvoices');
-        Route::get('/get/json/invoices/purchase/annulled', 'InvoiceController@getJsonInvoicesAnnulled');
-        Route::get('/get/invoices/purchase', 'InvoiceController@getInvoices');
+        Route::get('/get/json/invoices/purchase', 'InvoiceController@getJsonInvoices')
+            ->middleware('permission:list_invoice');
+        Route::get('/get/json/invoices/purchase/annulled', 'InvoiceController@getJsonInvoicesAnnulled')
+            ->middleware('permission:list_invoice');
+        Route::get('/get/invoices/purchase', 'InvoiceController@getInvoices')
+            ->middleware('permission:list_invoice');
         Route::get('/get/invoice/by/id/{id}', 'InvoiceController@getInvoiceById');
         Route::get('/get/service/by/id/{id}', 'InvoiceController@getServiceById');
 
         Route::get('factura/compra/editar/{entry}', 'InvoiceController@editInvoice')->name('invoice.edit')
             ->middleware('permission:update_invoice');
-        Route::get('factura/compra/ver/{entry}', 'InvoiceController@verInvoice')->name('invoice.show');
+        Route::get('factura/compra/ver/{entry}', 'InvoiceController@verInvoice')
+            ->name('invoice.show')
+            ->middleware('permission:list_invoice');
         Route::post('invoice/update', 'InvoiceController@updateInvoice')->name('invoice.update')
             ->middleware('permission:update_invoice');
 
@@ -1931,12 +1936,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/reporte/faturas/finanzas', 'InvoiceController@reportInvoiceFinance')
             ->name('report.invoice.finance')
             ->middleware('permission:list_invoice');
-        Route::get('/get/json/invoices/finance', 'InvoiceController@getJsonInvoicesFinance');
+        Route::get('/get/json/invoices/finance', 'InvoiceController@getJsonInvoicesFinance')
+            ->middleware('permission:list_invoice');
 
         Route::get('/reporte/faturas/finanzas/sin/orden', 'InvoiceController@reportInvoiceFinanceSinOrden')
             ->name('report.invoice.finance.sin.orden')
             ->middleware('permission:list_invoice');
-        Route::get('/get/json/invoices/finance/sin/orden', 'InvoiceController@getJsonInvoicesFinanceSinOrden');
+        Route::get('/get/json/invoices/finance/sin/orden', 'InvoiceController@getJsonInvoicesFinanceSinOrden')
+            ->middleware('permission:list_invoice');
 
 
         // CRONOGRAMAS DE CONTROL DE HORAS
@@ -3247,7 +3254,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:destroy_category')*/;
         Route::get('/get/data/movements/V2/{numberPage}', 'CashRegisterController@getDataMovements');
         Route::post('regularize/cashRegister', 'CashRegisterController@regularizeCashRegister')
-            ->name('regularize.cashRegister');
+            ->name('regularize.cashRegister')->middleware('permission:regularize_caja');
 
         // TODO: Promotions Seasonal
         Route::get('/get/data/promotions/seasonal/V2/{numberPage}', 'SeasonalPromotionController@getDataPromotions');
@@ -3272,22 +3279,31 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('material.manage.price');
 
         // TODO: Ganancia Diaria
-        Route::get('/get/data/ganancias/V2/{numberPage}', 'GananciaDiariaController@getDataGanancias');
-        Route::get('/get/data/ganancia/details/V2/{numberPage}', 'GananciaDiariaController@getDataGananciaDetails');
+        Route::get('/get/data/ganancias/V2/{numberPage}', 'GananciaDiariaController@getDataGanancias')
+            ->middleware('permission:show_gananciaDiaria');
+        Route::get('/get/data/ganancia/details/V2/{numberPage}', 'GananciaDiariaController@getDataGananciaDetails')
+            ->middleware('permission:show_gananciaDiaria');
         Route::get('/listado/ganancias/diarias', 'GananciaDiariaController@index')
-            ->name('ganancia.index');
+            ->name('ganancia.index')
+            ->middleware('permission:show_gananciaDiaria');
         Route::get('/listado/ganancia/detalles/{id}', 'GananciaDiariaController@indexDetail')
-            ->name('ganancia.detail.index');
+            ->name('ganancia.detail.index')
+            ->middleware('permission:show_gananciaDiaria');
         Route::get('/listado/ganancia/detalles/trabajador/{sale_id}', 'GananciaDiariaController@indexDetailTrabajador')
-            ->name('ganancia.detail.index');
-        Route::get('/get/data/ganancias/trabajador/V2/{numberPage}', 'GananciaDiariaController@getDataGananciasTrabajador');
+            ->name('ganancia.detail.usuario')
+            ->middleware('permission:showGananciaWorker_gananciaDiaria');
+        Route::get('/get/data/ganancias/trabajador/V2/{numberPage}', 'GananciaDiariaController@getDataGananciasTrabajador')
+            ->middleware('permission:showGananciaWorker_gananciaDiaria');
         Route::get('/listado/ganancias/diarias/trabajador', 'GananciaDiariaController@indexTrabajador')
-            ->name('ganancia.index.trabajador');
+            ->name('ganancia.index.trabajador')
+            ->middleware('permission:showGananciaWorker_gananciaDiaria');
 
         Route::get('/export/ganancias/trabajador', 'GananciaDiariaController@exportGananciasTrabajador')
-            ->name('ganancia.export.trabajador');
+            ->name('ganancia.export.trabajador')
+            ->middleware(['permission:showGananciaWorker_gananciaDiaria', 'permission:export_gananciaDiaria']);
         Route::get('/export/ganancia/ventas-detallado', 'GananciaDiariaController@exportGananciaVentasDetallado')
-            ->name('ganancia.export.ventas_detallado');
+            ->name('ganancia.export.ventas_detallado')
+            ->middleware(['permission:showGananciaWorker_gananciaDiaria', 'permission:exportDetail_gananciaDiaria']);
 
         Route::get('/material-unpack/{id}/childs', 'MaterialUnpackController@getChilds');
         Route::delete('/material-unpack/{id}', 'MaterialUnpackController@destroy');
@@ -3550,14 +3566,15 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::prefix('cash-registers')->group(function () {
             Route::post('/open', 'CashRegisterController@open')->name('cashRegister.open');
             Route::get('/session/{cashBox}', 'CashRegisterController@session')->name('cashRegister.session');
-            Route::post('/arqueo/', 'CashRegisterController@arqueo')->name('cashRegister.arqueo');
+            //Route::post('/arqueo/', 'CashRegisterController@arqueo')->name('cashRegister.arqueo');
             Route::get('/{cashRegister}/movements/{pageNumber?}', 'CashRegisterController@getSessionMovements')
                 ->name('cashRegister.movements');
             Route::post('/income', 'CashRegisterController@income')->name('cashRegister.income');
             Route::post('/expense', 'CashRegisterController@expense')->name('cashRegister.expense');
 
             Route::post('/{cashRegister}/arqueo', 'CashRegisterController@arqueo')->name('cashRegister.arqueo');
-            Route::post('/regularize', 'CashRegisterController@regularize')->name('cashMovement.regularize');
+            Route::post('/regularize', 'CashRegisterController@regularize')
+                ->name('cashMovement.regularize')->middleware('permission:regularize_caja');
         });
 
         Route::get('/financial/summary', 'CashRegisterController@financialSummary')->name('financial.summary');
@@ -3983,3 +4000,15 @@ Route::get('/fix/material/output-adjustment/{material_id}/{quantity}', 'Inventor
 
 Route::get('/internal/adjust-entry-cost', 'InventoryMigrationController@adjustEntryCost')
     ->middleware(['auth', 'check.user.enabled']);
+
+$catalogSlug = \App\Services\PublicCatalogSlug::PATTERN;
+Route::middleware('throttle:120,1')->group(function () use ($catalogSlug) {
+    Route::get('/{companySlug}/producto/{material}', 'PublicCatalogController@product')
+        ->where(['companySlug' => $catalogSlug, 'material' => '[1-9][0-9]{0,17}'])->name('publicCatalog.product');
+    Route::get('/{companySlug}/{branchSlug}/producto/{material}', 'PublicCatalogController@branchProduct')
+        ->where(['companySlug' => $catalogSlug, 'branchSlug' => $catalogSlug, 'material' => '[1-9][0-9]{0,17}'])->name('publicCatalog.branchProduct');
+    Route::get('/{companySlug}/{branchSlug}', 'PublicCatalogController@index')
+        ->where(['companySlug' => $catalogSlug, 'branchSlug' => $catalogSlug])->name('publicCatalog.branch');
+    Route::get('/{companySlug}', 'PublicCatalogController@index')
+        ->where('companySlug', $catalogSlug)->name('publicCatalog.company');
+});

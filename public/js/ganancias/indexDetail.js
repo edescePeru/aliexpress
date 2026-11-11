@@ -166,10 +166,10 @@ function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
     clone.querySelector("[data-id]").innerHTML = data.id;
     clone.querySelector("[data-date_detail]").innerHTML = data.date_detail;
-    clone.querySelector("[data-material_description]").innerHTML = data.material_description;
+    clone.querySelector("[data-material_description]").textContent = data.material_description;
     clone.querySelector("[data-quantity]").innerHTML = data.quantity;
     clone.querySelector("[data-price_sale]").innerHTML = data.price_sale;
-    clone.querySelector("[data-utility]").innerHTML = data.utility;
+    clone.querySelector("[data-utility]").textContent = data.utility === null ? 'Sin costo registrado' : data.utility;
 
     $("#body-table").append(clone);
 

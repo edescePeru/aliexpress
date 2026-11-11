@@ -1,0 +1,1 @@
+La barra usa las categorías del catálogo público que entrega PublicCatalog::facets. Al elegir una categoría se conservan búsqueda, local y otros filtros. Se reinician la subcategoría y la página para que la selección anterior no limite la nueva categoría. El panel lateral conserva tienda, categoría, subcategoría, talla, color y rango de precios según las opciones disponibles.

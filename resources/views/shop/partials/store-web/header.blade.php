@@ -4,14 +4,14 @@
             <div class="row align-items-center catalog-header__main">
                 <div class="col-xl-3 col-lg-2">
                     <div class="header__logo">
-                        <a href="{{ route('store-web.home') }}"><img src="{{ $detailBranding['logo'] ?? $homeBranding['logo'] ?? asset('store-web/img/logo.png') }}" alt="{{ $detailBranding['label'] ?? $homeBranding['label'] ?? 'Catálogo del negocio' }}"></a>
-                        <span class="catalog-header__business-name">{{ $detailBranding['label'] ?? $homeBranding['label'] ?? 'Catálogo del negocio' }}</span>
+                        <a href="{{ ($storeWebHomeUrl ?? route('store-web.home')) }}"><img src="{{ $detailBranding['logo'] ?? $homeBranding['logo'] ?? asset('store-web/img/logo.png') }}" alt="{{ $storeWebBusinessName ?? $detailBranding['label'] ?? $homeBranding['label'] ?? 'Catálogo del negocio' }}"></a>
+                        <span class="catalog-header__business-name">{{ $storeWebBusinessName ?? $detailBranding['label'] ?? $homeBranding['label'] ?? 'Catálogo del negocio' }}</span>
                     </div>
                 </div>
                 <div class="col-xl-6 col-lg-7">
                     <nav class="header__menu"><ul>
-                        <li @if($storeWebPage === 'home')class="active"@endif><a href="{{ route('store-web.home') }}">Inicio</a></li>
-                        <li @if($storeWebPage !== 'home')class="active"@endif><a href="{{ route('store-web.catalog') }}">Productos</a></li>
+                        <li @if($storeWebPage === 'home')class="active"@endif><a href="{{ ($storeWebHomeUrl ?? route('store-web.home')) }}">Inicio</a></li>
+                        <li @if($storeWebPage !== 'home')class="active"@endif><a href="{{ ($storeWebCatalogUrl ?? route('store-web.catalog')) }}">Productos</a></li>
                         <li><a href="#catalog-contact">Contacto</a></li>
                     </ul></nav>
                 </div>
@@ -23,10 +23,13 @@
             </div>
             <button class="canvas__open catalog-mobile-menu__trigger" type="button" data-catalog-menu-open aria-controls="catalog-mobile-menu" aria-expanded="false" aria-label="Abrir menú"><i class="fa fa-bars" aria-hidden="true"></i></button>
             <div class="catalog-search">
-                <form class="catalog-search__field catalog-search__form" role="search" @if($storeWebPage === 'shop')action="{{ route('store-web.catalog') }}" method="get" @endif @if($storeWebPage === 'home')action="{{ route('store-web.catalog') }}" method="get" data-home-catalog-search @endif>
+                <form class="catalog-search__field catalog-search__form" role="search" @if($publicStoreWeb ?? false) data-public-catalog-search action="{{ $storeWebCatalogUrl }}" method="get" @elseif($storeWebPage === 'shop')action="{{ ($storeWebCatalogUrl ?? route('store-web.catalog')) }}" method="get" @endif @if($storeWebPage === 'home')action="{{ ($storeWebCatalogUrl ?? route('store-web.catalog')) }}" method="get" data-home-catalog-search @endif>
+                    @if(($publicStoreWeb ?? false) && !$branch && !empty($filters['local']))
+                        <input type="hidden" name="local" value="{{ $filters['local'] }}">
+                    @endif
                     <label class="catalog-visually-hidden" for="catalog-search-input">Buscar productos</label>
                     <span class="icon_search" aria-hidden="true"></span>
-                    <input class="catalog-search__input" id="catalog-search-input" @if($storeWebPage === 'shop')name="search"@endif @if($storeWebPage === 'home')name="search"@endif type="search" placeholder="Buscar productos..." autocomplete="off">
+                    <input class="catalog-search__input" id="catalog-search-input" @if($publicStoreWeb ?? false)name="buscar" value="{{ $filters['buscar'] ?? '' }}" @elseif($storeWebPage === 'shop')name="search"@endif @if($storeWebPage === 'home')name="search"@endif type="search" placeholder="Buscar productos..." autocomplete="off">
                     <button class="catalog-search__clear" type="button" aria-label="Limpiar búsqueda" hidden><span aria-hidden="true">&times;</span></button>
                 </form>
             </div>

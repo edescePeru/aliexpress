@@ -349,7 +349,7 @@ function renderDataGanancias(data) {
     );
 
     $('#resumen-total-utility').text(
-        "S/ " + Number(totals.total_utility_sum).toLocaleString('es-PE', { minimumFractionDigits: 2 })
+        totals.total_utility_sum === null ? 'Sin costo registrado' : 'S/ ' + Number(totals.total_utility_sum).toLocaleString('es-PE', { minimumFractionDigits: 2 })
     );
 
     for (let j = 0; j < dataCombos.length ; j++) {
@@ -402,10 +402,11 @@ function renderDataTableEmpty() {
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
     clone.querySelector("[data-id]").innerHTML = data.id;
+    clone.querySelector("[data-author]").textContent = data.author;
     clone.querySelector("[data-date_resumen]").innerHTML = data.date_resumen;
     clone.querySelector("[data-quantity_sale]").innerHTML = data.quantity_sale;
     clone.querySelector("[data-total_sale]").innerHTML = data.total_sale;
-    clone.querySelector("[data-total_utility]").innerHTML = data.total_utility;
+    clone.querySelector("[data-total_utility]").textContent = data.total_utility === null ? 'Sin costo registrado' : data.total_utility;
 
     var botones = clone.querySelector("[data-buttons]");
 
@@ -430,6 +431,11 @@ function renderDataTable(data) {
     }
 
     botones.append(cloneBtn);
+    const detailLink = document.createElement("a");
+    detailLink.href = data.detail_url;
+    detailLink.className = "btn btn-outline-secondary btn-sm ml-1";
+    detailLink.textContent = "Ganancia";
+    botones.append(detailLink);
 
     $("#body-table").append(clone);
 

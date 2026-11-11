@@ -93,6 +93,7 @@ class TenantCompanyController extends Controller
                      */
 
                     $company = Company::create([
+                        'catalog_slug' => $validated['catalog_slug'] ?? null,
                         'tenant_id' =>
                             $tenantId,
 
@@ -183,6 +184,7 @@ class TenantCompanyController extends Controller
 
 
                     $branch = Branch::create([
+                        'catalog_slug' => $validated['branch_catalog_slug'] ?? null,
                         'company_id' =>
                             $company->id,
 
@@ -406,6 +408,9 @@ class TenantCompanyController extends Controller
                 $validated['email']
                 ?? null;
 
+            if (array_key_exists('catalog_slug', $validated)) {
+                $company->catalog_slug = $validated['catalog_slug'];
+            }
             $company->save();
 
 

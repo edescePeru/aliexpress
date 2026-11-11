@@ -22,6 +22,13 @@
 <div class="form-group col-md-8"><label for="branch-name">Nombre *</label><input id="branch-name" type="text" name="name" class="form-control" maxlength="150" value="{{ old('name', $branch->name) }}"></div>
 <div class="form-group col-md-8"><label for="branch-address">Dirección</label><input id="branch-address" type="text" name="address" class="form-control" maxlength="250" value="{{ old('address', $branch->address) }}"></div>
 <div class="form-group col-md-4"><label for="branch-phone">Teléfono</label><input id="branch-phone" type="text" name="phone" class="form-control" maxlength="30" value="{{ old('phone', $branch->phone) }}"></div>
+<div class="form-group col-md-8">
+                        <label for="catalog_slug">Nombre para el enlace público</label>
+                        <input type="text" class="form-control @error('catalog_slug') is-invalid @enderror" name="catalog_slug" id="catalog_slug" maxlength="80"
+                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('catalog_slug', $branch->catalog_slug) }}" placeholder="local_outlet">
+                        <small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Déjalo vacío para mantener el catálogo sin publicar.</small>
+                        @error('catalog_slug')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
         </div>
     </section>
     @include('tenantBranch._pricing')

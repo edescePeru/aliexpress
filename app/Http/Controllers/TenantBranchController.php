@@ -92,6 +92,7 @@ class TenantBranchController extends Controller
 
                     $priceListId = app(\App\Services\BranchPriceListService::class)->assignment((int) $company->id, $validated['price_list_id'] ?? null, true);
                     $branch = Branch::create([
+                        'catalog_slug' => $validated['catalog_slug'] ?? null,
                         'price_list_id' => $priceListId,
                         'company_id' =>
                             $company->id,
@@ -276,6 +277,9 @@ class TenantBranchController extends Controller
              * is_active
              * company_id
              */
+            if (array_key_exists('catalog_slug', $validated)) {
+                $branch->catalog_slug = $validated['catalog_slug'];
+            }
             $branch->save();
 
 

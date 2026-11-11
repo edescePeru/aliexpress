@@ -14,7 +14,7 @@ class CategoryInvoiceController extends Controller
 {
     public function index()
     {
-        $categories = CategoryInvoice::all();
+        $categories = CategoryInvoice::forCurrentCompany()->orderBy('name')->get();
         //$permissions = Permission::all();
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
@@ -22,27 +22,6 @@ class CategoryInvoiceController extends Controller
         return view('categoryInvoice.index', compact('categories', 'permissions'));
     }
 
-
-    public function storeO(StoreCategoryInvoiceRequest $request)
-    {
-        $validated = $request->validated();
-
-        DB::beginTransaction();
-        try {
-
-            $category = CategoryInvoice::create([
-                'name' => $request->get('name'),
-                'description' => $request->get('description'),
-            ]);
-
-            DB::commit();
-
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Categoría de factura guardado con éxito.'], 200);
-    }
 
     public function store(StoreCategoryInvoiceRequest $request)
     {
@@ -52,10 +31,8 @@ class CategoryInvoiceController extends Controller
 
         try {
 
-            $category = CategoryInvoice::create([
-                'name' => $request->get('name'),
-                'description' => $request->get('description'),
-            ]);
+            $category = new CategoryInvoice($validated);
+            $category->forceFill(CategoryInvoice::currentContext())->save();
 
             DB::commit();
 
@@ -87,7 +64,7 @@ class CategoryInvoiceController extends Controller
         DB::beginTransaction();
         try {
 
-            $category = CategoryInvoice::find($request->get('category_id'));
+            $category = CategoryInvoice::forCurrentCompany()->lockForUpdate()->findOrFail($validated['category_id']);
 
             $category->name = $request->get('name');
             $category->description = $request->get('description');
@@ -111,8 +88,12 @@ class CategoryInvoiceController extends Controller
         DB::beginTransaction();
         try {
 
-            $category = CategoryInvoice::find($request->get('category_id'));
+            $category = CategoryInvoice::forCurrentCompany()->lockForUpdate()->findOrFail($validated['category_id']);
 
+            if (DB::table('entries')->where('category_invoice_id', $category->id)->exists()) {
+                DB::rollBack();
+                return response()->json(['message' => 'Esta categoría ya tiene facturas asociadas.'], 422);
+            }
             $category->delete();
 
             DB::commit();
@@ -133,14 +114,14 @@ class CategoryInvoiceController extends Controller
 
     public function edit($id)
     {
-        $category = CategoryInvoice::find($id);
+        $category = CategoryInvoice::forCurrentCompany()->findOrFail($id);
         return view('categoryInvoice.edit', compact('category'));
     }
 
 
     public function getCategories()
     {
-        $categories = CategoryInvoice::select('id', 'name', 'description')->get();
+        $categories = CategoryInvoice::forCurrentCompany()->select('id', 'name', 'description')->orderBy('name')->get();
         return datatables($categories)->toJson();
         //dd(datatables($customers)->toJson());
     }
