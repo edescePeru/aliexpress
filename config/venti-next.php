@@ -14,6 +14,8 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'puntoVenta.index',
+        'puntoVenta.indexV2',
         'tenantBranch.index',
         'tenantBranch.create',
         'tenantBranch.edit',

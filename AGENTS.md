@@ -902,3 +902,14 @@ Find the approved Venti Next pattern.
 Reuse it.
 
 Adapt only what the real contract requires.
+
+
+## POS V1/V2 Shared Visual Baseline
+
+- POS V1 (`puntoVenta.index`) is the approved operational visual baseline, including its compact stepper, mini partial-payment control, section gutters and aligned voucher action.
+- POS V2 (`puntoVenta.indexV2`) reuses `public/admin/dist/css/venti-next-pos.css`, composition, toolbar, cart and product card language. Differences are allowed only when Material/Variant/StockItem resolution requires them.
+- Main POS panels stay expanded; cart grows with the document, without internal scrolling or artificial sticky checkout. Desktop toolbar is one row when the container permits it.
+- Store Web remains the product-language reference and stays isolated; the experimental POS is historical composition reference only.
+- Do not create divergent POS interfaces or duplicate the shared stylesheet. Preserve separate JS contracts; controlled Blade duplication is acceptable when extraction risks legacy hooks.
+- Shared POS changes must be checked on both V1 and V2. Never bypass option resolution or pass a Material ID as a StockItem ID for visual convenience.
+- See docs/REAL-NEXT-POS-V1-INTEGRATION.md and docs/REAL-NEXT-POS-V2-VISUAL-INTEGRATION.md.

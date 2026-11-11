@@ -1,5 +1,7 @@
 @extends('layouts.appAdmin2')
 
+@section('body-class', 'next-pos-shell')
+
 @section('openPuntoVenta')
     menu-open
 @endsection
@@ -29,415 +31,7 @@
 @endsection
 
 @section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .section-products {
-            padding: 80px 0 54px;
-        }
-
-        .product-grid{
-            background-color: #fff;
-            font-family: 'Work Sans', sans-serif;
-            text-align: center;
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid:hover{
-            box-shadow:  0 0 20px -10px rgba(237,29,36,0.3);
-        }
-        .product-grid .product-image{
-            overflow: hidden;
-            position: relative;
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid:hover .product-image{ border-radius: 0 0 30px 30px; }
-        .product-grid .product-image a.image{ display: block; }
-        .product-grid .product-image img{
-            width: 100%;
-            height: auto;
-        }
-        .product-image .pic-1{
-            backface-visibility: hidden;
-            transition: all 0.5s ease 0s;
-        }
-        .product-grid:hover .product-image .pic-1{ opacity: 0; }
-        .product-image .pic-2{
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            opacity: 0;
-            position: absolute;
-            top: 0;
-            left: 0;
-            transition: all 0.5s ease 0s;
-        }
-        .product-grid:hover .product-image .pic-2{ opacity: 1; }
-        .product-grid .product-links{
-            padding: 0;
-            margin: 0;
-            list-style: none;
-            opacity: 0;
-            position: absolute;
-            bottom: 0;
-            right: 10px;
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid:hover .product-links{ opacity: 1; }
-        .product-grid .product-links li{
-            margin: 0 0 10px 0;
-            transform: rotate(360deg) scale(0);
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid:hover .product-links li{ transform: rotate(0) scale(1); }
-        .product-grid:hover .product-links li:nth-child(3){ transition-delay: 0.1s; }
-        .product-grid:hover .product-links li:nth-child(2){ transition-delay: 0.2s; }
-        .product-grid:hover .product-links li:nth-child(1){ transition-delay: 0.3s; }
-        .product-grid .product-links li a{
-            color: #666;
-            background-color: #fff;
-            font-size: 18px;
-            line-height: 42px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50px;
-            display: block;
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid .product-links li a:hover{
-            color: #fff;
-            background-color: #ed1d24;
-        }
-        .product-grid .product-content{
-            text-align: left;
-            padding: 15px 10px;
-        }
-        .product-grid .rating{
-            padding: 0;
-            margin: 0 0 7px;
-            list-style: none;
-        }
-        .product-grid .rating li{
-            color: #f7bc3d;
-            font-size: 13px;
-        }
-        .product-grid .rating li.far{ color: #777; }
-        .product-grid .title{
-            font-size: 16px;
-            font-weight: 600;
-            text-transform: capitalize;
-            margin: 0 0 6px;
-        }
-        .product-grid .title a{
-            color: #555;
-            transition: all 0.3s ease 0s;
-        }
-        .product-grid .title a:hover{ color: #ed1d24; }
-        .product-grid .price{
-            color: #ed1d24;
-            font-size: 18px;
-            font-weight: 700;
-        }
-        @media screen and (max-width:990px){
-            .product-grid{ margin: 0 0 30px; }
-        }
-
-        @media (min-width: 1025px) {
-            .h-custom {
-                height: 100vh !important;
-            }
-        }
-
-        .number-input input[type="number"] {
-            -webkit-appearance: textfield;
-            -moz-appearance: textfield;
-            appearance: textfield;
-        }
-
-        .number-input input[type=number]::-webkit-inner-spin-button,
-        .number-input input[type=number]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-        }
-
-        .number-input button {
-            -webkit-appearance: none;
-            background-color: transparent;
-            border: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            margin: 0;
-            position: relative;
-        }
-
-        .number-input button:before,
-        .number-input button:after {
-            display: inline-block;
-            position: absolute;
-            content: '';
-            height: 2px;
-            transform: translate(-50%, -50%);
-        }
-
-        .number-input button.plus:after {
-            transform: translate(-50%, -50%) rotate(90deg);
-        }
-
-        .number-input input[type=number] {
-            text-align: center;
-        }
-
-        .number-input.number-input {
-            border: 1px solid #ced4da;
-            width: 10rem;
-            border-radius: .25rem;
-        }
-
-        .number-input.number-input button {
-            width: 2.6rem;
-            height: .7rem;
-        }
-
-        .number-input.number-input button.minus {
-            padding-left: 10px;
-        }
-
-        .number-input.number-input button:before,
-        .number-input.number-input button:after {
-            width: .7rem;
-            background-color: #495057;
-        }
-
-        .number-input.number-input input[type=number] {
-            max-width: 4rem;
-            padding: .5rem;
-            border: 1px solid #ced4da;
-            border-width: 0 1px;
-            font-size: 1rem;
-            height: 2rem;
-            color: #495057;
-        }
-
-        @media not all and (min-resolution:.001dpcm) {
-            @supports (-webkit-appearance: none) and (stroke-color:transparent) {
-
-                .number-input.def-number-input.safari_only button:before,
-                .number-input.def-number-input.safari_only button:after {
-                    margin-top: -.3rem;
-                }
-            }
-        }
-
-        .shopping-cart .def-number-input.number-input {
-            border: none;
-        }
-
-        .shopping-cart .def-number-input.number-input input[type=number] {
-            max-width: 8rem;
-            border: none;
-        }
-
-        .shopping-cart .def-number-input.number-input input[type=number].black-text,
-        .shopping-cart .def-number-input.number-input input.btn.btn-link[type=number],
-        .shopping-cart .def-number-input.number-input input.md-toast-close-button[type=number]:hover,
-        .shopping-cart .def-number-input.number-input input.md-toast-close-button[type=number]:focus {
-            color: #212529 !important;
-        }
-
-        .shopping-cart .def-number-input.number-input button {
-            width: 1rem;
-        }
-
-        .shopping-cart .def-number-input.number-input button:before,
-        .shopping-cart .def-number-input.number-input button:after {
-            width: .5rem;
-        }
-
-        .shopping-cart .def-number-input.number-input button.minus:before,
-        .shopping-cart .def-number-input.number-input button.minus:after {
-            background-color: #9e9e9e;
-        }
-
-        .shopping-cart .def-number-input.number-input button.plus:before,
-        .shopping-cart .def-number-input.number-input button.plus:after {
-            background-color: #4285f4;
-        }
-
-        .large-input {
-            width: 100px; /* Ajusta el valor según sea necesario */
-            text-align: center; /* Centra el texto en el input */
-        }
-
-        .details {
-            border: 1.5px solid grey;
-            color: #212121;
-            width: 100%;
-            height: auto;
-            box-shadow: 0px 0px 10px #212121;
-        }
-
-        .cart {
-            background-color: #212121;
-            color: white;
-            margin-top: 10px;
-            font-size: 12px;
-            font-weight: 900;
-            width: 100%;
-            height: 39px;
-            padding-top: 9px;
-            box-shadow: 0px 5px 10px  #212121;
-        }
-
-        .card2 {
-            width: fit-content;
-        }
-
-        .card-body2 {
-            width: fit-content;
-        }
-
-        .btn2 {
-            border-radius: 0;
-        }
-
-        .img-thumbnail2 {
-            border: none;
-        }
-
-        .card2 {
-            box-shadow: 0 20px 40px rgba(0, 0, 0, .2);
-            border-radius: 5px;
-            padding-bottom: 10px;
-        }
-
-        .product-card {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
-        }
-
-        .product-image {
-            max-height: 150px; /* Ajusta según sea necesario */
-            object-fit: contain;
-            margin-bottom: 15px;
-        }
-
-        .cvp {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .product-title {
-            height: 80px; /* Altura fija para el título */
-            overflow: hidden; /* Ocultar el texto que sobrepasa el límite */
-            text-overflow: ellipsis; /* Añadir puntos suspensivos si el texto es demasiado largo */
-            display: -webkit-box;
-            -webkit-line-clamp: 2; /* Mostrar un máximo de 2 líneas */
-            -webkit-box-orient: vertical;
-        }
-
-        .product-price {
-            margin-bottom: 15px;
-        }
-
-        .btn.cart:hover {
-            color: #007bff; /* Cambia este valor al color que prefieras */
-        }
-
-        .presentation-selected-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            width: 100%;
-            min-width: 220px;
-        }
-
-        .custom-tooltip-container {
-            position: relative;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .input-presentations-selected {
-            width: 100%;
-            min-width: 0;
-            cursor: default;
-        }
-
-        .btn-remove-presentations {
-            flex: 0 0 auto;
-        }
-
-        /* Tooltip hacia abajo */
-        .custom-tooltip-box {
-            position: absolute;
-            bottom: calc(100% + 10px);
-            top: auto;
-            left: 50%;
-            transform: translateX(-50%) translateY(6px);
-
-            min-width: 230px;
-            max-width: 340px;
-
-            background: #2563eb;
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 10px;
-
-            font-size: 12px;
-            line-height: 1.5;
-            white-space: normal;
-
-            box-shadow: 0 8px 25px rgba(0,0,0,.18);
-
-            opacity: 0;
-            visibility: hidden;
-            transition: all .18s ease;
-
-            z-index: 999999;
-            pointer-events: none;
-            text-align: left;
-        }
-
-        /* Flechita arriba del tooltip */
-        .custom-tooltip-box::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-
-            border-width: 7px;
-            border-style: solid;
-            border-color: #2563eb transparent transparent transparent;
-        }
-
-        .custom-tooltip-container:hover .custom-tooltip-box {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /*#modalStockItemsVenta .modal-body,
-        #modalStockItemsVenta .table-responsive,
-        #modalStockItemsVenta table,
-        #modalStockItemsVenta td {
-            overflow: visible !important;
-        }*/
-
-        #modalStockItemsVenta .modal-body {
-            overflow: hidden;
-        }
-
-        #modalStockItemsVenta .table-responsive {
-            max-height: calc(100vh - 220px);
-            overflow-y: auto !important;
-            overflow-x: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('admin/dist/css/venti-next-pos.css') }}">
 @endsection
 
 @section('page-header')
@@ -462,57 +56,51 @@
 
 @section('content')
     @include('puntoVenta._catalogContext')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('puntoVenta.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal" data-pos-image-fallback="{{ asset('images/material/no_image.png') }}" data-url="{{ route('puntoVenta.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card card-success">
+        <div class="next-pos-layout">
+            <div class="next-pos-sale-column">
+                <div class="card next-pos-sale">
                     <div class="card-header">
-                        <h3 class="card-title">Productos Seleccionados</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                        <h3 class="card-title">Venta actual</h3>
                     </div>
                     <div class="card-body">
                         <div class="shopping-cart">
-                            <div class="row">
-                                <div class="col-lg-12 px-1 py-1">
-                                    <div id="body-cart">
+                            <div class="next-pos-checkout">
+                                <div class="next-pos-sale-section">
+                                    <div id="body-cart" class="next-pos-cart-lines" aria-live="polite"></div>
 
-                                    </div>
+                                    <h3 class="next-pos-section-label">Resumen monetario</h3>
 
-                                    <hr class="mb-4" style="height: 2px; background-color: #1266f1; opacity: 1;">
-
-                                    <div class="d-flex justify-content-between px-x">
+                                    <div class="d-flex justify-content-between next-pos-total-row">
                                         <p class="fw-bold">OP. EXONERADA:</p>
                                         <p class="fw-bold" id="op_exonerada">0.00</p>
                                     </div>
-                                    <div class="d-flex justify-content-between px-x">
+                                    <div class="d-flex justify-content-between next-pos-total-row">
                                         <p class="fw-bold">OP. INAFECTA</p>
                                         <p class="fw-bold" id="op_inafecta">0.00</p>
                                     </div>
-                                    <div class="d-flex justify-content-between px-x">
+                                    <div class="d-flex justify-content-between next-pos-total-row">
                                         <p class="fw-bold">OP. GRAVADA:</p>
                                         <p class="fw-bold" id="op_gravada">0.00</p>
                                     </div>
-                                    <div class="d-flex justify-content-between px-x">
+                                    <div class="d-flex justify-content-between next-pos-total-row">
                                         <p class="fw-bold">I.G.V.:</p>
                                         <p class="fw-bold" id="total_igv">0.00</p>
                                     </div>
-                                    <div class="d-flex justify-content-between px-x">
+                                    <div class="d-flex justify-content-between next-pos-total-row">
                                         <p class="fw-bold">TOTAL DESCUENTOS:</p>
                                         <p class="fw-bold" id="total_descuentos">0.00</p>
                                     </div>
-                                    <div class="d-flex justify-content-between p-2 mb-2 bg-primary">
-                                        <h5 class="fw-bold mb-0">IMPORTE TOTAL:</h5>
+                                    <div class="d-flex justify-content-between next-pos-grand-total">
+                                        <h5 class="fw-bold mb-0">Total</h5>
                                         <h5 class="fw-bold mb-0" id="total_importe">0.00</h5>
                                     </div>
 
                                 </div>
-                                <div class="col-md-12 px-1 py-1">
-
+                                <div class="next-pos-sale-section">
+                                    <h3 class="next-pos-section-label">Datos de cobro</h3>
+                                    @if($askWorker)<p class="next-pos-help">Trabajador opcional: se selecciona al cobrar.</p>@endif
                                     <input type="hidden"
                                            name="negocio_acepta_pagos_parciales"
                                            id="negocio_acepta_pagos_parciales"
@@ -529,16 +117,14 @@
                                                 </div>
                                             </div>
                                         @endforeach--}}
-
                                         @if ($pagos_parciales == 's')
-                                            <div class="form-group">
-                                                <label>Pagos parciales</label>
+                                            <div class="form-group next-pos-partial-payment">
+                                                <label class="mb-0" for="pagos_parciales_venta">Pagos parciales</label>
 
                                                 <input type="checkbox"
-                                                       name="pagos_parciales_venta"
-                                                       id="pagos_parciales_venta"
+                                                       name="pagos_parciales_venta" id="pagos_parciales_venta"
                                                        value="s"
-                                                       data-bootstrap-switch
+                                                       data-bootstrap-switch data-size="mini"
                                                        data-on-text="SI"
                                                        data-off-text="NO"
                                                        data-on-color="success"
@@ -579,19 +165,19 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-12 px-1 py-1" id="wrap_comprobante">
+                                <div class="next-pos-sale-section" id="wrap_comprobante">
                                     <div class="accordion" id="accordionInvoice">
                                         <!-- Sección del acordeón -->
                                         <div class="card">
-                                            <div class="card-header p-2" id="headingOneInvoice">
-                                                <p class="mb-0 d-flex justify-content-between">
+                                            <div class="card-header p-0" id="headingOneInvoice">
+                                                <p class="mb-0 d-flex align-items-center justify-content-between">
                                                     <!-- Título del acordeón -->
                                                     <span class="d-flex align-items-center">
-                                                        <img src="{{ asset('/images/sale/invoice.png') }}" alt="Cupon" style="width: 30px; height: 30px; margin-right: 10px;">
-                                                        ¿Necesitas Boleta o Factura?
+
+                                                        Comprobante
                                                     </span>
                                                     <!-- Link de agregar -->
-                                                    <a href="#" class="btn btn-link p-0" data-toggle="collapse" data-target="#collapseOneInvoice" aria-expanded="false" aria-controls="collapseOneInvoice">
+                                                    <a href="#" class="btn btn-link p-0 d-inline-flex align-items-center" data-toggle="collapse" data-target="#collapseOneInvoice" aria-expanded="false" aria-controls="collapseOneInvoice">
                                                         Solicitar
                                                     </a>
                                                 </p>
@@ -649,12 +235,10 @@
                                                                 {{--<input type="text" name="dni" id="dni" class="form-control" >--}}
                                                             </div>
                                                         </div>
-
                                                         <div class="form-group">
                                                             <label for="dni">Nombre <span style="color:red;">*</span></label>
                                                             <input type="text" name="name" id="name" class="form-control">
                                                         </div>
-
                                                         <div class="form-group">
                                                             <label for="email_invoice_boleta">Email (Opcional)</label>
                                                             <input type="text" name="email_invoice_boleta" class="form-control">
@@ -665,7 +249,6 @@
                                                     <div id="datos_factura" class="d-none">
                                                         <div class="form-group">
                                                             <label for="ruc">RUC <span style="color:red;">*</span></label>
-
                                                             <div class="input-group input-group-sm">
                                                                 <input
                                                                         type="text"
@@ -709,8 +292,8 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-12 px-1 py-1">
-                                    <button  type="button" id="btn-pay" class="btn btn-success btn-block btn-lg">PAGAR</button>
+                                <div class="next-pos-sale-section next-pos-checkout-actions">
+                                    <button type="button" id="btn-pay" class="btn btn-primary btn-block">Cobrar</button>
 
                                     <a href="#" target="_blank" id="btn-printDocument" class="btn btn-primary btn-block btn-lg">IMPRIMIR COMPROBANTE</a>
 
@@ -725,38 +308,17 @@
                 </div>
                 <!-- /.card -->
             </div>
-            <div class="col-md-8">
-                <div class="card card-warning">
+            <div class="next-pos-catalog-column">
+                <div class="card next-pos-catalog">
                     <div class="card-header">
-                        <h3 class="card-title">Listado de Productos</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                        <h3 class="card-title">Productos</h3>
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <select id="category_id" class="form-control select2" name="category_id" data-states style="width: 100%;">
-                                    <option></option>
-                                    @foreach( $categories as $category )
-                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2 offset-sm-2">
-                                <select id="type_id" class="form-control select2" name="type_id" data-states style="width: 100%;">
-                                    <option></option>
-                                    <option value="c" selected>Celdas</option>
-                                    <option value="f">Filas</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="product_search" placeholder="Buscar productos">
+                        <div class="next-pos-search-row" role="search">
+                            <div class="next-pos-search"><div class="input-group">
+                                    <input type="text" class="form-control" id="product_search" placeholder="Buscar producto, SKU o código" aria-label="Buscar producto, SKU o código">
                                     <div class="input-group-append">
-                                        <button type="button" id="btn_search" class="btn btn-primary">
+                                        <button type="button" id="btn_search" class="btn btn-primary" title="Buscar productos" aria-label="Buscar productos">
                                             <i class="fas fa-search"></i>
                                         </button>
                                         <button type="button" class="btn btn-outline-info" data-pos-stock-search
@@ -764,20 +326,29 @@
                                             <i class="fas fa-search-location" aria-hidden="true"></i>
                                         </button>
                                     </div>
-                                </div>
+                                </div></div>
+                        <div class="next-pos-catalog-options"><label class="sr-only" for="type_id">Vista</label><div><select title="Vista" id="type_id" class="form-control select2" name="type_id" data-states style="width: 100%;">
+                                    <option></option>
+                                    <option value="c" selected>Celdas</option>
+                                    <option value="f">Filas</option>
+                                </select></div></div>
+                            <div class="next-pos-category"><label class="sr-only" for="category_id">Categoría</label><select id="category_id" class="form-control select2" name="category_id" data-states style="width: 100%;">
+                                    <option></option>
+                                    @foreach( $categories as $category )
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    @endforeach
+                                </select></div>
+                        </div>
+                        <div class="next-pos-results">
+                            <div class="d-flex flex-wrap align-items-center">
+                                <h5 class="next-pos-result-count"><span id="numberItems"></span> Productos encontrados</h5>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="d-flex flex-wrap align-items-center mb-4">
-                                <h5 class="fw-bold me-5 my-1"><span id="numberItems"></span> Productos encontrados</h5>
-                            </div>
+                        <div class="next-pos-product-grid" id="body-card" aria-live="polite">
                         </div>
 
-                        <div class="row" id="body-card">
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="next-list-pagination next-pos-pagination">
                             <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
                             <ul class="pagination" id="pagination"></ul>
                         </div>
@@ -788,7 +359,7 @@
         </div>
     </form>
 
-    <div id="modalVuelto" class="modal fade" tabindex="-1">
+    <div id="modalVuelto" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -857,7 +428,7 @@
         </div>
     </div>
 
-    {{--<div id="modalQuantity" class="modal fade" tabindex="-1">
+    {{--<div id="modalQuantity" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -888,7 +459,7 @@
             </div>
         </div>
     </div>--}}
-    {{--<div id="modalQuantity" class="modal fade" tabindex="-1">
+    {{--<div id="modalQuantity" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
 
@@ -945,7 +516,7 @@
         </div>
     </div>--}}
 
-    <div id="modalPresentaciones" class="modal fade" tabindex="-1">
+    <div id="modalPresentaciones" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
 
@@ -1025,36 +596,37 @@
     </template>--}}
 
     <template id="item-cart">
-        <div class="d-flex align-items-center mb-3 w-100" data-cart-row>
-            <div class="flex-grow-1 ms-3">
+        <div class="d-flex align-items-center w-100 next-pos-cart-line" data-cart-row>
+            <div class="flex-grow-1 next-pos-cart-copy">
 
-                <a href="#!" class="float-right" data-delete><i class="fas fa-times"></i></a>
+                <a href="#!" class="float-right next-pos-remove" aria-label="Quitar producto" title="Quitar producto" data-delete><i class="fas fa-times"></i></a>
 
-                <h5 class="text-primary" data-name>Producto</h5>
+                <h5 class="next-pos-cart-name" data-name>Producto</h5>
 
                 <!-- NUEVO: etiqueta de presentación -->
                 <div class="text-muted" style="font-size: 12px;" data-presentation_label></div>
 
+                <!-- Solo aparecerá para productos itemeables -->
                 <small
                         data-selected_items
                         class="text-muted d-block"
-                        style="display:none; font-size:11px;">
+                        style="display:none; font-size: 11px;">
                 </small>
 
                 <h6 style="color: #9e9e9e;" data-price data-stock></h6>
 
                 <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="def-number-input number-input safari_only">
-                        <button type="button" onclick="decrementQuantity(this)" data-item_key_minus class="minus"></button>
+                    <div class="def-number-input number-input safari_only next-pos-quantity">
+                        <button type="button" onclick="decrementQuantity(this)" data-item_key_minus class="minus" aria-label="Disminuir cantidad" title="Disminuir cantidad"><i class="fas fa-minus" aria-hidden="true"></i></button>
 
                         <input class="quantity fw-bold bg-body-tertiary text-body large-input"
-                               data-quantity
+                               data-quantity aria-label="Cantidad del producto"
                                min="0"
                                name="quantity"
                                type="number"
                                step="1">
 
-                        <button type="button" onclick="incrementQuantity(this)" data-item_key_plus class="plus"></button>
+                        <button type="button" onclick="incrementQuantity(this)" data-item_key_plus class="plus" aria-label="Aumentar cantidad" title="Aumentar cantidad"><i class="fas fa-plus" aria-hidden="true"></i></button>
                     </div>
 
                     <p class="fw-bold mb-0 me-5 pe-3" data-priceTotal>0.00</p>
@@ -1063,29 +635,28 @@
                 <div class="align-items-center justify-content-between">
                     <h6 class="text-success" data-discount></h6>
                 </div>
-
-                <hr class="mb-4" style="height: 0.8px; background-color: #9e9e9e; opacity: 1;">
             </div>
         </div>
     </template>
 
     <template id="item-card">
-        <div class="card mx-auto col-md-3 col-10 mt-1 product-card">
-            <img class='mx-auto img-thumbnail product-image'
-                 data-image1
-                 width="auto" height="auto"/>
-            <div class="card-body2 text-center mx-auto">
-                <div class='cvp'>
-                    <h5 class="card-title font-weight-bold product-title" data-name>Yail wrist watch</h5>
-                    <p class="card-text product-price" data-price>$299</p>
-                    <a href="#" class="btn details px-auto" data-add_cart_special data-product_id data-product_price data-product_stock data-product_name data-product_unit data-product_tax data-product_type>AGREGAR CARRITO</a>
+        <article class="next-pos-product product-card">
+            <div class="next-pos-product-media"><img data-image1 alt="" loading="lazy"></div>
+            <div class="next-pos-product-body">
+                <h3 class="next-pos-product-name" data-name></h3>
+                <div class="next-pos-product-meta" data-pos-sku></div>
+                <div class="next-pos-product-meta" data-pos-presentation></div>
+                <p class="next-pos-product-price" data-price></p>
+                <p class="next-pos-product-stock" data-pos-local-stock></p>
+                <div class="next-pos-product-actions">
+                    <button type="button" class="btn btn-primary btn-sm next-pos-icon" data-add_cart_special data-product_id data-product_price data-product_stock data-product_name data-product_unit data-product_tax data-product_type aria-label="Seleccionar opciones" title="Seleccionar variante / presentación"><i class="fas fa-layer-group" aria-hidden="true"></i></button>
                 </div>
             </div>
-        </div>
+        </article>
     </template>
 
     <template id="item-card-empty">
-        <div class="col-md-12 col-sm-12">
+        <div class="next-pos-empty" role="status">
             No se ha encontrado ningún producto
         </div>
     </template>
@@ -1152,7 +723,7 @@
         </table>
     </template>
 
-    <div class="modal fade" id="modalStockItemsVenta" tabindex="-1" role="dialog">
+    <div class="modal fade next-aux-modal next-pos-wide" id="modalStockItemsVenta" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-xl" role="document">
             <div class="modal-content">
 
@@ -1160,7 +731,7 @@
                     <h5 class="modal-title">
                         Seleccionar presentación / variante
                     </h5>
-                    <button type="button" class="close" data-dismiss="modal">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span>&times;</span>
                     </button>
                 </div>
@@ -1168,16 +739,16 @@
                 <div class="modal-body p-2">
 
                     <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                        <table class="table table-sm table-bordered table-hover mb-0">
+                        <table class="table table-sm table-bordered table-hover mb-0 next-pos-variant-table">
                             <thead class="thead-light">
                             <tr>
-                                <th style="width: 170px;">Variante</th>
-                                <th style="width: 160px;">SKU</th>
-                                <th style="width: 130px;">Código barras</th>
-                                <th style="width: 100px;">Disponible</th>
-                                <th style="width: 120px;">Precio tienda</th>
-                                <th style="width: 110px;">Cantidad</th>
-                                <th style="width: 130px;">Acción</th>
+                                <th class="next-pos-col-variant text-left">Variante</th>
+                                <th class="next-pos-col-sku text-center">SKU</th>
+                                <th class="next-pos-col-barcode text-center">Código barras</th>
+                                <th class="next-pos-col-available text-center">Disponible</th>
+                                <th class="next-pos-col-price text-right">Precio tienda</th>
+                                <th class="next-pos-col-quantity text-center">Cantidad</th>
+                                <th class="next-pos-col-action text-center">Acción</th>
                             </tr>
                             </thead>
                             <tbody id="tbody-stock-items-venta">
@@ -1206,7 +777,7 @@
         </div>
     </div>
 
-    <div id="modalSelectItemeableItemsV2" class="modal fade" tabindex="-1" role="dialog">
+    <div id="modalSelectItemeableItemsV2" class="modal fade next-aux-modal" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 
@@ -1238,7 +809,7 @@
                     </div>
 
                     <div class="form-group mb-2">
-                        <label for="itemeable-item-search">
+                        <label for="itemeable-item-search-v2">
                             Escanear o ingresar código de ítem
                         </label>
                         <input
