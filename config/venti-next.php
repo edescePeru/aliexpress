@@ -14,6 +14,9 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'warehouseTransfer.index',
+        'warehouseTransfer.create',
+        'warehouseTransfer.show',
         'cashBox.index',
         'cashBoxSubtype.index',
         'puntoVenta.list',
