@@ -1,192 +1,38 @@
 @extends('layouts.appAdmin2')
-
-@section('title', 'Editar Sucursales')
-
+@section('title', 'Editar sucursal')
 @section('activeTenantCompanyConfig', 'active')
-
 @section('page-header')
-    <div class="next-page-heading">
-        <span class="next-page-eyebrow">Configuración de Empresa</span>
-        <h1 class="page-title">Sucursales</h1>
-        <p class="next-page-description">Administra los datos de la sucursal.</p>
-    </div>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Editar sucursal</h1><p class="next-page-description">Datos del local y asignación de su lista de precios.</p></div>
 @endsection
-
 @section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item"><a href="{{ route('tenantBranch.index', $branch->company_id ) }}"><i class="fa fa-home"></i> Sucursales</a></li>
-        <li class="breadcrumb-item active">Modificar</li>
-    </ol>
+<ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('tenantBranch.index', $branch->company_id) }}">Sucursales</a></li><li class="breadcrumb-item active">Editar</li></ol>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Modificar sucursales</h5>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de sucursal</strong><span>{{ $branch->company->business_name }} · RUC {{ $branch->company->ruc }}</span></div></div>
 @endsection
-
-
 @section('content')
-
-    <div class="container-fluid">
-
-        <div class="card">
-
-            <div class="card-header">
-                <h3 class="card-title">
-                    Datos generales sucursal
-                </h3>
-            </div>
-
-            <div class="card-body">
-
-                <div class="alert alert-light border">
-
-                    <strong>Empresa:</strong>
-                    {{ $branch->company->business_name }}
-
-                    <br>
-
-                    <strong>RUC:</strong>
-                    {{ $branch->company->ruc }}
-
-                </div>
-
-
-                <form
-                        id="formEditTenantBranch"
-                        data-url="{{ route('tenantBranch.update', $branch->id) }}"
-                >
-
-                    @csrf
-
-
-                    <input
-                            type="hidden"
-                            name="company_id"
-                            value="{{ $branch->company_id }}"
-                    >
-
-
-                    <div class="row">
-
-                        <div class="form-group col-md-4">
-
-                            <label>
-                                Código *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="code"
-                                    class="form-control"
-                                    maxlength="30"
-                                    value="{{ $branch->code }}"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-
-                            <label>
-                                Nombre *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="name"
-                                    class="form-control"
-                                    value="{{ $branch->name }}"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-
-                            <label>
-                                Dirección
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="address"
-                                    class="form-control"
-                                    value="{{ $branch->address }}"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-4">
-
-                            <label>
-                                Teléfono
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="phone"
-                                    class="form-control"
-                                    value="{{ $branch->phone }}"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="form-group">
-                        <label for="branch_price_list_id">Lista de precios para ventas</label>
-                        <select id="branch_price_list_id" name="price_list_id" class="form-control">
-                            <option value="">Usar predeterminada de la empresa</option>
-                            @if($branch->price_list_id && !$priceLists->contains('id', $branch->price_list_id))
-                                <option value="{{ $branch->price_list_id }}" selected>Lista asignada no disponible — seleccione otra opción</option>
-                            @endif
-                            @foreach($priceLists as $priceList)
-                                <option value="{{ $priceList->id }}" {{ (string) old('price_list_id', $branch->price_list_id) === (string) $priceList->id ? 'selected' : '' }}>{{ $priceList->name }} ({{ $priceList->currency }})</option>
-                            @endforeach
-                        </select>
-                        <small class="form-text text-muted">Los precios especiales de variante prevalecen sobre el precio base del producto, dentro de esta lista.</small>
-                        @if($branch->price_list_id && !$priceLists->contains('id', $branch->price_list_id))
-                            <div class="text-danger mt-1">La lista asignada ya no está disponible. Seleccione otra lista o use la predeterminada.</div>
-                        @endif
-                    </div>
-
-                    <div class="text-right">
-
-                        <a
-                                href="{{ route('tenantCompany.index') }}"
-                                class="btn btn-secondary"
-                        >
-                            Cancelar
-                        </a>
-
-                        <button
-                                type="submit"
-                                class="btn btn-primary"
-                        >
-                            Guardar cambios
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
+<form id="formEditTenantBranch" data-url="{{ route('tenantBranch.update', $branch->id) }}">
+    @csrf
+    <input type="hidden" name="company_id" value="{{ $branch->company_id }}">
+    <section class="next-form-section" aria-labelledby="branch-details-title">
+        <div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 id="branch-details-title">Datos del local</h2><p>Los campos con (*) son obligatorios.</p></div></div>
+        <p><span class="badge {{ $branch->is_active ? 'badge-success' : 'badge-secondary' }}">{{ $branch->is_active ? 'Sucursal activa' : 'Sucursal inactiva' }}</span></p>
+        <div class="row">
+<div class="form-group col-md-4"><label for="branch-code">Código *</label><input id="branch-code" type="text" name="code" class="form-control" maxlength="30" value="{{ old('code', $branch->code) }}"></div>
+<div class="form-group col-md-8"><label for="branch-name">Nombre *</label><input id="branch-name" type="text" name="name" class="form-control" maxlength="150" value="{{ old('name', $branch->name) }}"></div>
+<div class="form-group col-md-8"><label for="branch-address">Dirección</label><input id="branch-address" type="text" name="address" class="form-control" maxlength="250" value="{{ old('address', $branch->address) }}"></div>
+<div class="form-group col-md-4"><label for="branch-phone">Teléfono</label><input id="branch-phone" type="text" name="phone" class="form-control" maxlength="30" value="{{ old('phone', $branch->phone) }}"></div>
         </div>
-
-    </div>
-
-    @include('inventory.managedWarehouses', [
-        'branchWarehouseContext' => true,
-        'warehouseCompanyId' => $branch->company_id,
-        'warehouseBranchId' => $branch->id,
-    ])
+    </section>
+    @include('tenantBranch._pricing')
+    <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap justify-content-end">
+        <a href="{{ route('tenantBranch.index', $branch->company_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </div></div>
+</form>
+@include('inventory.managedWarehouses', ['branchWarehouseContext' => true, 'warehouseCompanyId' => $branch->company_id, 'warehouseBranchId' => $branch->id])
 @endsection
-
-
 @section('scripts')
-    <script src="{{ asset('js/tenantBranch/edit.js') }}"></script>
-    <script src="{{ asset('js/inventory/managedWarehouses.js') }}"></script>
+<script src="{{ asset('js/tenantBranch/edit.js') }}"></script>
+<script src="{{ asset('js/inventory/managedWarehouses.js') }}"></script>
 @endsection

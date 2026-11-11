@@ -319,3 +319,25 @@ Responsive del listado general con filtros expandidos revalidado a 320/375/390/5
 Validación: sintaxis Node en ambos JS y `git diff --check`. Stage final limitado a los dos JS resueltos y este documento; los archivos ya fusionados/staged de backend se preservan. Merge pendiente de revisión y commit del usuario.
 
 Evidencia adicional: `real-next-10/merge-gamarra-creator.jpg`, en el directorio local de capturas indicado arriba.
+
+## Polish visual — 2026-11-11
+
+QA read-only con Owner EDESCE, empresa EDESCE / Local Principal, en `/dashboard/cotizaciones/venta`. Sin cambios en contratos, permisos, endpoints, JS ni backend.
+
+El campo utiliza bootstrap-datepicker 1.9.0 (dos inputs agrupados por input-daterange), no daterangepicker. Genera `.datepicker.datepicker-dropdown.dropdown-menu` directamente bajo body, con position absolute y z-index inline 10: calcula el máximo de sus ancestros + zIndexOffset 10. Los ancestros del input tienen z-index auto, sin transform ni aislamiento; card, toolbar y filtros tienen overflow visible. El header sticky hermano usa z-index 20, fondo opaco, borde inferior y sombra divisoria: se pintaba encima del calendario. Los bordes de toolbar, summary y tabla no causaban un recorte.
+
+Se añade una regla compartida en venti-next.css para los popups datepicker directamente bajo body: z-index 1060, la capa popover existente de Bootstrap/AdminLTE (modal 1050, fixed 1030). El único !important vence el valor inline del plugin. Se reutilizan los tokens del patrón Floating Surface para borde, radio, fondo y sombra. No se alteran posicionamiento, eventos ni calendarios inline/contenedores personalizados; no se ocultan separadores.
+
+Registrar comprobante reutiliza next-list-toolbar + next-page-toolbar + next-toolbar-actions y utilidades Bootstrap de flex/wrap/display: padding 16px/20px desktop y 12px móvil, gaps existentes, etiqueta visible en móvil. Sin reglas nuevas para espaciado ni márgenes por botón. Buscador, panel, summary e históricos conservan su patrón aprobado.
+
+Matriz navegador: 320, 375, 390, 576, 768, 992, 1200 y 1440 px. En todos: sin overflow horizontal global, ambos popups dentro del viewport, muestreo de hit-testing del calendario sin elementos superpuestos, botones dentro de la franja y etiqueta visible. La tabla conserva su scroll horizontal interno. Apertura, Escape y click en otro campo cierran correctamente. Regresión adicional en Facturadas a 1200px: apertura/cierre y capa correctos. Sin errores de consola observados; no se afirma una prueba exhaustiva de todos los calendarios del ERP.
+
+`DATE PICKER STACKING: PASS` — `OPERATIONAL SPACING: PASS` — `GLOBAL OVERFLOW: NONE`.
+
+Validación: artisan view:cache y git diff --check correctos. JS sin cambios. Capturas locales desktop/mobile, open/closed: `C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/quotes-polish-{desktop,mobile}-{open,closed}.jpg`. Sin commit.
+
+### Corrección posterior del anclaje
+
+El QA anterior cubría superposición y límites horizontales, pero omitió medir la distancia al input. El popup permanecía separado: place() resta el offset de body (57px en este layout), aunque body no es su containing block posicionado. Se configura `data-date-container=".wrapper"` en el rango compartido de General/Facturadas: el contenedor relative con overflow visible ahora proporciona el mismo origen para medir y posicionar. Se extiende el selector Floating Surface a los popups hijos directos de wrapper; sin offsets compensatorios, cambios vendor, JS o backend.
+
+Medición posterior de ambos inputs a 320/375/390/576/768/992/1200/1440: separación vertical 1px, ambos calendarios dentro del viewport, cero overflow global. Facturadas también presenta separación de 1px. Escape conserva el cierre. Evidencia actualizada en el mismo directorio: `quotes-calendar-anchor-desktop.jpg` y `quotes-calendar-anchor-mobile.jpg`.

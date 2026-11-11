@@ -14,6 +14,9 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'tenantBranch.index',
+        'tenantBranch.create',
+        'tenantBranch.edit',
         'warehouseTransfer.index',
         'warehouseTransfer.create',
         'warehouseTransfer.show',

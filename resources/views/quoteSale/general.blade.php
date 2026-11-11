@@ -29,7 +29,7 @@
 @endsection
 @section('content')
 @can('generarComprobante_quoteSale')
-<div class="next-page-toolbar mb-3"><div class="next-toolbar-context"><strong>Registrar comprobante</strong></div><div class="next-toolbar-actions">
+<div class="next-list-toolbar next-page-toolbar flex-column flex-sm-row"><div class="next-toolbar-context d-block"><strong>Registrar comprobante</strong></div><div class="next-toolbar-actions flex-wrap">
 @can('generarBoleta_quoteSale')<a href="{{ route('show.register.comprobante', 'Boleta') }}" class="btn btn-outline-secondary btn-sm">Boleta</a>@endcan
 @can('generarFactura_quoteSale')<a href="{{ route('show.register.comprobante', 'Factura') }}" class="btn btn-outline-secondary btn-sm">Factura</a>@endcan
 <a href="{{ route('show.register.comprobante', 'Ticket') }}" class="btn btn-outline-secondary btn-sm">Ticket de venta</a>

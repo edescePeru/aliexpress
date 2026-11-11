@@ -1,161 +1,38 @@
 @extends('layouts.appAdmin2')
-
-@section('title', 'Crear Sucursales')
-
+@section('title', 'Crear sucursal')
 @section('activeTenantCompanyConfig', 'active')
-
 @section('page-header')
-    <div class="next-page-heading">
-        <span class="next-page-eyebrow">Configuración de Empresa</span>
-        <h1 class="page-title">Sucursales</h1>
-        <p class="next-page-description">Administra los datos de la sucursal.</p>
-    </div>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Crear sucursal</h1><p class="next-page-description">Datos del local y asignación de su lista de precios.</p></div>
 @endsection
-
 @section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item"><a href="{{ route('tenantBranch.index', $branch->company_id) }}"><i class="fa fa-home"></i> Sucursales</a></li>
-        <li class="breadcrumb-item active">Crear</li>
-    </ol>
+<ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('tenantBranch.index', $company->id) }}">Sucursales</a></li><li class="breadcrumb-item active">Crear</li></ol>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Crear sucursales</h5>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de sucursal</strong><span>{{ $company->business_name }} · RUC {{ $company->ruc }}</span></div></div>
 @endsection
-
 @section('content')
+<form id="formCreateTenantBranch" data-url="{{ route('tenantBranch.store') }}">
+    @csrf
+    <input type="hidden" name="company_id" value="{{ $company->id }}">
+    <section class="next-form-section" aria-labelledby="branch-details-title">
+        <div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 id="branch-details-title">Datos del local</h2><p>Los campos con (*) son obligatorios.</p></div></div>
 
-    <div class="container-fluid">
-
-        <div class="card">
-
-            <div class="card-header">
-                <h3 class="card-title">
-                    Nueva sucursal
-                </h3>
-            </div>
-
-            <div class="card-body">
-
-                <div class="alert alert-light border">
-                    <strong>Empresa:</strong>
-                    {{ $company->business_name }}
-
-                    <br>
-
-                    <strong>RUC:</strong>
-                    {{ $company->ruc }}
-                </div>
-
-
-                <form
-                        id="formCreateTenantBranch"
-                        data-url="{{ route('tenantBranch.store') }}"
-                >
-
-                    @csrf
-
-                    <input
-                            type="hidden"
-                            name="company_id"
-                            value="{{ $company->id }}"
-                    >
-
-
-                    <div class="row">
-
-                        <div class="form-group col-md-4">
-                            <label>Código *</label>
-
-                            <input
-                                    type="text"
-                                    name="code"
-                                    class="form-control"
-                                    maxlength="30"
-                            >
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-                            <label>Nombre *</label>
-
-                            <input
-                                    type="text"
-                                    name="name"
-                                    class="form-control"
-                            >
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-                            <label>Dirección</label>
-
-                            <input
-                                    type="text"
-                                    name="address"
-                                    class="form-control"
-                            >
-
-                            <small class="form-text text-muted">
-                                Si lo deja vacío se utilizará la dirección de la empresa.
-                            </small>
-                        </div>
-
-
-                        <div class="form-group col-md-4">
-                            <label>Teléfono</label>
-
-                            <input
-                                    type="text"
-                                    name="phone"
-                                    class="form-control"
-                            >
-                        </div>
-
-                    </div>
-
-
-                    <div class="form-group">
-                        <label for="branch_price_list_id">Lista de precios para ventas</label>
-                        <select id="branch_price_list_id" name="price_list_id" class="form-control">
-                            <option value="">Usar predeterminada de la empresa</option>
-                            @foreach($priceLists as $priceList)
-                                <option value="{{ $priceList->id }}" {{ (string) old('price_list_id', null) === (string) $priceList->id ? 'selected' : '' }}>{{ $priceList->name }} ({{ $priceList->currency }})</option>
-                            @endforeach
-                        </select>
-                        <small class="form-text text-muted">Los precios especiales de variante prevalecen sobre el precio base del producto, dentro de esta lista.</small>
-
-                    </div>
-
-                    <div class="text-right">
-
-                        <a
-                                href="{{ route('tenantBranch.index', $company->id) }}"
-                                class="btn btn-secondary"
-                        >
-                            Cancelar
-                        </a>
-
-                        <button
-                                type="submit"
-                                class="btn btn-primary"
-                        >
-                            Crear sucursal
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
+        <div class="row">
+<div class="form-group col-md-4"><label for="branch-code">Código *</label><input id="branch-code" type="text" name="code" class="form-control" maxlength="30" value="{{ old('code', '') }}"></div>
+<div class="form-group col-md-8"><label for="branch-name">Nombre *</label><input id="branch-name" type="text" name="name" class="form-control" maxlength="150" value="{{ old('name', '') }}"></div>
+<div class="form-group col-md-8"><label for="branch-address">Dirección</label><input id="branch-address" type="text" name="address" class="form-control" maxlength="250" value="{{ old('address', '') }}"><small class="form-text text-muted">Si lo deja vacío se utilizará la dirección de la empresa.</small></div>
+<div class="form-group col-md-4"><label for="branch-phone">Teléfono</label><input id="branch-phone" type="text" name="phone" class="form-control" maxlength="30" value="{{ old('phone', '') }}"></div>
         </div>
-
-    </div>
+    </section>
+    @include('tenantBranch._pricing')
+    <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap justify-content-end">
+        <a href="{{ route('tenantBranch.index', $company->id) }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Crear sucursal</button>
+    </div></div>
+</form>
 
 @endsection
-
-
 @section('scripts')
-    <script src="{{ asset('js/tenantBranch/create.js') }}"></script>
+<script src="{{ asset('js/tenantBranch/create.js') }}"></script>
+
 @endsection

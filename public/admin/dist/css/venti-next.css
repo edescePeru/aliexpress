@@ -1234,6 +1234,16 @@ table.next-data-table [data-buttons] .next-row-actions-trigger:focus {
   box-shadow: none;
 }
 
+/* Bootstrap datepicker uses an inline ancestor z-index + 10.
+   Use Bootstrap's popover layer (above sticky headers and modals); !important
+   is required to override that inline value without changing plugin behavior. */
+body > .datepicker-dropdown,
+.wrapper > .datepicker-dropdown {
+  z-index: 1060 !important;
+}
+
+body > .datepicker-dropdown,
+.wrapper > .datepicker-dropdown,
 .next-navbar-floating-menu,
 .next-column-visibility-menu,
 .next-row-actions-menu {
