@@ -25,14 +25,9 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Clientes</span><h1 class="page-title">Clientes</h1><p class="next-page-description">Catálogo compartido por las empresas del grupo empresarial.</p></div>
 @endsection
-
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
@@ -43,24 +38,22 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de clientes</h5>
-    @can('create_customer')
-    <a href="{{ route('customer.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo Cliente </a>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Clientes</strong><span>Activos · Catálogo de clientes.</span></div><div class="next-toolbar-actions flex-wrap">@can('destroy_customer')<a href="{{ route('customer.indexrestore') }}" class="btn btn-outline-secondary btn-sm">Eliminados</a>@endcan
+@can('create_customer')<a href="{{ route('customer.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo cliente</a>@endcan</div></div>
 @endsection
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Código</th>
-                <th>Razon Social</th>
-                <th>RUC</th>
-                <th>Direccion</th>
+                <th>Razón social</th>
+                <th>Documento</th>
+                <th>Dirección</th>
                 <th>Ubicación</th>
-                <th>Acciones</th>
+                <th>Estado</th><th>Acciones</th>
             </tr>
             </thead>
             <tbody>

@@ -1,18 +1,22 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/customers",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
+        initComplete: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{targets: [0, 2, 5, 6], className: 'text-center'}, {targets: 6, orderable: false, searchable: false}],
         "aoColumns": [
             { data: 'code' },
             { data: 'business_name' },
             { data: 'RUC' },
             { data: 'address' },
             { data: 'location' },
+            { data: null, defaultContent: '<span class="badge badge-success">Activo</span>' },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
@@ -21,13 +25,13 @@ $(document).ready(function () {
                     var text = '';
                     if ( $.inArray('update_customer', $permissions) !== -1 ) {
                         text = text + '<a href="'+document.location.origin+ '/dashboard/editar/cliente/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
+                            '" class="dropdown-item"><i class="fa fa-pen" aria-hidden="true"></i> Editar</a>';
                     }
                     if ( $.inArray('destroy_customer', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-company="'+item.business_name+'" '+
-                            ' class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
+                        text = text + ' <button data-delete="'+item.id+'" data-company="'+customerDisplay(item.business_name)+'" '+
+                            ' type="button" class="dropdown-item text-danger"><i class="fa fa-trash" aria-hidden="true"></i> Eliminar</button>';
                     }
-                    return text;
+                    return text ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del cliente"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + text + '</div></div>' : '';
 
                 }
             },
@@ -42,7 +46,7 @@ $(document).ready(function () {
             "processing": "Procesando...",
             "lengthMenu": "Mostrar _MENU_ registros",
             "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
+            "emptyTable": "No hay clientes activos",
             "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
             "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
             "infoFiltered": "(filtrado de un total de _MAX_ registros)",
@@ -257,3 +261,5 @@ function destroyCustomer() {
         },
     });
 }
+
+function customerDisplay(value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }

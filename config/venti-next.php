@@ -17,6 +17,10 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'customer.index',
+        'customer.create',
+        'customer.edit',
+        'customer.indexrestore',
         'supplier.index',
         'supplier.create',
         'supplier.edit',
