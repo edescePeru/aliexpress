@@ -17,6 +17,9 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'companyBankAccount.index',
+        'companyBankAccount.create',
+        'companyBankAccount.edit',
         'order.purchase.normal.indexV2',
         'ganancia.index.trabajador',
         'ganancia.detail.usuario',

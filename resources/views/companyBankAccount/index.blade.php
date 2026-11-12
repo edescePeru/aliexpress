@@ -13,20 +13,12 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Cuentas bancarias</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Cuentas bancarias</h1><p class="next-page-description">Cuentas de la empresa activa.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listado de cuentas bancarias</h5>
-    @can('create_companyBankAccount')
-        <a
-                href="{{ route('companyBankAccount.create') }}"
-                class="btn btn-primary btn-sm float-right"
-        >
-            <i class="fas fa-plus mr-1"></i>
-            Nueva cuenta
-        </a>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado de cuentas</strong><span>Configuración bancaria de empresa.</span></div><div class="next-toolbar-actions flex-wrap">
+@can('create_companyBankAccount')<a href="{{ route('companyBankAccount.create') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva cuenta</a>@endcan
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -43,7 +35,7 @@
 
 @section('content')
     <div
-            id="company-bank-account-index"
+            class="next-operational-list" id="company-bank-account-index"
             data-toggle-url="{{ route('companyBankAccount.toggleStatus', ['id' => '__ID__']) }}"
     >
         @if(session('success'))
@@ -66,18 +58,18 @@
                 </small>
             </div>
         @else
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
+            <div class="next-list-summary"><strong>{{ $accounts->count() }} cuentas</strong><span>Predeterminada primero</span></div><div class="table-responsive" tabindex="0" aria-label="Cuentas bancarias; desplazamiento horizontal">
+                <table class="table table-hover table-sm next-data-table">
                     <thead>
                     <tr>
                         <th>Banco</th>
                         <th>Título</th>
-                        <th>Número de cuenta</th>
-                        <th>CCI</th>
-                        <th>Moneda</th>
+                        <th class="text-center">Número de cuenta</th>
+                        <th class="text-center">CCI</th>
+                        <th class="text-center">Moneda</th>
                         <th>Titular</th>
-                        <th>Estado</th>
-                        <th style="width:190px;">
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">
                             Acciones
                         </th>
                     </tr>
@@ -120,15 +112,15 @@
                                 @endif
                             </td>
 
-                            <td>
+                            <td class="text-center">
                                 {{ $account->account_number }}
                             </td>
 
-                            <td>
+                            <td class="text-center">
                                 {{ $account->cci ?: '—' }}
                             </td>
 
-                            <td>
+                            <td class="text-center">
                                 @if($account->currency === 'PEN')
                                     Soles
                                 @elseif($account->currency === 'USD')
@@ -142,7 +134,7 @@
                                 {{ $account->account_holder ?: '—' }}
                             </td>
 
-                            <td>
+                            <td class="text-center">
                                 @if($account->is_active)
                                     <span class="badge badge-success">
                                                 Activa
@@ -154,11 +146,13 @@
                                 @endif
                             </td>
 
-                            <td>
+                            <td class="text-center">
+                                @if(auth()->user()->can('edit_companyBankAccount') || auth()->user()->can('enable_companyBankAccount'))
+                                <div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm next-row-actions-toggle" data-toggle="dropdown" aria-expanded="false" aria-label="Acciones de cuenta"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">
                                 @can('edit_companyBankAccount')
                                     <a
                                             href="{{ route('companyBankAccount.edit', $account->id) }}"
-                                            class="btn btn-warning btn-sm"
+                                            class="dropdown-item"
                                     >
                                         <i class="fas fa-edit"></i>
                                         Editar
@@ -168,7 +162,7 @@
                                 @can('enable_companyBankAccount')
                                     <button
                                             type="button"
-                                            class="btn btn-sm {{ $account->is_active ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                                            class="dropdown-item {{ $account->is_active ? 'text-danger' : '' }}"
                                             data-toggle-bank-account
                                             data-id="{{ $account->id }}"
                                             data-active="{{ $account->is_active ? '1' : '0' }}"
@@ -182,6 +176,8 @@
                                         @endif
                                     </button>
                                 @endcan
+                                </div></div>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

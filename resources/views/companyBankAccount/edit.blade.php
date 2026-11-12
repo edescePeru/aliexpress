@@ -5,12 +5,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Cuentas bancarias</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Editar cuenta bancaria</h1><p class="next-page-description">Cuentas de la empresa activa.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Modificar cuentas bancarias</h5>
-
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Datos de la cuenta</strong><span>Banco, moneda y datos bancarios.</span></div><div class="next-toolbar-actions flex-wrap">
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -39,7 +38,7 @@
         @csrf
         @method('PUT')
 
-        <div class="card-body">
+        <div class="next-form-section">
             @include(
                 'companyBankAccount.partials.form',
                 [
@@ -49,10 +48,10 @@
             )
         </div>
 
-        <div class="card-footer">
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap ml-auto">
             <a
                     href="{{ route('companyBankAccount.index') }}"
-                    class="btn btn-secondary"
+                    class="btn btn-outline-secondary"
             >
                 Cancelar
             </a>
@@ -66,7 +65,7 @@
                 Guardar cambios
             </button>
         </div>
-    </form>
+    </div></form>
 @endsection
 
 @section('plugins')
