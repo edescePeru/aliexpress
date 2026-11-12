@@ -47,6 +47,7 @@ return [
         'tenantBranch.index',
         'tenantBranch.create',
         'tenantBranch.edit',
+        'warehouseAvailability.index',
         'warehouseTransfer.index',
         'warehouseTransfer.create',
         'warehouseTransfer.show',
