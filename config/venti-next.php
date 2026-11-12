@@ -14,6 +14,7 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'companySetting.index',
         'stockitems.index',
         'material.stock.getItems',
         'puntoVenta.index',

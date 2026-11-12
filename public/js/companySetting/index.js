@@ -67,7 +67,7 @@ $(function () {
     });
     $(document).on('change','.custom-control-input[type="checkbox"]',function() {
         const $input=$(this);
-        $('label[for="'+$input.attr('id')+'"]').text($input.is(':checked')?'Activado':'Desactivado');
+        $input.closest('.custom-control').find('.custom-control-label').text($input.is(':checked')?'Activado':'Desactivado');
     });
     $(window).on('beforeunload',function() { objectUrls.forEach(url=>URL.revokeObjectURL(url)); });
 });
