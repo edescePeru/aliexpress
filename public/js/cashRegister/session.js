@@ -1,4 +1,5 @@
 var $materialsTypeahead = [];
+var movementRequestVersion = 0;
 var $permissions;
 var $materials = [];
 var $total = 0;
@@ -153,7 +154,7 @@ function updateBalanceUI(newBalance) {
     $("#balance_total").val(newBalance);
 
     // Header
-    $("#valueBalanceTotal").html("S/." + newBalance);
+    $("#valueBalanceTotal").text(($("#valueBalanceTotal").attr("data-currency") || "") + " " + newBalance);
 
     // Modal arqueo
     if ($("#arqueo_teorico").length) {
@@ -442,20 +443,23 @@ function incomeCashRegister() {
     $modalIncome.modal('show');
 }
 
-function showData() {
-    //event.preventDefault();
+function showData(event) {
+    event.preventDefault();
     var numberPage = $(this).attr('data-item');
-    console.log(numberPage);
+
     getDataMovements(numberPage)
 }
 
 function getDataMovements($numberPage) {
+    const version = ++movementRequestVersion;
+    $("#list-error").addClass("d-none").text("");
     $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
 
     const cashRegisterId = $('#cash_register_id').val();
     $.get('/dashboard/cash-registers/' + cashRegisterId + '/movements/' + $numberPage, {}, function(data) {
+        if (version !== movementRequestVersion) return;
         if ( data.data.length == 0 )
         {
             renderDataMovementsEmpty(data);
@@ -464,47 +468,12 @@ function getDataMovements($numberPage) {
         }
 
 
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        // Función de error, se ejecuta cuando la solicitud GET falla
-        console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
+    }).fail(function(jqXHR) {
+        if (version !== movementRequestVersion) return;
+        $('#body-table, #pagination').empty();
+        $('#numberItems, #textPagination').text('');
+        const body = jqXHR.responseJSON || {};
+        $('#list-error').removeClass('d-none').text(body.message || 'No se pudieron cargar los movimientos. Recarga la página.');
     }, 'json')
         .done(function() {
             // Configuración de encabezados
@@ -521,8 +490,8 @@ function getDataMovements($numberPage) {
 function renderDataMovementsEmpty(data) {
     var dataAccounting = data.data;
     var pagination = data.pagination;
-    console.log(dataAccounting);
-    console.log(pagination);
+
+
 
     $("#body-table").html('');
     $("#pagination").html('');
@@ -597,13 +566,13 @@ function renderDataTable(data) {
 
     // Campos base
     clone.querySelector("[data-id]").innerHTML = data.id;
-    clone.querySelector("[data-type]").innerHTML = data.type;
+    clone.querySelector("[data-type]").textContent = data.regularization_source_id ? "Abono por regularización" : data.type;
     clone.querySelector("[data-date]").innerHTML = data.date;
 
     // Nuevos: subtipo / estado / montos extra
     // subtype viene como string o null
     const subtypeText = (data.subtype && data.subtype.trim() !== '') ? data.subtype : '-';
-    clone.querySelector("[data-subtype]").innerHTML = subtypeText;
+    clone.querySelector("[data-subtype]").textContent = subtypeText;
 
     // Estado: pendiente/confirmado según regularize (0/1)
     let statusHtml = '-';
@@ -629,26 +598,11 @@ function renderDataTable(data) {
             : '-';
 
     // Descripción + observation (si existe)
-    let descHtml = data.description ? data.description : '';
+    let descHtml = escapeHtml(data.description || '');
     if (data.observation) {
         descHtml += `<br><small class="text-muted">${escapeHtml(data.observation)}</small>`;
     }
     clone.querySelector("[data-description]").innerHTML = descHtml;
-
-    // Colores por tipo
-    var trElement = clone.querySelector('tr');
-    if (trElement) {
-        if (data.regularize === 0 || data.regularize === '0') {
-            trElement.classList.add('regularize-row');
-        } else {
-            if (data.type === 'Ingreso' || data.type === 'Venta') {
-                trElement.classList.add('income-row');
-            } else if (data.type === 'Egreso') {
-                trElement.classList.add('expense-row');
-            }
-        }
-
-    }
 
     // Botones (igual que tu lógica actual)
     /*if (data.sale_id != null) {

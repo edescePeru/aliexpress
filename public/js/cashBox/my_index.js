@@ -13,6 +13,7 @@
     const canRegularize = $.inArray('regularize_caja', permissions) !== -1;
 
     let currentPage = 1;
+    let requestVersion = 0;
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
@@ -168,6 +169,9 @@
         const elDate = row.querySelector('[data-date]');
         if (elDate) elDate.textContent = data.created_at || data.date || '-';
 
+        const currencyOption = $('#cash_box_id option').filter(function () { return String(this.value) === String(data.cash_box_id); });
+        row.querySelector('[data-currency]').textContent = currencyOption.attr('data-currency') || 'No informada';
+
         // Montos
         const elAmount = row.querySelector('[data-amount]');
         if (elAmount) elAmount.textContent = (data.amount != null ? data.amount : '0.00');
@@ -192,13 +196,15 @@
 
         // Color pendiente
         const tr = row.querySelector('tr');
-        if (tr && isPending) tr.classList.add('regularize-row');
+
 
         return row;
     }
 
     function fetchList(page = 1) {
         currentPage = page;
+        const version = ++requestVersion;
+        $('#list-error').addClass('d-none').text('');
 
         const params = {
             page: page,
@@ -216,6 +222,7 @@
             dataType: 'json',
             data: params,
             success: function (res) {
+                if (version !== requestVersion) return;
                 const items = res.data || [];
                 const meta = res.meta || null;
 
@@ -235,8 +242,9 @@
                 renderPagination(meta);
             },
             error: function () {
-                $bodyTable.html('');
-                $bodyTable.append(document.querySelector('#item-table-empty').content.cloneNode(true));
+                if (version !== requestVersion) return;
+                $bodyTable.empty(); $pagination.empty(); $numberItems.text(''); $textPagination.text('');
+                $('#list-error').removeClass('d-none').text('No se pudieron cargar los movimientos. Vuelve a buscar.');
             }
         });
     }
