@@ -5,6 +5,10 @@ $(document).ready(function () {
                 dataSrc: 'data'
             },
             bAutoWidth: false,
+            drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
+            initComplete: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+            dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+            columnDefs: [{targets: [0, 2, 6, 7], className: 'text-center'}, {targets: 7, orderable: false, searchable: false}],
             "aoColumns": [
                 { data: 'code' },
                 { data: 'business_name' },
@@ -12,13 +16,14 @@ $(document).ready(function () {
                 { data: 'address' },
                 { data: 'phone' },
                 { data: 'email' },
+                { data: null, defaultContent: '<span class="badge badge-secondary">Eliminado</span>' },
                 { data: null,
                     title: 'Acciones',
                     wrap: true,
                     "render": function (item)
                     {
-                        return ' <button data-restore="'+item.id+'" '+'data-code="'+item.code+'" '+'data-company="'+item.business_name+'" '+
-                        		'" class="btn btn-outline-success btn-sm"><i class="fas fa-trash-restore"></i></button>' 
+                        return ' <button data-restore="'+item.id+'" '+'data-code="'+supplierRestoreDisplay(item.code)+'" '+'data-company="'+supplierRestoreDisplay(item.business_name)+'" '+
+                        'type="button" class="btn btn-outline-secondary btn-sm" aria-label="Restaurar proveedor"><i class="fas fa-trash-restore"></i></button>'
                     } },
 
             ],
@@ -31,7 +36,7 @@ $(document).ready(function () {
                 "processing": "Procesando...",
                 "lengthMenu": "Mostrar _MENU_ registros",
                 "zeroRecords": "No se encontraron resultados",
-                "emptyTable": "Ningún dato disponible en esta tabla",
+                "emptyTable": "No hay proveedores eliminados",
                 "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
                 "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
                 "infoFiltered": "(filtrado de un total de _MAX_ registros)",
@@ -266,3 +271,5 @@ function restoreSupplier() {
         },
     });
 }
+
+function supplierRestoreDisplay(value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }

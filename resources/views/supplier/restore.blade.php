@@ -25,12 +25,8 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Proveedores</span><h1 class="page-title">Proveedores eliminados</h1><p class="next-page-description">Catálogo compartido por las empresas del grupo empresarial.</p></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -43,21 +39,22 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de proveedores eliminados</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Proveedores eliminados</strong><span>Eliminados · Restauración según permisos.</span></div><div class="next-toolbar-actions flex-wrap">@can('list_supplier')<a href="{{ route('supplier.index') }}" class="btn btn-outline-secondary btn-sm">Proveedores activos</a>@endcan</div></div>
 @endsection
 
 @section('content')
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Código</th>
-                <th>Razon Social</th>
+                <th>Razón social</th>
                 <th>RUC</th>
-                <th>Direccion</th>
+                <th>Dirección</th>
                 <th>Teléfono</th>
                 <th>Email</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
             </thead>
