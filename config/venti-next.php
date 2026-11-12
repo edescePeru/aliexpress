@@ -14,6 +14,8 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'ganancia.index.trabajador',
+        'ganancia.detail.usuario',
         'platformNubefact.index',
         'platformNubefact.edit',
         'platformTypeTax.index',

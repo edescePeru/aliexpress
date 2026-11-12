@@ -32,54 +32,13 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .income-row {
-            background-color: #d4edda; /* Verde claro */
-        }
-
-        .expense-row {
-            background-color: #f8d7da; /* Rojo claro */
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <div class="row">
-        <div class="col-md-5">
-            <h1 class="page-title">Ganancia por Usuario (PEN)</h1>
-        </div>
-    </div>
-
+<div class="next-page-heading"><span class="next-page-eyebrow">Reportes · Ventas</span><h1 class="page-title">Ganancias por usuario</h1><p class="next-page-description">Consulta de ventas del local activo · PEN.</p></div>
 @endsection
-
 @section('page-title')
-    @can('exportDetail_gananciaDiaria')
-    <div class="callout callout-warning mb-2">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-
-            <div>
-                <h5 class="mb-1">
-                    <i class="fas fa-exclamation-triangle mr-1"></i> Importante
-                </h5>
-                <p class="mb-0">
-                    Los filtros de <b>Usuario</b> y <b>Rango de Fechas</b> también se aplicarán
-                    al <b>Excel de Ganancia de Ventas Detallado</b>.
-                </p>
-            </div>
-
-            <div class="ml-3 mt-2 mt-md-0">
-                <button type="button" id="btn-export-detallado" class="btn btn-success btn-sm">
-                    <i class="far fa-file-excel"></i> Descargar Ganancia Detallada
-                </button>
-            </div>
-
-        </div>
-    </div>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Importes calculados por el reporte de ganancias.</span></div><div class="next-toolbar-actions flex-wrap">
+@can('exportDetail_gananciaDiaria')<button type="button" id="btn-export-detallado" class="btn btn-outline-secondary btn-sm"><i class="far fa-file-excel mr-1" aria-hidden="true"></i>Excel detallado</button>@endcan
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -97,141 +56,19 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="row">
-        <div class="col-md-4">
-            <label for="creator">Usuario:</label>
-            <select id="creator" name="creator" class="form-control form-control-sm select2" style="width: 100%;">
-                <option value="">TODOS</option>
-                @foreach($authors as $author)
-                    <option value="{{ $author->created_by }}">{{ $report->author($author) }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        <div class="col-md-4">
-            <label> Fechas de Venta:</label>
-            <div class="col-md-12" id="sandbox-container">
-                <div class="input-daterange input-group" id="datepicker">
-                    <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" autocomplete="off">
-                    <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                    <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
-                </div>
-            </div>
-        </div>
-
-
-        {{--<div class="col-md-2">
-            <label> &nbsp;</label>
-            <a href="#" id="btn-search" class="btn btn-primary btn-sm btn-block"><i class="fas fa-search"></i> Buscar</a>
-
-        </div>--}}
-
-        <div class="col-md-4">
-            <label> &nbsp;</label>
-
-            <div class="d-flex" style="gap: 8px;">
-                <a href="#" id="btn-search" class="btn btn-primary btn-sm flex-fill"> <i class="fas fa-search"></i> Buscar</a>
-                {{--<a href="#" id="btn-export" class="btn btn-success btn-sm flex-fill">
-                    <i class="far fa-file-excel"></i> Exportar
-                </a>--}}
-                @can( 'export_gananciaDiaria' )
-                <button type="button" id="btn-export" class="btn btn-success btn-sm flex-fill">
-                    <i class="far fa-file-excel"></i> Exportar Excel
-                </button>
-                @endcan
-            </div>
-        </div>
+    <section class="next-operational-list" aria-label="Ganancias por usuario">
+    <div class="next-form-section">
+        <div class="row align-items-end">
+            <div class="col-lg-3 form-group"><label for="creator">Usuario que registró la venta</label><select id="creator" name="creator" class="form-control form-control-sm select2 w-100"><option value="">TODOS</option>@foreach($authors as $author)<option value="{{ $author->created_by }}">{{ $report->author($author) }}</option>@endforeach</select></div>
+            <div class="col-lg form-group"><label for="start">Fechas de venta</label><div id="sandbox-container"><div class="input-daterange input-group input-group-sm" id="datepicker"><input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" autocomplete="off" aria-label="Fecha inicial"><div class="input-group-append input-group-prepend"><span class="input-group-text">al</span></div><input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off" aria-label="Fecha final"></div></div></div>
+            <div class="col-lg-auto form-group"><div class="next-toolbar-actions flex-wrap flex-lg-nowrap"><button type="button" id="btn-search" class="btn btn-primary btn-sm"><i class="fas fa-search mr-1" aria-hidden="true"></i>Buscar</button>@can('export_gananciaDiaria')<button type="button" id="btn-export" class="btn btn-outline-secondary btn-sm">Exportar Excel</button>@endcan</div></div>
+        </div><small class="text-muted">Los filtros de usuario y fechas también se aplican a los exports. El trabajador opcional no sustituye al usuario que registró la venta.</small>
     </div>
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Ventas
-                <span class="text-gray-400 fs-6"> ordenandos por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
-                <thead>
-                <tr class="normal-title">
-                    <th>N°</th>
-                    <th>Fecha</th>
-                    <th>Usuario</th>
-                    <th>Cantidad Vendida</th>
-                    <th>Total Venta</th>
-                    <th>Total Utilidad</th>
-                    <th>Acciones</th>
-                </tr>
-                </thead>
-                <tbody id="body-table">
-
-                </tbody>
-            </table>
-        </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
-
-            </ul>
-            <!--end::Pages-->
-        </div>
-        <!--end::Pagination-->
-    </div>
-    <!--end::Tab Content-->
-
-    <div class="row mt-3">
-
-        <div class="col-md-4">
-            <div class="card border-success mb-3">
-                <div class="card-header bg-success text-white">
-                    Cantidad total vendida
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-0" id="resumen-quantity">
-                        0.00
-                    </h5>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card border-primary mb-3">
-                <div class="card-header bg-primary text-white">
-                    Total vendido
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-0" id="resumen-total-sale">
-                        S/ 0.00
-                    </h5>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card border-warning mb-3">
-                <div class="card-header bg-warning text-dark">
-                    Utilidad total
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-0" id="resumen-total-utility">
-                        S/ 0.00
-                    </h5>
-                </div>
-            </div>
-        </div>
-
-    </div>
+    <div class="next-list-summary"><div class="next-list-summary-copy"><strong><span id="numberItems">—</span> ventas</strong><span>Fecha de venta · más recientes primero</span></div></div>
+    <div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="Ventas; desplazamiento horizontal"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">Venta</th><th class="text-center">Fecha</th><th>Usuario</th><th class="text-center">Cantidad vendida</th><th class="text-right">Vendido (S/)</th><th class="text-right">Ganancia (S/)</th><th class="text-center">Acciones</th></tr></thead><tbody id="body-table"></tbody></table></div></div>
+    <div class="next-list-toolbar"><div id="textPagination" aria-live="polite"></div><ul class="pagination mb-0" id="pagination"></ul></div>
+    <div class="next-form-section"><div class="row"><div class="col-md-4"><p class="text-muted mb-1">Cantidad total vendida</p><strong id="resumen-quantity">—</strong></div><div class="col-md-4"><p class="text-muted mb-1">Total vendido (PEN)</p><strong id="resumen-total-sale">—</strong></div><div class="col-md-4"><p class="text-muted mb-1">Ganancia total (PEN)</p><strong id="resumen-total-utility">—</strong></div></div></div>
+    </section>
 
     <template id="previous-page">
         <li class="page-item previous">
@@ -265,33 +102,26 @@
 
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-date_resumen></td>
+            <td class="text-center" data-id></td>
+            <td class="text-center" data-date_resumen></td>
             <td data-author></td>
-            <td data-quantity_sale></td>
-            <td data-total_sale></td>
-            <td data-total_utility></td>
-            <td data-buttons></td>
+            <td class="text-center" data-quantity_sale></td>
+            <td class="text-right" data-total_sale></td>
+            <td class="text-right" data-total_utility></td>
+            <td class="text-center" data-buttons></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="7" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="7" class="next-table-empty">No se ha encontrado ningún dato</td>
         </tr>
     </template>
 
     <template id="template-button">
-        <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Comprobante</a>
+        <div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de venta"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu"><a data-ver_detalles href="#" class="dropdown-item">Comprobante</a><a data-profit-detail href="#" class="dropdown-item">Ver ganancia</a></div></div>
     </template>
-
-    <div id="export-overlay" style="display:none; position:fixed; z-index:9999; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.35);">
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; padding:18px 22px; border-radius:8px; min-width:320px; box-shadow:0 10px 30px rgba(0,0,0,.2); text-align:center;">
-            <div style="font-size:15px; font-weight:600; margin-bottom:8px;">Generando reporte</div>
-            <div style="font-size:13px; opacity:.8; margin-bottom:12px;">Por favor espere…</div>
-            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        </div>
-    </div>
+    <div id="export-overlay" class="modal" tabindex="-1" role="status" aria-label="Generando reporte"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body text-center"><strong>Generando reporte</strong><p>Por favor espere…</p><div class="spinner-border spinner-border-sm" aria-hidden="true"></div></div></div></div></div>
 @endsection
 
 @section('plugins')
@@ -315,11 +145,12 @@
         $(function () {
             //Initialize Select2 Elements
             $('#creator').select2({
-                placeholder: "Selecione trabajador",
+                placeholder: "Seleccione usuario",
+                width: "100%",
                 allowClear: true
             });
 
         })
     </script>
-    <script src="{{ asset('js/ganancias/indexTrabajador.js') }}"></script>
+    <script src="{{ asset('js/ganancias/indexTrabajador.js') }}?v={{ filemtime(public_path('js/ganancias/indexTrabajador.js')) }}"></script>
 @endsection
