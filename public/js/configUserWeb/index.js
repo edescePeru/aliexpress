@@ -183,7 +183,7 @@ function renderPlanSummary(response) {
 
     let $progress =$('#planUsageProgress');
 
-    $progress.css('width',visualUsage + '%').removeClass('bg-success bg-warning bg-danger');
+    $progress.attr('aria-valuenow', visualUsage).css('width',visualUsage + '%').removeClass('bg-success bg-warning bg-danger');
 
     if (usage >= 100) {
         $progress.addClass('bg-danger');
@@ -400,7 +400,7 @@ function loadUsers(page = 1) {
 
     $('#usersTableBody').html(`
         <tr>
-            <td colspan="7" class="text-center">
+            <td colspan="8" class="text-center">
                 Cargando usuarios...
             </td>
         </tr>
@@ -426,7 +426,7 @@ function loadUsers(page = 1) {
 
             $('#usersTableBody').html(`
                 <tr>
-                    <td colspan="7" class="text-center text-danger">
+                    <td colspan="8" class="text-center text-danger">
                         Ocurrió un error al cargar los usuarios.
                     </td>
                 </tr>
@@ -443,7 +443,7 @@ function renderUsers(users, from) {
     if (!users || users.length === 0) {
         tbody.html(`
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center py-4 text-muted">
                     No se encontraron usuarios.
                 </td>
             </tr>
@@ -453,102 +453,31 @@ function renderUsers(users, from) {
 
     let html = '';
 
+    const $app = $('#config-user-web-app');
     users.forEach((user, index) => {
         const number = (from ?? 1) + index;
-
-        let statusButton = '';
-
-        if (!user.is_tenant_owner &&!user.is_current_user) {
-
-            statusButton =
-                user.enable == 1
-                    ? `
-                <button
-                    type="button"
-                    class="btn btn-outline-danger btn-sm"
-                    onclick="changeStatus(${user.id}, 0)"
-                >
-                    <i class="fas fa-ban"></i>
-                    Inhabilitar
-                </button>
-            `
-                    : `
-                <button
-                    type="button"
-                    class="btn btn-outline-success btn-sm"
-                    onclick="changeStatus(${user.id}, 1)"
-                >
-                    <i class="fas fa-check"></i>
-                    Activar
-                </button>
-            `;
-
+        const actions = [];
+        if (String($app.data('can-edit')) === '1') {
+            actions.push(`<a class="dropdown-item" href="${buildRoute(configUserWebRoutes.edit, user.id)}"><i class="fas fa-pencil-alt mr-2" aria-hidden="true"></i>Editar</a>`);
         }
-
-        let resetButton = '';
-
-        if (
-            !user.is_tenant_owner &&
-            !user.is_current_user
-        ) {
-            resetButton = `
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    onclick="resetPasswordFromList(${user.id})"
-                >
-                    <i class="fas fa-key"></i>
-                    Reset
-                </button>
-            `;
+        if (!user.is_tenant_owner && !user.is_current_user) {
+            if (String($app.data('can-reset')) === '1') {
+                actions.push(`<button type="button" class="dropdown-item" onclick="resetPasswordFromList(${user.id})"><i class="fas fa-key mr-2" aria-hidden="true"></i>Resetear contraseña</button>`);
+            }
+            if (String($app.data('can-status')) === '1') {
+                actions.push(`<button type="button" class="dropdown-item ${user.enable == 1 ? 'text-danger' : 'text-success'}" onclick="changeStatus(${user.id}, ${user.enable == 1 ? 0 : 1})">${user.enable == 1 ? 'Inhabilitar' : 'Activar'}</button>`);
+            }
         }
-
-        html += `
-            <tr>
-                <td>${number}</td>
-                <td>${escapeHtml(user.name)}</td>
-                <td>${escapeHtml(user.email)}</td>
-                <td>${user.updated_at ?? '-'}</td>
-                <td>
-                    ${
-                            user.is_tenant_owner
-                                ? `
-                                <span class="badge badge-primary">
-                                    Propietario
-                                </span>
-                              `
-                                : (
-                                    user.role
-                                        ? escapeHtml(
-                                        user.role
-                                        )
-                                        : '-'
-                                )
-                            }
-                </td>
-                <td class="text-center">
-                    <img src="${user.image}"
-                         alt="Usuario"
-                         style="width: 42px; height: 42px; object-fit: cover; border-radius: 50%;">
-                </td>
-                <td>
-                    <a
-                        href="${
-                                buildRoute(
-                                    configUserWebRoutes.edit,
-                                    user.id
-                                )
-                                }"
-                        class="btn btn-outline-warning btn-sm"
-                    >
-                        <i class="fas fa-pencil-alt"></i>
-                        Editar
-                    </a>
-                    ${resetButton}
-                    ${statusButton}
-                </td>
-            </tr>
-        `;
+        html += `<tr>
+            <td class="text-center">${number}</td>
+            <td>${escapeHtml(user.name)}</td>
+            <td>${escapeHtml(user.email)}</td>
+            <td class="text-center">${escapeHtml(user.updated_at || '-')}</td>
+            <td>${user.is_tenant_owner ? '<span class="badge badge-primary">Propietario</span>' : escapeHtml(user.role || '-')}</td>
+            <td class="text-center"><span class="badge ${user.enable == 1 ? 'badge-success' : 'badge-secondary'}">${user.enable == 1 ? 'Activo' : 'Inactivo'}</span></td>
+            <td class="text-center"><img src="${escapeHtml(user.image)}" alt="Usuario" class="img-circle" width="42" height="42"></td>
+            <td class="text-center">${actions.length ? `<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ${escapeHtml(user.name)}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">${actions.join('')}</div></div>` : '<span class="text-muted">Sin acciones</span>'}</td>
+        </tr>`;
     });
 
     tbody.html(html);

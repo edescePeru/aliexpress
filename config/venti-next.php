@@ -17,6 +17,9 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'configUserWeb.index',
+        'configUserWeb.create',
+        'configUserWeb.edit',
         'cashMovement.my.index',
         'cashRegister.session',
         'entry.purchase.indexV2',

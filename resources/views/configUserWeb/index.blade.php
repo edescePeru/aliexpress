@@ -1,87 +1,21 @@
 @extends('layouts.appAdmin2')
-
-@section('openDataGeneral')
-    menu-open
-@endsection
-
-@section('activeDataGeneral')
-    active
-@endsection
-
+@section('openDataGeneral', 'menu-open')
+@section('activeDataGeneral', 'active')
 @section('activeConfigUserWeb', 'active')
-
-@section('title')
-    Usuarios Web
-@endsection
-
-@section('styles-plugins')
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-@endsection
-
-@section('styles')
-    <style>
-        .plan-small-box {
-            min-height: 105px;
-            margin-bottom: 0;
-        }
-
-        .plan-small-box .inner {
-            padding: 14px 16px;
-        }
-
-        .plan-small-box .inner h4 {
-            font-size: 1.45rem;
-            font-weight: 600;
-        }
-
-        .plan-small-box .inner p {
-            font-size: 0.9rem;
-        }
-
-        .plan-small-box .icon {
-            top: 10px;
-            right: 12px;
-        }
-
-        .plan-small-box .icon > i {
-            font-size: 48px;
-        }
-
-        @media (max-width: 767.98px) {
-            .plan-small-box {
-                margin-bottom: 12px;
-            }
-
-            .plan-small-box .icon > i {
-                font-size: 42px;
-            }
-        }
-    </style>
-@endsection
-
+@section('title', 'Usuarios del negocio')
 @section('page-header')
-    <h1 class="page-title">Usuarios Web</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Accesos</span><h1 class="page-title">Usuarios del negocio</h1><p class="next-page-description">Usuarios y accesos del grupo empresarial.</p></div>
 @endsection
-
 @section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-users"></i> Usuarios Web</li>
-    </ol>
+<ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li><li class="breadcrumb-item active">Usuarios del negocio</li></ol>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listado de usuarios web</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Usuarios del negocio</strong><span>Perfiles, estado y empresas autorizadas.</span></div><div class="next-toolbar-actions flex-wrap">
+@can('createUser_configUserWeb')<button type="button" id="btnNewUser" class="btn btn-primary"><i class="fas fa-user-plus mr-1" aria-hidden="true"></i> Nuevo usuario</button>@endcan
+</div></div>
 @endsection
-
 @section('content')
-    <div class="container-fluid">
-
-        <div id="config-user-web-app"
+<div id="config-user-web-app"
              data-url-users="{{ route('configUserWeb.getUsers') }}"
 
              data-url-plan-summary="{{route('configUserWeb.planSummary')}}"
@@ -95,235 +29,33 @@
              data-url-change-status="{{route('configUserWeb.changeStatus',['id' => ':id'])}}"
 
              data-url-create="{{route('configUserWeb.create')}}"
+             data-can-edit="{{ auth()->user()->can('editUser_configUserWeb') ? '1' : '0' }}"
+             data-can-status="{{ auth()->user()->can('changeStatusUser_configUserWeb') ? '1' : '0' }}"
+             data-can-reset="{{ auth()->user()->can('resetPasswordUser_configUserWeb') ? '1' : '0' }}"
         >
-
-            <div id="planSummaryCard" class="card card-outline card-primary mb-3">
-                <div class="card-header">
-
-                    <div class="d-flex justify-content-between align-items-center flex-wrap">
-
-                        <div>
-                            <h3 class="card-title mb-0">
-                                <i class="fas fa-layer-group mr-1" ></i>
-
-                                Plan del negocio
-                            </h3>
-                        </div>
-
-
-                        <div class="mt-2 mt-sm-0">
-
-                            <button
-                                    type="button"
-                                    id="btnNewUser"
-                                    class="btn btn-outline-success btn-sm"
-                            >
-                                <i class="fas fa-user-plus mr-1"></i>
-
-                                Nuevo usuario
-                            </button>
-
-                        </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="card-body">
-
-                        <div id="planSummaryLoading" class="text-center text-muted py-3" >
-                            <i class="fas fa-spinner fa-spin"></i>
-                            Cargando información del plan...
-                        </div>
-
-
-                        <div id="planSummaryContent" class="d-none">
-
-                            <div class="row">
-
-                                <div class="col-xl-3 col-md-6 col-12">
-                                    <div class="small-box bg-info plan-small-box">
-                                        <div class="inner">
-                                            <h4 id="planName" class="mb-1">-</h4>
-                                            <p class="mb-0">Plan contratado</p>
-                                        </div>
-
-                                        <div class="icon">
-                                            <i class="fas fa-layer-group"></i>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-xl-3 col-md-6 col-12">
-                                    <div class="small-box bg-success plan-small-box">
-                                        <div class="inner">
-                                            <h4 class="mb-1">
-                                                <span id="activeUsersCount">0</span>
-                                                /
-                                                <span id="maxUsersCount">0</span>
-                                            </h4>
-
-                                            <p class="mb-0">Usuarios activos</p>
-                                        </div>
-
-                                        <div class="icon">
-                                            <i class="fas fa-users"></i>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-xl-3 col-md-6 col-12">
-                                    <div class="small-box bg-warning plan-small-box">
-                                        <div class="inner">
-                                            <h4 id="availableUsersCount" class="mb-1">0</h4>
-                                            <p class="mb-0">Cupos disponibles</p>
-                                        </div>
-
-                                        <div class="icon">
-                                            <i class="fas fa-user-plus"></i>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-xl-3 col-md-6 col-12">
-                                    <div class="small-box bg-danger plan-small-box">
-                                        <div class="inner">
-                                            <h4 id="inactiveUsersCount" class="mb-1">0</h4>
-                                            <p class="mb-0">Usuarios inactivos</p>
-                                        </div>
-
-                                        <div class="icon">
-                                            <i class="fas fa-user-slash"></i>
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-
-
-                            <div class="mt-3">
-
-                                <div class=" d-flex justify-content-between align-items-center mb-1">
-
-                                    <small>
-                                        Uso de usuarios del plan
-                                    </small>
-
-                                    <small id="planUsageText" class="font-weight-bold">
-                                        0%
-                                    </small>
-
-                                </div>
-
-
-                                <div class="progress" style="height: 8px;">
-
-                                    <div
-                                            id="planUsageProgress"
-                                            class="progress-bar bg-success"
-                                            role="progressbar"
-                                            style="width: 0%;"
-                                    ></div>
-
-                                </div>
-
-                            </div>
-
-
-                            <div id="planLimitAlert" class="alert alert-warning mt-3 mb-0 d-none">
-                                <i class="fas fa-exclamation-triangle mr-1"></i>
-
-                                <strong>
-                                    Límite alcanzado.
-                                </strong>
-
-                                No hay cupos disponibles para activar
-                                o crear nuevos usuarios.
-                            </div>
-
-                        </div>
-
-                    </div>
-                </div>
-
-            <div class="card">
-
-                <div class="card-body">
-
-                    <div class="row mb-3">
-                        <div class="col-md-2">
-                            <label>Mostrar</label>
-                            <select id="perPage" class="form-control form-control-sm">
-                                <option value="10">10 registros</option>
-                                <option value="25">25 registros</option>
-                                <option value="50">50 registros</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label>Estado</label>
-                            <select id="statusFilter" class="form-control form-control-sm">
-                                <option value="active">Activos</option>
-                                <option value="inactive">Inhabilitados</option>
-                                <option value="all">Todos</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4 offset-md-3">
-                            <label>Buscar</label>
-                            <input type="text" id="searchUser" class="form-control form-control-sm"
-                                   placeholder="Buscar por nombre o email">
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover table-sm">
-                            <thead>
-                            <tr>
-                                <th style="width: 60px;">#</th>
-                                <th>Nombre</th>
-                                <th>Email</th>
-                                <th>Última modificación</th>
-                                <th>Rol</th>
-                                <th style="width: 90px;">Imagen</th>
-                                <th style="width: 180px;">Acciones</th>
-                            </tr>
-                            </thead>
-                            <tbody id="usersTableBody">
-                            <tr>
-                                <td colspan="7" class="text-center">
-                                    Cargando usuarios...
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <small id="paginationInfo"></small>
-                        </div>
-
-                        <div class="col-md-6">
-                            <nav class="float-md-right">
-                                <ul class="pagination pagination-sm mb-0" id="paginationLinks"></ul>
-                            </nav>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-    </div>
+<section id="planSummaryCard" class="next-form-section" aria-label="Plan del negocio">
+<div class="next-section-header"><div><h2>Plan del negocio</h2><p>Disponibilidad de usuarios según el plan actual.</p></div></div>
+<div id="planSummaryLoading" class="text-muted" role="status">Cargando información del plan...</div>
+<div id="planSummaryContent" class="d-none">
+<div class="row">
+<div class="col-6 col-lg-3 mb-2"><small class="text-muted d-block">Plan contratado</small><strong id="planName">—</strong></div>
+<div class="col-6 col-lg-3 mb-2"><small class="text-muted d-block">Usuarios activos / límite</small><strong><span id="activeUsersCount">0</span> / <span id="maxUsersCount">0</span></strong></div>
+<div class="col-6 col-lg-3 mb-2"><small class="text-muted d-block">Cupos disponibles</small><strong id="availableUsersCount">0</strong></div>
+<div class="col-6 col-lg-3 mb-2"><small class="text-muted d-block">Usuarios inactivos</small><strong id="inactiveUsersCount">0</strong></div>
+</div>
+<div class="d-flex justify-content-between mb-1"><small>Uso de usuarios del plan</small><small id="planUsageText">0%</small></div>
+<div class="progress progress-xs"><div id="planUsageProgress" class="progress-bar bg-success" role="progressbar" aria-label="Uso del plan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+<div id="planLimitAlert" class="alert alert-warning mt-3 mb-0 d-none"><strong>Límite alcanzado.</strong> No hay cupos disponibles para activar o crear nuevos usuarios.</div>
+</div></section>
+<div class="next-list-toolbar"><div class="row next-list-filters-grid">
+<div class="col-md-6 next-list-filter"><label for="searchUser">Buscar</label><input id="searchUser" type="search" class="form-control" placeholder="Buscar por nombre o email"></div>
+<div class="col-md-3 col-sm-6 next-list-filter"><label for="statusFilter">Estado</label><select id="statusFilter" class="form-control"><option value="active">Activos</option><option value="inactive">Inactivos</option><option value="all">Todos</option></select></div>
+<div class="col-md-3 col-sm-6 next-list-filter"><label for="perPage">Mostrar</label><select id="perPage" class="form-control"><option value="10">10 registros</option><option value="25">25 registros</option><option value="50">50 registros</option></select></div>
+</div></div>
+<div class="table-responsive"><table class="table table-bordered table-hover table-sm mb-0"><thead><tr><th class="text-center">#</th><th>Nombre</th><th>Email</th><th class="text-center">Última modificación</th><th>Perfil</th><th class="text-center">Estado</th><th class="text-center">Imagen</th><th class="text-center">Acciones</th></tr></thead><tbody id="usersTableBody"><tr><td colspan="8" class="text-center py-4">Cargando usuarios...</td></tr></tbody></table></div>
+<div class="next-list-toolbar"><div class="d-flex flex-wrap align-items-center justify-content-between"><small id="paginationInfo" aria-live="polite"></small><nav aria-label="Páginas de usuarios"><ul id="paginationLinks" class="pagination pagination-sm flex-wrap mb-0"></ul></nav></div></div>
+</div>
 @endsection
-
-@section('plugins')
-
-@endsection
-
 @section('scripts')
-
-    <script src="{{ asset('js/configUserWeb/index.js') }}"></script>
+<script src="{{ asset('js/configUserWeb/index.js') }}"></script>
 @endsection
