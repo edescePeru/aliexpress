@@ -17,6 +17,9 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'tenantCompany.index',
+        'tenantCompany.create',
+        'tenantCompany.edit',
         'categoryInvoice.index',
         'categoryInvoice.create',
         'categoryInvoice.edit',

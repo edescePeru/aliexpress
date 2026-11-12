@@ -1,275 +1,102 @@
 @extends('layouts.appAdmin2')
-
-@section('title', 'Crear Empresas')
-
+@section('title', 'Nueva empresa')
 @section('activeTenantCompanyConfig', 'active')
-
 @section('page-header')
-    <div class="next-page-heading">
-        <span class="next-page-eyebrow">Configuración de Empresa</span>
-        <h1 class="page-title">Empresas</h1>
-        <p class="next-page-description">Administra los datos de la empresa.</p>
-    </div>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Nueva empresa</h1><p class="next-page-description">Identidad de la empresa y enlace público.</p></div>
 @endsection
-
 @section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item"><a href="{{ route('tenantCompany.index') }}">Empresas</a></li>
-        <li class="breadcrumb-item active">Crear</li>
-    </ol>
+<ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('tenantCompany.index') }}">Empresas</a></li><li class="breadcrumb-item active">Crear</li></ol>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Crear empresas</h5>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de empresa</strong><span>Empresas del grupo empresarial.</span></div></div>
 @endsection
-
 @section('content')
-
-    <div class="container-fluid">
-
-        <div class="card">
-
-            <div class="card-header">
-
-                <h3 class="card-title">
-                    Nueva empresa
-                </h3>
-
-            </div>
-
-
-            <div class="card-body">
-
-                <form
-                        id="formCreateTenantCompany"
-                        data-url="{{ route('tenantCompany.store') }}"
-                >
-
-                    @csrf
-                    <div class="form-group">
-                        <label for="catalog_slug">Nombre para el enlace público</label>
-                        <input type="text" class="form-control" name="catalog_slug" id="catalog_slug" maxlength="80"
-                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('catalog_slug') }}" placeholder="company">
-                        <small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Déjalo vacío para mantener el catálogo sin publicar.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="branch_catalog_slug">Nombre para el enlace del local principal</label>
-                        <input type="text" class="form-control" name="branch_catalog_slug" id="branch_catalog_slug" maxlength="80"
-                               pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('branch_catalog_slug') }}" placeholder="local_principal">
-                        <small class="form-text text-muted">Completa este campo para incluir el local principal en el catálogo.</small>
-                    </div>
-
-
-
-                    <h5 class="mb-3">
-                        Datos de la empresa
-                    </h5>
-
-
-                    <div class="row">
-
-                        <div class="form-group col-md-4">
-
-                            <label>
-                                RUC *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="ruc"
-                                    class="form-control"
-                                    maxlength="11"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-
-                            <label>
-                                Razón Social *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="business_name"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-6">
-
-                            <label>
-                                Nombre Comercial
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="trade_name"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-6">
-
-                            <label>
-                                Correo
-                            </label>
-
-                            <input
-                                    type="email"
-                                    name="email"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-
-                            <label>
-                                Dirección
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="address"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-4">
-
-                            <label>
-                                Teléfono
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="phone"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    <hr>
-
-
-                    <h5 class="mb-3">
-                        Sucursal principal
-                    </h5>
-
-
-                    <div class="row">
-
-                        <div class="form-group col-md-6">
-
-                            <label>
-                                Nombre *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="branch_name"
-                                    class="form-control"
-                                    value="PRINCIPAL"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-6">
-
-                            <label>
-                                Código *
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="branch_code"
-                                    class="form-control"
-                                    value="PRINCIPAL"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group col-md-8">
-
-                            <label>
-                                Dirección
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="branch_address"
-                                    class="form-control"
-                            >
-
-                            <small class="form-text text-muted">
-                                Si lo deja vacío se utilizará la dirección de la empresa.
-                            </small>
-
-                        </div>
-
-
-                        <div class="form-group col-md-4">
-
-                            <label>
-                                Teléfono
-                            </label>
-
-                            <input
-                                    type="text"
-                                    name="branch_phone"
-                                    class="form-control"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="text-right">
-
-                        <a
-                                href="{{ route('tenantCompany.index') }}"
-                                class="btn btn-secondary"
-                        >
-                            Cancelar
-                        </a>
-
-                        <button
-                                type="submit"
-                                class="btn btn-primary"
-                        >
-                            Crear empresa
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-        </div>
-
-    </div>
-
+<form id="formCreateTenantCompany" data-url="{{ route('tenantCompany.store') }}">
+@csrf
+<section class="next-form-section" aria-labelledby="company-identity-title"><div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 id="company-identity-title">Datos de la empresa</h2><p>Los campos con (*) son obligatorios.</p></div></div><div class="row">
+<div class="form-group col-md-4">
+<label for="company-ruc">RUC *</label>
+<input type="text" id="company-ruc" name="ruc" class="form-control @error('ruc') is-invalid @enderror" maxlength="11" value="{{ old('ruc') }}">
+
+@error('ruc')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-8">
+<label for="company-business-name">Razón social *</label>
+<input type="text" id="company-business-name" name="business_name" class="form-control @error('business_name') is-invalid @enderror" maxlength="200" value="{{ old('business_name') }}">
+
+@error('business_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-6">
+<label for="company-trade-name">Nombre comercial</label>
+<input type="text" id="company-trade-name" name="trade_name" class="form-control @error('trade_name') is-invalid @enderror" maxlength="150" value="{{ old('trade_name') }}">
+
+@error('trade_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-6">
+<label for="company-email">Correo</label>
+<input type="email" id="company-email" name="email" class="form-control @error('email') is-invalid @enderror" maxlength="150" value="{{ old('email') }}">
+
+@error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-8">
+<label for="company-address">Dirección</label>
+<input type="text" id="company-address" name="address" class="form-control @error('address') is-invalid @enderror" maxlength="250" value="{{ old('address') }}">
+
+@error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-4">
+<label for="company-phone">Teléfono</label>
+<input type="text" id="company-phone" name="phone" class="form-control @error('phone') is-invalid @enderror" maxlength="30" value="{{ old('phone') }}">
+
+@error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+</div></section>
+<section class="next-form-section" aria-labelledby="company-public-title"><div class="next-section-header"><div><span class="next-section-kicker">02</span><h2 id="company-public-title">Enlace público</h2></div></div><div class="row">
+<div class="form-group col-md-12">
+<label for="catalog_slug">Nombre para el enlace público</label>
+<input type="text" id="catalog_slug" name="catalog_slug" class="form-control @error('catalog_slug') is-invalid @enderror" maxlength="80" pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('catalog_slug') }}">
+<small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Vacío: sin enlace público de empresa. Cambiarlo modifica la dirección del catálogo.</small>
+@error('catalog_slug')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+</div></section>
+<section class="next-form-section" aria-labelledby="company-branch-title"><div class="next-section-header"><div><span class="next-section-kicker">03</span><h2 id="company-branch-title">Sucursal principal</h2><p>La empresa se crea con una sucursal principal y su estructura de inventario general.</p></div></div><div class="row">
+<div class="form-group col-md-6">
+<label for="company-branch-name">Nombre *</label>
+<input type="text" id="company-branch-name" name="branch_name" class="form-control @error('branch_name') is-invalid @enderror" maxlength="150" value="{{ old('branch_name', 'PRINCIPAL') }}">
+
+@error('branch_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-6">
+<label for="company-branch-code">Código *</label>
+<input type="text" id="company-branch-code" name="branch_code" class="form-control @error('branch_code') is-invalid @enderror" maxlength="30" value="{{ old('branch_code', 'PRINCIPAL') }}">
+
+@error('branch_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-8">
+<label for="company-branch-address">Dirección</label>
+<input type="text" id="company-branch-address" name="branch_address" class="form-control @error('branch_address') is-invalid @enderror" maxlength="250" value="{{ old('branch_address') }}">
+<small class="form-text text-muted">Si lo deja vacío se utilizará la dirección de la empresa.</small>
+@error('branch_address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-4">
+<label for="company-branch-phone">Teléfono</label>
+<input type="text" id="company-branch-phone" name="branch_phone" class="form-control @error('branch_phone') is-invalid @enderror" maxlength="30" value="{{ old('branch_phone') }}">
+<small class="form-text text-muted">Si lo deja vacío se utilizará el teléfono de la empresa.</small>
+@error('branch_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+<div class="form-group col-md-12">
+<label for="branch_catalog_slug">Nombre para el enlace del local principal</label>
+<input type="text" id="branch_catalog_slug" name="branch_catalog_slug" class="form-control @error('branch_catalog_slug') is-invalid @enderror" maxlength="80" pattern="[a-z0-9]+([-_][a-z0-9]+)*" value="{{ old('branch_catalog_slug') }}">
+<small class="form-text text-muted">Usa minúsculas, números, guiones o guiones bajos. Opcional para incluir este local en el catálogo.</small>
+@error('branch_catalog_slug')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+</div></section>
+<div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap justify-content-end">
+<a href="{{ route('tenantCompany.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+<button type="submit" class="btn btn-primary">Crear empresa</button>
+</div></div>
+</form>
 @endsection
-
-
 @section('scripts')
-
-    <script src="{{ asset('js/tenantCompany/create.js') }}"></script>
-
+<script src="{{ asset('js/tenantCompany/create.js') }}"></script>
 @endsection
