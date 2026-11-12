@@ -13,23 +13,27 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Empresas y conexiones</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Empresas y conexiones</strong><span>Configuración administrativa por tenant y empresa.</span></div></div>
 @endsection
 
 @section('content')
-    <form method="GET" action="{{ route('platformNubefact.index') }}" class="form-inline">
+    <section class="next-operational-list" aria-label="Conexiones por empresa">
+    <div class="next-list-toolbar">
+    <form method="GET" action="{{ route('platformNubefact.index') }}" class="next-toolbar-actions flex-wrap">
         <label for="tenant_id" class="mr-2">Tenant</label>
-        <select name="tenant_id" id="tenant_id" class="form-control form-control-sm mr-2 mb-2">
+        <select name="tenant_id" id="tenant_id" class="form-control form-control-sm">
             <option value="">Todos</option>
             @foreach($tenants as $tenant)
                 <option value="{{ $tenant->id }}" {{ (int) $tenantId === (int) $tenant->id ? 'selected' : '' }}>{{ $tenant->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-primary btn-sm mb-2" type="submit">Filtrar</button>
+        <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
     </form>
+    </div>
+    <div class="next-list-summary"><div class="next-list-summary-copy"><strong>{{ $companies->total() }} empresas</strong><span>El estado indica habilitación; no verifica conexión con Nubefact.</span></div></div>
 
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered mb-0">
+    <div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="Empresas y conexiones; desplazamiento horizontal">
+        <table class="table table-hover table-bordered table-sm next-data-table mb-0">
             <thead><tr><th class="text-left">Tenant</th><th class="text-left">Empresa</th><th class="text-center">RUC</th><th class="text-center">Conexión</th><th class="text-center">Series</th><th class="text-center">Acción</th></tr></thead>
             <tbody>
             @forelse($companies as $company)
@@ -42,13 +46,15 @@
                         @else<span class="badge badge-secondary">Deshabilitada</span>@endif
                     </td>
                     <td class="text-center">{{ $connection ? $connection->serie_factura . ' / ' . $connection->serie_boleta : '—' }}</td>
-                    <td class="text-center"><a class="btn btn-outline-primary btn-sm" href="{{ route('platformNubefact.edit', [$company->tenant_id, $company->id]) }}">Configurar</a></td>
+                    <td class="text-center"><a class="btn btn-outline-secondary btn-sm" href="{{ route('platformNubefact.edit', [$company->tenant_id, $company->id]) }}">{{ $connection ? 'Editar' : 'Configurar' }}</a></td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center">No hay empresas para este filtro.</td></tr>
+                <tr><td colspan="6" class="next-table-empty">No hay empresas para este filtro.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
-    <div class="card-footer">{{ $companies->appends(['tenant_id' => $tenantId])->links() }}</div>
+    </div>
+    <div class="next-list-toolbar">{{ $companies->appends(['tenant_id' => $tenantId])->links() }}</div>
+    </section>
 @endsection

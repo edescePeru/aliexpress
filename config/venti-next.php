@@ -14,6 +14,8 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'platformNubefact.index',
+        'platformNubefact.edit',
         'platformTypeTax.index',
         'companySetting.index',
         'stockitems.index',

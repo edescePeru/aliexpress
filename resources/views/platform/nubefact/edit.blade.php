@@ -13,43 +13,44 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Datos de Configuración</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Configuración de la empresa</strong><span>{{ optional($company->tenant)->name }}</span></div><div class="next-toolbar-actions"><span class="badge {{ $config && $config->is_enabled ? 'badge-success' : 'badge-secondary' }}">{{ !$config ? 'Sin configurar' : ($config->is_enabled ? 'Habilitada' : 'Deshabilitada') }}</span></div></div>
 @endsection
 
 @section('content')
-    <div class="container-fluid">
+    <div>
 
         @if($errors->any())
-            <div class="alert alert-danger" role="alert"><strong>No se guardó la configuración.</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+            <div class="next-form-section"><div class="alert alert-danger mb-0" role="alert"><strong>No se guardó la configuración.</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
         @endif
         <form id="formNubefactConfig" method="POST" action="{{ route('platformNubefact.update', [$company->tenant_id, $company->id]) }}" autocomplete="off">
             @csrf
             <input type="hidden" name="version" value="{{ old('version', $config ? (string) $config->updated_at : '') }}">
-            <div class="card card-outline card-primary">
-                <div class="card-header"><h3 class="card-title">Conexión del proveedor</h3></div>
-                <div class="card-body">
+            <section class="next-form-section" aria-labelledby="nubefact-connection-title">
+                <div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 class="next-section-title" id="nubefact-connection-title">Conexión del proveedor</h2><p class="next-section-description">Datos de integración exclusivos de esta empresa.</p></div></div>
+                <div>
                     <p class="text-muted">Tenant: {{ optional($company->tenant)->name }}. La configuración pertenece a esta empresa.</p>
                     <div class="row">
-                        <div class="col-md-8 form-group"><label for="api_url">Ruta de integración <span class="text-danger">*</span></label><input id="api_url" name="api_url" type="url" required maxlength="2048" class="form-control" value="{{ old('api_url', $config ? $config->api_url : '') }}" aria-describedby="api-url-help"><small id="api-url-help" class="form-text text-muted">Copia la ruta de API – Integración de la cuenta correspondiente al RUC de esta empresa.</small></div>
+                        <div class="col-md-8 form-group"><label for="api_url">Ruta de integración <span class="text-danger">*</span></label><input id="api_url" name="api_url" type="url" required maxlength="2048" class="form-control" value="{{ old('api_url', $config ? $config->api_url : '') }}" aria-describedby="api-url-help"><small id="api-url-help" class="form-text text-muted">Copia la ruta de API – Integración correspondiente al RUC de esta empresa. Debe usar HTTPS y un servidor autorizado; no incluyas parámetros ni credenciales en la URL.</small></div>
                         <div class="col-md-4 form-group"><label for="api_token">{{ $config ? 'Reemplazar token' : 'Token' }}</label><input id="api_token" name="api_token" type="password" maxlength="4096" class="form-control" autocomplete="new-password" {{ $config ? '' : 'required' }} aria-describedby="api-token-help"><small id="api-token-help" class="form-text text-muted">{{ $config ? 'Token configurado. Déjalo vacío para conservarlo. Si cambias la ruta o el RUC, ingresa el token de la nueva conexión.' : 'Ingresa el token de la cuenta Nubefact de esta empresa.' }}</small></div>
                     </div>
                     <input type="hidden" name="is_enabled" value="0">
                     <div class="custom-control custom-checkbox"><input id="is_enabled" name="is_enabled" type="checkbox" value="1" class="custom-control-input" {{ old('is_enabled', $config ? (int) $config->is_enabled : 0) ? 'checked' : '' }}><label class="custom-control-label" for="is_enabled">Habilitar conexión para esta empresa</label></div>
                 </div>
-            </div>
-            <div class="card card-outline card-primary">
-                <div class="card-header"><h3 class="card-title">Series de comprobantes</h3></div>
-                <div class="card-body">
+            </section>
+            <section class="next-form-section" aria-labelledby="nubefact-series-title">
+                <div class="next-section-header"><div><span class="next-section-kicker">02</span><h2 class="next-section-title" id="nubefact-series-title">Series de comprobantes</h2><p class="next-section-description">Factura, boleta y sus notas de crédito.</p></div></div>
+                <div>
                     <div class="row">
-                        <div class="col-md-3 form-group"><label for="serie_factura">Factura <span class="text-danger">*</span></label><input id="serie_factura" name="serie_factura" class="form-control" required maxlength="4" pattern="F[A-Z0-9]{3}" value="{{ old('serie_factura', $config ? $config->serie_factura : 'FFF1') }}"></div>
-                        <div class="col-md-3 form-group"><label for="serie_boleta">Boleta <span class="text-danger">*</span></label><input id="serie_boleta" name="serie_boleta" class="form-control" required maxlength="4" pattern="B[A-Z0-9]{3}" value="{{ old('serie_boleta', $config ? $config->serie_boleta : 'BBB1') }}"></div>
-                        <div class="col-md-3 form-group"><label for="serie_nc_factura">Nota de crédito de factura</label><input id="serie_nc_factura" name="serie_nc_factura" class="form-control" maxlength="4" pattern="F[A-Z0-9]{3}" value="{{ old('serie_nc_factura', $config ? $config->serie_nc_factura : '') }}"></div>
-                        <div class="col-md-3 form-group"><label for="serie_nc_boleta">Nota de crédito de boleta</label><input id="serie_nc_boleta" name="serie_nc_boleta" class="form-control" maxlength="4" pattern="B[A-Z0-9]{3}" value="{{ old('serie_nc_boleta', $config ? $config->serie_nc_boleta : '') }}"></div>
+                        <div class="col-sm-6 col-xl-3 form-group"><label for="serie_factura">Factura <span class="text-danger">*</span></label><input id="serie_factura" name="serie_factura" class="form-control" required maxlength="4" pattern="F[A-Z0-9]{3}" value="{{ old('serie_factura', $config ? $config->serie_factura : 'FFF1') }}"></div>
+                        <div class="col-sm-6 col-xl-3 form-group"><label for="serie_boleta">Boleta <span class="text-danger">*</span></label><input id="serie_boleta" name="serie_boleta" class="form-control" required maxlength="4" pattern="B[A-Z0-9]{3}" value="{{ old('serie_boleta', $config ? $config->serie_boleta : 'BBB1') }}"></div>
+                        <div class="col-sm-6 col-xl-3 form-group"><label for="serie_nc_factura">Nota de crédito de factura</label><input id="serie_nc_factura" name="serie_nc_factura" class="form-control" maxlength="4" pattern="F[A-Z0-9]{3}" value="{{ old('serie_nc_factura', $config ? $config->serie_nc_factura : '') }}"></div>
+                        <div class="col-sm-6 col-xl-3 form-group"><label for="serie_nc_boleta">Nota de crédito de boleta</label><input id="serie_nc_boleta" name="serie_nc_boleta" class="form-control" maxlength="4" pattern="B[A-Z0-9]{3}" value="{{ old('serie_nc_boleta', $config ? $config->serie_nc_boleta : '') }}"></div>
                     </div>
                     <small class="text-muted">Usa las series configuradas en Nubefact. La numeración seguirá asignándose desde el proveedor.</small>
                 </div>
-            </div>
-            <div class="d-flex justify-content-end mb-3"><a href="{{ route('platformNubefact.index') }}" class="btn btn-outline-secondary mr-2">Volver</a><button id="btnSaveNubefactConfig" type="submit" class="btn btn-primary">Guardar configuración</button></div>
+            </section>
+            <div class="next-form-section"><div class="alert alert-info mb-0" role="note">Guardar actualiza la configuración. No prueba la conexión ni emite comprobantes.</div></div>
+            <div class="next-list-toolbar justify-content-end"><div class="next-toolbar-actions flex-wrap"><a href="{{ route('platformNubefact.index') }}" class="btn btn-outline-secondary">Volver</a><button id="btnSaveNubefactConfig" type="submit" class="btn btn-primary">Guardar configuración</button></div></div>
         </form>
     </div>
 @endsection
