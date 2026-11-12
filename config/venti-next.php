@@ -13,7 +13,11 @@ return [
     // REAL NEXT: rollout aprobado y limitado por la allowlist inferior.
     'enabled' => true,
 
+    // Exact registered URI for the unnamed normal-purchase detail view.
+    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
+
     'routes' => [
+        'order.purchase.normal.indexV2',
         'ganancia.index.trabajador',
         'ganancia.detail.usuario',
         'platformNubefact.index',

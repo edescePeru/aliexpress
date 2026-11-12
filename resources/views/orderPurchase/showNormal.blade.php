@@ -1,372 +1,40 @@
 @extends('layouts.appAdmin2')
-
-@section('openOrderPurchaseGeneral')
-    menu-open
-@endsection
-
-@section('activeOrderPurchaseGeneral')
-    active
-@endsection
-
-@section('activeListOrderPurchaseNormal')
-    active
-@endsection
-
-@section('title')
-    Orden de compra normal
-@endsection
-
-@section('styles-plugins')
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.standalone.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.standalone.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/typehead/typeahead.css') }}">
-
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
+@section('openOrderPurchaseGeneral', 'menu-open')
+@section('activeOrderPurchaseGeneral', 'active')
+@section('activeListOrderPurchaseNormal', 'active')
+@section('title', 'Orden de compra normal')
 @section('page-header')
-    <h1 class="page-title">Visualizar orden de compra normal</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Orden {{ $order->code ?: ('#' . $order->id) }}</h1><p class="next-page-description">Orden normal · consulta de la empresa activa.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Orden de compra normal</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Detalle de orden</strong><span>Solo lectura · {{ $order->currency_order ?: 'Moneda no registrada' }}</span></div><div class="next-toolbar-actions"><a href="{{ route('order.purchase.normal.indexV2') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
-
-@section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.normal.indexV2')}}"><i class="fa fa-key"></i> Ordenes de compra</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Visualizar</li>
-    </ol>
-@endsection
-
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="" enctype="multipart/form-data">
-        @csrf
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-success">
-                    <div class="card-header">
-                        <h3 class="card-title">Datos generales</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <input type="hidden" name="order_id" value="{{ $order->id }}">
-                                    <label for="purchase_order">Orden de Compra</label>
-                                    <input type="text" id="purchase_order" name="purchase_order" class="form-control" value="{{ $order->code }}" readonly>
-                                </div>
-                                <div class="form-group " id="sandbox-container">
-                                    <label for="date_order">Fecha de Orden</label>
-                                    <div class="input-daterange" id="datepicker">
-                                        <input type="text" class="form-control date-range-filter" id="date_order" name="date_order" value="{{ \Carbon\Carbon::parse($order->date_order)->format('d/m/Y') }}" readonly>
-                                    </div>
-                                </div>
-                                <div class="form-group " id="sandbox-container">
-                                    <label for="date_arrival">Fecha de Llegada</label>
-                                    <div class="input-daterange" id="datepicker">
-                                        <input type="text" class="form-control date-range-filter" id="date_arrival" name="date_arrival" value="{{ \Carbon\Carbon::parse($order->date_arrival)->format('d/m/Y')}}" readonly>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="observation">Observación </label>
-                                    <textarea readonly name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ....">{{ $order->observation }}</textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="quote_supplier">Cotización de proveedeor : </label>
-                                    <input type="text" id="quote_supplier" name="quote_supplier" class="form-control" value="{{ $order->quote_supplier }}" readonly>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="supplier">Proveedor </label>
-                                    <input type="text" id="approved_by" name="purchase_condition" class="form-control" value="{{ ($order->supplier == null) ? 'Falta proveedor':$order->supplier->business_name }}" readonly>
-
-                                </div>
-                                <div class="form-group">
-                                    <label for="purchase-created-user">Creado por</label>
-                                    <input id="purchase-created-user" class="form-control" value="{{ optional($order->createdUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="purchase-updated-user">Última modificación por</label>
-                                    <input id="purchase-updated-user" class="form-control" value="{{ optional($order->updatedUser)->name ?? 'No registrado / usuario no disponible' }}" readonly>
-                                </div>
-                                @if($order->approved_by)
-                                    <div class="form-group">
-                                        <label>Aprobador consignado anteriormente</label>
-                                        <input class="form-control" value="{{ optional($order->approved_user)->name ?? 'Usuario no disponible' }}" readonly>
-                                    </div>
-                                @endif
-                                <div class="form-group">
-                                    <label for="purchase_condition">Forma de pago </label>
-                                    <input type="text" id="purchase_condition" name="purchase_condition" class="form-control" value="{{ ($order->deadline !== null) ? $order->deadline->description:'No tiene condición' }}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="btn-currency"> Moneda </label> <br>
-                                    <input id="btn-currency" name="currency_order" class="form-control" value="{{ ($order->currency_order === 'PEN') ? 'SOLES':'DOLARES' }}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="quote_id">Cotización: </label>
-                                    <input type="text" id="quote_id" name="quote_id" class="form-control" value="{{ ($order->quote_id == null) ? 'Sin Trabajo':$order->quote->code.' '.$order->quote->description_quote }}" readonly>
-
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                    <!-- /.card-body -->
-                </div>
-                <!-- /.card -->
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-warning">
-                    <div class="card-header">
-                        <h3 class="card-title">Detalles de compra</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body " id="element_loader">
-                        <div class="row">
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>ID</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Código</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <strong>Material</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <strong>Cantidad</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Precio C/Igv</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Precio S/Igv</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <strong>Total C/Igv</strong>
-                                </div>
-                            </div>
-
-                        </div>
-                        <div id="body-materials">
-                            @foreach( $details as $detail )
-                            <div class="row">
-                                <div class="col-md-1">
-                                    <div class="form-group">
-                                        <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-id value="{{ optional($detail->stockItem)->id ?? $detail->material->id }}" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-1">
-                                    <div class="form-group">
-                                        <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-code value="{{optional($detail->stockItem)->sku ?? $detail->material->code }}" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <div class="form-group">
-                                            <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-description value="{{ optional($detail->stockItem)->display_name ?? $detail->material->full_description }}" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <input type="number" class="form-control form-control-sm" onkeyup="calculateTotal(this);" placeholder="0.00" min="0" value="{{ $detail->quantity }}" data-quantity="{{$detail->id}}" step="0.01" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-1">
-                                    <div class="form-group">
-                                        <input type="number" class="form-control form-control-sm" onkeyup="calculateTotal2(this);" placeholder="0.00" min="0" data-price="{{$detail->id}}" value="{{ $detail->price }}" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-1">
-                                    <div class="form-group">
-                                        <input type="number" class="form-control form-control-sm" oninput="calculateTotal3(this);" placeholder="0.00" min="0" data-price2 step="0.01" value="{{ round((float)($detail->price)/1.18, 2) }}" pattern="^\d+(?:\.\d{1,2})?$" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-total step="0.01" value="{{ ($detail->total_detail != null) ? $detail->total_detail : $detail->quantity*$detail->price }}" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                                        this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                                        " readonly>
-                                    </div>
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                    </div>
-                    <!-- /.card-body -->
-                </div>
-                <!-- /.card -->
-            </div>
-        </div>
-        <!-- /.card-footer -->
-        <div class="row">
-            <!-- accepted payments column -->
-            <div class="col-6">
-
-            </div>
-            <!-- /.col -->
-            <div class="col-6">
-                <p class="lead">Resumen de factura</p>
-
-                <div class="table-responsive">
-                    <table class="table">
-                        <tr>
-                            <th style="width:50%">Subtotal: </th>
-                            <td ><span class="moneda">{{ $order->currency_order }}</span> <span id="subtotal">{{ $order->total - $order->igv }}</span> </td>
-                        </tr>
-                        <tr>
-                            <th>Igv: </th>
-                            <td ><span class="moneda">{{ $order->currency_order }}</span> <span id="taxes">{{ $order->igv }}</span> </td>
-                        </tr>
-                        <tr>
-                            <th>Total: </th>
-                            <td ><span class="moneda">{{ $order->currency_order }}</span> <span id="total">{{ $order->total }}</span> </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            <!-- /.col -->
-        </div>
-    </form>
-
-    <template id="materials-selected">
-        <div class="row">
-            <div class="col-md-1">
-                <div class="form-group">
-                    <div class="form-group">
-                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-id readonly>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-1">
-                <div class="form-group">
-                    <div class="form-group">
-                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-code readonly>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="form-group">
-                    <div class="form-group">
-                        <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-description readonly>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-1">
-                <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" onkeyup="calculateTotal(this);" placeholder="0.00" min="0" data-quantity step="0.01" >
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" onkeyup="calculateTotal2(this);" placeholder="0.00" min="0" data-price step="0.01" pattern="^\d+(?:\.\d{1,2})?$">
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-total step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
-                            this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
-                            " readonly>
-                </div>
-            </div>
-            <div class="col-md-1">
-                <div class="btn-group">
-                    <button type="button" data-delete="" data-material="" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
-                </div>
-            </div>
-        </div>
-    </template>
-
-@endsection
-
-@section('plugins')
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/bootstrap-switch/js/bootstrap-switch.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
-    <script src="{{asset('admin/plugins/typehead/typeahead.bundle.js')}}"></script>
-@endsection
-
-@section('scripts')
-    <script src="{{asset('admin/plugins/jquery_loading/loadingoverlay.min.js')}}"></script>
-
-    <script>
-        $(function () {
-            //Initialize Select2 Elements
-            /*$('#date_order').attr("value", moment().format('DD/MM/YYYY'));
-            $('#date_arrival').attr("value", moment().format('DD/MM/YYYY'));
-*/
-            $('#sandbox-container .input-daterange').datepicker({
-                todayBtn: "linked",
-                clearBtn: true,
-                language: "es",
-                multidate: false,
-                autoclose: true,
-                todayHighlight: true,
-                defaultViewDate: moment().format('L')
-            });
-
-            $("input[data-bootstrap-switch]").each(function(){
-                $(this).bootstrapSwitch();
-            });
-
-
-        })
-    </script>
-
-    <script src="{{ asset('js/orderPurchase/showNormal.js') }}"></script>
+<section class="next-form-section" aria-label="Datos generales">
+<h2 class="h6">Datos generales</h2>
+<div class="row">
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Proveedor</p><p>{{ optional($order->supplier)->business_name ?: 'No registrado / no disponible' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Fecha de orden</p><p>{{ $order->date_order ? $order->date_order->format('d/m/Y') : 'No registrada' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Fecha de llegada</p><p>{{ $order->date_arrival ? $order->date_arrival->format('d/m/Y') : 'No registrada' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Estado de orden</p><p>
+@if($order->status_order === 'stand_by')<span class="badge badge-warning">Pendiente</span>
+@elseif($order->status_order === 'send')<span class="badge badge-primary">Enviado</span>
+@elseif($order->status_order === 'pick_up')<span class="badge badge-success">Recogido</span>
+@else{{ $order->status_order ?: 'No registrado' }}@endif
+</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Creado por</p><p>{{ optional($order->createdUser)->name ?? 'No registrado / usuario no disponible' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Última modificación por</p><p>{{ optional($order->updatedUser)->name ?? 'No registrado / usuario no disponible' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Forma de pago</p><p>{{ optional($order->deadline)->description ?: 'No registrada' }}</p></div>
+<div class="col-sm-6 col-lg-3"><p class="text-muted mb-1">Cotización de proveedor</p><p>{{ $order->quote_supplier ?: 'No registrada' }}</p></div>
+@if($order->approved_by)<div class="col-sm-6"><p class="text-muted mb-1">Aprobador consignado anteriormente</p><p>{{ optional($order->approved_user)->name ?? 'Usuario no disponible' }}</p></div>@endif
+<div class="col-sm-6"><p class="text-muted mb-1">Cotización</p><p class="text-break">{{ $order->quote_id ? (optional($order->quote)->code . ' ' . optional($order->quote)->description_quote) : 'Sin trabajo' }}</p></div>
+<div class="col-12"><p class="text-muted mb-1">Observación</p><p class="text-break mb-0">{{ $order->observation ?: 'Sin observaciones' }}</p></div>
+</div></section>
+<div class="next-list-summary"><strong>Detalles de compra</strong><span>{{ $details->count() }} líneas · {{ $order->currency_order }}</span></div>
+<div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="Items de compra; desplazamiento horizontal"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Código / SKU</th><th>Material / variante</th><th class="text-center">Unidad</th><th class="text-center">Cantidad</th><th class="text-right">Precio C/IGV</th><th class="text-right">IGV registrado</th><th class="text-right">Total registrado</th></tr></thead><tbody id="body-materials">
+@forelse($details as $detail)
+<tr><td class="text-center">{{ optional($detail->stockItem)->id ?? $detail->material_id }}</td><td class="text-center">{{ optional($detail->stockItem)->sku ?? optional($detail->material)->code ?? 'No disponible' }}</td><td>{{ optional($detail->stockItem)->display_name ?? optional($detail->material)->full_description ?? 'Material no disponible' }}<small class="d-block text-muted">{{ $detail->stock_item_id ? 'StockItem' : 'Material histórico' }}</small></td><td class="text-center">{{ optional(optional($detail->material)->unitMeasure)->description ?? '—' }}</td><td class="text-center">{{ $detail->quantity }}</td><td class="text-right">{{ $detail->price === null ? 'No registrado' : number_format($detail->price, 2) }}</td><td class="text-right">{{ $detail->igv === null ? 'No registrado' : number_format($detail->igv, 2) }}</td><td class="text-right">{{ $detail->total_detail === null ? 'No registrado' : number_format($detail->total_detail, 2) }}</td></tr>
+@empty<tr><td colspan="8" class="next-table-empty">Esta orden no tiene detalles registrados.</td></tr>@endforelse
+</tbody></table></div></div>
+<section class="next-form-section" aria-label="Importes registrados"><div class="row"><div class="col-sm-4"><p class="text-muted mb-1">Moneda</p><strong>{{ $order->currency_order ?: 'No registrada' }}</strong></div><div class="col-sm-4"><p class="text-muted mb-1">IGV registrado</p><strong id="taxes">{{ $order->igv === null ? 'No registrado' : number_format($order->igv, 2) }}</strong></div><div class="col-sm-4"><p class="text-muted mb-1">Total registrado</p><strong id="total">{{ $order->total === null ? 'No registrado' : number_format($order->total, 2) }}</strong></div></div></section>
 @endsection

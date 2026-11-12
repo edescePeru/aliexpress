@@ -35,9 +35,10 @@
 
         $useVentiNext =
             $ventiNextEnabled === true
-            && $currentRoute
-            && is_array($ventiNextRoutes)
-            && in_array($currentRoute, $ventiNextRoutes, true);
+            && (
+                ($currentRoute && is_array($ventiNextRoutes) && in_array($currentRoute, $ventiNextRoutes, true))
+                || (request()->isMethod('GET') && in_array(optional(request()->route())->uri(), config('venti-next.route_uris', []), true))
+            );
 
         $useVentiUi =
             ($ventiEnabled === true
