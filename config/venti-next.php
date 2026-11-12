@@ -14,6 +14,8 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'stockitems.index',
+        'material.stock.getItems',
         'puntoVenta.index',
         'puntoVenta.indexV2',
         'tenantBranch.index',

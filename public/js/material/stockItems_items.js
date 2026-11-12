@@ -1,376 +1,50 @@
-function format(d) {
-    const location = d.location || {};
-
-    const area = location.area ? location.area.name : '-';
-    const warehouse = location.warehouse ? location.warehouse.name : '-';
-    const shelf = location.shelf ? location.shelf.name : '-';
-    const level = location.level ? location.level.name : '-';
-    const container = location.container ? location.container.name : '-';
-    const position = location.position ? location.position.name : '-';
-
-    const locationText =
-        'AR:' + area +
-        '|AL:' + warehouse +
-        '|ES:' + shelf +
-        '|FIL:' + level +
-        '|COL:' + container +
-        '|POS:' + position;
-
-    const typescrap = d.typescrap
-        ? d.typescrap.name
-        : 'No tiene';
-
-    return 'Estado: ' + (d.state || '-') + '<br>' +
-        'Estado de Item: ' + (d.state_item || '-') + '<br>' +
-        'Tipo de Material: ' + typescrap + '<br>' +
-        'Ubicación: ' + locationText + '<br>';
-}
-
-function escapeHtml(value) {
-    return $('<div>').text(value || '').html();
-}
-
-function can(permission) {
-    return Array.isArray(window.permissions) &&
-        window.permissions.includes(permission);
-}
-
-$(document).ready(function () {
-    var idMaterial = $("#id-material").val();
-
-    var table = $('#dynamic-table').DataTable( {
-        processing: true,
-        serverSide: true,
-        ajax: {
-            url: "/dashboard/view/stock/material/all/items/" + idMaterial,
-            type: "GET"
-        },
-        bAutoWidth: false,
-        pageLength: 25,
-        lengthMenu: [10, 25, 50, 100],
-        deferRender: true,
-        rowId: 'id',
-        columns: [
-            {
-                className: "details-control",
-                orderable: false,
-                searchable: false,
-                data: null,
-                defaultContent: ""
-            },
-            {
-                data: "material_description",
-                name: "material.full_name"
-            },
-            {
-                data: "code",
-                name: "code",
-                render: function (data, type, row) {
-                    const code = data || '';
-
-                    let buttonEdit = '';
-
-                    if (can('editarCodeItems_material')) {
-                        buttonEdit = `
-                                <button type="button"
-                                        class="btn btn-xs btn-outline-primary ml-2 btn-edit-item-code"
-                                        data-item-id="${row.id}"
-                                        title="Editar código">
-                                    <i class="fa fa-edit"></i>
-                                </button>
-                            `;
-                    }
-
-                    return `
-                        <div class="d-flex align-items-center justify-content-between">
-                            <span>${escapeHtml(code)}</span>
-                            ${buttonEdit}
-                        </div>
-                    `;
-                }
-            },
-            { data: "price", name: "price" },
-            { data: "percentage", name: "percentage" },
-            {
-                data: null,
-                title: "Estado",
-                orderable: false,
-                searchable: false,
-                render: function (item) {
-                    var status = item.state_item === "entered"
-                        ? '<span class="badge bg-success">Ingresado</span>'
-                        : item.state_item === "reserved"
-                            ? '<span class="badge bg-warning">Reservado</span>'
-                            : '<span class="badge bg-secondary">Indefinido</span>';
-
-                    return '<p class="mb-0">' + status + '</p>';
-                }
-            }
-        ],
-
-        aaSorting: [],
-        select: {
-            style: "single"
-        },
-        language: {
-            "processing": "Procesando...",
-            "lengthMenu": "Mostrar _MENU_ registros",
-            "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
-            "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
-            "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
-            "infoFiltered": "(filtrado de un total de _MAX_ registros)",
-            "search": "Buscar:",
-            "infoThousands": ",",
-            "loadingRecords": "Cargando...",
-            "paginate": {
-                "first": "Primero",
-                "last": "Último",
-                "next": "Siguiente",
-                "previous": "Anterior"
-            },
-            "aria": {
-                "sortAscending": ": Activar para ordenar la columna de manera ascendente",
-                "sortDescending": ": Activar para ordenar la columna de manera descendente"
-            },
-            "buttons": {
-                "copy": "Copiar",
-                "colvis": "Visibilidad",
-                "collection": "Colección",
-                "colvisRestore": "Restaurar visibilidad",
-                "copyKeys": "Presione ctrl o u2318 + C para copiar los datos de la tabla al portapapeles del sistema. <br \/> <br \/> Para cancelar, haga clic en este mensaje o presione escape.",
-                "copySuccess": {
-                    "1": "Copiada 1 fila al portapapeles",
-                    "_": "Copiadas %d fila al portapapeles"
-                },
-                "copyTitle": "Copiar al portapapeles",
-                "csv": "CSV",
-                "excel": "Excel",
-                "pageLength": {
-                    "-1": "Mostrar todas las filas",
-                    "1": "Mostrar 1 fila",
-                    "_": "Mostrar %d filas"
-                },
-                "pdf": "PDF",
-                "print": "Imprimir"
-            },
-            "autoFill": {
-                "cancel": "Cancelar",
-                "fill": "Rellene todas las celdas con <i>%d<\/i>",
-                "fillHorizontal": "Rellenar celdas horizontalmente",
-                "fillVertical": "Rellenar celdas verticalmentemente"
-            },
-            "decimal": ",",
-            "searchBuilder": {
-                "add": "Añadir condición",
-                "button": {
-                    "0": "Constructor de búsqueda",
-                    "_": "Constructor de búsqueda (%d)"
-                },
-                "clearAll": "Borrar todo",
-                "condition": "Condición",
-                "conditions": {
-                    "date": {
-                        "after": "Despues",
-                        "before": "Antes",
-                        "between": "Entre",
-                        "empty": "Vacío",
-                        "equals": "Igual a",
-                        "not": "No",
-                        "notBetween": "No entre",
-                        "notEmpty": "No Vacio"
-                    },
-                    "number": {
-                        "between": "Entre",
-                        "empty": "Vacio",
-                        "equals": "Igual a",
-                        "gt": "Mayor a",
-                        "gte": "Mayor o igual a",
-                        "lt": "Menor que",
-                        "lte": "Menor o igual que",
-                        "not": "No",
-                        "notBetween": "No entre",
-                        "notEmpty": "No vacío"
-                    },
-                    "string": {
-                        "contains": "Contiene",
-                        "empty": "Vacío",
-                        "endsWith": "Termina en",
-                        "equals": "Igual a",
-                        "not": "No",
-                        "notEmpty": "No Vacio",
-                        "startsWith": "Empieza con"
-                    }
-                },
-                "data": "Data",
-                "deleteTitle": "Eliminar regla de filtrado",
-                "leftTitle": "Criterios anulados",
-                "logicAnd": "Y",
-                "logicOr": "O",
-                "rightTitle": "Criterios de sangría",
-                "title": {
-                    "0": "Constructor de búsqueda",
-                    "_": "Constructor de búsqueda (%d)"
-                },
-                "value": "Valor"
-            },
-            "searchPanes": {
-                "clearMessage": "Borrar todo",
-                "collapse": {
-                    "0": "Paneles de búsqueda",
-                    "_": "Paneles de búsqueda (%d)"
-                },
-                "count": "{total}",
-                "countFiltered": "{shown} ({total})",
-                "emptyPanes": "Sin paneles de búsqueda",
-                "loadMessage": "Cargando paneles de búsqueda",
-                "title": "Filtros Activos - %d"
-            },
-            "select": {
-                "1": "%d fila seleccionada",
-                "_": "%d filas seleccionadas",
-                "cells": {
-                    "1": "1 celda seleccionada",
-                    "_": "$d celdas seleccionadas"
-                },
-                "columns": {
-                    "1": "1 columna seleccionada",
-                    "_": "%d columnas seleccionadas"
-                }
-            },
-            "thousands": ".",
-            "datetime": {
-                "previous": "Anterior",
-                "next": "Proximo",
-                "hours": "Horas"
-            }
-        }
-
-    } );
-
-    // Array to track the ids of the details displayed rows
-    var detailRows = [];
-
-    $('#dynamic-table tbody').on( 'click', 'tr td.details-control', function () {
-        var tr = $(this).closest('tr');
-        var row = table.row( tr );
-        var idx = $.inArray( tr.attr('id'), detailRows );
-
-        if ( row.child.isShown() ) {
-            tr.removeClass( 'details' );
-            row.child.hide();
-
-            // Remove from the 'open' array
-            detailRows.splice( idx, 1 );
-        }
-        else {
-            tr.addClass( 'details' );
-            row.child( format( row.data() ) ).show();
-
-            // Add to the 'open' array
-            if ( idx === -1 ) {
-                detailRows.push( tr.attr('id') );
-            }
-        }
-    } );
-
-    // On each draw, loop over the `detailRows` array and show any child rows
-    table.on( 'draw', function () {
-        $.each( detailRows, function ( i, id ) {
-            $('#'+id+' td.details-control').trigger( 'click' );
-        } );
-    } );
-
-    $(document).on('click', '[data-column]', function (e) {
-        //e.preventDefault();
-
-        // Get the column API object
-        var column = table.column( $(this).attr('data-column') );
-
-        // Toggle the visibility
-        column.visible( ! column.visible() );
-    } );
-
-    $(document).on('click', '.btn-edit-item-code', function () {
-        const itemId = $(this).data('item-id');
-        const row = table.row($(this).closest('tr')).data();
-
-        abrirModalEditarCodigoItem(itemId, row.code || '');
-    });
-
-    $(document).on('click', '#btnGuardarCodigoItem', function () {
-
-        const itemId = $('#edit_item_id').val();
-        const code = ($('#edit_item_code').val() || '').trim();
-
-        if (!itemId) {
-            toastr.error('No se encontró el ítem a actualizar.', 'Error');
-            return;
-        }
-
-        if (!code) {
-            $('#edit_item_code').addClass('is-invalid').focus();
-            toastr.error('Debe ingresar un código o serie.', 'Error');
-            return;
-        }
-
-        $('#edit_item_code').removeClass('is-invalid');
-
-        const button = $(this);
-
-        button.prop('disabled', true);
-        button.html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
-
-        $.ajax({
-            url: '/dashboard/stock/material/item/' + itemId + '/code',
-            type: 'PUT',
-            data: {
-                code: code,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function (response) {
-
-                toastr.success(
-                    response.message || 'Código actualizado correctamente.',
-                    'Correcto'
-                );
-
-                $('#modalEditarCodigoItem').modal('hide');
-
-                // Recarga manteniendo la página actual.
-                table.ajax.reload(null, false);
-            },
-            error: function (xhr) {
-
-                let message = 'No se pudo actualizar el código.';
-
-                if (xhr.status === 422) {
-                    message = xhr.responseJSON?.message || message;
-
-                    if (xhr.responseJSON?.errors?.code?.[0]) {
-                        message = xhr.responseJSON.errors.code[0];
-                    }
-
-                    $('#edit_item_code').addClass('is-invalid').focus();
-                }
-
-                toastr.error(message, 'Error');
-            },
-            complete: function () {
-                button.prop('disabled', false);
-                button.html('<i class="fa fa-save"></i> Guardar');
-            }
+/* Physical Items read path; no item-code mutation handler is loaded. */
+(function ($) {
+    'use strict';
+    const text = value => $('<div>').text(value === null || value === undefined || value === '' ? '—' : String(value)).html();
+    function state(value) {
+        const labels = {entered: 'Ingresado', scraped: 'Retazo', reserved: 'Reservado'};
+        return '<span class="badge badge-secondary">' + text(labels[value] || value) + '</span><small class="text-muted d-block">' + text(value) + '</small>';
+    }
+    function detail(item) {
+        const location = item.location || {};
+        const parts = [['Estado físico', item.state], ['Estado de inventario', item.state_item], ['Tipo de retacería', item.typescrap && item.typescrap.name], ['Ubicación', location.description], ['Área', location.area && location.area.name], ['Almacén', location.warehouse && location.warehouse.name], ['Estante', location.shelf && location.shelf.name], ['Nivel', location.level && location.level.name], ['Contenedor', location.container && location.container.name], ['Posición', location.position && location.position.name]];
+        return '<div class="next-form-section"><dl class="row mb-0">' + parts.map(function (part) { return '<dt class="col-sm-4">' + part[0] + '</dt><dd class="col-sm-8 text-break">' + text(part[1]) + '</dd>'; }).join('') + '</dl></div>';
+    }
+    $(function () {
+        const $table = $('#dynamic-table');
+        $table.on('xhr.dt', function (event, settings, data, xhr) {
+            if (data && !data.error) { $('#items-read-error').addClass('d-none').empty(); return; }
+            const response = xhr.responseJSON || {};
+            const errors = response.errors && Object.values(response.errors);
+            // A rejected snapshot must not leave the previous context's rows visible.
+            $table.find('tbody').empty();
+            $('#dynamic-table_info, #dynamic-table_paginate').empty();
+            $('#items-read-error').removeClass('d-none').text(errors && errors.length ? [].concat(errors[0])[0] : response.message || 'No se pudo consultar los Items. Recargue la página para actualizar el contexto.');
+            return true;
+        });
+        const table = $table.DataTable({
+            processing: true, serverSide: true,
+            ajax: {url: window.stockItemItemsDataUrl, type: 'GET'},
+            autoWidth: false, pageLength: 25, lengthMenu: [10, 25, 50, 100], deferRender: true, rowId: 'id',
+            dom: '<"next-list-toolbar d-flex flex-wrap align-items-center justify-content-between"lf><"table-responsive"t><"next-list-pagination"ip>',
+            columns: [
+                {className: 'text-center', orderable: false, searchable: false, data: null, defaultContent: '<button type="button" class="btn btn-outline-secondary btn-sm next-table-cell-action item-detail-toggle" aria-expanded="false" aria-label="Ver detalle del Item"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>'},
+                {data: 'material_description', name: 'material.full_name', render: function (value, type) { return type === 'display' ? text(value) : value; }},
+                {data: 'code', name: 'code', className: 'text-center', render: function (value, type) { return type === 'display' ? text(value) : value; }},
+                {data: 'price', name: 'price', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
+                {data: 'percentage', name: 'percentage', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
+                {data: 'state_item', orderable: false, searchable: false, className: 'text-center', render: function (value, type) { return type === 'display' ? state(value) : value; }}
+            ],
+            order: [],
+            language: {processing: 'Consultando…', search: 'Buscar:', lengthMenu: 'Mostrar _MENU_', info: 'Mostrando _START_ a _END_ de _TOTAL_ Items', infoEmpty: 'Sin Items en este contexto', infoFiltered: '(de _MAX_ Items)', zeroRecords: 'No se encontraron Items.', emptyTable: 'No hay Items en este contexto.', paginate: {first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último'}},
+            initComplete: function () { $table.closest('.table-responsive').attr({tabindex: '0', 'aria-label': 'Items; desplazamiento horizontal de tabla'}); }
+        });
+        $table.on('click', '.item-detail-toggle', function () {
+            const row = table.row($(this).closest('tr'));
+            const open = !row.child.isShown();
+            if (open) row.child(detail(row.data())).show(); else row.child.hide();
+            $(this).attr({'aria-expanded': String(open), 'aria-label': open ? 'Cerrar detalle del Item' : 'Ver detalle del Item'}).find('i').toggleClass('fa-chevron-up', open).toggleClass('fa-chevron-down', !open);
         });
     });
-});
-
-function abrirModalEditarCodigoItem(itemId, code) {
-    $('#edit_item_id').val(itemId);
-    $('#edit_item_code').val(code);
-
-    $('#modalEditarCodigoItem').modal('show');
-
-    setTimeout(function () {
-        $('#edit_item_code').focus().select();
-    }, 250);
-}
+})(window.jQuery);
