@@ -14,6 +14,7 @@ return [
     'enabled' => true,
 
     'routes' => [
+        'platformTypeTax.index',
         'companySetting.index',
         'stockitems.index',
         'material.stock.getItems',

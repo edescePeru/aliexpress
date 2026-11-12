@@ -37,20 +37,21 @@ $(function () {
                 'blue',
 
             columnClass:
-                'col-md-6 col-md-offset-3',
+                'col-12 col-md-8 col-lg-6 mx-auto',
 
             content: `
-                <form>
+                <form class="next-form-section">
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_code">
                             Código
                         </label>
 
                         <input
                             type="text"
                             name="code"
+                            id="typeTaxField_code"
                             class="form-control"
                             placeholder="Ej. IGV_18"
                             maxlength="50"
@@ -64,13 +65,14 @@ $(function () {
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_name">
                             Nombre
                         </label>
 
                         <input
                             type="text"
                             name="name"
+                            id="typeTaxField_name"
                             class="form-control"
                             placeholder="Ej. IGV 18%"
                         >
@@ -79,13 +81,14 @@ $(function () {
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_tax">
                             Tasa (%)
                         </label>
 
                         <input
                             type="number"
                             name="tax"
+                            id="typeTaxField_tax"
                             class="form-control"
                             min="0"
                             max="100"
@@ -231,20 +234,21 @@ $(function () {
                 'blue',
 
             columnClass:
-                'col-md-6 col-md-offset-3',
+                'col-12 col-md-8 col-lg-6 mx-auto',
 
             content: `
-                <form>
+                <form class="next-form-section">
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_code">
                             Código
                         </label>
 
                         <input
                             type="text"
                             class="form-control"
+                            id="typeTaxField_code"
                             value="${escapeHtml(typeTax.code)}"
                             readonly
                         >
@@ -257,13 +261,14 @@ $(function () {
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_name">
                             Nombre
                         </label>
 
                         <input
                             type="text"
                             name="name"
+                            id="typeTaxField_name"
                             class="form-control"
                             value="${escapeHtml(typeTax.name)}"
                         >
@@ -272,13 +277,14 @@ $(function () {
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="typeTaxField_tax">
                             Tasa (%)
                         </label>
 
                         <input
                             type="number"
                             name="tax"
+                            id="typeTaxField_tax"
                             class="form-control"
                             min="0"
                             max="100"
@@ -727,6 +733,6 @@ $(function () {
             .text(
                 value ?? ''
             )
-            .html();
+            .html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 });
