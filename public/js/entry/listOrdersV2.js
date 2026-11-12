@@ -1,146 +1,26 @@
+// Read-only list: detail, documents and receipt actions intentionally excluded.
+var listRequestVersion = 0;
 $(document).ready(function () {
-    $permissions = JSON.parse($('#permissions').val());
-    //console.log($permissions);
-
-    $('#sandbox-container .input-daterange').datepicker({
-        todayBtn: "linked",
-        clearBtn: true,
-        language: "es",
-        multidate: false,
-        autoclose: true
-    });
-
-    $('#sandbox-container1 .input-daterange').datepicker({
-        todayBtn: "linked",
-        clearBtn: true,
-        language: "es",
-        multidate: false,
-        autoclose: true
-    });
-
-    getDataOrderPurchases(1);
-
-    $("#btnBusquedaAvanzada").click(function(e){
-        e.preventDefault();
-        $(".busqueda-avanzada").slideToggle();
-    });
-
+    $('#sandbox-container .input-daterange').datepicker({todayBtn: 'linked', clearBtn: true, language: 'es', multidate: false, autoclose: true, orientation: 'bottom auto', container: '.wrapper'});
+    $('#deliveryDate').datepicker({todayBtn: 'linked', clearBtn: true, language: 'es', autoclose: true, orientation: 'bottom auto', container: '.wrapper'});
     $(document).on('click', '[data-item]', showData);
-    $("#btn-search").on('click', showDataSearch);
-
-    $('body').tooltip({
-        selector: '[data-toggle="tooltip"]'
-    });
-
-    $('#btn-export').on('click', exportExcel);
-
+    $('#btn-search').on('click', showDataSearch);
+    $('#list-filters').on('submit', function (event) { event.preventDefault(); showDataSearch(); });
+    getDataOrderPurchases(1);
 });
-
-var $permissions;
-
-function exportExcel() {
-    var start  = $('#start').val();
-    var end  = $('#end').val();
-    var startDate   = moment(start, "DD/MM/YYYY");
-    var endDate     = moment(end, "DD/MM/YYYY");
-
-    console.log(start);
-    console.log(end);
-    console.log(startDate);
-    console.log(endDate);
-
-    if ( start == '' || end == '' )
-    {
-        console.log('Sin fechas');
-        $.confirm({
-            icon: 'fas fa-file-excel',
-            theme: 'modern',
-            closeIcon: true,
-            animation: 'zoom',
-            type: 'green',
-            title: 'No especificó fechas',
-            content: 'Si no hay fechas se descargará todos las órdenes de compra',
-            buttons: {
-                confirm: {
-                    text: 'DESCARGAR',
-                    action: function (e) {
-                        //$.alert('Descargado igual');
-                        console.log(start);
-                        console.log(end);
-
-                        var query = {
-                            start: start,
-                            end: end
-                        };
-
-                        $.alert('Descargando archivo ...');
-
-                        var url = "/dashboard/exportar/reporte/ordenes/compra/v2/?" + $.param(query);
-
-                        window.location = url;
-
-                    },
-                },
-                cancel: {
-                    text: 'CANCELAR',
-                    action: function (e) {
-                        $.alert("Exportación cancelada.");
-                    },
-                },
-            },
-        });
-    } else {
-        console.log('Con fechas');
-        console.log(JSON.stringify(start));
-        console.log(JSON.stringify(end));
-
-        var query = {
-            start: start,
-            end: end
-        };
-
-        toastr.success('Descargando archivo ...', 'Éxito',
-            {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "2000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-
-        var url = "/dashboard/exportar/reporte/ordenes/compra/v2/?" + $.param(query);
-
-        window.location = url;
-
-    }
-
-}
-
+function activateTemplate(id) { return document.importNode(document.querySelector(id).content, true); }
 function showDataSearch() {
     getDataOrderPurchases(1)
 }
 
-function showData() {
-    //event.preventDefault();
+function showData(event) {
+    event.preventDefault();
     var numberPage = $(this).attr('data-item');
-    console.log(numberPage);
+
     getDataOrderPurchases(numberPage)
 }
 
 function getDataOrderPurchases($numberPage) {
-    $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
-        selector: '[data-toggle="tooltip"]'
-    });
 
     var year = $('#year').val();
     var supplier = $('#supplier').val();
@@ -152,6 +32,8 @@ function getDataOrderPurchases($numberPage) {
     var startDate = $('#start').val();
     var endDate = $('#end').val();
 
+    var version = ++listRequestVersion;
+    $('#list-error').addClass('d-none').text('');
     $.get('/dashboard/get/all/orders/entrie/v2/'+$numberPage, {
         year: year,
         supplier: supplier,
@@ -163,6 +45,7 @@ function getDataOrderPurchases($numberPage) {
         startDate: startDate,
         endDate: endDate,
     }, function(data) {
+        if (version !== listRequestVersion) return;
         if ( data.data.length == 0 )
         {
             renderDataOrderPurchasesEmpty(data);
@@ -171,70 +54,24 @@ function getDataOrderPurchases($numberPage) {
         }
 
 
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        // Función de error, se ejecuta cuando la solicitud GET falla
-        console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": false,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "2000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            });
-        }
-    }, 'json')
-        .done(function() {
-            // Configuración de encabezados
-            var headers = {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-            };
-
-            $.ajaxSetup({
-                headers: headers
-            });
-        });
+    }).fail(function () {
+        if (version !== listRequestVersion) return;
+        $('#body-table, #pagination').empty();
+        $('#numberItems, #textPagination').text('');
+        $('#list-error').removeClass('d-none').text('No se pudo cargar el listado. Vuelve a buscar.');
+    });
 }
 
 function renderDataOrderPurchasesEmpty(data) {
     var dataAccounting = data.data;
     var pagination = data.pagination;
-    console.log(dataAccounting);
-    console.log(pagination);
+
+
 
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' órdenes de compra');
+    $("#textPagination").html('Mostrando '+(pagination.totalFilteredRecords ? pagination.startRecord : 0)+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' órdenes de compra');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -244,13 +81,13 @@ function renderDataOrderPurchasesEmpty(data) {
 function renderDataOrderPurchases(data) {
     var dataFinanceWorks = data.data;
     var pagination = data.pagination;
-    console.log(dataFinanceWorks);
-    console.log(pagination);
+
+
 
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' órdenes de compra.');
+    $("#textPagination").html('Mostrando '+(pagination.totalFilteredRecords ? pagination.startRecord : 0)+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' órdenes de compra.');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -303,27 +140,10 @@ function renderDataTableEmpty() {
 
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
-    ['id', 'code', 'date_order', 'date_arrival', 'observation', 'supplier', 'created_user', 'currency', 'total'].forEach(function (field) {
-        clone.querySelector('[data-' + field + ']').textContent = data[field] == null ? '' : data[field];
-    });
+    ['id', 'code', 'date_order', 'date_arrival', 'observation', 'supplier', 'created_user', 'currency', 'total'].forEach(function (field) { clone.querySelector('[data-' + field + ']').textContent = data[field] == null ? '' : data[field]; });
     clone.querySelector('[data-state]').innerHTML = data.stateText;
     clone.querySelector('[data-state]').title = (data.receipt_errors || []).join(' ');
-    var buttons = activateTemplate('#template-normal');
-    var origin = document.location.origin;
-    function action(selector, allowed, url) {
-        var element = buttons.querySelector(selector);
-        if (!element) return;
-        if (allowed) element.setAttribute('href', origin + url);
-        else element.remove();
-    }
-    var mayView = $.inArray('list_orderPurchaseNormal', $permissions) !== -1;
-    action('[data-imprimir]', mayView, '/dashboard/imprimir/orden/compra/' + data.id);
-    action('[data-ver_orden]', mayView, '/dashboard/ver/orden/compra/normal/' + data.id);
-    action('[data-crear_entrada]', data.can_receive === true && $.inArray('create_entryPurchase', $permissions) !== -1,
-        '/dashboard/crear/entrada/compra/orden/' + data.id);
-    clone.querySelector('[data-buttons]').append(buttons);
     $('#body-table').append(clone);
-    $('[data-toggle="tooltip"]').tooltip();
 }
 
 function renderPreviousPage($numberPage) {

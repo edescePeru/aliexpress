@@ -27,81 +27,11 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Listado de Ordenes para Almacén</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Inventario · Compras</span><h1 class="page-title">Órdenes para almacén</h1><p class="next-page-description">Consulta de la empresa activa.</p></div>
 @endsection
 
-@section('page-title')
-    <h5 class="card-title">Listado de Ordenes de compras</h5>
-@endsection
+@section('page-title')<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta de solo lectura.</span></div></div>@endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
@@ -116,153 +46,15 @@
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    <!--begin::Form-->
-    <form action="#">
-        <!--begin::Card-->
-        <!--begin::Input group-->
-        <div class="row">
-            <div class="col-md-12">
-                <!-- Barra de búsqueda -->
-                <div class="input-group">
-                    <input type="text" id="code" class="form-control" placeholder="Código de orden..." autocomplete="off">
-                    <div class="input-group-append ">
-                        <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
-                        <a href="#" id="btnBusquedaAvanzada" class="vertical-center ml-3 mt-2">Búsqueda Avanzada</a>
-                    </div>
-                </div>
-
-                <!-- Sección de búsqueda avanzada (inicialmente oculta) -->
-                <div class="mt-3 busqueda-avanzada">
-                    <!-- Aquí coloca más campos de búsqueda avanzada -->
-                    <div class="row">
-
-                        <div class="col-md-3">
-                            <label for="year">Año de la orden:</label>
-                            <select id="year" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @for ($i=0; $i<count($arrayYears); $i++)
-                                    <option value="{{ $arrayYears[$i] }}">{{ $arrayYears[$i] }}</option>
-                                @endfor
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="supplier">Proveedor:</label>
-                            <select id="supplier" name="supplier" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @for ($i=0; $i<count($arraySuppliers); $i++)
-                                    <option value="{{ $arraySuppliers[$i]['id'] }}">{{ $arraySuppliers[$i]['business_name'] }}</option>
-                                @endfor
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="quote">Cotización:</label>
-                            <input type="text" id="quote" class="form-control form-control-sm" placeholder="791-" autocomplete="off">
-
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="state">Estado de la orden:</label>
-                            <select id="state" name="state" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @foreach ($arrayStates as $state)
-                                    <option value="{{ $state['value'] }}">{{ $state['display'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                    </div>
-
-                    <br>
-
-                    <div class="row">
-                        <div class="col-md-3">
-                            <label for="date_due">Fecha de Llegada:</label>
-                            <div class="col-md-12" id="sandbox-container1">
-                                <div class="input-daterange input-group" id="datepicker1">
-                                    <input type="text" class="form-control form-control-sm date-range-filter" id="deliveryDate" name="deliveryDate" autocomplete="off">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="campoExtra">Fechas de Orden:</label>
-                            <div class="col-md-12" id="sandbox-container">
-                                <div class="input-daterange input-group" id="datepicker">
-                                    <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" autocomplete="off">
-                                    <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                                    <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <br>
-
-                    <!-- Añade más campos según lo necesario -->
-                </div>
-            </div>
-        </div>
-        <!--end::Input group-->
-        <!--begin:Action-->
-
-    </form>
-    <!--end::Form-->
-
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Ordenes de compra
-                <span class="text-gray-400 fs-6">por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
-                <thead>
-                <tr class="normal-title">
-                    <th>ID</th>
-                    <th>Código</th>
-                    <th>Fecha Orden</th>
-                    <th>Fecha Llegada</th>
-                    <th>Observación</th>
-                    <th>Proveedor</th>
-                    <th>Creado por</th>
-                    <th>Moneda</th>
-                    <th>Total</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-                </thead>
-                <tbody id="body-table">
-
-                </tbody>
-            </table>
-        </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
-
-            </ul>
-            <!--end::Pages-->
-        </div>
-        <!--end::Pagination-->
-    </div>
-    <!--end::Tab Content-->
-
+<section class="next-operational-list">
+<input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+<div class="next-list-toolbar"><form id="list-filters"><div class="next-list-search-row"><div class="next-list-search-control"><div class="input-group"><input type="text" id="code" aria-label="Código de orden" class="form-control" placeholder="Código de orden…" autocomplete="off"><div class="input-group-append"><button class="btn btn-primary" type="button" id="btn-search">Buscar</button></div></div></div><button type="button" id="btnBusquedaAvanzada" class="btn btn-outline-secondary" data-toggle="collapse" data-target="#advanced-filters" aria-expanded="false" aria-controls="advanced-filters">Filtros avanzados</button></div>
+<div id="advanced-filters" class="collapse"><div class="busqueda-avanzada d-block"><div class="row"><div class="form-group col-md-3"><label for="year">Año de la orden</label><select id="year" class="form-control form-control-sm select2"><option value="">TODOS</option>@foreach($arrayYears as $year)<option value="{{ $year }}">{{ $year }}</option>@endforeach</select></div>
+<div class="form-group col-md-3"><label for="supplier">Proveedor</label><select id="supplier" name="supplier" class="form-control form-control-sm select2"><option value="">TODOS</option>@foreach($arraySuppliers as $supplier)<option value="{{ $supplier['id'] }}">{{ $supplier['business_name'] }}</option>@endforeach</select></div><div class="form-group col-md-3"><label for="quote">Cotización / observación</label><input id="quote" class="form-control form-control-sm" autocomplete="off"></div><div class="form-group col-md-3"><label for="state">Estado de recepción</label><select id="state" name="state" class="form-control form-control-sm select2"><option value="">TODOS</option>@foreach($arrayStates as $state)<option value="{{ $state['value'] }}">{{ $state['display'] }}</option>@endforeach</select></div><div class="form-group col-md-3"><label for="deliveryDate">Fecha de llegada</label><input id="deliveryDate" class="form-control form-control-sm" autocomplete="off"></div><div class="form-group col-md-6"><label for="start">Fechas de orden</label><div id="sandbox-container"><div class="input-daterange input-group" id="datepicker"><input type="text" id="start" name="start" aria-label="Fecha inicial" class="form-control form-control-sm date-range-filter" autocomplete="off"><div class="input-group-append input-group-prepend"><span class="input-group-text">al</span></div><input type="text" id="end" name="end" aria-label="Fecha final" class="form-control form-control-sm date-range-filter" autocomplete="off"></div></div></div></div></div></div></form></div>
+<div id="list-error" class="alert alert-danger d-none" role="alert"></div>
+<div class="next-list-summary"><span><strong id="numberItems"></strong> órdenes de compra</span><span>Fecha de orden · más recientes primero</span></div>
+<div class="next-list-content"><div class="table-responsive"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Código</th><th class="text-center">Fecha orden</th><th class="text-center">Fecha llegada</th><th class="text-left">Observación</th><th class="text-left">Proveedor</th><th class="text-left">Creado por</th><th class="text-center">Moneda</th><th class="text-right">Total</th><th class="text-center">Recepción</th></tr></thead><tbody id="body-table"></tbody></table></div></div>
+<div class="next-list-pagination"><div id="textPagination"></div><ul class="pagination" id="pagination"></ul></div></section>
     <template id="previous-page">
         <li class="page-item previous">
             <a href="#" class="page-link" data-item>
@@ -293,40 +85,9 @@
         </li>
     </template>
 
-    <template id="item-table">
-        <tr>
-            <td data-id></td>
-            <td data-code></td>
-            <td data-date_order></td>
-            <td data-date_arrival></td>
-            <td data-observation></td>
-            <td data-supplier></td>
-            <td data-created_user></td>
-            <td data-currency></td>
-            <td data-total></td>
-            <td data-state></td>
-            <td data-buttons></td>
-        </tr>
-    </template>
 
-    <template id="item-table-empty">
-        <tr>
-            <td colspan="11" align="center">No se ha encontrado ningún dato</td>
-        </tr>
-    </template>
-
-    <template id="template-express">
-        <a data-imprimir target="_blank" href="{{--'+document.location.origin+ '/dashboard/imprimir/orden/compra/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir Orden"><i class="fa fa-print"></i> </a>
-        <a data-ver_orden href="{{--'+document.location.origin+ '/dashboard/ver/orden/compra/express/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Orden"><i class="fa fa-eye"></i></a>
-        <a data-crear_entrada href="{{--'+document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Crear entrada"><i class="fa fa-share"></i></a>
-    </template>
-
-    <template id="template-normal">
-        <a data-imprimir target="_blank" href="{{--'+document.location.origin+ '/dashboard/imprimir/orden/compra/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir Orden"><i class="fa fa-print"></i> </a>
-        <a data-ver_orden href="{{--'+document.location.origin+ '/dashboard/ver/orden/compra/normal/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Orden"><i class="fa fa-eye"></i></a>
-        <a data-crear_entrada href="{{--'+document.location.origin+ '/dashboard/crear/entrada/compra/orden/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Crear entrada"><i class="fa fa-share"></i></a>
-    </template>
-
+<template id="item-table"><tr><td class="text-center" data-id></td><td class="text-center" data-code></td><td class="text-center" data-date_order></td><td class="text-center" data-date_arrival></td><td class="text-left" data-observation></td><td class="text-left" data-supplier></td><td class="text-left" data-created_user></td><td class="text-center" data-currency></td><td class="text-right" data-total></td><td class="text-center" data-state></td></tr></template>
+<template id="item-table-empty"><tr><td colspan="10" class="text-left text-muted">Sin órdenes para los filtros seleccionados.</td></tr></template>
 @endsection
 
 @section('plugins')
@@ -351,22 +112,22 @@
             //Initialize Select2 Elements
             $('#year').select2({
                 placeholder: "Selecione año",
-                allowClear: true
+                allowClear: true, width: '100%'
             });
 
             $('#supplier').select2({
                 placeholder: "Selecione Proveedor",
-                allowClear: true
+                allowClear: true, width: '100%'
             });
 
             $('#type').select2({
                 placeholder: "Selecione Tipo",
-                allowClear: true
+                allowClear: true, width: '100%'
             });
 
             $('#state').select2({
                 placeholder: "Seleccione Estado",
-                allowClear: true
+                allowClear: true, width: '100%'
             });
 
             $('#stateOrder').select2({
