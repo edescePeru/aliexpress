@@ -25,21 +25,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Plazos de pago</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Plazos de pago</h1><p class="next-page-description">Condiciones de pago de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nuevo plazo de pago</h5>
-    <a href="{{ route('paymentDeadline.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de plazos de pago </a>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Nuevo plazo de pago</strong><span>Configuración del plazo y su uso.</span></div><div class="next-toolbar-actions"><a href="{{ route('paymentDeadline.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -59,50 +50,11 @@
         @csrf
         <input type="hidden" name="form_tenant_id" value="{{ \App\Support\TenantContext::tenantId() }}">
         <input type="hidden" name="form_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Plazo de pago: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="description">
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Cantidad de días: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                     <input type="number" step="1" min="0" class="form-control" onkeyup="mayus(this);" name="days">
-                </div>
-            </div>
-        </div>
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="type" class="col-12 col-form-label">Usado en: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <select id="type" name="type" class="form-control form-control-sm select2" style="width: 100%;">
-                        <option></option>
-                        <option value="purchases">COMPRAS / SERVICIOS</option>
-                        <option value="quotes">COTIZACIONES</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="credit" class="col-12 col-form-label">Crédito: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <select id="credit" name="credit" class="form-control form-control-sm select2" style="width: 100%;">
-                        <option></option>
-                        <option value="1">SI</option>
-                        <option value="0">NO</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row"><div class="col-md-6"><label for="is_active" class="col-12 col-form-label">Estado</label><div class="col-sm-10"><select name="is_active" id="is_active" class="form-control"><option value="1" selected>Activo</option><option value="0" >Inactivo</option></select></div></div></div>
-        <div class="text-center">
-            <button type="submit" id="btn-submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+<section class="next-form-section"><div class="row"><div class="col-md-6 form-group"><label for="description">Plazo de pago <span class="next-required">(*)</span></label><input id="description" type="text" class="form-control @error('description') is-invalid @enderror" onkeyup="mayus(this);" name="description" value="{{ old('description') }}">@error('description')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="days">Cantidad de días <span class="next-required">(*)</span></label><input id="days" type="number" step="1" min="0" class="form-control @error('days') is-invalid @enderror" onkeyup="mayus(this);" name="days" value="{{ old('days') }}">@error('days')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="type">Usado en</label><select id="type" name="type" class="form-control select2 w-100 @error('type') is-invalid @enderror"><option></option><option value="purchases" {{ (string) old('type') === 'purchases' ? 'selected' : '' }} >COMPRAS / SERVICIOS</option><option value="quotes" {{ (string) old('type') === 'quotes' ? 'selected' : '' }} >COTIZACIONES</option></select>@error('type')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="credit">Crédito</label><select id="credit" name="credit" class="form-control select2 w-100 @error('credit') is-invalid @enderror"><option></option><option value="1" {{ (string) old('credit') === '1' ? 'selected' : '' }} >SI</option><option value="0" {{ (string) old('credit') === '0' ? 'selected' : '' }} >NO</option></select>@error('credit')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="is_active">Estado</label><select id="is_active" name="is_active" class="form-control @error('is_active') is-invalid @enderror"><option value="1" {{ (string) old('is_active', '1') === '1' ? 'selected' : '' }} >Activo</option><option value="0" {{ (string) old('is_active', '1') === '0' ? 'selected' : '' }} >Inactivo</option></select>@error('is_active')<span class="invalid-feedback">{{ $message }}</span>@enderror</div></div></section><div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap"><button type="reset" class="btn btn-outline-secondary">Cancelar</button><button type="submit" id="btn-submit" class="btn btn-primary">Guardar</button></div></div>
         <!-- /.card-footer -->
     </form>
 @endsection
@@ -121,10 +73,12 @@
     <script>
         $(function () {
             $('#type').select2({
+                width: '100%',
                 placeholder: "Selecione una opción",
             });
 
             $('#credit').select2({
+                width: '100%',
                 placeholder: "Seleccione una opción",
             });
         })

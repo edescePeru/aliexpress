@@ -25,20 +25,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Plazos de pago</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Plazos de pago</h1><p class="next-page-description">Condiciones de pago de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Editar plazo de pago {{$paymentDeadline->description}}</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Editar plazo de pago</strong><span>Configuración del plazo y su uso.</span></div><div class="next-toolbar-actions"><a href="{{ route('paymentDeadline.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -47,64 +39,25 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('quality.index') }}"><i class="fa fa-archive"></i> Plazo de pago</a>
+            <a href="{{ route('paymentDeadline.index') }}"><i class="fa fa-archive"></i> Plazo de pago</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Editar</li>
     </ol>
 @endsection
 
 @section('content')
-<div class="alert alert-info">Si este plazo ya se utilizó, sus días, tipo y condición de crédito se conservan. Para condiciones nuevas, cree otro plazo.</div>
+
     <form id="formEdit" class="form-horizontal" data-url="{{ route('paymentDeadline.update') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="form_tenant_id" value="{{ \App\Support\TenantContext::tenantId() }}">
         <input type="hidden" name="form_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
         <input type="hidden" class="form-control" name="paymentDeadline_id" value="{{$paymentDeadline->id}}">
 
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Plazo de pago <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="description" value="{{$paymentDeadline->description}}">
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Cantidad de días <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" onkeyup="mayus(this);" step="1" min="0" name="days" value="{{$paymentDeadline->days}}">
-                </div>
-            </div>
-        </div>
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="type" class="col-12 col-form-label">Usado en: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <select id="type" name="type" class="form-control form-control-sm select2" style="width: 100%;">
-                        <option></option>
-                        <option value="purchases" {{ ($paymentDeadline->type == 'purchases') ? 'selected': ''}}>COMPRAS / SERVICIOS</option>
-                        <option value="quotes" {{ ($paymentDeadline->type == 'quotes') ? 'selected': ''}}>COTIZACIONES</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="credit" class="col-12 col-form-label">Crédito: <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <select id="credit" name="credit" class="form-control form-control-sm select2" style="width: 100%;">
-                        <option></option>
-                        <option value="1" {{ ($paymentDeadline->credit == '1') ? 'selected': ''}}>SI</option>
-                        <option value="0" {{ ($paymentDeadline->credit == '0') ? 'selected': ''}}>NO</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row"><div class="col-md-6"><label for="is_active" class="col-12 col-form-label">Estado</label><div class="col-sm-10"><select name="is_active" id="is_active" class="form-control"><option value="1" {{ $paymentDeadline->is_active ? 'selected' : '' }}>Activo</option><option value="0" {{ !$paymentDeadline->is_active ? 'selected' : '' }}>Inactivo</option></select></div></div></div>
-        <div class="text-center">
-            <button type="submit" id="btn-submit" class="btn btn-outline-success">Guardar Cambios</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+<section class="next-form-section"><p class="text-muted">Si este plazo ya se utilizó, sus días, tipo y condición de crédito se conservan. Para condiciones nuevas, cree otro plazo.</p><div class="row"><div class="col-md-6 form-group"><label for="description">Plazo de pago <span class="next-required">(*)</span></label><input id="description" type="text" class="form-control @error('description') is-invalid @enderror" onkeyup="mayus(this);" name="description" value="{{ old('description', $paymentDeadline->description) }}">@error('description')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="days">Cantidad de días <span class="next-required">(*)</span></label><input id="days" type="number" step="1" min="0" class="form-control @error('days') is-invalid @enderror" onkeyup="mayus(this);" name="days" value="{{ old('days', $paymentDeadline->days) }}">@error('days')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="type">Usado en</label><select id="type" name="type" class="form-control select2 w-100 @error('type') is-invalid @enderror"><option></option><option value="purchases" {{ (string) old('type', $paymentDeadline->type) === 'purchases' ? 'selected' : '' }} >COMPRAS / SERVICIOS</option><option value="quotes" {{ (string) old('type', $paymentDeadline->type) === 'quotes' ? 'selected' : '' }} >COTIZACIONES</option></select>@error('type')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="credit">Crédito</label><select id="credit" name="credit" class="form-control select2 w-100 @error('credit') is-invalid @enderror"><option></option><option value="1" {{ (string) old('credit', (int) $paymentDeadline->credit) === '1' ? 'selected' : '' }} >SI</option><option value="0" {{ (string) old('credit', (int) $paymentDeadline->credit) === '0' ? 'selected' : '' }} >NO</option></select>@error('credit')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="is_active">Estado</label><select id="is_active" name="is_active" class="form-control @error('is_active') is-invalid @enderror"><option value="1" {{ (string) old('is_active', (int) $paymentDeadline->is_active) === '1' ? 'selected' : '' }} >Activo</option><option value="0" {{ (string) old('is_active', (int) $paymentDeadline->is_active) === '0' ? 'selected' : '' }} >Inactivo</option></select>@error('is_active')<span class="invalid-feedback">{{ $message }}</span>@enderror</div></div></section><div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap"><button type="reset" class="btn btn-outline-secondary">Cancelar</button><button type="submit" id="btn-submit" class="btn btn-primary">Guardar cambios</button></div></div>
         <!-- /.card-footer -->
     </form>
 @endsection
@@ -123,10 +76,12 @@
     <script>
         $(function () {
             $('#type').select2({
+                width: '100%',
                 placeholder: "Selecione una opción",
             });
 
             $('#credit').select2({
+                width: '100%',
                 placeholder: "Seleccione una opción",
             });
         })

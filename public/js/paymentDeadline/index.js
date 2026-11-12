@@ -1,29 +1,32 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/paymentDeadlines",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{targets: [1, 3, 4, 5], className: 'text-center'}, {targets: 5, orderable: false, searchable: false}],
         "aoColumns": [
             {data: 'description', render: $.fn.dataTable.render.text()},
             {data: 'days'},
             {data: 'type', render: function (value) { return value === 'purchases' ? 'COMPRAS / SERVICIOS' : 'COTIZACIONES'; }},
             {data: 'credit', render: function (value) { return value ? 'SI' : 'NO'; }},
-            {data: 'is_active', render: function (value) { return value ? 'Activo' : 'Inactivo'; }},
+            {data: 'is_active', render: function (value) { return value ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-secondary">Inactivo</span>'; }},
             {data: null, render: function (item) {
-                var actions = $('<div>');
+                var actions = $('<div class="dropdown-menu dropdown-menu-right next-row-actions-menu">');
                 if ($.inArray('update_paymentDeadline', $permissions) !== -1) {
                     $('<a>').attr('href', document.location.origin + '/dashboard/editar/plazo/pago/' + item.id)
-                        .attr('title', 'Editar').addClass('btn btn-outline-warning btn-sm').html('<i class="fa fa-pen"></i>').appendTo(actions);
+                        .attr('title', 'Editar').addClass('dropdown-item').text('Editar').appendTo(actions);
                 }
                 if (item.is_active && $.inArray('destroy_paymentDeadline', $permissions) !== -1) {
                     $('<button>').attr('data-delete', item.id).attr('data-name', item.description).attr('title', 'Desactivar')
-                        .addClass('btn btn-outline-danger btn-sm').html('<i class="fa fa-ban"></i>').appendTo(actions);
+                        .attr('type', 'button').addClass('dropdown-item text-danger').text('Desactivar').appendTo(actions);
                 }
-                return actions.html();
+                if (!actions.children().length) return '—';
+                return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-label="Acciones del plazo" aria-haspopup="true" aria-expanded="false"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>' + actions.prop('outerHTML') + '</div>';
             }}
         ],
         "aaSorting": [],

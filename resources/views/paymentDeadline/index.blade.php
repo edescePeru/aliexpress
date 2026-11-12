@@ -25,19 +25,17 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
+
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Plazos de pago</h1><p class="next-page-description">Condiciones de pago de la empresa activa.</p></div>
+@endsection
 @section('page-title')
-    <h5 class="card-title">Listado de plazos de pago</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Plazos de pago</strong><span>Catálogo de condiciones e históricos.</span></div><div class="next-toolbar-actions">
     @can('create_paymentDeadline')
-    <a href="{{ route('paymentDeadline.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo plazo de pago </a>
+    <a href="{{ route('paymentDeadline.create') }}" class="btn btn-primary btn-sm" > <i class="fa fa-plus font-20"></i> Nuevo plazo de pago </a>
     @endcan
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -55,8 +53,8 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <section class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Descripción</th>
@@ -71,9 +69,9 @@
 
             </tbody>
         </table>
-    </div>
+    </section>
     @can('destroy_paymentDeadline')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
