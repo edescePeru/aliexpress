@@ -26,32 +26,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/typehead/typeahead.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .income-row {
-            background-color: #d4edda; /* Verde claro */
-        }
-
-        .expense-row {
-            background-color: #f8d7da; /* Rojo claro */
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <div class="row">
-        <div class="col-md-4">
-            <h1 class="page-title">Ganancias Diarias</h1>
-        </div>
-    </div>
-
+<div class="next-page-heading"><span class="next-page-eyebrow">Reportes · Ventas</span><h1 class="page-title">Ganancia diaria</h1><p class="next-page-description">Resúmenes persistidos del local activo · PEN.</p></div>
 @endsection
 
 @section('page-title')
-
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta de solo lectura.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -69,52 +49,16 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Ganancias diarias
-                <span class="text-gray-400 fs-6"> ordenandos por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
-                <thead>
-                <tr class="normal-title">
-                    <th>N°</th>
-                    <th>Fecha</th>
-                    <th>Cantidad Vendida</th>
-                    <th>Total Venta</th>
-                    <th>Total Utilidad</th>
-                    <th>Acciones</th>
-                </tr>
-                </thead>
-                <tbody id="body-table">
-
-                </tbody>
-            </table>
-        </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
-
-            </ul>
-            <!--end::Pages-->
-        </div>
-        <!--end::Pagination-->
-    </div>
-    <!--end::Tab Content-->
+    <section class="next-operational-list" aria-label="Ganancia diaria">
+        <div class="next-list-toolbar"><div><strong>Resúmenes diarios</strong><p class="text-muted mb-0">Resumen persistido del local activo · PEN</p></div></div>
+        <div class="next-list-summary"><div class="next-list-summary-copy"><strong><span id="numberItems">—</span> resúmenes</strong><span>Fecha del resumen · más recientes primero</span></div></div>
+        <div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="Resúmenes diarios; desplazamiento horizontal">
+            <table class="table table-bordered table-hover table-sm next-data-table"><thead><tr>
+                <th class="text-center">N°</th><th class="text-center">Fecha</th><th class="text-right">Cantidad vendida</th><th class="text-right">Venta (PEN)</th><th class="text-right">Utilidad (PEN)</th><th class="text-center">Acciones</th>
+            </tr></thead><tbody id="body-table"></tbody></table>
+        </div></div>
+        <div class="next-list-toolbar"><div id="textPagination" aria-live="polite"></div><ul class="pagination mb-0" id="pagination"></ul></div>
+    </section>
 
     <template id="previous-page">
         <li class="page-item previous">
@@ -148,23 +92,23 @@
 
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-date_resumen></td>
-            <td data-quantity_sale></td>
-            <td data-total_sale></td>
-            <td data-total_utility></td>
-            <td data-buttons></td>
+            <td class="text-center" data-id></td>
+            <td class="text-center" data-date_resumen></td>
+            <td class="text-right" data-quantity_sale></td>
+            <td class="text-right" data-total_sale></td>
+            <td class="text-right" data-total_utility></td>
+            <td class="text-center" data-buttons></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="6" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="6" class="next-table-empty">No hay resúmenes diarios disponibles para el local activo.</td>
         </tr>
     </template>
 
     <template id="template-button">
-        <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Detalles</a>
+        <a data-ver_detalles href="{{--'+document.location.origin+ '/dashboard/editar/material/'+item.id+'--}}" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver detalles"><i class="fas fa-info"></i> Detalles</a>
     </template>
 @endsection
 

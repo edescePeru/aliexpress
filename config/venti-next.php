@@ -24,6 +24,8 @@ return [
         'companyBankAccount.create',
         'companyBankAccount.edit',
         'order.purchase.normal.indexV2',
+        'ganancia.index',
+        'ganancia.detail.index',
         'ganancia.index.trabajador',
         'ganancia.detail.usuario',
         'platformNubefact.index',

@@ -15,10 +15,10 @@ $(document).ready(function () {
 
 });
 
-function showData() {
-    //event.preventDefault();
+function showData(event) {
+    event.preventDefault();
     var numberPage = $(this).attr('data-item');
-    console.log(numberPage);
+
     getDataGanancias(numberPage)
 }
 
@@ -27,7 +27,9 @@ function getDataGanancias($numberPage) {
         selector: '[data-toggle="tooltip"]'
     });
 
-    $.get('/dashboard/get/data/ganancias/V2/'+$numberPage, {},function(data) {
+    var detailId = $('#ganancia_id').val();
+    var endpoint = detailId ? '/dashboard/get/data/ganancia/details/V2/' : '/dashboard/get/data/ganancias/V2/';
+    $.get(endpoint+$numberPage, detailId ? {ganancia_id: detailId} : {},function(data) {
         if ( data.data.length == 0 )
         {
             renderDataGananciasEmpty(data);
@@ -39,8 +41,8 @@ function getDataGanancias($numberPage) {
     }).fail(function(jqXHR, textStatus, errorThrown) {
         // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
+        if ((jqXHR.responseJSON || {}).message && !(jqXHR.responseJSON || {}).errors) {
+            toastr.error((jqXHR.responseJSON || {}).message, 'Error', {
                 "closeButton": true,
                 "debug": false,
                 "newestOnTop": false,
@@ -58,8 +60,8 @@ function getDataGanancias($numberPage) {
                 "hideMethod": "fadeOut"
             });
         }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
+        for (var property in (jqXHR.responseJSON || {}).errors) {
+            toastr.error((jqXHR.responseJSON || {}).errors[property], 'Error', {
                 "closeButton": true,
                 "debug": false,
                 "newestOnTop": false,
@@ -93,13 +95,13 @@ function getDataGanancias($numberPage) {
 function renderDataGananciasEmpty(data) {
     var dataAccounting = data.data;
     var pagination = data.pagination;
-    console.log(dataAccounting);
-    console.log(pagination);
+
+
 
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' ganancias');
+    $("#textPagination").html('Mostrando '+(pagination.totalFilteredRecords ? pagination.startRecord : 0)+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' registros');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -113,7 +115,7 @@ function renderDataGanancias(data) {
     $("#body-table").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' ganancias.');
+    $("#textPagination").html('Mostrando '+(pagination.totalFilteredRecords ? pagination.startRecord : 0)+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' registros.');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -139,7 +141,7 @@ function renderDataGanancias(data) {
 
         for (var i = Math.max(1, pagination.currentPage - 2); i <= Math.min(pagination.totalPages, pagination.currentPage + 2); i++)
         {
-            renderItemPage(i, pagination.currentPage);
+            renderItemPage(pagination.totalPages, pagination.currentPage);
         }
 
         if (pagination.currentPage < pagination.totalPages - 2)
@@ -148,7 +150,7 @@ function renderDataGanancias(data) {
             {
                 renderDisabledPage();
             }
-            renderItemPage(i, pagination.currentPage);
+            renderItemPage(pagination.totalPages, pagination.currentPage);
         }
 
     }
@@ -166,20 +168,19 @@ function renderDataTableEmpty() {
 
 function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
-    clone.querySelector("[data-id]").innerHTML = data.id;
-    clone.querySelector("[data-date_resumen]").innerHTML = data.date_resumen;
-    clone.querySelector("[data-quantity_sale]").innerHTML = data.quantity_sale;
-    clone.querySelector("[data-total_sale]").innerHTML = data.total_sale;
-    clone.querySelector("[data-total_utility]").textContent = data.total_utility === null ? 'Sin costo registrado' : data.total_utility;
-
-    var botones = clone.querySelector("[data-buttons]");
-
-    var cloneBtn = activateTemplate('#template-button');
-
-    let url = document.location.origin + '/dashboard/listado/ganancia/detalles/' + data.id;
-    cloneBtn.querySelector("[data-ver_detalles]").setAttribute("href", url);
-
-    botones.append(cloneBtn);
+    var detail = !!$('#ganancia_id').val();
+    clone.querySelector('[data-id]').textContent = detail ? data.material_description : data.id;
+    clone.querySelector('[data-date_resumen]').textContent = detail ? data.date_detail : data.date_resumen;
+    clone.querySelector('[data-quantity_sale]').textContent = detail ? data.quantity : data.quantity_sale;
+    clone.querySelector('[data-total_sale]').textContent = detail ? data.price_sale : data.total_sale;
+    var utility = detail ? data.utility : data.total_utility;
+    clone.querySelector('[data-total_utility]').textContent = utility === null ? 'Sin costo registrado' : utility;
+    if (detail && data.id === 0) clone.querySelector('tr').classList.add('font-weight-bold', 'table-light');
+    if (!detail) {
+        var cloneBtn = activateTemplate('#template-button');
+        cloneBtn.querySelector('[data-ver_detalles]').setAttribute('href', '/dashboard/listado/ganancia/detalles/' + encodeURIComponent(data.id));
+        clone.querySelector('[data-buttons]').append(cloneBtn);
+    }
 
     $("#body-table").append(clone);
 
