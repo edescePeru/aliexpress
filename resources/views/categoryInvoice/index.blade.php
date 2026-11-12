@@ -25,19 +25,15 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
+
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Finanzas · Configuración</span><h1 class="page-title">Categorías de factura</h1><p class="next-page-description">Categorías de la empresa activa.</p></div>
+@endsection
 @section('page-title')
-    <h5 class="card-title">Listado de categorias de facturas</h5>
-    @can('create_categoryInvoice')
-    <a href="{{ route('categoryInvoice.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva Categoria de Factura </a>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado de categorías</strong><span>Organización de facturas.</span></div><div class="next-toolbar-actions flex-wrap">
+@can('create_categoryInvoice')<a href="{{ route('categoryInvoice.create') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva categoría</a>@endcan
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -55,8 +51,8 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list"><div>
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Nombre</th>
@@ -69,8 +65,9 @@
             </tbody>
         </table>
     </div>
+    </div>
     @can('destroy_categoryInvoice')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">

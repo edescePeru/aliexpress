@@ -11,7 +11,7 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
-function storeCategory() {
+function storeCategory(event) {
     event.preventDefault();
     // Obtener la URL
     var createUrl = $formCreate.data('url');
@@ -46,7 +46,11 @@ function storeCategory() {
             }, 2000 )
         },
         error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
+            var response = data.responseJSON || {};
+            if (!response.errors) {
+                toastr.error(response.message || 'No se pudo completar la operación.', 'Error');
+            }
+            for ( var property in (response.errors || {}) ) {
                 toastr.error(data.responseJSON.errors[property], 'Error',
                     {
                         "closeButton": true,
