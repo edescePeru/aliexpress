@@ -25,19 +25,13 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Cotizaciones</span><h1 class="page-title">Porcentajes de cotización</h1><p class="next-page-description">Parámetros compartidos utilizados por las cotizaciones.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de porcentages</h5>
-    @can('create_porcentageQuote')
-    <a href="{{ route('porcentageQuote.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo porcentage </a>
-    @endcan
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado de porcentajes</strong><span>Nombre y valor del parámetro.</span></div><div class="next-toolbar-actions flex-wrap">@can('create_porcentageQuote')<a href="{{ route('porcentageQuote.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo porcentaje</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -56,8 +50,8 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Nombre</th>
@@ -71,7 +65,7 @@
         </table>
     </div>
     @can('destroy_porcentageQuote')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">

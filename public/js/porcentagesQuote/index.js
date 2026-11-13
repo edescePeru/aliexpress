@@ -1,14 +1,17 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/porcentages/quotes",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{ targets: 1, className: 'text-right' }, { targets: 2, className: 'text-center', orderable: false, searchable: false }],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
         "aoColumns": [
-            { data: 'name' },
+            { data: 'name', render: $.fn.dataTable.render.text() },
             { data: 'value' },
             { data: null,
                 title: 'Acciones',
@@ -17,19 +20,17 @@ $(document).ready(function () {
                 {
                     var words = ['utility', 'rent', 'letter', 'igv'];
                     const found = words.find(word => item.name.split(' ').find(s=>s===word));
-                    var text = '';
-                    if ( $.inArray('update_porcentageQuote', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/porcentaje/cotizacion/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
+                    var id = encodeURIComponent(item.id);
+                    var name = $('<div>').text(item.name || '').html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var actions = '';
+                    if ($.inArray('update_porcentageQuote', $permissions) !== -1) {
+                        actions += '<a href="' + document.location.origin + '/dashboard/editar/porcentaje/cotizacion/' + id + '" class="dropdown-item"><i class="fa fa-pen mr-2" aria-hidden="true"></i>Editar</a>';
                     }
-                    if ( !found){
-                        if ( $.inArray('destroy_porcentageQuote', $permissions) !== -1 ) {
-                            text = text + ' <button data-delete="'+item.id+'" data-name="'+item.name+'" '+
-                                '" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
-                        }
+                    if (!found && $.inArray('destroy_porcentageQuote', $permissions) !== -1) {
+                        actions += '<button type="button" data-delete="' + id + '" data-name="' + name + '" class="dropdown-item text-danger"><i class="fa fa-trash mr-2" aria-hidden="true"></i>Eliminar</button>';
                     }
-
-                    return text;
+                    if (!actions) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-expanded="false" aria-label="Acciones del porcentaje ' + id + '"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + actions + '</div></div>';
 
                 } },
 
@@ -190,7 +191,7 @@ function openModalDelete() {
     var name = $(this).data('name');
 
     $modalDelete.find('[id=porcentage_id]').val(porcentage_id);
-    $modalDelete.find('[id=name]').html(name);
+    $modalDelete.find('[id=name]').text(name);
 
     $modalDelete.modal('show');
 }

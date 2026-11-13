@@ -17,6 +17,9 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'porcentageQuote.index',
+        'porcentageQuote.create',
+        'porcentageQuote.edit',
         'quality.index',
         'quality.create',
         'quality.edit',

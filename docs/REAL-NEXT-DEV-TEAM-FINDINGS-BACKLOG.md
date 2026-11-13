@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**69 registros:** 19 BUG / FALLA (15 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**70 registros:** 20 BUG / FALLA (16 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -289,3 +289,12 @@ Scope global legacy ya identificado por REAL-NEXT-ROADMAP-D-SCREEN-DISCOVERY.md:
 | ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
 |---|---|---|---|---|---|---|
 | QUALITY-01 | Calidades | deleted_at con fecha cero excluye una fila del catálogo | DEUDA TÉCNICA | LOW | DATA RECONCILIATION PENDING | Lectura READ ONLY: 13 filas físicas; ID3 TALLA40 tiene 0000-00-00 00:00:00, por eso SoftDeletes devuelve12. No inferir que deba restaurarse: confirmar intención histórica y reconciliar con autorización. REAL-NEXT-QUALITIES Dataset. Backend y datos intactos. |
+
+
+## Addendum — Porcentajes (2026-11-13)
+
+Auditoría acotada, sin mutaciones. Scope global documentado junto a deuda transversal del discovery; no se duplica. Se agrega un defecto concreto diferente:
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| PERCENT-01 | PorcentageQuote | Eliminación de claves reservadas protegida sólo en JS | BUG / FALLA | MEDIUM / P2 | OPEN | index.js oculta delete para utility/rent/letter/igv; DeletePorcentageQuoteRequest sólo required/exists y destroy llama delete físico sin guard. Consumers buscan esas claves y algunos usan first()->value/firstOrFail. Agregar protección backend equivalente y QA aislado; no ejecutado POST ni eliminación real. Backend unchanged; frontend conserva condición existente. Ver REAL-NEXT-PERCENTAGES. |

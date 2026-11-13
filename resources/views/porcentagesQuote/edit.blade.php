@@ -25,20 +25,14 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Porcentajes</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Cotizaciones</span><h1 class="page-title">Porcentajes de cotización</h1><p class="next-page-description">Parámetros compartidos utilizados por las cotizaciones.</p></div>
 @endsection
 
+
 @section('page-title')
-    <h5 class="card-title">Editar porcentaje {{$porcentageQuote->name}}</h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Editar porcentaje</strong><span>Nombre y valor del parámetro.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('porcentageQuote.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -58,28 +52,22 @@
         @csrf
         <input type="hidden" class="form-control" name="porcentage_id" value="{{$porcentageQuote->id}}">
 
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" name="name" placeholder="Ejm: Categoría" value="{{$porcentageQuote->name}}">
+        <section class="next-form-section"><div class="row">
+                <div class="col-md-6 form-group">
+                    <label for="name">Nombre <span class="next-required">(*)</span></label>
+                    <input id="name" type="text" placeholder="Ejm: Porcentaje" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name', $porcentageQuote->name) }}">
+                    @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-            </div>
-        </div>
-
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Valor <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="number" class="form-control" name="value" min="0" step="0.01" value="{{$porcentageQuote->value}}">
+                <div class="col-md-6 form-group">
+                    <label for="value">Valor <span class="next-required">(*)</span></label>
+                    <input id="value" type="number" min="0" step="0.01" class="form-control @error('value') is-invalid @enderror" name="value" value="{{ old('value', $porcentageQuote->value) }}">
+                    @error('value')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar Cambios</button>
+        </div></section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div></div>
         <!-- /.card-footer -->
     </form>
 @endsection
