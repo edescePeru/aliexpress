@@ -1,5 +1,7 @@
 # REAL NEXT — Sales List Read-only Integration
 
+> Estado vigente: ver **QA Closure — 2026-11-13** al final. Las secciones de 2026-11-05 conservan evidencia histórica: ya existen 7 ventas atribuibles y los Owners actuales sí tienen viewBranch. No interpretar los antiguos pendientes de datos/roles como el resultado vigente.
+
 Fecha: 2026-11-05. Base funcional: `f367675`, `feature/venti-next-frontend`.
 
 **REAL NEXT — SALES LIST READ-ONLY FRONTEND INTEGRATED**
@@ -171,3 +173,191 @@ Sin ventas atribuibles: no hay detalle positivo real, resultados efectivos de fi
 - `docs/REAL-NEXT-SALES-LIST-READONLY.md`: auditoría, matrices, evidencia y límites.
 
 Cambios pendientes de Material y documentos de reauditoría ya existían al iniciar; se conservaron. No se alteró el baseline congelado. La siguiente fase debe mantener separados los cierres de datos/roles/documentos y la integración financiera.
+
+## QA Closure — 2026-11-13
+
+HEAD auditado: `9262d65`. **Sales List: FRONTEND INTEGRATED — READ PATH**. Sin rediseño, cambios de Blade/JS/CSS/backend ni mutaciones financieras. Esta sección reemplaza los estados históricos de cobertura, no borra su evidencia.
+
+| Área | Estado vigente |
+|---|---|
+| Actor / Worker | QA PASSED para dataset actual; separación y exclusión histórica comprobadas |
+| Tenant / Company / Branch Isolation | QA PASSED en matriz detallada debajo |
+| Role Scope | QA PASSED: roles reales + ampliación aislada en memoria; sin modificar roles persistidos |
+| Filters | QA PASSED para filtros expuestos con límites de dataset; document_type no aplicado sigue OPEN |
+| Pagination | Primera página PASS; MULTIPAGE QA — PENDING DATASET; metadata fuera de rango OPEN |
+| Row Detail | QA PASSED: positivo real y 404 por padre no autorizado/inexistente |
+| Documents | DOCUMENT SECURITY — BACKEND/INFRA OPEN |
+| Financial Actions | OUT OF SCOPE |
+| Backend | UNCHANGED |
+
+Método: relectura de listar/getSalesAdmin/getOrderDetails, SaleListAccess, SaleListOptions, SaleListGuard, SaleListDocumentController, Blade y adaptador real. PHP7.3.33, harness temporal fuera del repo, `SET TRANSACTION READ ONLY`, rollback final, sesión/cache array. Routes reales resueltas y enlazadas a cada Request, container request actualizado; middleware InitializeTenantContext y SaleListGuard reales, seguido del controller. No equivale a ejecutar toda la cadena web: se omiten autenticación por cookie, enabled/password middleware en CLI. QA de navegador adicional con login autorizado Owner EDESCE, tenant1/company1/branch1. No contraseñas guardadas ni cambios de permisos.
+
+### Current Dataset
+
+Lectura actual completa: **111 sales**, todas PEN. Tipo documento: 35 `01`, 29 `03`, 47 null. No se reutilizó el conteo histórico como resultado actual.
+
+| Tenant/company/branch | Total físico | Sin actor | IDs visibles completos (active) |
+|---|---:|---:|---|
+| EDESCE 1/1/1 | 110 | 104 | 120,119,118,117,116,115 |
+| EDESCE 1/1/8 | 1 | 0 | 114 |
+| EDESCE 1/2/2 | 0 | 0 | vacío |
+| EDESCE 1/5/6 | 0 | 0 | vacío |
+| EDESCE 1/5/7 | 0 | 0 | vacío |
+| Gamarra 3/3/4 | 0 | 0 | vacío |
+
+No existen otros grupos físicos tenant/company/branch en sales. Los contextos vacíos se comprobaron además contra Options/lista.
+
+Las siete ventas atribuibles tienen created_by4, snapshot `Owner EDESCE`, worker_id null, state_annulled0 e internal_reversed_at null. ID114 e118 son factura01; las demás no tienen type_document. 114: sunat_status Enviado; 118: aceptada con observaciones; restantes null. Despacho:119 pendiente, resto despachado. Pago parcial:119; resto `n`.
+
+104 históricos: created_by y snapshot nulos, todos con worker_id, 16 state_annulled1 y 12 internal_reversed_at no nulo (indicadores independientes). Ninguno se hace visible atribuyéndolo al trabajador. IDs completos:
+
+```text
+1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,39,41,42,43,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,102,103,104,105,106,107,108,109,110,111,112,113
+```
+
+### Actor / Worker
+
+`created_by` determina autorización, `created_by_name` es el texto snapshot del DTO. No se sustituye por User.name ni Worker cuando falta. Fallback textual actual: `No registrado`. Worker es relación independiente; se eager-load en controller pero no se expone como actor ni filtro en esta pantalla.
+
+Cobertura positiva: siete ventas con actor y sin worker visibles; 104 con worker pero sin actor excluidas. Detalle histórico ID1:404. No hay venta actual visible con snapshot ausente ni caso de renombre del actor: esos casos quedan cubiertos por inspección del contrato, no por datos positivos nuevos. No se hizo backfill.
+
+### Permission Matrix
+
+| Cuenta / rol real | list_puntoVenta | viewBranch_puntoVenta | Resultado |
+|---|---|---|---|
+| Owner EDESCE id4 / owner | Sí | Sí | Ventas del local; seis principal, una outlet |
+| Owner Gamarra id7 / owner | Sí | Sí | Ventas del local; vacío |
+| Owner Gloria id8 / owner | Sí | Sí | Permisos consultados; lectura no probada |
+| Cajero Master id2 / cajero | Sí | No | Mis ventas del local; vacío; venta120 ajena404; actor4 filtro422 |
+| Usuario Prueba id6 / cashier | Sí | No | Mis ventas del local; vacío |
+| Pepe Castillo id3 / almacen | No | No | SaleListGuard403; ruta web puede redirigir primero a cambio de contraseña |
+| Usuario Prueba Tenant2 id5 / cashier | Sí | No | Permisos consultados; lectura no probada |
+| Platform Admin id1 / admin | Sí | No | WorkerAccess403; no bypass operativo |
+
+Los Owners ya poseen viewBranch: corrige la observación de noviembre5. La autorización depende de `can()`, no del nombre Owner.
+
+Prueba aislada adicional: misma identidad/membresías del usuario2, con implementación de `can()` limitada a list+viewBranch únicamente en memoria del harness, sin sincronizar roles/permisos ni guardar User. Resultado: devuelve `[120,119,118,117,116,115]`, acepta filtro actor4 y detalle120=200; con usuario real sin ampliación devuelve vacío /422/404 respectivamente. Esto prueba el alcance ampliado sobre ventas de otro actor. No se presenta como una concesión real ni sesión productiva. El harness fijó tabla/users y foreign key/user_id de la subclase para preservar las relaciones; intentos preliminares con mock/subclase incorrectos se descartaron y no son findings de aplicación.
+
+### Context Matrix
+
+Los seis contextos de Current Dataset retornaron200 con exactamente los IDs listados. Other companies EDESCE2 y5 autorizadas y vacías. No se agregaron selectores de contexto a filtros.
+
+| Manipulación / escenario | Resultado |
+|---|---|
+| Owner Gamarra con sesión1/1/1 | 403 contexto |
+| Owner EDESCE con company3/branch4 | 403 contexto |
+| Owner EDESCE tenant1/company1/branch4 | 403 contexto |
+| Query tenant_id3/company_id3/branch_id4 desde1/1/1 | Ignorada como selección de contexto; conserva seis IDs locales |
+| Snapshot X-Sales-Branch999 | 422, no vacío |
+| Cajero id2 intenta created_by_id4 | 422, no vacío |
+| Owner con viewBranch filtra creator7 ajeno | 200 vacío; no amplía scope |
+
+### Filters
+
+Options es contextual: principal creators `[4]`, years `[2026]`, customers vacío, boxes `[1,2,5]`, subtypes `[1,2,3,4,6]`; outlet creators `[4]`, years `[2026]`, customers `[1]`, boxes `[2,5,6]`, mismos subtypes. Otras companies y Gamarra: opciones vacías. Cajas generales de company permitidas por contrato. No lookup User global: tenant explícito + IDs derivados de ventas visibles.
+
+Resultados branch1:
+
+| Filtro real | IDs / resultado |
+|---|---|
+| created_by_id4; year2026 | 120,119,118,117,116,115 |
+| year1900; code NO-QA-MATCH | vacío |
+| 04/11/2026 a04/11/2026 | 120,119,118,117,116 |
+| fecha final anterior a inicial | 422 |
+| code120 | 120 (búsqueda por ID LIKE, no nombre de producto) |
+| sale_status annulled | vacío: no anuladas atribuibles |
+| invoice_status con_comprobante | 118 |
+| invoice_status sin_comprobante | 120,119,117,116,115 |
+| payment_status verde | seis IDs locales |
+| payment_status naranja/rojo | vacío |
+| cash_box_id pago_parcial | 119 |
+| cash_box_id "1" | 117,116,115 |
+| cash_box_id "2" + cash_box_subtype_id "1" | 118 |
+| customer_id "1" en principal | vacío |
+| customer_id "1" en outlet | 114 |
+| dispatch_status pendiente | 119 |
+| dispatch_status despachado | 120,118,117,116,115 |
+| dispatch_status pending (no es el valor español del dataset) | vacío |
+| document_type01 | NO filtra: conserva seis; validación admite01/03 |
+| document_type bad | 422 |
+
+IDs de caja/cliente se probaron como strings de query HTTP. Un primer harness pasó integers a reglas `string` y recibió422; se corrigió el harness, no backend. Worker no es filtro contractual. Document type no está expuesto por UI; el filtro disponible de comprobante es con/sin. No añadir un selector que finja filtrar01/03.
+
+### Pagination
+
+Página1: currentPage1,totalPages1,startRecord1,endRecord6,totalFilteredRecords6. Principal solo seis filas atribuibles; outlet una. **MULTIPAGE QA — PENDING DATASET** para segunda página con resultados, aunque haya111 registros físicos.
+
+Página0:422. Página2 con year2026+created_by_id4 conserva total6 y filtros, data vacío; metadata startRecord11/endRecord6. Página999: startRecord9981/endRecord6. **Backend Sync OPEN: rango invertido fuera de página válida**. No se arregló vía JS ni se cambió backend durante este cierre. La UI normal solo ofrece página1 en este dataset; no es evidencia de un fallo de navegación normal. El renderer consume literalmente start/end; un borrado/cambio concurrente que reduzca páginas podría alcanzar el defecto.
+
+El adaptador relee filtros al solicitar una página y mantiene headers snapshot; cambio de filtros reinicia1. Conservación en request fuera de rango comprobada en harness; navegación entre páginas con resultados queda pendiente de dataset.
+
+### Row Detail
+
+GET `/dashboard/sales/{orderId}/details`, SaleListGuard read/route/orderId autoriza padre antes de getOrderDetails.
+
+| Actor/contexto/venta | Resultado |
+|---|---|
+| Owner EDESCE1/1/1,120 | 200; P-00001, cantidad1, precio70, total70.00 |
+| Owner EDESCE1/1/8,114 | 200; SKU POL-ADI-SPO-HOM-41-BLA, cantidad2, precio40, total80.00 |
+| Owner principal pide114 | 404 |
+| Owner outlet pide120 | 404 |
+| Gamarra pide120 | 404 |
+| Owner EDESCE company2/branch2 o company5/branch6 pide120 | 404 |
+| Cajero id2 pide120 | 404 |
+| Owner principal pide histórico1 | 404 |
+| Owner principal pide999999 | 404 |
+
+Navegador: menú de venta120 abierto con teclado, Ver detalle carga resumen y línea real; cerrar deja modal cerrado y listado con seis filas. No se pulsó Ver Ticket. El controller de detalle por sí solo busca ID; no omitir SaleListGuard al probar autorización.
+
+### Action Matrix
+
+Todas requieren además list_puntoVenta y contexto autorizado; fuente estática routes/SaleListGuard/Access. No se ejecutaron rutas documentales o financieras.
+
+| Action | Permission adicional | Guard | Read/Mutation | QA status |
+|---|---|---|---|---|
+| Listar / filtrar / paginar | Ninguno | read + snapshot para datos | Read | Probado; límites paginación arriba |
+| Ver detalle | Ninguno | read + padre | Read | PASS |
+| Ticket / documento | print_puntoVenta | print + padre + archivo para documents | Read/documento | NO EJECUTADO; seguridad OPEN |
+| Modificar despacho | updateDispatch_puntoVenta | dispatch + padre/snapshot | Mutation | OUT OF SCOPE |
+| Registrar/eliminar pagos | managePayments_puntoVenta | payments + padre/snapshot/contexto caja | Mutation | OUT OF SCOPE |
+| Actualizar invoice | manageDocuments_puntoVenta | documents + padre/snapshot/revisión | Mutation | OUT OF SCOPE |
+| Emitir | manageDocuments + generarBoleta/Factura_puntoVenta | emit + padre/snapshot/revisión | Mutation/externa | OUT OF SCOPE |
+| Recuperar Nubefact | manageDocuments_puntoVenta | documents + padre/snapshot | Mutation/externa | OUT OF SCOPE |
+| Anular / NC / consultar anulación-NC | annul_puntoVenta | annul + padre/snapshot; plan refund/guard según acción | Mutation o reconciliación | OUT OF SCOPE |
+| Descartar error | annul_puntoVenta | annul + padre/snapshot/revisión | Mutation | OUT OF SCOPE |
+
+Owner EDESCE tiene actualmente los seis flags de capacidades true en DOM (print/dispatch/payments/documents/annul/emit). La vista conserva solo adaptador read-only; no activa handlers financieros por ello. La matriz histórica de flags false no describe el estado actual.
+
+### Documents
+
+**DOCUMENT SECURITY — BACKEND/INFRA OPEN**. Guards/filename/realpath inspeccionados, sin navegación ni descarga documental. El listado ya existente puede leer internamente cinco bytes de pdf_path para validar `%PDF-` al construir su DTO: no se invocó acceso PDF ni se considera esa comprobación una certificación de seguridad. No se abrió ningún archivo ajeno, impresión, recuperación ni PDF público.
+
+### Responsive QA — cierre incremental
+
+Sin cambios visuales: se mantiene la matriz histórica. Comprobación nueva en navegador con seis filas reales, sesión Owner EDESCE1/1/1:
+
+- Desktop1440: document scrollWidth1440; tabla con scroll local.
+- Tablet768: document scrollWidth768; contenedor tabla client470/scroll1510.
+- Mobile390: document scrollWidth375 (scrollbar vertical), sin overflow horizontal global; toolbar reorganizada y tabla local.
+- Inspección visual desktop/tablet/mobile; snapshots del navegador y mediciones DOM. Sin nueva matriz completa ni afirmación pixel-perfect.
+- Buscar NO-QA-MATCH muestra vacío real y `Mostrando 0 a 0 de 0 ventas`; Limpiar restaura seis. Detalle120 positivo y cierre comprobados. Consola capturada sin error/warn al final.
+- Viewport temporal restaurado. No nueva CSS. No cambios de frontend necesarios.
+
+### Remaining Open Items
+
+1. **[OPEN] SALES-QA-PAGE-RANGE:** getSalesAdmin calcula startRecord con página solicitada aunque exceda totalPages. Reproducido p2/p999,total6. Backend debe definir clamp/rechazo/rango vacío coherente. Frontend can continue: Yes, lectura normal; no declarar paginación completa PASS.
+2. **[OPEN] document_type:** validado pero no aplicado, ya conocido y ahora reproducido. Frontend can continue: Yes, UI no lo expone. No convertirlo en filtro fiscal nuevo.
+3. **PENDING DATASET:** >10 ventas visibles por contexto, multi-actor real simultáneo, anuladas/reversed atribuibles, pagos naranja/rojo, boleta atribuible, actor con snapshot ausente/renombrado. No crear datos para cerrar artificialmente estos casos.
+4. **DOCUMENT SECURITY — BACKEND/INFRA OPEN**, sin cierre por comprobar guards.
+5. Pago parcial concurrente y Venta Libre del audit anterior permanecen fuera de esta fase; no revalidados ni resueltos aquí.
+
+Cierra el pendiente anterior de detalle positivo real y resultados efectivos de filtros sobre actor/contexto. Cierra el desconocimiento del permiso viewBranch actual y prueba su efecto con identidad alternativa aislada. No cierra segunda página positiva por contar históricos invisibles.
+
+Archivo modificado en esta fase: únicamente este documento canónico. Backend/Blade/JS/CSS intactos. Sin acciones financieras, cambios de invoice, datos fiscales o permisos; sin commit. `git diff --check` ejecutado al cierre.
+
+## Reporting Exports — clasificación Sales 2026-11-13
+
+- **SALES-NEW-01 — BUG:** getSalesAdmin calcula `startRecord=(page-1)*10+1` con total>0 antes de saber si la página tiene filas; `endRecord=min(total,page*10)`. Por eso page2,total6 produce11/6. Expected inequívoco: metadata coherente, no intervalo invertido. Mecanismo final (422, clamp o0/0) requiere fijar contrato con DEV. No corregido en esta fase documental; no afecta dataset normal de primera página.
+- **SALES-NEW-02 — TECH DEBT / uso C confirmado:** document_type no es un filtro huérfano global. getSalesErrorAdmin lo lee (línea5142) y aplica where(type_document) (5184–5185). SaleListAccess::validateFilters se comparte con getSalesAdmin normal, que lo admite pero ignora. La UI normal no lo expone. No hay evidencia suficiente para exigir filtro01/03 en la lista normal; se clasifica claridad/separación del contrato, no BUG fiscal ni nuevo filtro. El OPEN anterior debe leerse con esta precisión.
+
+Ambos registrados una sola vez en tabla maestra del backlog; no duplicar como findings nuevos en posteriores cierres. No cambios backend/JS/Blade.

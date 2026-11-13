@@ -194,3 +194,37 @@ Backend cambia scopes/relaciones/accessors; aparecen snapshots completos, USD, r
 List / Annulled / Detail / ambos Reports — FRONTEND INTEGRATED — READ PATH.
 Tax Snapshot — FRONTEND ALIGNED / BACKEND AUTHORITATIVE.
 Backend — UNCHANGED. CSS nuevo0. No commit.
+
+## Reporting Exports — QA Closure 2026-11-13
+
+HEAD9262d65. Export auditado: InvoiceController::exportInvoices -> InvoicesFinanceExport -> exports.excelInvoiceFinance, XLSX. GET `/dashboard/exportar/reporte/factura`, permiso `list_invoice` además de web/auth/enabled/password/tenant.context. No endpoint auxiliar getInvoiceById/getServiceById incluido.
+
+### Scope / Permissions / Dataset
+
+financeEntries usa FinanceInvoiceContext::ids: **tenant/company, no branch**. Branch8 ve los mismos IDs de company1 que branch1: comportamiento contractual, no fuga. EDESCE1/1/1 y1/1/8:IDs29,30,36,38; otras companies2 y5 y Gamarra3/3 vacíos. Son4 facturas,3activas,1anulada(ID30),5líneas,0/5finance_tax_amount snapshot; todas PEN. No inventar snapshot. CategoryInvoice vía relación actual; no cruzada en dataset, hardening de referencia corrupta sigueOPEN.
+
+Gate de ruta real en harness: OwnerEDESCE1/1/1 yOwnerGamarra3/3/4 pasan200; CajeroMaster2sinpermiso403; Gamarra con1/1/1 yEDESCE concompany3/branch4:403. Middleware/contexto real con callback, no descarga HTTP de sesiones; export controller generado aparte en contexto autorizado.
+
+### Screen / Export / Filters
+
+Report general consulta financeEntries sin excluir anuladas; export sin fechas entrega las mismas4 cabeceras. No confundirlo con listado de activas ni con informe sin orden: export no tiene filtro de estado, purchase_order/type_order, categoría ni búsqueda DataTables. Las vistas integradas report_invoice/report_invoice_sin_orden y finance-readonly.js no enlazan el export actualmente.
+
+- Fechas reales `start/end` en d/m/Y, usa date_entry inclusive. 28/04/2026 entrega2filas(ID29/30);01/01/1900 entrega0.
+- Export sin filtros entrega4filas, no página actual. Dataset financiero no alcanza multipágina, ausencia de paginate/take confirmada en código.
+- Prueba start/end vacíos +state_annulled0+searchNO-MATCH: sigue4filas. No trasladar filtros cliente a esta ruta sin contrato.
+- **Filters: PARTIAL**: fechasPASS; paridad con búsqueda/estado/categoría o informe sinorden NO IMPLEMENTED. TECH DEBT / contrato de futura integración, no afirmar que el botón actual pierda filtros (no existe en fachada integrada).
+- `$_GET['start/end']` directo sin validación. Fechasbad provocan Carbon InvalidFormatException, no422: **BUG de validación**, Expected manejo controlado de input. No corregido: necesita Request validation y política explícita de fechas incompletas/invertidas. Una fecha vacía actualmente exporta todo. Backend Sync OPEN.
+
+### Totals / Currency / Historic Tax
+
+Por ID (subtotal/impuesto/total):29=76.27/13.73/90.00;30=76.27/13.73/90.00;36=93.22/16.78/110.00;38=84.75/15.25/100.00. Suma de cabeceras exportadas330.51/59.49/390.00; activas excluyendo30=254.24/45.76/300.00. Export no añade total global ni convierte monedas; lleva currency_invoice por fila. Mixed currency real no disponible: no certificar dataset multimoneda por tener soloPEN.
+
+Coincide con accessors de pantalla Entry.sub_total/taxes/total. Sin snapshot, subtotal divide total_detail por1.18 (o quantity*unit_price si total_detail null), impuesto=base*0.18. Con finance_tax_amount usaría snapshot. Es **fallback fiscal actual**, no histórico: BACKEND SYNC OPEN permanece. No agregar etiqueta falsa de snapshot.
+
+### File / Format / Test Boundaries
+
+Generado `%TEMP%/reporting-exports-qa/finance.xlsx`;6filas (título+headers+4datos),10columnas A:J:fecha,OC/OS,factura,tipo,proveedor,categoría,moneda,subtotal,impuestos,total. Lectura con PhpSpreadsheet: G=PEN,H/I/J numéricos; fechas texto dd-mm-yyyy. No CSV/PDF en contrato. No guardar artefactos/datos sensibles en repo.
+
+Harness READ ONLY+rollback. El export y GET de reporte tienen Audit::create técnico; para ejecutar export sin ninguna escritura DB se canceló solo Audit::saving en memoria del proceso CLI. No se modificó archivo/backend ni se deshabilitó logging del servidor. Por ello esta evidencia no certifica persistencia de auditoría ni flujo HTTP completo. No abrir documentos públicos.
+
+Export Scope / Permissions / Totals / Cross-context: QA PASSED para dataset/matriz indicada. Filters: PARTIAL. Fiscal snapshot: OPEN. Documents: BACKEND/INFRA OPEN. Backend/frontend UNCHANGED; CSS0; sin mutaciones comerciales ni commit.

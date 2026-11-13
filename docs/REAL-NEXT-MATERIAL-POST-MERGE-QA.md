@@ -124,3 +124,121 @@ Create se midió en ambos tenants; Edit variante en EDESCE y simple en Gamarra. 
 ## Próxima recomendación
 
 La siguiente pantalla nueva puede ser **Sales List Read-only Integration**, manteniendo sus propios límites de datos/roles. No se inició en esta fase. Para cerrar Material Save productivamente, backend debe alinear la validación multinivel y completar política histórica; QA requiere datos de warehouse local/otras branches y ambiente aislado para borrados/concurrencia. No reabrir como blockers la asignación de precio eliminada ni la supuesta eliminación de descuentos que ya no existe.
+
+# Material Edit Save Closure — 2026-11-13
+
+Esta sección prevalece sobre los estados históricos anteriores. **Material Edit Save — STILL BLOCKED.** Auditoría del código actual y ejecución aislada: **11 tests / 164 assertions PASS** en PHP7.3.33. Tests verdes incluyen characterization de defectos; no certifican esos comportamientos como correctos. Create/Edit façade/ListV2/Parameters permanecen DONE/FROZEN; no POS, CSS ni frontend modificados.
+
+## Dataset Strategy
+
+`tests/Feature/MaterialEditClosureTest.php`: conexión dedicada SQLite `:memory:` verificada antes de Schema::create. Esquema mínimo sintético, sin ejecutar migraciones sobre la base compartida; todas las fixtures se descartan al terminar cada app/test. No consulta ni modificación de materiales reales. Se reutilizan modelos, MaterialParameters, ambos middleware de parámetros/inventario, UpdateMaterialRequest con withValidator y MaterialController::update reales. Se prueban transacciones del controller, no un mock del guardado.
+
+Límites: prerrequisitos simplificados con strings/nullable; índices únicos tenant+SKU/barcode equivalentes a migraciones de agosto22. No equivalencia completa de schema/collation MySQL. Relaciones históricas/presentaciones son sentinelas mínimos de tablas reales; no se ejecutan sus workflows. Auth sintético válido, sin suite HTTP del middleware de permisos/CSRF. No imágenes ni escrituras al filesystem; no MySQL compartido, browser QA o mutaciones de configuración. Para el rollback se omite intencionalmente la validación previa y se introduce un nivel inválido en la segunda variante: modela cambio entre validación y ejecución, no payload aceptado por el request.
+
+## Regression Contracts
+
+| Contract | Status | Evidence | Blocks Save? | Classification |
+|---|---|---|---|---|
+| unit_price / list_price | REGRESSION PASS | payload999; valores17/19 preservados tras update200 | No | QA PASSED |
+| Descuentos poblados omitidos | REGRESSION PASS | relación material_discount_quantities intacta | No | QA PASSED |
+| Payload discount/percentage | QA PASSED contrato actual | colección permanece intacta; update no administra descuentos | No para Save; no certificar edición de descuentos | QA PASSED |
+| Parámetro omitido/deshabilitado | REGRESSION PASS | brand/unidad conservados; brand ajena deshabilitada retirada por guard | No | QA PASSED |
+| Identidad talla/color, variantes omitidas | REGRESSION PASS | IDs/filas de variante2 y StockItem3 idénticos; cambios de identidad rechazados | No | QA PASSED |
+| Tax | REGRESSION PASS | activo válido; inexistente/inactivo nuevo rechazado; inactivo propio conservable | No | QA PASSED |
+| Scope niveles, umbrales | REGRESSION PASS | local/general válidos; otra branch/company/tenant e incoherencia location rechazados | No en granularidad soportada | QA PASSED |
+| Varias locations mismo warehouse | Rechazo incorrecto persistente | request rechaza dos IDs válidos; sync acepta ambos separadamente | Sí, ese escenario | BUG MAT-04 |
+| SKU/barcode técnico | QA PASSED acotado | SKU nuevo, barcode null, IDs conservados, duplicados mismo tenant rechazados | No por integridad referencial demostrada | QA PASSED |
+| Identidad histórica presentada | NEEDS BACKEND DESIGN | compra histórica material_code cambia SKU-1 -> NEW sin editar detalle | Sí, política histórica pendiente | BUSINESS DECISION, MAT-01 |
+| StockItem activo/inventariable con stock | NEEDS BACKEND DESIGN | desactiva con10 onhand/2 reserved, Items e historial; no conciliación | Sí | BUSINESS DECISION, MAT-01 |
+| Flags no válidos | inválido convertido en0 | is_active/afecto_inventario='invalid' pasan request y guardan0 | Sí, validación | BUG MAT-05 |
+| Material otra company, mismo tenant | tenant master editable | fuera de CompanyCatalog pero update200 por ID | Sí, alcance de escritura pendiente de decisión explícita | BUSINESS DECISION, MAT-01 |
+| Retacería alcance físico | propagación cross-company reproducida | Item company2/exited recibe dimensiones nuevas al editar desde company1 | Sí | BUG MAT-03; política histórica además pendiente |
+| Items en edición ordinaria | REGRESSION PASS | IDs/codes/company/warehouse/location/state y conteo intactos | No, salvo retacería | QA PASSED |
+| Presentations | REGRESSION PASS acotado | definición y precio/currency/active branch2 intactos | No | QA PASSED |
+| Atomicidad DB | QA PASSED | snapshot completo antes/después del fallo idéntico | No por el fallo probado | QA PASSED |
+| Atomicidad imagen | No ejecutada | Image::save ocurre dentro de transacción SQL, sin rollback filesystem visible | Gate adicional si se certifica upload | TECH DEBT |
+| Concurrencia | no certificada con SQLite | matriz debajo | Gate de validación MySQL | MYSQL QA PENDING |
+
+## SKU / Barcode
+
+El request exige SKU no vacío, hasta191, comprueba duplicados dentro del payload (normaliza lower-case) y contra StockItem tenant-scoped excluyendo el actual. Barcode vacío/null termina null; SKU null se rechaza. Índices reales: stock_items_tenant_sku_unique y stock_items_tenant_barcode_unique. Duplicados en otra company del mismo tenant también colisionan por identidad tenant-wide. Collation/case y carreras no certificados por SQLite.
+
+Update escribe SKU/barcode/display_name en el StockItem existente, conserva sus IDs, y en simple copia barcode a materials.codigo. No reescribe Items.code ni claves de sales/purchases/transfer lines. **Esto no significa historia visual congelada:** DetailEntry::getMaterialCodeAttribute consulta el SKU actual; el test obtiene SKU-1 antes y NEW después desde la misma compra histórica. getMaterialDescriptionAttribute también lee display_name vigente. SaleDetail tiene description/item_snapshot; Transfers tiene sku_snapshot/description_snapshot. No se abrió documento ni se certificó la representación de todos los consumidores. Se requiere decidir qué pantallas deben mostrar identidad vigente o snapshot; no se bloquearon SKU por intuición ni se implementó política nueva.
+
+## Active / Inventariable
+
+No confundir Material.enable_status/inventory con StockItem.is_active/tracks_inventory. Update no asigna los primeros aun si llegan en payload; tipo_venta sí puede asignarse si está presente. En variantes is_active se guarda tanto en Variant como StockItem; afecto_inventario alimenta tracks_inventory. No modifica company_stock_items.is_active de existentes.
+
+**MAT-05:** request hace cast int antes de comprobar [0,1]; texto 'invalid' se convierte0 y pasa, controller persiste0. Número2 se rechaza. La ausencia de ambos flags usa default1 y reactiva un StockItem previamente desactivado: comportamiento caracterizado; requiere política explícita de omisión y no se equipara a MaterialParameters::apply.
+
+Cambiar tracks_inventory a0 actualmente no consulta/concili­a stock, reservas, Items, movimientos ni transferencias. Fixture con niveles10/reservado2, Items y referencias históricas permite200; filas físicas quedan intactas. No se afirmó haber ejecutado una transferencia/POS en esta fase. PosInventoryService::consume rechaza no inventariable; WarehouseAvailability lo excluye; TRANSFER-01 ya demuestra discrepancia de servicios Transfers. No duplicar TRANSFER-01: aquí el pendiente es la política de transición del flag con historia/stock. Stock residual, reservas y tipo_venta requieren contrato antes de certificar Save completo.
+
+## Variants
+
+Simple: una fila, sin talla/color. Variante: ambos talla/color requeridos; los casos solo talla o solo color se rechazan hoy. No inventar soporte de ejes opcionales. Producto simple<->variantes no convertible por update. IDs variant/StockItem ajenos rechazados por request; identidad talla/color de variante persistida es inmutable en request y controller.
+
+Update de una de dos variantes conserva la omitida y su StockItem exactamente; no delete implícito. Campo variant_id ausente permite creación según contrato, sin ejecutar en esta suite la inicialización DefaultInventoryLocationResolver; ese camino nuevo queda fuera del PASS de preservación histórica. Un stock_item_id extra en fila variante no selecciona otro StockItem: se resuelve por variant_id. No es un 422 universal para todo campo extra.
+
+## Inventory
+
+MaterialInventoryGuard exige contexto y snapshot en POST; MaterialParametersGuard exige configuración/version y elimina campos disabled. Contexto verifica usuario habilitado, tenant, company activa/membership y branch activa/membership. MaterialInventoryScope limita niveles a tenant/company y warehouses generales o branch actual; location debe corresponder a warehouse/company/tenant. Casos local/general, branch ajena, company ajena, tenant ajeno, snapshot stale y location incoherente cubiertos.
+
+Min/max solo cambian umbrales, no stock/reservas/costos/location. Se rechazan negativos/min>max; null explícito llega a0, omisión mantiene valor en sync. location_id extra999 es ignorado; no selecciona location ni debe reportarse falsamente como422. Los IDs de niveles son autoridad.
+
+**MAT-04:** dos niveles distintos con locations diferentes del mismo warehouse son válidos para sync (se comprueban min1 y min3 independientemente), pero request deduplica warehouse_id y rechaza 'almacenes repetidos'. No se suman ni heredan umbrales. Backend debe alinear granularidad del request con ID InventoryLevel y política existente.
+
+**Company scope:** Material y StockItem son tenant master. CompanyCatalog filtra list por al menos un StockItem habilitado; ni edit/update ni FormRequest imponen ese filtro. Test: material2 solo habilitado en company2, invisible en catálogo company1, update desde company1 válido200. Material de otro tenant se rechaza. No se llama automáticamente fuga al maestro compartido: se requiere política explícita de permisos de escritura tenant-wide versus membresía de catálogo company. No se agregó scope unilateralmente.
+
+## Items
+
+Edición ordinaria conserva registros, seriales/códigos, company/warehouse/location/state. No regenera Items. Se comprueba también al cambiar flags. Excepción actual: retacería. Cambiar tipo_venta sin una política histórica podría alterar interpretación de Items por consumidores; auditado en código, no transición certificada.
+
+## Tax
+
+TypeTax es global de plataforma, no tenant/company-scoped. No existe categoría 'impuesto de otro tenant'. Required/exists, activo válido; inactivo nuevo rechazado, inactivo histórico propio conservable. Update no elige default automáticamente ni altera default/tasa: preserva selección explícita validada. No reglas fiscales nuevas.
+
+## Discounts
+
+Fixture con descuento10% existente. Omitirlo, actualizar otro campo o enviar discount[1]/percentage[1]=30 no borra ni altera la relación. Update no consume esa colección: esto prueba preservación, **no soporte de modificación de descuentos desde Edit**. No hay eliminación de material_discount_quantities en este método. Endpoints DiscountController store/update/destroy son otro mantenedor con permisos propios, fuera de esta fase; no se probaron deletes.
+
+## Retacería
+
+Se ejecuta cuando cambia typescrap_id a valor truthy. Typescrap tenant-scoped; selecciona Item por material_id y state_item entered/exited; cambia length,width,typescrap_id. No company ni branch ni warehouse filter. No depende de materials.stock_current en este fragmento; no confundir con Separate Pack/MAT-02.
+
+**MAT-03 reproducido:** Item company2 en estado exited cambia length2->8 y typescrap1->2 desde company1. No cambia owner/ubicación/estado, pero sí geometría histórica de otra empresa. Se clasifica defecto de alcance físico, y se separa la decisión de negocio sobre si propagar a Items exited propios. No fix automático: limitar alcance y definir conservación histórica deben resolverse conjuntamente por DEV. Ningún Item real modificado.
+
+## Presentations
+
+No referencias de escritura a MaterialPresentation ni MaterialPresentationBranch dentro de update. Prueba de sentinelas en material_presentations y material_presentation_branches: definición y price25/currencyUSD/active branch2 intactos. No se interpreta que Material Edit pueda administrar activación/precio de branch, ni se toca PriceList.
+
+## Transactions
+
+Controller beginTransaction/commit, rollback en ValidationException/Throwable. Caso de dos variantes: primera modifica inventario, retacería modifica Items, segunda falla por nivel inexistente. Respuesta422 y snapshot completo de todas las tablas fixture idéntico al anterior: Material/StockItems/Variants/InventoryLevels/Items/descuentos/relaciones sin partial save. No afirma atomicidad filesystem: upload Image::save no participa del rollback SQL. No imágenes en pruebas.
+
+## Concurrency
+
+| Race | Existing Protection | MySQL QA Needed |
+|---|---|---|
+| Dos edits del mismo Material | company/config lock en forWrite + Material lockForUpdate | Sí: lost updates/espera/relectura |
+| Edit vs parámetros | company + setting lock/version snapshot | Sí |
+| Min/max vs stock | niveles lockForUpdate ordenados; columnas de stock no escritas | Sí: interacción con otros módulos |
+| SKU/barcode duplicado | consulta request + unique tenant compuesto | Sí: collation/carreras/error tras unique |
+| Nueva combinación | request verifica combinación; variant lock para existente | Sí: índices y simultaneidad de alta no certificados |
+| Flags vs venta/transfer/reserva | no guard histórico en update; locks Material/company no prueban protocolo común | Sí, después de definir política |
+| Retacería vs operaciones Item | get/save sin lock explícito de Items | Sí, después de corregir alcance |
+
+## Remaining Blockers
+
+1. MAT-03: propagación física de retacería cruza company; además falta política para Items históricos exited.
+2. MAT-04: rechazo de múltiples locations válidas del mismo warehouse en request.
+3. MAT-05: flags inválidos se convierten en0 y modifican estado/inventariable.
+4. MAT-01 refinado: política de cambios inventariable/activo/tipo_venta con stock/reservas/historia; omisión de flags; identidad histórica SKU/barcode presentada; autorización del maestro tenant-wide frente a catálogo company. Son decisiones de contrato, no fallas inventadas.
+5. Gates técnicos concretos antes de producción: MySQL concurrencia/collation y upload filesystem si se incluye imagen; alta de nueva variante no certificada por estos tests de preservación.
+
+No repetir blockers resueltos: precios legacy, borrado por omisión de descuentos, omisión de parámetros, identidad talla/color existente, variantes omitidas, Tax ni scope de niveles ya pasan la regresión indicada. MAT-02 Separate Pack no se trabajó ni se usa para bloquear el save ordinario.
+
+## Final Decision
+
+**Material Edit Save — STILL BLOCKED.** Backend sin modificaciones: se entrega evidencia para DEV y se evita fijar política histórica mediante un cambio parcial. Frontend/Material Create/Edit façade/List/Parameters/POS intactos; **0 CSS nuevo**. No materiales reales, no commit.
+
+Archivos de esta fase: tests/Feature/MaterialEditClosureTest.php; este canónico; refinamiento MAT-01 y nuevos MAT-03/04/05 del Dev Findings Backlog. PHPUnit11/164 PASS (advertencia preexistente schema XML PHPUnit); PHP syntax y git diff --check al cierre. Los archivos modificados de fases anteriores permanecen intactos.

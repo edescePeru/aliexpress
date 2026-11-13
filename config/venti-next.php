@@ -42,6 +42,7 @@ return [
         'companyBankAccount.create',
         'companyBankAccount.edit',
         'order.purchase.normal.indexV2',
+        'order.purchase.general.indexV2',
         'paymentDeadline.index',
         'paymentDeadline.create',
         'paymentDeadline.edit',

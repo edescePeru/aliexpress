@@ -155,3 +155,43 @@ La columna fija de acciones provocaba wrapping y el grupo de fechas tenía una a
 El datepicker descontaba el desplazamiento de 57 px del body al calcular su posición, aunque el popup utilizaba otro origen. Se configura `.wrapper` como contenedor y orientación inferior; el calendario queda a 4 px debajo del input, sin modificar filtros ni payloads.
 
 QA visual: 992, 1200, 1440 y 1920 px con usuario, fechas, Buscar y Exportar alineados en una fila; 320, 375, 390, 576 y 768 px con reorganización responsive. Calendario dentro del viewport y sin overflow global. Verificado el extremo final del rango a 320 px. Sintaxis JS, compilación Blade y git diff --check PASS. Sin escrituras comerciales, exportaciones ni cambios backend; sin commit.
+
+## Reporting Exports — QA Closure 2026-11-13
+
+HEAD9262d65. Auditoría de código + generación/lectura XLSX real con PHP7.3.33/Laravel Excel/PhpSpreadsheet. No rediseño, backend ni datos comerciales modificados. Harness temporal en TEMP; transacción MySQL READ ONLY y rollback; sesión/cache array. No abrir comprobantes públicos. Pruebas aisladas: `ReportingExportReadContractTest`, **3 tests /25 assertions**, SQLite :memory: y mocks de query. Cubren separación null/zero, actor sin Worker fallback, scope/moneda/anulada/reversed, fechas/actor y export completo sin paginación.
+
+### Exports / Route / Permission Matrix
+
+Prefijo `/dashboard`; web/auth/enabled/password/tenant.context comunes.
+
+| Export | Route | Permission adicional | Scope | Resultado |
+|---|---|---|---|---|
+| GananciasTrabajadorExport; RESUMEN + REPORTE | GET /export/ganancias/trabajador; ganancia.export.trabajador | showGananciaWorker_gananciaDiaria + export_gananciaDiaria | Tenant/company/branch + PEN | QA PASSED |
+| GananciaVentasDetalladoExport; VENTAS | GET /export/ganancia/ventas-detallado; ganancia.export.ventas_detallado | showGananciaWorker_gananciaDiaria + exportDetail_gananciaDiaria | Tenant/company/branch + PEN | QA PASSED para scope/datos; formato numérico pendiente |
+
+Gates reales de cada ruta ejecutados en harness: Owner EDESCE1/1/1 y Owner Gamarra3/3/4 pasan200; Cajero Master2 sin permisos403; Gamarra intentando1/1/1 y EDESCE intentando company3/branch4:403. Son pruebas de middleware/contexto con callback200, no logins HTTP ni certificación de toda la cadena web. La descarga/clases se ejecutaron por separado en contexto autorizado. Ningún permiso real cambiado.
+
+### Filters / Screen vs Export
+
+JS `ganancias/indexTrabajador.js` envía creator/startDate/endDate tanto a pantalla como a ambos exports. Query y totales activos delegan a UserProfitReport. No invocan helpers legacy `*O` ni resolveUnitCost basados en inventario/material actuales. Esos métodos muertos son TECH DEBT, no la query activa.
+
+- 1/1/1, creator4,04/11/2026–04/11/2026: pantalla y exports IDs116,117,118,119,120;23 unidades; venta1460.00,costo1059.38,utilidad400.62. Totales de pantalla ejecutados y contrastados con sheets/service.
+- Sin filtros:91 ventas,122 líneas,746 unidades,venta116649.50;38 líneas sin costo => costo/utilidad agregados null. XLSX REPORTE tiene91 filas de datos (92 con header),26 ventas con texto `Sin costo registrado`. No limita a10 filas de pantalla.
+- creator7 desde EDESCE:vacío; fecha01/01/1900:vacío. No actor Worker fallback; históricos pueden aparecer como `No registrado`, a diferencia del contrato Sales List.
+- Outlet1/1/8:solo114. Companies1/2/2 y1/5/6, Gamarra3/3/4:vacío. Comparados IDs completos entre query y export, no solo conteos. IDs1/1/1 completos, orden irrelevante:
+
+```text
+1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,18,19,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,39,41,42,43,45,46,47,48,49,50,51,52,53,55,56,57,58,59,61,62,63,64,65,66,67,68,69,71,72,73,74,76,77,78,80,83,87,89,90,91,92,93,94,95,97,98,99,103,105,107,108,109,110,115,116,117,118,119,120
+```
+
+### Formats / Null Cost / Currency
+
+Solo XLSX en estas rutas, no CSV/PDF. RESUMEN11filas/2columnas; REPORTE encabezados ID/Fecha/Usuario/Cantidad/Venta/Costo/Utilidad; detallado15columnas A:O. Fechas texto d/m/Y, cantidades e importes numéricos al reabrir XLSX. Costo desconocido se exporta texto explícito; prueba aislada cost0 conserva0 y utilidad10, costnull conserva null/texto, nunca0. PEN exclusivo en query; resumen y headers S/ lo identifican, sin conversión.
+
+**[OPEN] BUG de formato localizado:** GananciaVentasDetalladoExport::columnFormats configura J:N, pero importes están K:O. J es descripción (texto con formato numérico) y O utilidad queda General. Se comprobó en XLSX J2 tipo s/formato0.00 y O2 tipo n/General. Valores correctos; no se hizo fix ni rediseño. Frontend can continue:Yes. No afecta totales ni aislamiento.
+
+### Generated Files / Boundaries
+
+Artefactos QA fuera del repo: `%TEMP%/reporting-exports-qa/user-summary.xlsx`, `user-detail.xlsx`, `user-history.xlsx`, más temporales de Laravel Excel en el mismo directorio. No versionados ni entregados con datos sensibles. Sin documentos públicos ni mutaciones comerciales.
+
+Export Scope / Filters / Permissions / Totals / Cross-context: **QA PASSED para matriz observada**. Relación corrupta futura fuera de contexto no simulada; no ampliar esta evidencia a integridad adversarial de todas las relaciones. DOCUMENT SECURITY — BACKEND/INFRA OPEN. Backend UNCHANGED. CSS0. No commit.

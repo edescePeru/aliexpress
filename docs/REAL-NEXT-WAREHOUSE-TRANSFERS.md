@@ -231,3 +231,162 @@ Cambios backend de autorización/state machine/snapshots, endpoints o payloads; 
 6. docs/REAL-NEXT-WAREHOUSE-TRANSFERS.md — auditoría, matrices y evidencia.
 
 Artefactos de QA fuera del repo, en la carpeta local de evidencia de esta sesión: warehouse-transfer-readonly.php, wt-presentation-render.php/router.php/shim.js, ocho HTML sintéticos y warehouse-transfers-final.png. Ninguna dependencia productiva hacia esos archivos. Servidor sintético detenido al terminar.
+
+# Functional Closure QA — 2026-11-13
+
+Esta sección sustituye los estados históricos de cobertura anteriores, no los contratos de presentación. Código actual HEAD `9262d65`; frontend/backend sin modificaciones. **10 tests / 236 assertions PASS**, PHP 7.3.33, SQLite `:memory:`. Un test caracteriza un defecto: verde no significa que ese camino sea correcto.
+
+## State Machine
+
+| Estado actual | Acción | Resultado contractual |
+|---|---|---|
+| Sin registro | request | requested; UUID/hash idénticos retornan registro existente |
+| requested | prepare | prepared |
+| prepared | prepare | no-op idempotente |
+| prepared | dispatch | dispatched |
+| dispatched / partially_received / received | dispatch | no-op idempotente |
+| dispatched / partially_received | receive | partially_received o received según cantidades acumuladas |
+| cualquier estado alcanzado después de recepción | misma receive UUID/hash | recepción existente, sin ingreso duplicado |
+| requested / prepared | cancel con motivo | cancelled |
+| cancelled | cancel con motivo | no-op, si la autorización contextual sigue vigente |
+| estados restantes | acción no permitida | ValidationException -> 422; permiso/contexto denegado -> 403 |
+
+Los reintentos pasan primero por contexto/autorización: el no-op no concede permiso. Una UUID reutilizada con otro payload/actor no es un reintento válido. Transfer inexistente en controller: findOrFail/404. No existe transición de devolución después de dispatch; no se inventó.
+
+## Dataset Strategy
+
+`tests/Feature/WarehouseTransferClosureTest.php` configura conexión exclusiva SQLite y comprueba `:memory:` **antes de crear tablas**. Prerrequisitos sintéticos mínimos; migración real `2026_10_19_000003_create_warehouse_transfer_tables.php`, modelos y servicios reales. Foreign keys habilitadas. No RefreshDatabase ni migraciones sobre MySQL compartido.
+
+Límites explícitos: tablas prerrequisito simplificadas (columnas nullable/string); no certifican precisión/constraints MySQL. Gate de permisos controlado por test, no fixture de roles productivos. SettingService devuelve base PEN controlada; CostResolver y algoritmo InventoryCostService son reales, alimentados por compra/lote sintéticos de 10 unidades a 5 PEN y una tabla fixture de `inventory_movements_view`. No se certifica aquí el SQL MySQL de esa vista ni conversiones USD. No se inventó costo en frontend ni se sustituyó el algoritmo por un mock.
+
+Lectura real mediante harness externo temporal, PDO a configuración local y `START TRANSACTION READ ONLY` / `ROLLBACK`. Se evitó el error de inicialización del conector CLI PHP7.3/MySQL (2014) usando PDO directamente solo en ese harness; configuración/backend intactos. Ninguna solicitud, preparación, despacho, recepción o cancelación compartida.
+
+### Current Dataset
+
+| Transfer | Tenant/company | Warehouse origen -> destino | Branch origen -> destino | Estado | StockItem / solicitado | Recepciones |
+|---|---|---|---|---|---|---|
+| 1 | 1 / 1 | 8 -> 9 | 1 -> 8 | received | 77 / 5.00 | 5.00 |
+| 2 | 1 / 1 | 1 -> 8 | general -> 1 | received | 75 / 10.00 | 5.00 + 5.00 |
+| 3 | 1 / 1 | 1 -> 8 | general -> 1 | received | 71 / 50.00 | 50.00 |
+
+Total actual: **3 transfers, 3 líneas, 4 receipt lines**; las tres líneas tracks_items=false. No hay documentos reales en otros estados ni Items físicos en estos traslados. Warehouse1 GEN, 8 Almacén Local Principal, 9 Almacén Outlet. Companies2/3/4/5 conservan generales2/4/6/7.
+
+## Permissions
+
+| Acción | Permiso de ruta | Guard adicional |
+|---|---|---|
+| index/show | list_transfer | contexto + scopeVisible / authorize(view) |
+| create/products/store | list_transfer + create_transfer | contexto; source/destination autorizados en store |
+| prepare | list_transfer + prepare_transfer | origen o manageAll; estado en servicio |
+| dispatch | list_transfer + dispatch_transfer | origen o manageAll; estado en servicio |
+| receive | list_transfer + receive_transfer | destino o manageAll; estado/cantidad/UUID en servicio |
+| cancel | list_transfer + cancel_transfer | origen o solicitante del destino mientras requested, o manageAll |
+
+Sin permiso: pruebas del Access real lanzan AuthorizationException y handler Laravel genera JSON403. ValidationException de servicios genera422. Es cobertura de guard+handler, **no una suite HTTP de todo el middleware/session/CSRF**. Gate controlado permite separar permiso de alcance, sin asumir Owner bypass. `manageAll_transfer` amplía branch, no tenant/company ni permiso de acción.
+
+## Scope
+
+Tests: branch origen prepara/despacha; destino recibe; branch tercera invisible; manageAll permite company completa; company/tenant ajenos no aparecen; almacenes ajenos/no existentes rechazados; membresía/contexto inválido rechazado. FormRequest real rechaza snapshots form_tenant/company/branch manipulados. TransferRecord scope y referencias inmutables ejercitados.
+
+Lectura de permisos/contextos actuales (no reasignados):
+
+| Cuenta | Tenant/company/branch | IDs visibles | Observación |
+|---|---|---|---|
+| Owner EDESCE #4 | 1/1/1 y 1/1/8 | [1,2,3] ambos | manageAll vigente |
+| Owner EDESCE #4 | 1/2/2 | [] | company distinta |
+| Owner EDESCE #4 | 1/2/3 | DENIED | Access rechaza contexto |
+| Owner EDESCE #4 | 1/5/6 y 1/5/7 | [] | company distinta |
+| Owner Gamarra #7 | 3/3/4 | [] | tenant distinto |
+
+Ambos Owners actualmente can(list/create/prepare/dispatch/receive/cancel/manageAll_transfer)=true. Esto reemplaza el inventario antiguo de permisos; no se interpreta como bypass Owner. Matriz multicontexto obtenida por harness autenticado en memoria, navegador solo EDESCE1/1/1. El conjunto real vacío Gamarra no prueba una transferencia positiva Gamarra; fixtures cubren el rechazo cruzado.
+
+## Warehouse Validation
+
+Generales tienen branch null. Access admite almacenes propios con branch activa o general; destino ordinario debe ser branch activa; manageAll admite general como destino. Request exige origen distinto de destino y exactamente una location contextual por almacén. Tests rechazan origen=destino, warehouse ajeno/inexistente, locations duplicadas y branch snapshot alterada. No hay selección libre de location ni cambio de contexto por payload.
+
+## Material / StockItem / Item
+
+La unidad de línea es **StockItem**, habilitado por company_stock_items y activo en tenant; Material decide `tipo_venta_id===3` para Items físicos enteros. No se envía Material ID como StockItem ID. Item conserva identidad al viajar; selecciona automáticamente entered del stock/lote/origen/company correctos. Tests excluyen Item inexistente, reservado, scraped, otra company y otro warehouse; verifican IDs exactos al reservar/recibir y que el conteo de Items no aumenta.
+
+**TRANSFER-01 — BUG OPEN:** products() y WarehouseAvailabilityService::product exigen tracks_inventory=true; WarehouseTransferLine y PreparationService no lo exigen. Fixture con tracks_inventory=false y lote/nivel existentes: disponibilidad rechaza422, request crea y prepare reserva4. Es discrepancia demostrada de elegibilidad; no se amplió a una afirmación de explotación HTTP ni daño real. Backend sin fix; DEV debe alinear validación de escritura y definir tratamiento de stock residual al desactivar ese flag.
+
+## Quantity
+
+PASS positivos decimales para producto no unitario; cero/negativos/texto/>2decimales rechazados; fracción para tipo3 rechazada; StockItem duplicado rechazado; superior a disponibilidad o recepción pendiente rechazado. El agotamiento entre request y prepare se modela reservando8/10 antes de preparar4. No es prueba de carrera concurrente real.
+
+## Inventory Effects
+
+Ejemplo ejecutado: origen10, destino0, solicitud4.
+
+| Stage | Origin On Hand | Origin Reserved | Transit lógico | Destination On Hand |
+|---|---:|---:|---:|---:|
+| request | 10 | 0 | 0 | 0 |
+| prepare | 10 | 4 | 0 | 0 |
+| dispatch | 6 | 0 | 4 | 0 |
+| receive1.50 | 6 | 0 | 2.50 | 1.50 |
+| receive2.50 | 6 | 0 | 0 | 4 |
+| cancel prepared (camino alternativo) | 10 | 0 | 0 | 0 |
+
+Tránsito se deriva de allocations dispatched menos receipt lines; no columna física nueva. Se comprueban lotes y niveles de origen, niveles destino, cantidades acumuladas, estado y costo base/promedio5 derivado de fixture de compra.
+
+## Reservations
+
+Request no reserva; prepare reserva disponible de lotes por vencimiento e ID y nivel; dispatch descuenta ambas cantidades; cancel libera solo su contribución. Test de reserva ajena8 conserva8 al cancelar solicitud sin preparar. Comparación de contratos: WarehouseAvailability reconcilia niveles/lotes exactamente para traceable; prepare requiere un nivel único y que cubra lotes/reservas, además de disponibilidad suficiente; no son comprobaciones idénticas. MaterialInventoryScope restringe niveles a generales + branch actual y locations consistentes; Transfers permite movimiento entre branches con permisos direccionales. No se igualaron los scopes desde frontend.
+
+## Prepare
+
+PASS solicitud válida, prepared repetido no-op, rechazo posterior al despacho/recepción/cancelación, stock insuficiente, costo sin compra verificable, Items incompatibles y rollback después de procesar una primera línea válida. Pendiente excepción de elegibilidad TRANSFER-01.
+
+## Dispatch
+
+PASS salida solo después de preparar, cantidades/lotes/reservas, Items in_transit, no ingreso automático; repetición dispatched/partially_received/received no cambia snapshot. Fallo en Item de segunda línea revierte movimientos previos de primera línea.
+
+## Receive
+
+PASS recepción parcial/completa, UUID/hash, límite pendiente, costo derivado, Items mantienen IDs y llegan entered a warehouse/location/lote destino. Exceso y Item incompatible revierten lotes/receipts/Items; location destino alterada rechaza sin efectos. Misma UUID distinta cantidad422. Recepción nueva después de received422.
+
+## Cancel
+
+PASS requested y prepared; libera Items y reservas; cancelled repetido no-op. dispatched/partially_received/received rechazan. Fallo en Item posterior revierte liberación parcial. No se certifica devolución postdespacho ni se crea esa regla.
+
+## Rollback
+
+Cada rechazo compara snapshots completos ordenados de diez tablas: transfers, lines, allocations, allocation_items, receipts, receipt_lines, receipt_items, stock_lots, inventory_levels, items. Comparación exacta antes/después incluye cantidades, estados y timestamps. Casos de partial prepare/dispatch/cancel/receive, stock insuficiente, costo inválido y destino inválido pasan. Prerrequisitos mutados para provocar fallo son exclusivamente fixtures SQLite.
+
+## Idempotency
+
+PASS request UUID/hash, prepare preparado, dispatch despachado/parcial/recibido, receive misma UUID/hash, cancel cancelado. Snapshots no duplican stock/reservas/recepciones/Items. Reutilización UUID con datos distintos rechazada. No confundir reintento contractual con transición inválida: no todos los duplicados deben producir error.
+
+## Concurrency
+
+| Race | Existing Protection | SQLite Coverage | MySQL Needed |
+|---|---|---|---|
+| prepare/prepare, prepare/cancel | transaction3; company/transfer/lines/lots/levels locks | reintento secuencial + rollback | YES: contención/deadlocks |
+| dispatch/cancel | company/transfer locks, estado y reservas | inválidos/idempotencia/rollback | YES |
+| receive/receive | company/transfer/allocations/level locks; UUID unique | misma UUID y exceso secuenciales | YES: doble submit concurrente |
+| create/create UUID | company lock + wt_request_key_uq | misma clave/hash y conflicto | YES: colisión cross-company |
+| inventario consumido por otro módulo | validación stock + lockForUpdate | saldo insuficiente modelado | YES: protocolos de locks entre módulos |
+| Item duplicado / destino level inicial | links únicos, recibo único, company lock/check-then-write | identidad y no duplicado secuencial | YES: interleavings reales |
+
+**MYSQL QA PENDING.** SQLite no certifica lockForUpdate, reintento por deadlock ni aislamiento MySQL. No se lanzó concurrencia contra DB compartida.
+
+## Frontend Regression
+
+Navegador Owner EDESCE: listado3 recibidos, detalleTR-000003 (50 solicitado/despachado/recibido;0 reservado/tránsito/pendiente), create con almacenes1/8/9; filtro TR-999999 muestra0 y empty state correcto. Estado received no expone preparar/despachar/recibir/cancelar aunque la cuenta tenga permisos. Blade combina actions con estado; servicios permanecen autoridad.
+
+Responsive básico list/create/detail a1440/768/375: scrollWidth<=innerWidth. Capturas inspeccionadas de create desktop y detalle móvil; tablas conservan scroll local. En cambio de tamaño se recargó para normalizar sidebar responsive. Consola del tab:0 errores capturados. No se repite matriz histórica completa. Otros cinco estados UI mantienen cobertura sintética histórica; no se afirma haberlos observado con dataset real actual.
+
+No clicks en Guardar/Preparar/Despachar/Recibir/Cancelar. Sin CSS/Blade/JS/config nuevos. Documentos: no hay ruta de impresión/documento en el grupo actual; **DOCUMENT SECURITY — BACKEND/INFRA OPEN** transversal no se certifica ni se duplica DOC-01.
+
+## Remaining Open
+
+- TRANSFER-01 BUG OPEN, elegibilidad tracks_inventory en escrituras; test characterization, backend unchanged.
+- QA-03 se reduce a MySQL concurrencia, integración kardex MySQL/costos USD, middleware HTTP completo y cobertura real restante; no duplicar ese finding genérico.
+- WT-01: inventario antiguo de permisos/destinos superado por lectura actual; no se otorgaron permisos ni se solicita mutar inventario real.
+- WT-02: ciclo/rollback/idempotencia cubiertos en TEST DB; dataset compartido solo received no cubre restantes estados/Items. MySQL sigue pendiente.
+- WT-03: textos mal codificados siguen deuda previa; no se abre duplicado.
+- Ninguna nueva decisión comercial adoptada. Stock residual con tracks_inventory=false requiere revisión DEV al corregir TRANSFER-01.
+
+Estado: **Transfer Read Paths QA PASSED (EDESCE navegador + matriz de acceso readonly); State Machine QA PASSED — TEST DB; Permissions/Scope QA PASSED — cobertura indicada; Inventory Effects QA PASSED — TEST DB, elegibilidad TRANSFER-01 OPEN; Rollback/Idempotency QA PASSED; MySQL QA PENDING; Frontend PRESERVED; Backend UNCHANGED.** No cierre incondicional de seguridad operacional.
+
+Archivos de esta fase: test WarehouseTransferClosureTest.php, este canónico y addendum del Dev Findings Backlog. Cambios previos preservados; no commit. Validación: PHPUnit10/236 y `git diff --check` sin errores de whitespace (advertencias Git LF/CRLF históricas).

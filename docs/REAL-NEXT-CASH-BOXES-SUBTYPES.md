@@ -1,5 +1,7 @@
 # REAL NEXT — Cash Boxes & Subtypes
 
+> Estado vigente 2026-11-12: ver **Mutation QA — Roadmap C / 8B** al final. Suite aislada: 11 tests / 132 assertions PASS; dependencia POS de mantenedores **NOT READY**, por moneda, protección histórica y payload incompleto. Los estados PENDING e inventarios siguientes pertenecen a la auditoría original.
+
 Fecha: 2026-11-05. Base auditada: `ffe0974` (front sales list read only).
 
 - Cash Boxes: **FRONTEND INTEGRATED**.
@@ -181,3 +183,137 @@ Frontend can continue: Yes. Empty state correcto; MUTATION QA PENDING.
 6. docs/REAL-NEXT-CASH-BOXES-SUBTYPES.md — contrato, QA y límites.
 
 Sin cambios en controllers, modelos, servicios, middleware, scopes, rutas, CSS ni configuración comercial persistida.
+
+## Mutation QA — Roadmap C / 8B (2026-11-12)
+
+Esta actualización sustituye el estado histórico MUTATION QA PENDING y el inventario vacío de la auditoría original, sin borrar aquella evidencia. Resultado: **QA de contratos ejecutado en DB aislada; cierre de seguridad NOT READY**. Un test de caracterización que reproduce una vulnerabilidad funcional no significa que la regla sea segura.
+
+### Dataset Strategy
+
+**TEST DB**, anunciado antes de ejecutar. `tests/Feature/CashMaintainersClosureTest.php` configura conexión exclusiva `cash_qa_memory`, SQLite `:memory:`, antes de schema/fixtures. Aserción explícita de database=:memory:, sesión/cache array. Fixtures sintéticos con nombres QA CASH BOX / QA CASH SUBTYPE y contextos 1/1/1, 1/1/8, 1/2/2 y 3/3/4. Los IDs representan la matriz solicitada, no copias ni modificaciones de datos reales.
+
+Referencias CashRegister/CashMovement son filas sintéticas mínimas en memoria para probar guards del mantenedor. No se llamó open/close/income/expense/post/regularize/prepare ni se realizó ninguna venta/pago. Schema mínimo focalizado: no certifica FKs, concurrencia ni comportamiento MySQL de producción. No se ejecutaron migraciones.
+
+### Scope — Field / Authority / Validation / Scope
+
+| Field | Authority | Validation | Scope |
+| --- | --- | --- | --- |
+| CashBox tenant_id/company_id | TenantContext servidor | Ignora valores enviados; update busca ID en company con TenantScope | Company actual dentro de tenant |
+| branch_id | Cliente elige dentro de company | nullable integer; existencia en company; cambiar con sesión abierta rechaza 422 | null=company compartida; ID=local |
+| name/type/position | Payload permitido | required string max120; cash/bank; entero >=0 | Mantenedor company |
+| currency efectivo | Payload | nullable string size3, trim/uppercase; NO whitelist | Caja; no conversión |
+| company_bank_account_id | Cliente, validado servidor | bank exige cuenta activa de company y tenant; cash la elimina | Company |
+| currency bancaria | CompanyBankAccount | Sobrescribe currency cliente con moneda de cuenta | Caja/cuenta |
+| uses_subtypes | Payload boolean normalizado | cash fuerza false | Caja bancaria operacional |
+| is_active/current_balance | Servidor al crear | true / 0; update no acepta cambios de estos campos | Toggle independiente para estado |
+| Subtype tenant/company | TenantContext | No se acepta autoridad cliente; IDs filtrados | Company |
+| cash_box_id subtype | Payload | null/global=company; específica exige caja activa de company con uses_subtypes | Global company o caja específica |
+| code/name/position subtype | Payload | code max50 normalizado a minúscula, espacios a _, caracteres permitidos; name max120; position >=0 | Duplicados/conflictos por company |
+| is_deferred/requires_commission | Payload normalizado boolean | No diferido fuerza comisión=false; sin veto por referencias | Semántica funcional del canal |
+| moneda/default subtype | No existen campos propios | No inventados | Moneda de caja/operación; no default obligatorio |
+
+No FormRequests dedicados: validaciones privadas de ambos controladores. Modelos BelongsToTenant; CashBoxSubtype::availableForCashBox solo añade global/caja, requiere filtros company/activo del consumidor.
+
+### Create
+
+CashBox: 201, tenant/company desde servidor pese a payload ajeno; saldo inicial 0, activa true, cash sin subtipos. Bank usa moneda de cuenta propia aunque cliente mande USD. Branch de company 2, tenant 3 o inexistente: 422; bank sin cuenta, cuenta ajena/inexistente: 422; tipo inválido, nombre vacío y moneda con longitud inválida: 422. No se crean filas en rechazos. Company/tenant manipulados se ignoran y se conserva contexto, no necesariamente provocan 422.
+
+Subtype: inmediato y deferred/comisión persisten y se leen correctamente (201). Code normalizado; comisión anulada para inmediato. Duplicado mismo alcance y conflicto global/específico: 422, incluye ambas direcciones. Código vacío tras normalizar, nombre vacío, caja inexistente/ajena/inactiva/sin subtipos: 422. Mismo código en otra company permitido. Crear queda activo independientemente de cliente.
+
+### Update
+
+CashBox: nombre permitido (200), repetir el mismo update conserva valores; tenant/company/saldo no cambian por payload. Se administra una caja de branch 1 desde contexto branch 8 de la MISMA company: permitido por contrato del mantenedor. Cambio a compartida con sesión abierta: 422; con sesión cerrada: 200. No es autorización operativa para usar esa caja en POS.
+
+Subtype: nombre, deferred y comisión persisten (200). Cambiar deferred con referencias también es aceptado: se documenta como fallo de protección histórica, no PASS de seguridad. No se implementó workaround frontend.
+
+### Toggle
+
+CashBox con sesión status=1: 422, permanece activa. Con sesión cerrada y movimiento histórico sintético: 200, inactiva; otra llamada la reactiva. Subtipo sin referencias y con referencias: toggle 200 sin veto de uso. No hay default/required guard en subtipo.
+
+Toggle es inversión, **no idempotente**: repetir cambia nuevamente el estado. No se añadió semántica set-active ni token de idempotencia. El guard de sesión es check-then-save sin lock/transacción que lo coordine con aperturas concurrentes; carrera pendiente de revisión backend.
+
+### Shared/Local
+
+Queries reales de PosCashService::boxes y FinanceInvoiceContext::boxes probadas sin ejecutar pagos: en branch 8 excluyen caja local branch 1 y admiten shared company y local branch 8. Company 2 y tenant 3 no reciben cajas company 1. Shared nunca equivale a tenant-global. El mantenedor sigue company-wide y no requiere que branch destino sea la activa.
+
+### Currency
+
+**NOT CLOSED.** Cash efectivo admite XYZ (201) por size:3; también permite cambiar currency a USD (200) con sesión abierta y referencia histórica. El frontend solo ofrece PEN/USD, pero no protege API. No se modificó backend: se requiere definir/validar catálogo y política de edición con referencias. Sin conversión o remediación automática.
+
+POS exige caja.currency igual a venta; FinanceInvoiceContext filtra moneda de factura; CashRegularizationService compara moneda de venta contra caja para fuentes de venta y usa moneda de caja en su resultado. Subtipo no tiene moneda. CashRegister no aporta aquí una moneda inmutable que legitime cambiar la caja durante la sesión. La asignación bancaria sigue fuente CompanyBankAccount; estos mantenedores no certifican sincronización posterior al editar la cuenta bancaria.
+
+### Deferred
+
+Persistencia y lectura flags **PASS**. PosCashService::subtypes excluye inactivos, incluye globales/específicos del contexto; FinanceInvoiceContext::subtypes además excluye diferidos. Probado sobre fixtures aislados. CashRegularizationService exige subtipo activo y diferido correspondiente a caja/contexto. DeferredSaleRefund consulta is_deferred actual además de indicadores del movimiento; SalePartialPaymentController usa is_deferred al generar regularize y vuelve a consultarlo al cancelar. Solo inspección de esos flujos transaccionales, no ejecución.
+
+### Historical Semantics
+
+**BACKEND SYNC OPEN — HISTORICAL SEMANTICS.** Update de subtype permite diferido→inmediato aunque CashMovement lo referencie; toggle lo desactiva sin consultar uso. Eso puede volver no elegibles cobros pendientes en regularización o cambiar decisiones de consumidores históricos. No se afirma que todos los cambios con historial deban bloquearse: backend debe definir guard/snapshot y tratamiento de pendientes. Similar pendiente para tipo/cuenta/moneda/uses_subtypes de caja con sesiones/referencias; el guard actual solo cubre cambio branch y desactivación con sesión abierta.
+
+### Cross-context
+
+| Caso aislado | Resultado |
+| --- | --- |
+| company 2 → update/toggle caja/subtipo de company 1 | 404 |
+| Gamarra tenant 3 → update/toggle caja/subtipo EDESCE tenant 1 | 404 |
+| branch 1 → destino branch 8 misma company | Creación permitida; mantenimiento company-wide |
+| branch de otra company/tenant o inexistente en create | 422 |
+| IDs de objeto inexistentes update/toggle | 404 |
+| IDs ausentes update/toggle | 422 |
+| Payload tenant/company ajeno en create | Ignorado; servidor persiste contexto propio |
+| Subtype específico de caja otra company | 422 |
+| Selección operativa de caja de otro local | Excluida en queries POS/Finance |
+
+Pruebas invocan controllers/services directamente, salvo middleware aislado y render del handler. No constituyen una suite HTTP completa de InitializeTenantContext/CSRF ni matriz real de login Gamarra en esta fase.
+
+### Permissions
+
+Sin cambios: auth y permission middleware. list/create/edit/disable_cashBox y list/create/edit/disable_cashBoxSubtype mapeados a index/listar, store, update, toggle. El middleware Spatie REAL se ejecutó con usuario sintético sin capacidades: **403 para los ocho permisos**, callback no alcanzado. No se supone bypass Owner. Navegador real Owner EDESCE conserva opciones Crear/Editar/Desactivar; no se alteraron roles. El stub de capacidades negativo no certifica la asignación de roles en DB ni todos los middleware HTTP.
+
+### Tests
+
+`tests/Feature/CashMaintainersClosureTest.php`: **11 tests, 132 assertions PASS**, PHP 7.3.33 / PHPUnit 9.6.13. Comando focalizado: `php vendor/phpunit/phpunit/phpunit tests/Feature/CashMaintainersClosureTest.php` con el binario Wamp 7.3.33. Warning preexistente de XML PHPUnit deprecado, sin cambios de configuración.
+
+Cobertura create/update/toggle, aislamiento, local/shared, moneda bancaria, flags diferidos/comisión, duplicados, cajas no elegibles, sesión abierta/cerrada, referencias históricas sintéticas, idempotencia de update/inversión toggle, permiso negativo y errores JSON 422 via Handler Laravel. Test de gaps caracteriza XYZ, cambio moneda en uso y cambio deferred histórico. Otro reproduce **Undefined index: cash_box_id** cuando se omite ese campo nullable del subtipo: no es respuesta 422 limpia. No se marca como contrato correcto por pasar la aserción de caracterización.
+
+### Frontend Regression
+
+Navegador real, sesión existente Owner EDESCE / EDESCE CONSULTORA / Local Principal: ambas rutas cargan tabla, badges, acciones y modales Create/Edit. Se abrieron Nueva Caja, Editar Efectivo Local Principal, Nuevo Subtipo y Editar POS; cambios locales cancelados. Deferred muestra comisión y Edit recupera ambos flags. Sin errores JS capturados en la revisión. Inspección visual desktop 1280x720: modal legible y tabla con scroll local; sin rediseño ni CSS nuevo.
+
+Inventario visible actualizado: company EDESCE muestra 4 cajas (local principal, BCP shared, Interbank shared, outlet) y 5 subtipos. Por tanto el inventario vacío/legacy de noviembre 5 ya no describe esa pantalla.
+
+Feedback AJAX revisado en ambos JS: success cierra modal, muestra mensaje y recarga; error toma message/errors y muestra el primer error. JSON 422 comprobado con handler en DB aislada. **Feedback visual de create/update exitoso y error 422 end-to-end PENDING**: no se enviaron formularios a DB compartida; no se fingió un success en navegador. No se repitió matriz responsive completa por no cambiar frontend; la matriz histórica no se presenta como nueva ejecución.
+
+### Cleanup
+
+Registros QA creados/eliminados en DB compartida: **0 / 0**. Fixtures solo en memoria, descartados al finalizar procesos; no quedaron cajas/subtipos QA por limpiar. Sin borrados reales, sin desactivaciones reales, sin apertura/cierre/ingresos/egresos, arqueo, ventas, pagos, posting o regularización.
+
+### Remaining Backend Sync
+
+[OPEN] CB-01 — Política de cambios con dependencias, ahora reproducida.
+File / endpoint: CashBoxController update/validateCashBox/toggle; CashBoxSubtypeController update/toggle.
+Impact: cambios de moneda con sesión abierta y deferred con referencias aceptados; desactivar canal puede bloquear pendientes; check/save no serializado con apertura.
+What backend needs to define or correct: reglas de inmutabilidad/snapshots, protección de pendientes y concurrencia.
+Frontend can continue: Yes; no certificación integral del mantenedor como dependencia POS.
+
+[RESOLVED PARTIAL] CB-02 — Cobertura aislada ahora disponible (11 tests); EDESCE ya tiene dataset company-scoped visible. No se certifica migración legacy global, HTTP end-to-end ni concurrencia MySQL.
+
+[OPEN] CB-03 — Currency del efectivo sin whitelist.
+File / endpoint: CashBoxController::validateCashBox.
+Impact: XYZ aceptado aunque consumidores operativos requieren moneda compatible.
+What backend needs to define or correct: catálogo soportado y nullable explícitos; edición con referencias.
+Frontend can continue: Yes; no filtrar payload incorrecto solo en JS.
+
+[OPEN] CB-04 — Payload incompleto subtype.
+File / endpoint: CashBoxSubtypeController::validateSubtype.
+Impact: cash_box_id nullable omitido causa Undefined index antes de respuesta de validación normal.
+What backend needs to define or correct: normalizar ausencia a null o exigir campo explícitamente con error 422.
+Frontend can continue: Yes; formulario actual envía alcance, pero el API sigue pendiente.
+
+### POS Dependency Decision
+
+**Cash Boxes/Subtypes dependency for POS — NOT READY (maintainers only).** CRUD básico, scope y selección local/shared comprobados; persistencia flags comprobada. No declarar Currency/Historical Semantics QA PASSED por reproducir sus gaps. Bloqueos: CB-01 histórico/concurrencia, CB-03 moneda y CB-04 payload incompleto; feedback HTTP/browser de mutaciones pendiente.
+
+Siguiente gate: corrección backend focalizada de esos guards/validaciones y repetición de suite contra contratos corregidos; completar transporte UI en entorno de testing independiente. Después evaluar cierre de mantenedores. Cash Register Posting: **NOT TESTED / NEXT GATE**. **REGULARIZATION TRANSACTION QA — PENDING / NOT TESTED**. Esto no habilita caja, pagos ni POS.
+
+Archivos de fase 8B: test nuevo y este documento. Backend runtime modificado: **0**. Frontend modificado: **0**. CSS nuevo: **0**. Pricing/POS/Daily Profit: sin cambios. Sin commit. Sintaxis PHP y git diff --check verificados al cierre.

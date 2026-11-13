@@ -13,11 +13,10 @@
 @endsection
 
 @section('title')
-    Ordenes de compra general
+    Ordenes de compra
 @endsection
 
 @section('styles-plugins')
-    <!-- Select2 -->
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.css') }}">
@@ -27,87 +26,11 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Listado General de Ordenes de compra</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Órdenes de compra generales</h1><p class="next-page-description">Consulta de órdenes de la empresa activa.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listado de Ordenes de compras general</h5>
-    <button type="button" id="btn-export" class="btn btn-outline-primary btn-sm float-right mr-1" > <i class="far fa-file-excel"></i> Descargar Excel </button>
-    @can('create_orderPurchaseNormal')
-        <a href="{{ route('order.purchase.normal.create') }}" class="btn btn-outline-primary btn-sm float-right mr-1" > <i class="fa fa-plus font-20"></i> Nueva orden normal </a>
-    @endcan
-    @can('create_orderPurchaseExpress')
-        <a href="{{ route('order.purchase.express.create') }}" class="btn btn-outline-success btn-sm float-right mr-1" > <i class="fa fa-plus font-20"></i> Nueva orden express </a>
-    @endcan
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes de la empresa activa · solo lectura.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -116,7 +39,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra general</a>
+            <a href="{{route('order.purchase.general.indexV2')}}"><i class="fa fa-archive"></i> Ordenes de compra</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>
@@ -124,27 +47,17 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    <!--begin::Form-->
-    <form action="#">
-        <!--begin::Card-->
-        <!--begin::Input group-->
+    <section class="next-operational-list" aria-label="Órdenes generales"><div class="next-form-section">
         <div class="row">
             <div class="col-md-12">
-                <!-- Barra de búsqueda -->
-                <div class="input-group">
-                    <input type="text" id="code" class="form-control" placeholder="Código de orden..." autocomplete="off">
-                    <div class="input-group-append ">
-                        <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
-                        <a href="#" id="btnBusquedaAvanzada" class="vertical-center ml-3 mt-2">Búsqueda Avanzada</a>
-                    </div>
+                <div class="row align-items-end">
+                    <div class="col-md form-group"><label class="sr-only" for="code">Código de orden</label><input type="text" id="code" class="form-control form-control-sm" placeholder="Código de orden..." autocomplete="off"></div>
+                    <div class="col-md-auto form-group"><div class="next-toolbar-actions flex-wrap"><button class="btn btn-primary btn-sm" type="button" id="btn-search">Buscar</button><button type="button" id="btnBusquedaAvanzada" class="btn btn-outline-secondary btn-sm" aria-expanded="false" aria-controls="general-filters">Filtros avanzados</button></div></div>
                 </div>
-
-                <!-- Sección de búsqueda avanzada (inicialmente oculta) -->
-                <div class="mt-3 busqueda-avanzada">
-                    <!-- Aquí coloca más campos de búsqueda avanzada -->
+                <div class="next-list-filters mt-3 busqueda-avanzada" id="general-filters" hidden>
                     <div class="row">
 
-                        <div class="col-md-3">
+                        <div class="col-sm-6 col-lg-3 form-group">
                             <label for="year">Año de la orden:</label>
                             <select id="year" class="form-control form-control-sm select2" style="width: 100%;">
                                 <option value="">TODOS</option>
@@ -154,7 +67,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-sm-6 col-lg-3 form-group">
                             <label for="supplier">Proveedor:</label>
                             <select id="supplier" name="supplier" class="form-control form-control-sm select2" style="width: 100%;">
                                 <option value="">TODOS</option>
@@ -164,17 +77,13 @@
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label for="type">Tipo de Orden:</label>
-                            <select id="type" name="type" class="form-control form-control-sm select2" style="width: 100%;">
-                                <option value="">TODOS</option>
-                                @foreach ($arrayTypes as $type)
-                                    <option value="{{ $type['value'] }}">{{ $type['display'] }}</option>
-                                @endforeach
-                            </select>
+                        <div class="col-sm-6 col-lg-3 form-group">
+                            <label for="quote">Cotización:</label>
+                            <input type="text" id="quote" class="form-control form-control-sm" placeholder="791-" autocomplete="off">
+
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-sm-6 col-lg-3 form-group">
                             <label for="state">Estado de la orden:</label>
                             <select id="state" name="state" class="form-control form-control-sm select2" style="width: 100%;">
                                 <option value="">TODOS</option>
@@ -187,111 +96,86 @@
 
                     </div>
 
-                    <br>
+
 
                     <div class="row">
-                        <div class="col-md-3">
-                            <label for="date_due">Fecha de Llegada:</label>
-                            <div class="col-md-12" id="sandbox-container1">
-                                <div class="input-daterange input-group" id="datepicker1">
+<div class="col-sm-6 col-lg-3 form-group">
+                            <label for="type">Tipo de Orden:</label>
+                            <select id="type" name="type" class="form-control form-control-sm select2" style="width: 100%;">
+                                <option value="">TODOS</option>
+                                @foreach ($arrayTypes as $type)
+                                    <option value="{{ $type['value'] }}">{{ $type['display'] }}</option>
+                                @endforeach
+                            </select>
+</div>
+                        <div class="col-sm-6 col-lg-3 form-group">
+                            <label for="deliveryDate">Fecha de Llegada:</label>
+                            <div id="sandbox-container1">
+                                <div class="input-daterange input-group input-group-sm" id="datepicker1">
                                     <input type="text" class="form-control form-control-sm date-range-filter" id="deliveryDate" name="deliveryDate" autocomplete="off">
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <label for="campoExtra">Fechas de Orden:</label>
-                            <div class="col-md-12" id="sandbox-container">
-                                <div class="input-daterange input-group" id="datepicker">
+                        <div class="col-sm-6 col-lg-6 form-group">
+                            <label for="start">Fechas de Orden:</label>
+                            <div id="sandbox-container">
+                                <div class="input-daterange input-group input-group-sm" id="datepicker">
                                     <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" autocomplete="off">
-                                    <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                                    <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
+                                    <div class="input-group-append input-group-prepend"><span class="input-group-text">al</span></div>
+                                    <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" aria-label="Fecha final" autocomplete="off">
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <label for="quote">Cotización:</label>
-                            <input type="text" id="quote" class="form-control form-control-sm" placeholder="791-" autocomplete="off">
-
-                        </div>
-                    </div>
-
-                    <br>
-
-                    <div class="row">
 
                     </div>
 
-                    <!-- Añade más campos según lo necesario -->
+
+
+
                 </div>
             </div>
         </div>
-        <!--end::Input group-->
-        <!--begin:Action-->
-        {{--<div class="col-md-1">
-            <label for="btn-search">&nbsp;</label><br>
-            <button type="button" id="btn-search" class="btn btn-primary me-5">Buscar</button>
-        </div>--}}
 
-    </form>
-    <!--end::Form-->
 
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Ordenes de compra
-                <span class="text-gray-400 fs-6">por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
     </div>
-    <!--end::Toolbar-->
 
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
+    <div class="next-list-summary"><div class="next-list-summary-copy"><strong><span id="numberItems">—</span> órdenes</strong><span>Fecha de orden · más recientes primero</span></div></div>
+    <div class="next-list-content">
+        <div class="table-responsive" tabindex="0" aria-label="Órdenes generales; desplazamiento horizontal">
+            <table class="table table-bordered table-hover table-sm next-data-table">
                 <thead>
-                <tr class="normal-title">
-                    <th>ID</th>
-                    <th>Código</th>
-                    <th>Fecha Orden</th>
-                    <th>Fecha Llegada</th>
+                <tr>
+                    <th class="text-center">ID</th>
+                    <th class="text-center">Código</th>
+                    <th class="text-center">Fecha Orden</th>
+                    <th class="text-center">Fecha Llegada</th>
                     <th>Observación</th>
                     <th>Proveedor</th>
                     <th>Creado por</th>
-                    <th>Moneda</th>
-                    <th>Total</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
+                    <th class="text-center">Moneda</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
                 </thead>
-                <tbody id="body-table">
+                <tbody id="body-table" aria-live="polite">
 
                 </tbody>
             </table>
         </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
+        <div class="next-list-toolbar">
             <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
+            <ul class="pagination mb-0" id="pagination">
 
             </ul>
-            <!--end::Pages-->
         </div>
-        <!--end::Pagination-->
     </div>
-    <!--end::Tab Content-->
 
+    </section>
     <template id="previous-page">
         <li class="page-item previous">
-            <a href="#" class="page-link" data-item>
-                <!--<i class="previous"></i>-->
+            <a href="#" class="page-link" data-item aria-label="Página anterior">
                 <i class="fas fa-chevron-left"></i>
             </a>
         </li>
@@ -305,8 +189,7 @@
 
     <template id="next-page">
         <li class="page-item next">
-            <a href="#" class="page-link" data-item>
-                <!--<i class="next"></i>-->
+            <a href="#" class="page-link" data-item aria-label="Página siguiente">
                 <i class="fas fa-chevron-right"></i>
             </a>
         </li>
@@ -320,79 +203,37 @@
 
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-code></td>
-            <td data-date_order></td>
-            <td data-date_arrival></td>
+            <td class="text-center" data-id></td>
+            <td class="text-center" data-code></td>
+            <td class="text-center" data-date_order></td>
+            <td class="text-center" data-date_arrival></td>
             <td data-observation></td>
             <td data-supplier></td>
             <td data-created_user></td>
-            <td data-currency></td>
-            <td data-total></td>
-            <td data-type></td>
-            <td data-state></td>
-            <td data-buttons></td>
+            <td class="text-center" data-currency></td>
+            <td class="text-right" data-total></td>
+            <td class="text-center" data-type></td>
+            <td class="text-center" data-state></td>
+            <td class="text-center" data-buttons></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="12" align="center">No se ha encontrado ningún dato</td>
+            <td colspan="12" class="next-table-empty">No hay órdenes para los filtros seleccionados.</td>
         </tr>
     </template>
 
-    <template id="template-express">
-        <a data-imprimir target="_blank" href="{{--'+document.location.origin+ '/dashboard/imprimir/orden/compra/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir Orden"><i class="fa fa-print"></i> </a>
-        <a data-ver_orden href="{{--'+document.location.origin+ '/dashboard/ver/orden/compra/express/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Orden"><i class="fa fa-eye"></i></a>
-        <a data-editar href="{{--'+document.location.origin+ '/dashboard/editar/orden/compra/express/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i></a>
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.code+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>'
-        <button data-estado data-state="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Cambiar estado"><i class="fas fa-toggle-on"></i></button>
-    </template>
-
     <template id="template-normal">
-        <a data-imprimir target="_blank" href="{{--'+document.location.origin+ '/dashboard/imprimir/orden/compra/'+item.id+'--}}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir Orden"><i class="fa fa-print"></i> </a>
-        <a data-ver_orden href="{{--'+document.location.origin+ '/dashboard/ver/orden/compra/normal/'+item.id+'--}}" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Orden"><i class="fa fa-eye"></i></a>
-        <a data-editar href="{{--'+document.location.origin+ '/dashboard/editar/orden/compra/normal/'+item.id+'--}}" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i></a>
-        <button data-anular data-delete="{{--'+item.id+'--}}" data-name="{{--'+item.code+'--}}" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular"><i class="fa fa-trash"></i></button>'
-        <button data-estado data-state="{{--'+item.id+'--}}" data-name="{{--'+item.description_quote+'--}}" class="btn btn-outline-info btn-sm" data-toggle="tooltip" data-placement="top" title="Cambiar estado"><i class="fas fa-toggle-on"></i></button>
+        <div class="dropdown next-row-actions"><button class="btn btn-outline-secondary btn-sm next-row-actions-toggle" type="button" data-toggle="dropdown" aria-expanded="false" aria-label="Acciones de orden"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right"><a data-ver_orden class="dropdown-item"><i class="far fa-eye mr-2" aria-hidden="true"></i>Ver orden</a></div></div>
     </template>
-
-    <div id="modalState" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Cambiar estado de la orden</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <form id="formStates" data-url="{{ route('state.order.purchase.change') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <input type="hidden" id="orderPurchase_id" name="orderPurchase_id">
-                        <strong>Cambie o Seleccione el estado de la orden</strong>
-                        <select id="stateOrder" name="stateOrder" class="form-control select2" style="width: 100%;">
-                            <option value=""></option>
-                            <option value="stand_by">PENDIENTE</option>
-                            <option value="send">ENVIADO</option>
-                            <option value="pick_up">RECOGIDO</option>
-                        </select>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" id="btn-changeState" class="btn btn-success">Guardar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 @endsection
 
 @section('plugins')
-    <!-- Datatables -->
     <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
     <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
 
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
@@ -408,27 +249,21 @@
             //Initialize Select2 Elements
             $('#year').select2({
                 placeholder: "Selecione año",
-                allowClear: true
+                allowClear: true, width: "100%"
             });
 
             $('#supplier').select2({
                 placeholder: "Selecione Proveedor",
-                allowClear: true
+                allowClear: true, width: "100%"
             });
 
-            $('#type').select2({
-                placeholder: "Selecione Tipo",
-                allowClear: true
-            });
-
+            $('#type').select2({placeholder: 'Seleccione tipo', allowClear: true, width: '100%'});
             $('#state').select2({
                 placeholder: "Seleccione Estado",
-                allowClear: true
+                allowClear: true, width: "100%"
             });
 
-            $('#stateOrder').select2({
-                placeholder: "Seleccione"
-            });
+
 
         })
     </script>

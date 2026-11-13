@@ -222,3 +222,11 @@ Estado final contextual:
 - Documents: BACKEND/INFRA OPEN.
 - Exports: QA PENDING.
 - Backend: UNCHANGED (código; datos de summaries/details recalculados con autorización explícita).
+
+## Reporting Exports — QA Closure 2026-11-13
+
+**Daily Profit export: NOT IMPLEMENTED / N/A**, no clasificar QA PASSED de una ruta inexistente. Inspeccionados GananciaDiariaController, routes, views/ganancia/index e indexDetail y clases Exports. Las únicas rutas Excel del controller corresponden a User Profit, con sus propios permisos showGananciaWorker/export/exportDetail. Daily Profit tiene summary/detail con show_gananciaDiaria; no existe XLSX/CSV/PDF dedicado, filtro de export ni paginación export que certificar. No crear uno en este cierre.
+
+Contraste real READ ONLY, sin recalculate/cron: tenant/company/branch1/1/1,PEN,04/11/2026,summaryID2: quantity23,total_sale1460.00,total_utility400.62. Suma de detalles contextualizados:23/1460.00/400.62. UserProfitReport y su export filtrado al mismo día/actor4: IDs116–120,23/1460.00/costo1059.38/utilidad400.62. Coincide sin hardcodear ni recalcular resumen persistido. Summary legacyID1 no aparece en summaries(); outlet1/1/8,companies1/2/2,1/5/6 yGamarra3/3/4 vacíos.
+
+Scope/summary/detail contrast QA PASSED. Export Scope/Filters/Permissions/Totals/Cross-context: **N/A — no export propio**. Si producto desea export del resumen diario, requiere fase/contrato, no reutilizar User Profit fingiendo equivalencia. Archivo Daily XLSX generado:ninguno. DOCUMENT SECURITY — BACKEND/INFRA OPEN. Backend/frontend unchanged, CSS0, sin mutaciones ni commit.
