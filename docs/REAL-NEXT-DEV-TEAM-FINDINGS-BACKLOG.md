@@ -275,3 +275,8 @@ Retacería: no hay lectura de stock_current en ese fragmento; MAT-02 Separate Pa
 GENERAL-01 — BUG / FALLA — LOW / P3 — OPEN. Endpoint GET `/dashboard/get/data/orders/general/v2/{numberPage}`, `OrderPurchaseController::getDataOrderGeneral`.
 
 Con 3 filas visibles, página 99 devuelve `data=[]`, `currentPage=99`, `totalPages=1`, `startRecord=981`, `endRecord=3`. Expected: rechazo/página normalizada o rango vacío coherente, definido por backend. Evidencia: invocación del action actual con dataset local, conexión READ ONLY y rollback; sin órdenes sintéticas. No afecta aislamiento. Frontend can continue: YES, UI muestra fuera de rango y enlace a página 1. Backend sin modificar. Owner: Backend Compras. Véase `REAL-NEXT-GENERAL-PURCHASES-V2-READONLY.md`.
+
+
+### GENERAL-01 — ampliación Express V2 (misma causa, sin nuevo finding)
+
+`OrderPurchaseController::getDataOrderExpress`, GET `/dashboard/get/data/orders/express/v2/{numberPage}`, repite la fórmula `(pageNumber - 1) * 10 + 1` sin normalizar vacío/fuera de rango, igual que General. Dataset Express físico/activo = 0: página 1 devuelve `totalPages=0,startRecord=1,endRecord=0`; página 99 `currentPage=99,startRecord=981,endRecord=0`. Revalidado en transacción READ ONLY con action real, sin fixtures. UI Express muestra 0 a 0 de 0 y no genera links de páginas inexistentes; backend permanece OPEN/UNCHANGED. Mantener un único GENERAL-01 para ambos actions; no duplicar SALES-NEW-01 ni incrementar inventario. Positivo/multipágina pendiente de dataset. Véase `REAL-NEXT-EXPRESS-PURCHASES-V2-READONLY.md`.
