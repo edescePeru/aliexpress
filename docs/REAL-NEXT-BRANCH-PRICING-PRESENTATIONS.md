@@ -1,5 +1,7 @@
 # REAL NEXT — Branch Pricing & Presentations
 
+> Actualización 2026-11-12: la sección **Closure Preflight — Roadmap C / 8A**, al final, sustituye los estados históricos BP-01/02/03 y la antigua declaración READY AS DEPENDENCY. Estado vigente: **Pricing Dependency for POS — NOT READY**. BP-01/02 y whitelist BP-03 corregidos; faltan configuración monetaria consistente, precios en Gamarra y validación concurrente MySQL aislada. La auditoría original que sigue se conserva como evidencia histórica; sus afirmaciones de backend sin cambios y ausencia de tests corresponden a aquella fase.
+
 Fecha: 2026-11-11. Backend auditado: HEAD `087f931`. QA local PHP 7.3.33 / Laravel real en 8080. Sin cambios en backend comercial, stock, pagos, checkout o emisión. Sin commit.
 
 ## Status
@@ -196,3 +198,94 @@ MUTATION QA PENDING. No suite transaccional de mutaciones de este módulo encont
 Modificados por esta fase: config/venti-next.php; resources/views/tenantBranch/{index,create,edit}.blade.php; nuevo _pricing.blade.php; resources/views/material/indexv2.blade.php; public/js/material/presentations-branch.js; este documento. Eliminada anidación de cards en formularios, corregida referencia a branch inexistente en breadcrumb Create. Conservado include de almacenes y sus scripts. No controllers/models/requests/services/migrations/rutas modificados.
 
 Validaciones: PHP 7.3.33 artisan view:cache, node --check presentations-branch.js, git diff --check. Cero CSS nuevo. No commit; cambios anteriores de Cotizaciones permanecen intactos.
+
+## Closure Preflight — Roadmap C / 8A
+
+Fecha: 2026-11-12. Auditoría focalizada y corrección backend autorizada. Branch Pricing Frontend: **PRESERVED**. POS V1/V2: **VISUAL BASELINE FROZEN / UNCHANGED**. Sin mutaciones comerciales en la base compartida, sin migraciones ejecutadas y sin commit. Daily Profit no reabierto.
+
+Se revisaron PriceListController, PriceList, PriceListItemController (sin implementación alternativa), validaciones inline, rutas/permisos, BranchPriceListService, PriceResolverService, BranchPresentationService, configuración financiera y consumidores POS/Store Web. No existe FormRequest independiente para el mantenedor PriceList.
+
+### BP-01
+
+**CONFIRMED → RESOLVED.** Store validaba el default solicitado antes de calcular el default efectivo: la primera lista se convertía automáticamente en default aunque `is_active=0`. Ahora calcula ese estado dentro de la transacción y rechaza con ValidationException/422 el default efectivo inactivo antes de crear o desmarcar listas. Primera lista activa sigue siendo default automático; listas posteriores inactivas no predeterminadas siguen permitidas. No se cambia el contrato desde JavaScript.
+
+### BP-02
+
+**CONFIRMED → RESOLVED.** Update desmarcaba defaults antes de validar y devolvía una respuesta 422 desde el closure; el método ignoraba ese retorno y devolvía éxito. Ahora recarga la lista bajo lock, valida antes de desmarcar y lanza ValidationException: el error llega al handler Laravel con estado 422 y la transacción revierte. Un fallo de persistencia posterior a desmarcar defaults también revierte todo, comprobado con trigger de fallo en SQLite aislado. Se mantienen las claves de payload y las respuestas exitosas.
+
+### BP-03
+
+**CONFIRMED → RESOLVED para la whitelist contractual PEN/USD.** Store/update normalizan strings a mayúsculas y validan `Rule::in(['PEN', 'USD'])`; valores no string siguen inválidos. Respaldo: selectores existentes PriceList, enum `finance.base_currency`, BranchPresentationService y PosSaleService. No se inventaron monedas ni conversión.
+
+La igualdad entre moneda de lista y moneda financiera sigue validándose en el límite de venta POS, como antes. Se pueden mantener listas PEN y USD; asignar una lista no convierte sus precios. No se añadió una prohibición nueva al asignador de branch. La discordancia real de company 2 queda como pendiente operativo explícito, no como un dato corregido por esta fase. Store Web mantiene su contrato público separado; ningún SW-01…SW-07 se cierra.
+
+### ID Scope
+
+**PRICE LIST ID SCOPE — COMPANY / RESOLVED.** El listado, UI y las operaciones de variantes ya requieren company actual. La autorización tenant-only de los demás IDs era inconsistente con ese contrato. El guard común ahora exige tenant y company actuales para update, getMaterials, saveMaterialPrices, getMaterialVariants y saveMaterialVariants; devuelve 404 antes de leer/modificar los precios ajenos.
+
+Rutas `/dashboard/prices` y `/dashboard/prices/lists` conservadas, incluidas las operaciones por lista/material/variante. Middleware auth, check enabled, password.changed y tenant.context, junto con `show_priceList` / `manage_priceListMaterial`, sin cambios. No se alteró la administración Owner de sucursales de otras empresas del mismo tenant: ese flujo usa el servicio de asignación y valida explícitamente la empresa destino. Tampoco se convirtió el resolver genérico en un servicio de autorización.
+
+### Default Invariants
+
+- Store/update bloquean la fila Company del contexto dentro de la transacción; las escrituras de defaults por estos endpoints quedan serializadas, incluso cuando todavía no hay listas. Update vuelve a leer la lista bajo lock para no validar un estado obsoleto del route binding.
+- Default efectivo debe estar activo. No se permite desactivar directamente el default actual; primero debe designarse otra lista. Cambiar default desmarca las otras listas únicamente de esa company y conserva los defaults de otras empresas.
+- El contrato permite desmarcar default sin elegir reemplazo: no se introduce la obligación nueva de tener exactamente uno. Sin default activo, fallback devuelve null.
+- Múltiples defaults activos legacy son rechazados por los resolvers; no se escoge arbitrariamente el primero. No hubo reparación automática de registros existentes ni nueva restricción SQL.
+- La garantía del lock corresponde a estos endpoints, no a escritores externos o SQL manual. Prueba concurrente multiproceso en MySQL aislado **PENDING**; SQLite verifica atomicidad, no semántica real de FOR UPDATE.
+
+### Price Resolution
+
+**QA PASSED en casos focalizados.** Lista explícita válida tiene prioridad; lista explícita inválida/inactiva se rechaza sin fallback silencioso. Sin asignación: único default activo, ausencia → null, múltiples → rechazo. Precio StockItem override antes de precio Material; ausencia → null/source none; cero explícito se conserva como cero legítimo. No se inventaron precios ni se cambiaron servicios de resolución.
+
+El resolver genérico sigue siendo tenant-wide; sus callers deben autorizar company/branch. POS obtiene lista efectiva y catálogo company antes de resolver. **BP-05 OPEN** para reutilizaciones nuevas, sin evidencia de regresión en el camino auditado.
+
+### Branch Offerings
+
+**QA PASSED en casos focalizados.** Definición de presentación compartida por tenant/material; configuración/precio/activación/moneda locales por tenant/company/branch. Tests prueban la misma definición con precios 20 y 30 en dos branches, ausencia sin heredar precio legacy y moneda discordante → configured=false, active=false, price=null.
+
+**BP-04 OPEN:** el DTO no distingue oferta ausente de oferta con moneda anterior. La UI conserva el estado sin precio; no se añadió un motivo ni se modificó el frontend.
+
+### Dataset read-only
+
+Lecturas en transacción MySQL `READ ONLY`, con rollback final, sesión array y usuarios Owner existentes en memoria: Owner EDESCE (ID 4, tenant 1), Owner Gamarra (ID 7, tenant 3). Contextos explícitos mediante el mecanismo actual de sesión; no login navegador ni prueba HTTP end-to-end en esta fase. Estas lecturas prueban servicios/controladores bajo contexto, no reemplazan QA de middleware/autenticación.
+
+| Tenant / company / branch | Lista explícita → efectiva | Moneda financiera / lista | Evidencia |
+| --- | --- | --- | --- |
+| 1 / 1 / 1 | 1 → 1 | PEN / PEN | Stock 71: 70, override StockItem; presentación 5: PEN 250, activa |
+| 1 / 1 / 8 | 6 → 6 | PEN / PEN | Stock 71: 50, precio Material; presentación 5 sin oferta/precio local |
+| 1 / 2 / 2 | null → 2, fallback | USD / PEN | Precio resuelto stock 95: 25; moneda incompatible con venta actual |
+| 1 / 2 / 3 | null → 2, fallback | USD / PEN | Mismo fallback company, discordancia monetaria conservada |
+| 3 / 3 / 4 | null → null | PEN / sin lista | Stocks 105/106 sin precio resuelto; no se convierten a cero |
+
+Inventario de listas: company 1 tiene 1 PRECIO GENERAL (default), 5 PRECIO PREMIUM y 6 PRECIO OUTLET; company 2 tiene 2 REGULAR (default), 3 PREMIUM y 4 OUTLET; todas activas/PEN. Company 3 no tiene listas. No hay defaults múltiples en esas companies. Los StockItems activos habilitados consultados de companies 1/2 tienen precio; esto no certifica moneda compatible ni disponibilidad de venta por local.
+
+Única oferta persistida encontrada: tenant/company/branch 1/1/1, presentación 5 (Caja de 4), activa PEN 250.00. No se hereda en branch 8. Definiciones 1/2 del material 1 comparten cantidad legacy 3, sin oferta activa; no se limpiaron datos. Company 2 y Gamarra no presentan ofertas locales en el catálogo consultado.
+
+Guard real getMaterials: company 1 rechaza IDs 2/3/4; company 2 rechaza 1/5/6; Gamarra rechaza los seis IDs, todos con 404. Se invocó controlador de lectura, no endpoints de escritura. Los cinco métodos por ID se cubren además con fixtures sintéticos de otra company y otro tenant.
+
+### Tests
+
+Nuevo `tests/Feature/PriceListClosureTest.php`: conexión dedicada `pricing_memory`, SQLite `:memory:`, configurada antes de schema/fixtures, con aserción de base en memoria. No RefreshDatabase sobre conexión compartida, no migraciones reales, no truncados reales.
+
+- Reproducción antes del fix: 8 tests, 24 assertions, 5 failures (BP-01, promoción inválida, desactivación default, moneda, scope company).
+- Después del fix y ampliación de cobertura: **10 tests, 62 assertions — PASS**.
+- Cobertura: primer default, inactive, cambio default company-local, whitelist y normalización, los cinco guards por ID, rollback tras fallo de persistencia, default ambiguo/ausente/asignado, null/0/override, aislamiento y moneda de ofertas.
+- Runtime: PHP 7.3.33, PHPUnit 9.6.13. Comando: `php vendor/phpunit/phpunit/phpunit tests/Feature/PriceListClosureTest.php` usando ese binario PHP. Warning preexistente de schema XML PHPUnit deprecado; configuración no modificada.
+- Sintaxis PHP de controlador y test: PASS. `git diff --check`: PASS.
+- Tests invocan controladores/servicios directamente: no se afirma cobertura HTTP, middleware, concurrencia MySQL ni checkout.
+
+### Remaining Blockers
+
+1. Company 2: moneda financiera USD y lista efectiva PEN en branches 2/3. Debe configurarse coherentemente mediante una decisión autorizada; no convertir ni reasignar automáticamente. La venta actual rechaza la discordancia.
+2. Gamarra/company 3: no hay lista efectiva ni precios para stocks 105/106. Falta configuración autorizada antes de certificar ese dataset para POS. El null actual es comportamiento seguro, no una regresión.
+3. Falta validar concurrencia del primer default/cambio de default en MySQL aislado. No se presenta la suite SQLite como prueba de exclusión mutua entre procesos.
+
+Mutaciones HTTP reales y checkout siguen excluidos por alcance. BP-04 (diagnóstico de moneda de oferta) y BP-05 (autorización de callers futuros) permanecen OPEN como límites conocidos; no se amplió alcance para resolverlos. No se requiere rediseño frontend para los fixes entregados.
+
+### POS Dependency Decision
+
+**NO — Pricing Dependency for POS: NOT READY como dependencia certificada integral para los contextos solicitados.** Los defectos BP-01/BP-02, la whitelist BP-03 y el scope por ID quedan corregidos y probados aisladamente. La configuración monetaria de company 2, los precios ausentes de Gamarra y el QA concurrente pendiente impiden declarar cierre completo.
+
+Siguiente paso recomendado: acordar/remediar configuración en una fase expresamente autorizada y probar concurrencia en MySQL de testing separado; después reejecutar lecturas y decidir certificación. No entrar todavía al core POS ni editar su baseline visual.
+
+Archivos de esta fase: `app/Http/Controllers/PriceListController.php`, `tests/Feature/PriceListClosureTest.php`, este documento. **Frontend files modified: 0.** Servicios, modelos, rutas, permisos, migraciones, POS V1/V2 y CSS sin cambios. Sin commit.

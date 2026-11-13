@@ -12,6 +12,7 @@ use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PriceListController extends Controller
 {
@@ -47,6 +48,7 @@ class PriceListController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizeCurrency($request);
         $request->validate([
             'name' => [
                 'required',
@@ -57,7 +59,7 @@ class PriceListController extends Controller
             'currency' => [
                 'required',
                 'string',
-                'max:3',
+                Rule::in(['PEN', 'USD']),
             ],
 
             'is_default' => [
@@ -107,6 +109,7 @@ class PriceListController extends Controller
         }
 
         DB::transaction(function () use ($request, $companyId, $tenantId, &$priceList) {
+            $this->lockCurrentCompany();
             $isDefault =
                 (bool) $request->is_default;
 
@@ -123,6 +126,13 @@ class PriceListController extends Controller
 
             if (!$hasLists) {
                 $isDefault = true;
+            }
+
+            // Validate the effective default, including the automatic first list.
+            if ($isDefault && !(bool) $request->is_active) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Una lista predeterminada debe estar activa.',
+                ]);
             }
 
             if ($isDefault) {
@@ -170,7 +180,8 @@ class PriceListController extends Controller
     }
 
     public function update(Request $request, PriceList $priceList) {
-        $this->validatePriceListTenant(
+        $this->normalizeCurrency($request);
+        $this->validatePriceListContext(
             $priceList
         );
 
@@ -184,7 +195,7 @@ class PriceListController extends Controller
             'currency' => [
                 'required',
                 'string',
-                'max:3',
+                Rule::in(['PEN', 'USD']),
             ],
 
             'is_default' => [
@@ -226,6 +237,28 @@ class PriceListController extends Controller
         }
 
         DB::transaction(function () use ($request, $priceList) {
+            // Serialize all default changes, including the first insert, per company.
+            $this->lockCurrentCompany();
+            $priceList = PriceList::query()->where('company_id', TenantContext::companyId())
+                ->lockForUpdate()->findOrFail($priceList->id);
+            if (
+                $priceList->is_default &&
+                !(bool) $request->is_active
+            ) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'No puede desactivar la lista predeterminada. Asigne primero otra lista como predeterminada.',
+                ]);
+            }
+
+            if (
+                (bool) $request->is_default &&
+                !(bool) $request->is_active
+            ) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Una lista predeterminada debe estar activa.',
+                ]);
+            }
+
             if ((bool) $request->is_default) {
                 PriceList::query()
                     ->where(
@@ -240,24 +273,6 @@ class PriceListController extends Controller
                     ->update([
                         'is_default' => false,
                     ]);
-            }
-
-            if (
-                $priceList->is_default &&
-                !(bool) $request->is_active
-            ) {
-                return response()->json([
-                    'message' => 'No puede desactivar la lista predeterminada. Asigne primero otra lista como predeterminada.',
-                ], 422);
-            }
-
-            if (
-                (bool) $request->is_default &&
-                !(bool) $request->is_active
-            ) {
-                return response()->json([
-                    'message' => 'Una lista predeterminada debe estar activa.',
-                ], 422);
             }
 
             $priceList->update([
@@ -285,17 +300,31 @@ class PriceListController extends Controller
         ]);
     }
 
-    private function validatePriceListTenant(PriceList $priceList): void {
+    private function normalizeCurrency(Request $request): void
+    {
+        if (is_string($request->input('currency'))) {
+            $request->merge(['currency' => strtoupper($request->input('currency'))]);
+        }
+    }
+
+    private function lockCurrentCompany(): void
+    {
+        Company::query()->where('tenant_id', TenantContext::tenantId())
+            ->where('id', TenantContext::companyId())->lockForUpdate()->firstOrFail();
+    }
+
+    private function validatePriceListContext(PriceList $priceList): void {
         if (
             (int) $priceList->tenant_id !==
-            (int) TenantContext::tenantId()
+            (int) TenantContext::tenantId() ||
+            (int) $priceList->company_id !== (int) TenantContext::companyId()
         ) {
             abort(404);
         }
     }
 
     public function getMaterials(Request $request, PriceList $priceList) {
-        $this->validatePriceListTenant(
+        $this->validatePriceListContext(
             $priceList
         );
 
@@ -410,7 +439,7 @@ class PriceListController extends Controller
     }
 
     public function saveMaterialPrices(Request $request, PriceList $priceList) {
-        $this->validatePriceListTenant(
+        $this->validatePriceListContext(
             $priceList
         );
 
@@ -510,7 +539,7 @@ class PriceListController extends Controller
     }
 
     public function getMaterialVariants(PriceList $priceList, Material $material) {
-        $this->validatePriceListTenant(
+        $this->validatePriceListContext(
             $priceList
         );
 
@@ -689,7 +718,7 @@ class PriceListController extends Controller
     }
 
     public function saveMaterialVariants(Request $request, PriceList $priceList, Material $material) {
-        $this->validatePriceListTenant(
+        $this->validatePriceListContext(
             $priceList
         );
 
