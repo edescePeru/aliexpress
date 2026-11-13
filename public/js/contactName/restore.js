@@ -5,27 +5,32 @@ $(document).ready(function () {
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{targets: [0, 6], className: 'text-center'}, {targets: 6, orderable: false, searchable: false}],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
+
         "aoColumns": [
-            { data: 'code' },
-            { data: 'name' },
-            { data: 'customer.business_name' },
+            { data: 'code', render: $.fn.dataTable.render.text() },
+            { data: 'name', render: $.fn.dataTable.render.text() },
+            { data: 'customer.business_name', defaultContent: '', render: $.fn.dataTable.render.text() },
             { data: null,
                 title: 'Área',
                 wrap: true,
                 "render": function (item)
                 {
-                    return (item.area == null || item.area == "") ? 'Sin área':item.area;
+                    return (item.area == null || item.area == "") ? 'Sin área':contactDisplay(item.area);
                 }
             },
-            { data: 'phone' },
-            { data: 'email' },
+            { data: 'phone', render: $.fn.dataTable.render.text() },
+            { data: 'email', render: $.fn.dataTable.render.text() },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
-                "render": function (item)
-                {
-                    return ' <button data-restore="'+item.id+'" '+'data-contact="'+item.name+'" '+'data-company="'+item.customer.business_name+'" '+'data-idcompany="'+item.customer.id+'" '+
-                            ' class="btn btn-outline-success btn-sm"><i class="fas fa-trash-restore"></i></button>'
+                "render": function (item) {
+                    var actions = '';
+                    actions += '<button type="button" data-restore="' + item.id + '" data-contact="' + contactDisplay(item.name) + '" data-company="' + contactDisplay(item.customer ? item.customer.business_name : '') + '" data-idcompany="' + (item.customer ? item.customer.id : '') + '" class="dropdown-item"><i class="fas fa-trash-restore" aria-hidden="true"></i> Restaurar</button>';
+                    return actions ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del contacto"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + actions + '</div></div>' : '—';
                 } },
 
         ],
@@ -188,8 +193,8 @@ function openModalRestore() {
 
     $modalRestore.find('[id=contactName_id]').val(customer_id);
     $modalRestore.find('[id=customer_id]').val(company_id);
-    $modalRestore.find('[id=contact]').html('<b>Contacto: </b>'+contact);
-    $modalRestore.find('[id=company]').html('<b>Empresa: </b>'+company);
+    $modalRestore.find('[id=contact]').text('Contacto: '+contact);
+    $modalRestore.find('[id=company]').text('Cliente: '+company);
 
     $modalRestore.modal('show');
 }
@@ -276,5 +281,10 @@ function restoreCustomer() {
             }
 
         },
+    });
+}
+function contactDisplay(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+        return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c];
     });
 }

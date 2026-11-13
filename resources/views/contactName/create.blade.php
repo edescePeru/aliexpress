@@ -25,20 +25,14 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
-    <h1 class="page-title">Contactos</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Contactos</span><h1 class="page-title">Nuevo contacto</h1><p class="next-page-description">Personas de contacto de los clientes del grupo empresarial.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nuevo contacto</h5>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Nuevo contacto</strong><span>Los campos con * son obligatorios.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -54,58 +48,19 @@
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('contactName.store') }}" enctype="multipart/form-data">
-        @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="customer_id" class="col-12 col-form-label">Empresa <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-12">
-                    <select id="customer_id" class="form-control select2" name="customer_id" data-states style="width: 100%;">
-                        <option></option>
-                        @foreach( $customers as $customer )
-                            <option value="{{ $customer->id }}">{{ $customer->business_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+<form id="formCreate" class="form-horizontal" data-url="{{ route('contactName.store') }}" enctype="multipart/form-data">
+@csrf
 
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre de Contacto <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" >
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row">
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">Área</label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="area">
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">Teléfono</label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" name="phone">
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">Email</label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" name="email">
-                </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
-    </form>
+<section class="next-form-section"><div class="next-section-header"><div><h2>Datos del contacto</h2><p>Contacto asociado a un cliente del grupo empresarial.</p></div></div><div class="row">
+<div class="form-group col-md-6"><label for="customer_id">Cliente *</label><select id="customer_id" class="form-control select2 @error('customer_id') is-invalid @enderror" name="customer_id" data-states style="width:100%;"><option></option>
+@foreach($customers as $customer)<option value="{{ $customer->id }}" {{ (string) old('customer_id', '') === (string) $customer->id ? 'selected' : '' }}>{{ $customer->business_name }}</option>@endforeach
+</select>@error('customer_id')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-6"><label for="contact-name">Nombre de contacto *</label><input id="contact-name" type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" onkeyup="mayus(this);">@error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-4"><label for="contact-area">Área</label><input id="contact-area" type="text" class="form-control @error('area') is-invalid @enderror" name="area" value="{{ old('area') }}" onkeyup="mayus(this);">@error('area')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-4"><label for="contact-phone">Teléfono</label><input id="contact-phone" type="text" class="form-control @error('phone') is-invalid @enderror" name="phone" value="{{ old('phone') }}">@error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-4"><label for="contact-email">Email</label><input id="contact-email" type="text" class="form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email') }}">@error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+</div></section><div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap justify-content-end"><button type="reset" class="btn btn-outline-secondary">Cancelar</button><button type="button" id="btn-submit" class="btn btn-primary">Guardar</button></div></div>
+</form>
 @endsection
 
 @section('plugins')

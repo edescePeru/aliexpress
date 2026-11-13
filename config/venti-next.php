@@ -17,6 +17,10 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'contactName.index',
+        'contactName.create',
+        'contactName.edit',
+        'contactName.indexrestore',
         'configUserWeb.index',
         'configUserWeb.create',
         'configUserWeb.edit',

@@ -25,12 +25,10 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+
+
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Contactos</span><h1 class="page-title">Contactos</h1><p class="next-page-description">Personas de contacto de los clientes del grupo empresarial.</p></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -43,26 +41,23 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de contactos</h5>
-    @can('create_contactName')
-    <a href="{{ route('contactName.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo Contacto </a>
-    @endcan
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Contactos</strong><span>Catálogo compartido dentro del grupo empresarial.</span></div><div class="next-toolbar-actions flex-wrap">@can('destroy_contactName')<a href="{{ route('contactName.indexrestore') }}" class="btn btn-outline-secondary btn-sm">Eliminados</a>@endcan @can('create_contactName')<a href="{{ route('contactName.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo contacto</a>@endcan</div></div>
 @endsection
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
-                <th>Código</th>
+                <th class="text-center">Código</th>
                 <th>Nombre de contacto</th>
-                <th>Empresa</th>
+                <th>Cliente</th>
                 <th>Área</th>
                 <th>Teléfono</th>
                 <th>Email</th>
-                <th>Acciones</th>
+                <th class="text-center">Acciones</th>
             </tr>
             </thead>
             <tbody>
@@ -71,7 +66,7 @@
         </table>
     </div>
     @can('destroy_contactName')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
