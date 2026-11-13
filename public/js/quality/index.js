@@ -1,37 +1,35 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/qualities",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{ targets: [0, 3], className: 'text-center' }, { targets: 3, orderable: false, searchable: false }],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
         "aoColumns": [
-            {
-                data: null,
-                orderable: false,
-                render: function (data, type, row) {
-                    return `<input type="checkbox" class="row-checkbox" value="${row.id}">`;
-                }
-            },
-            { data: 'name' },
-            { data: 'description' },
+            { data: 'id' },
+            { data: 'name', render: $.fn.dataTable.render.text() },
+            { data: 'description', render: $.fn.dataTable.render.text() },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
                 "render": function (item)
                 {
-                    var text = '';
-                    if ( $.inArray('update_quality', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/talla/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a> ';
+                    var id = encodeURIComponent(item.id);
+                    var name = $('<div>').text(item.name || '').html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var actions = '';
+                    if ($.inArray('update_quality', $permissions) !== -1) {
+                        actions += '<a href="' + document.location.origin + '/dashboard/editar/calidad/' + id + '" class="dropdown-item"><i class="fa fa-pen mr-2" aria-hidden="true"></i>Editar</a>';
                     }
-                    if ( $.inArray('destroy_quality', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-name="'+item.name+'" '+
-                            'class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
+                    if ($.inArray('destroy_quality', $permissions) !== -1) {
+                        actions += '<button type="button" data-delete="' + id + '" data-name="' + name + '" class="dropdown-item text-danger"><i class="fa fa-trash mr-2" aria-hidden="true"></i>Eliminar</button>';
                     }
-                    return text;
+                    if (!actions) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-expanded="false" aria-label="Acciones de calidad ' + id + '"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + actions + '</div></div>';
 
                 } },
 
@@ -182,70 +180,7 @@ $(document).ready(function () {
     $modalDelete = $('#modalDelete');
     $(document).on('click', '[data-delete]', openModalDelete);
 
-    $('#select-all').on('click', function () {
-        let rows = $('#dynamic-table').DataTable().rows({ search: 'applied' }).nodes();
-        $('input[type="checkbox"].row-checkbox', rows).prop('checked', this.checked);
-    });
 
-    $('#delete-selected').on('click', function () {
-        let ids = [];
-        $('.row-checkbox:checked').each(function () {
-            ids.push($(this).val());
-        });
-
-        if (ids.length === 0) {
-            $.alert({
-                title: 'Atención',
-                content: 'No hay elementos seleccionados.',
-                type: 'orange',
-                typeAnimated: true
-            });
-            return;
-        }
-
-        $.confirm({
-            title: '¿Confirmar eliminación?',
-            content: '¿Estás seguro que deseas eliminar los elementos seleccionados?',
-            type: 'red',
-            buttons: {
-                confirmar: {
-                    text: 'Sí, eliminar',
-                    btnClass: 'btn-red',
-                    action: function () {
-                        $.ajax({
-                            url: '/dashboard/talla/delete-multiple',
-                            type: 'POST',
-                            data: {
-                                ids: ids,
-                                _token: $('meta[name="csrf-token"]').attr('content')
-                            },
-                            success: function (response) {
-                                $.alert({
-                                    title: 'Éxito',
-                                    content: response.message,
-                                    type: 'green',
-                                    typeAnimated: true
-                                });
-                                $('#dynamic-table').DataTable().ajax.reload();
-                            },
-                            error: function (xhr) {
-                                $.alert({
-                                    title: 'Error',
-                                    content: 'Error al eliminar elementos.',
-                                    type: 'red',
-                                    typeAnimated: true
-                                });
-                            }
-                        });
-                    }
-                },
-                cancelar: {
-                    text: 'Cancelar',
-                    action: function () { }
-                }
-            }
-        });
-    });
 });
 
 var $formDelete;
@@ -257,7 +192,7 @@ function openModalDelete() {
     var name = $(this).data('name');
 
     $modalDelete.find('[id=quality_id]').val(quality_id);
-    $modalDelete.find('[id=name]').html(name);
+    $modalDelete.find('[id=name]').text(name);
 
     $modalDelete.modal('show');
 }

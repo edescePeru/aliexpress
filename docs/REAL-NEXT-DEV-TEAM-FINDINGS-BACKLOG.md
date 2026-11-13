@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**68 registros:** 19 BUG / FALLA (15 OPEN y 4 FIXED — QA PASSED), 37 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**69 registros:** 19 BUG / FALLA (15 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -280,3 +280,12 @@ Con 3 filas visibles, página 99 devuelve `data=[]`, `currentPage=99`, `totalPag
 ### GENERAL-01 — ampliación Express V2 (misma causa, sin nuevo finding)
 
 `OrderPurchaseController::getDataOrderExpress`, GET `/dashboard/get/data/orders/express/v2/{numberPage}`, repite la fórmula `(pageNumber - 1) * 10 + 1` sin normalizar vacío/fuera de rango, igual que General. Dataset Express físico/activo = 0: página 1 devuelve `totalPages=0,startRecord=1,endRecord=0`; página 99 `currentPage=99,startRecord=981,endRecord=0`. Revalidado en transacción READ ONLY con action real, sin fixtures. UI Express muestra 0 a 0 de 0 y no genera links de páginas inexistentes; backend permanece OPEN/UNCHANGED. Mantener un único GENERAL-01 para ambos actions; no duplicar SALES-NEW-01 ni incrementar inventario. Positivo/multipágina pendiente de dataset. Véase `REAL-NEXT-EXPRESS-PURCHASES-V2-READONLY.md`.
+
+
+## Addendum — Calidades (2026-11-13)
+
+Scope global legacy ya identificado por REAL-NEXT-ROADMAP-D-SCREEN-DISCOVERY.md: se aporta QA EDESCE/Gamarra con los mismos 12 IDs, sin duplicar la deuda general de ownership. El siguiente registro es una anomalía de datos distinta. Mutaciones siguen bajo QA-02; gates directos/roles bajo AUTH-01.
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| QUALITY-01 | Calidades | deleted_at con fecha cero excluye una fila del catálogo | DEUDA TÉCNICA | LOW | DATA RECONCILIATION PENDING | Lectura READ ONLY: 13 filas físicas; ID3 TALLA40 tiene 0000-00-00 00:00:00, por eso SoftDeletes devuelve12. No inferir que deba restaurarse: confirmar intención histórica y reconciliar con autorización. REAL-NEXT-QUALITIES Dataset. Backend y datos intactos. |
