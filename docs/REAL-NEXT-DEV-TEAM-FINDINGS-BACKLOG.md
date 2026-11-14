@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**72 registros:** 22 BUG / FALLA (18 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**74 registros:** 24 BUG / FALLA (20 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -321,3 +321,17 @@ Auditoría focalizada; dataset0 órdenes/0detalles revalidado READ ONLY. Sin nav
 | SERVICE-03 | OrderService | AJAX auxiliares sin permiso de acción | BUG / FALLA | HIGH / P1 | OPEN | routes/web.php: all/order/service/regularize, deleted y lost no declaran permission; vistas sí list_orderPurchaseNormal. Middleware común auth/context no sustituye capability. Alinear gate por superficie y verificar acceso directo/no permiso en entorno aislado. Evidencia estática; no se ejecutó getAllOrderLost (escribe Audit). Ver REAL-NEXT-ORDER-SERVICES. |
 
 Sólo SERVICE-03 incrementa inventario (+1). Show/edit/Lost escriben Audit durante GET; fuera de la lectura estricta de esta fase. Ninguna superficie integrada ni allowlist ampliada. Backend intacto.
+
+
+## Addendum — Salidas (2026-11-13)
+
+119 Output T1/C1 (branch1=118, branch8=1),110details revalidados READ ONLY. Output/OutputDetail SÍ tienen TenantScope; mismos119 IDs bajo T1/C2, ninguno bajo T3/C3. No se etiqueta modelo global. Frontera company/branch/warehouse: evidencia para INV-01. Lookup User global en create/V2/confirmadas y get/users: ampliar USER-01, no duplicar.
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| OUTPUT-01 | Salidas | JSON/detalle/custom sin capability específica | BUG / FALLA | HIGH / P1 | OPEN | routes get/json/output/request, confirmed, filters/confirmed, items/output/{id}, simple/my/simple y variantes; crear/item/personalizado también sin permission. Vistas sí list_request/list_output/list_requestSimple/myRequest_requestSimple. No asumir auth/context como autorización de operación. Definir/aplicar gates y parent ownership; no HTTP mutador ejecutado. |
+| OUTPUT-02 | Mantenimiento Output | GET modifica MaterialTaken | BUG / FALLA | HIGH / P1 | OPEN | GET modificando/takens llama modificandoMaterialesTomados: recorre MaterialTaken y save equipment_id. Sin permiso específico de operación en ruta. Retirar ruta técnica o convertir a operación explícitamente autorizada; no ejecutada, sin prueba de explotación. |
+
+GENERAL-01: getAllOutputsRequestsV2 página1, T1/C1,T1/C2,T3/C3 devuelve data[],totalPages0,startRecord1,endRecord0. Dataset actual íntegramente confirmed queda excluido por filtro de pendientes. Mismo root cause de rango vacío; ampliar finding sin contar otro.
+
+GET con Audit::create en lista legacy/área/detalles/create por orden: escritura auxiliar, no equivale automáticamente a exploit; no se invocaron ni se certificaron read-only. Ver REAL-NEXT-OUTPUTS.md. Frontend/backend/allowlist sin cambios.
