@@ -25,14 +25,9 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Clientes</span><h1 class="page-title">Clientes eliminados</h1><p class="next-page-description">Catálogo compartido por las empresas del grupo empresarial.</p></div>
 @endsection
-
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
         <li class="breadcrumb-item">
@@ -43,21 +38,21 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de clientes eliminados</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Clientes eliminados</strong><span>Eliminados · Restauración según permisos.</span></div><div class="next-toolbar-actions flex-wrap">@can('list_customer')<a href="{{ route('customer.index') }}" class="btn btn-outline-secondary btn-sm">Clientes activos</a>@endcan</div></div>
 @endsection
 
 @section('content')
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Código</th>
-                <th>Razon Social</th>
-                <th>RUC</th>
-                <th>Direccion</th>
+                <th>Razón social</th>
+                <th>Documento</th>
+                <th>Dirección</th>
                 <th>Ubicación</th>
-                <th>Acciones</th>
+                <th>Estado</th><th>Acciones</th>
             </tr>
             </thead>
             <tbody>

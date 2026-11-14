@@ -13,6 +13,7 @@
     const urlToggle = $form.data('url_toggle');
 
     let currentPage = 1;
+    let listRequest, listSequence = 0, returnFocus;
     let lastQuery = '';
 
     function csrf() {
@@ -78,7 +79,16 @@
         }
     }
 
+    function selectPersisted(selector, value, label) {
+        const select = $(selector);
+        if (value !== null && value !== undefined && value !== '' && !select.find('option').toArray().some(option => String(option.value) === String(value))) {
+            $('<option>').val(value).text((label || 'Relación actual') + ' (no disponible en el catálogo actual)').attr('data-current-only', 'true').appendTo(select);
+        }
+        select.val(value);
+    }
+
     function resetModal() {
+        $form.find('[data-current-only]').remove();
         $('#cashBoxTitle').text('Nueva Caja');
         $('#cb_id').val('');
         $('#cb_name').val('');
@@ -98,35 +108,34 @@
         $('#cb_name').val(data.name || '');
         $('#cb_type').val(data.type || 'cash');
         $('#cb_uses_subtypes').prop('checked', !!data.uses_subtypes);
-        $('#cb_company_bank_account_id').val(data.company_bank_account_id || '');
+        selectPersisted('#cb_company_bank_account_id', data.company_bank_account_id || '', data.bank_account_title);
         $('#cb_currency').val(data.currency || '');
         $('#cb_position').val(data.position !== null && data.position !== undefined ? data.position : 0);
-        $('#cb_branch_id').val(data.branch_id || '');
+        selectPersisted('#cb_branch_id', data.branch_id || '', data.scope_label);
 
         setBankFieldsVisibility();
     }
 
     function renderButtons(item) {
-        const container = document.createElement('div');
-        container.className = 'btn-group';
-
-        // Edit
+        if (!window.canEditCashBox && !window.canToggleCashBox) return document.createTextNode('—');
+        const container = document.querySelector('#template-row-actions').content.cloneNode(true).firstElementChild;
+        const trigger = container.querySelector('.next-row-actions-trigger');
+        const menu = container.querySelector('.next-row-actions-menu');
+        trigger.id = 'cash-box-actions-' + item.id;
+        trigger.setAttribute('aria-label', 'Acciones de ' + item.name);
+        menu.setAttribute('aria-labelledby', trigger.id);
         if (window.canEditCashBox) {
-            const btnEditTpl = document.querySelector('#template-btn-edit');
-            const btnEdit = btnEditTpl.content.cloneNode(true).querySelector('button');
-            btnEdit.dataset.item = JSON.stringify(item);
-            container.appendChild(btnEdit);
+            const button = document.querySelector('#template-btn-edit').content.cloneNode(true).querySelector('button');
+            button.dataset.item = JSON.stringify(item);
+            menu.appendChild(button);
         }
-
-        // Toggle
         if (window.canToggleCashBox) {
-            const btnToggleTpl = document.querySelector('#template-btn-toggle');
-            const btnToggle = btnToggleTpl.content.cloneNode(true).querySelector('button');
-            btnToggle.dataset.id = item.id;
-            btnToggle.dataset.active = item.is_active ? '1' : '0';
-            container.appendChild(btnToggle);
+            const button = document.querySelector('#template-btn-toggle').content.cloneNode(true).querySelector('button');
+            button.dataset.id = item.id;
+            button.dataset.active = item.is_active ? '1' : '0';
+            button.querySelector('[data-toggle-label]').textContent = item.is_active ? 'Desactivar' : 'Activar';
+            menu.appendChild(button);
         }
-
         return container;
     }
 
@@ -217,7 +226,7 @@
         $pagination.html('');
 
         if (!meta || meta.last_page <= 1) {
-            $textPagination.text(meta && meta.total ? `Mostrando ${meta.total} registros` : '');
+            $textPagination.text(`Mostrando ${meta && meta.total || 0} registros`);
             return;
         }
 
@@ -282,13 +291,20 @@
         const q = ($('#search').val() || '').trim();
         lastQuery = q;
         currentPage = page;
+        const sequence = ++listSequence;
+        if (listRequest) listRequest.abort();
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+        $('#list-feedback').addClass('d-none').text('');
+        $bodyTable.empty(); $pagination.empty(); $numberItems.text('—');
+        $textPagination.text('Cargando…');
 
-        $.ajax({
+        listRequest = $.ajax({
             url: urlList,
             type: 'GET',
             dataType: 'json',
             data: { page: page, q: q },
             success: function (res) {
+                if (sequence !== listSequence) return;
                 // res esperado:
                 // { data: [...], meta: { current_page, last_page, total, from, to }, permissions?: {...} }
                 $bodyTable.html('');
@@ -310,9 +326,10 @@
 
                 renderPagination(meta);
             },
-            error: function () {
-                $bodyTable.html('');
-                renderEmpty();
+            error: function (xhr, status) {
+                if (status === 'abort' || sequence !== listSequence) return;
+                $bodyTable.empty(); $pagination.empty(); $textPagination.text('Consulta no disponible');
+                $('#list-feedback').removeClass('d-none').text(xhr.status === 403 ? 'No tiene permiso para consultar este listado.' : 'No se pudo cargar el listado. Vuelva a buscar o recargue la página.');
             }
         });
     }
@@ -432,7 +449,7 @@
                                         if (firstKey) msg = xhr.responseJSON.errors[firstKey][0];
                                     }
                                 }
-                                $.alert({ title: 'Error', content: msg, type: 'red' });
+                                $.alert({ title: 'Error', content: escapeHtml(msg), type: 'red' });
                             }
                         });
                     }
@@ -442,6 +459,7 @@
     }
 
     function toggleActive(id, currentActive) {
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
         const willActivate = currentActive === '0';
         const title = willActivate ? 'Activar caja' : 'Desactivar caja';
         const content = willActivate
@@ -476,7 +494,7 @@
                             error: function (xhr) {
                                 let msg = 'Ocurrió un error.';
                                 if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                                $.alert({ title: 'Error', content: msg, type: 'red' });
+                                $.alert({ title: 'Error', content: escapeHtml(msg), type: 'red' });
                             }
                         });
                     }
@@ -485,8 +503,7 @@
         });
     }
 
-    // Permisos (simple): si no lo mandas, asumimos true para que no te bloquee
-    // Puedes setearlos desde backend si quieres.
+    // Capabilities supplied by the current backend; absent capabilities remain false.
     const permissions =
         JSON.parse(
             $('#permissions').val()
@@ -509,6 +526,8 @@
     });
 
     $(document).on('click', '[data-btn_create]', function () {
+        returnFocus = this;
+        $('#btnSaveCashBox').prop('disabled', !permissions.can_create);
         resetModal();
         $modal.modal('show');
     });
@@ -523,6 +542,9 @@
 
     $(document).on('click', '[data-editar]', function () {
         const item = JSON.parse(this.dataset.item || '{}');
+        returnFocus = document.getElementById('cash-box-actions-' + item.id);
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+        $('#btnSaveCashBox').prop('disabled', !permissions.can_edit);
         resetModal();
         fillModal(item);
         $modal.modal('show');
@@ -536,9 +558,27 @@
 
     $(document).on('click', '#pagination a.page-link', function (e) {
         e.preventDefault();
+        if ($(this).closest('.page-item').hasClass('disabled')) return;
         const page = parseInt(this.dataset.page || '1', 10);
         if (!isNaN(page)) fetchList(page);
     });
+
+
+    $form.on('submit', function (event) { event.preventDefault(); });
+    $modal.on('shown.bs.modal', function () { $form.find('input[type="text"]').first().trigger('focus'); });
+    $modal.on('hidden.bs.modal', function () { if (returnFocus && document.contains(returnFocus)) returnFocus.focus(); });
+    $(document).on('hidden.bs.dropdown', '.next-row-actions', function () {
+        $(this).children('.next-row-actions-trigger').attr('aria-expanded', 'false');
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        const menu = event.target.closest('.next-row-actions-menu');
+        const id = menu && menu.getAttribute('aria-labelledby');
+        if (!id || id.indexOf('cash-box-actions-') !== 0) return;
+        event.preventDefault(); event.stopPropagation();
+        const trigger = document.getElementById(id);
+        $(trigger).dropdown('hide'); trigger.focus();
+    }, true);
 
     // Init
     $(function () {

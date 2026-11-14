@@ -1,12 +1,15 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/suppliers",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
+        initComplete: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{targets: [0, 2, 7, 8], className: 'text-center'}, {targets: 8, orderable: false, searchable: false}],
         "aoColumns": [
             { data: 'code' },
             { data: 'business_name' },
@@ -23,15 +26,16 @@ $(document).ready(function () {
                     if ($.inArray('list_supplierAccount', $permissions) !== -1) {
                         if (item.accounts && item.accounts.length > 0) {
                             item.accounts.forEach(function (account) {
-                                text += '<span class="badge bg-primary text-md" style="margin: 4px 0;">' + account.number_account + '</span>';
+                                text += '<span class="badge badge-light">' + supplierDisplay(account.number_account || "N\u00famero no registrado") + '</span>';
                             });
                         } else {
-                            text = '<span class="badge bg-primary text-md">Sin cuentas</span>';
+                            text = '<span class="badge badge-light">Sin cuentas</span>';
                         }
                     }
                     return text;
                 }
             },
+            { data: null, defaultContent: '<span class="badge badge-success">Activo</span>' },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
@@ -40,16 +44,16 @@ $(document).ready(function () {
                     var text = '';
                     if ( $.inArray('update_supplier', $permissions) !== -1 ) {
                         text = text +'<a href="'+document.location.origin+ '/dashboard/editar/proveedor/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
+                            '" class="dropdown-item"><i class="fa fa-pen" aria-hidden="true"></i> Editar</a>';
                     }
                     if ( $.inArray('destroy_supplier', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-company="'+item.business_name+'" '+
-                            ' class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
+                        text = text + ' <button data-delete="'+item.id+'" data-company="'+supplierDisplay(item.business_name)+'" '+
+                            ' type="button" class="dropdown-item text-danger"><i class="fa fa-trash" aria-hidden="true"></i> Eliminar</button>';
                     }
                     if ( $.inArray('list_supplierAccount', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/registrar/cuentas/proveedores/'+item.id+'" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Registrar cuentas"><i class="fas fa-money-bill"></i> </a>  ';
+                        text = text + '<a href="'+document.location.origin+ '/dashboard/registrar/cuentas/proveedores/'+item.id+'" class="dropdown-item"><i class="fas fa-money-bill" aria-hidden="true"></i> Cuentas</a>  ';
                     }
-                    return text;
+                    return text ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del proveedor"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + text + '</div></div>' : '';
 
                 } },
 
@@ -63,7 +67,7 @@ $(document).ready(function () {
             "processing": "Procesando...",
             "lengthMenu": "Mostrar _MENU_ registros",
             "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
+            "emptyTable": "No hay proveedores activos",
             "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
             "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
             "infoFiltered": "(filtrado de un total de _MAX_ registros)",
@@ -328,3 +332,4 @@ function destroySupplier() {
         },
     });
 }
+function supplierDisplay(value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }

@@ -1,477 +1,78 @@
-$(document).ready(function () {
-    $permissions = JSON.parse($('#permissions').val());
-
-    loadStockItems(1);
-
-    $('#btn-search-stock-item').on('click', function () {
-        loadStockItems(1);
-    });
-
-    $('#search-stock-item').on('keyup', function (e) {
-        if (e.keyCode === 13) {
-            loadStockItems(1);
-        }
-    });
-
-    $(document).on('click', '.pagination-stock-item a', function (e) {
-        e.preventDefault();
-
-        let page = $(this).data('page');
-        if (page) {
-            loadStockItems(page);
-        }
-    });
-
-    // Toggle Inventariable
-    $(document).on('click', '.btn-toggle-inventory', function () {
-        let id = $(this).data('id');
-        let current = parseInt($(this).data('value'));
-
-        updateInventoryToggle(id, current);
-    });
-
-    // Toggle Activo
-    $(document).on('click', '.btn-toggle-active', function () {
-        let id = $(this).data('id');
-        let variantId = $(this).data('variant');
-        let current = parseInt($(this).data('value'));
-
-        updateActiveToggle(id, variantId, current);
-    });
-
-    $(document).on('click', '[data-ver_inventario]', function () {
-        const stockItemId = $(this).data('id');
-
-        if (!stockItemId) {
-            toastr.error('No se encontró el stock item.');
-            return;
-        }
-
-        openInventoryLevelsModal(stockItemId);
-    });
-
-    $('#formInventoryLevels').on('submit', function (e) {
-        e.preventDefault();
-
-        const stockItemId = $('#modal_stock_item_id').val();
-
-        if (!stockItemId) {
-            toastr.error('No se encontró el stock item.');
-            return;
-        }
-
-        const url = window.stockItemInventoryLevelsUpdateUrl.replace(':id', stockItemId);
-        const formData = $(this).serialize();
-
-        $('#btn-save-inventory-levels').prop('disabled', true);
-
-        $.ajax({
-            url: url,
-            method: 'POST',
-            data: formData,
-            success: function (response) {
-                toastr.success(response.message || 'Cambios guardados correctamente.');
-                $('#modalInventoryLevels').modal('hide');
-
-                // Recargar listado actual si ya tienes una función de refresh
-                /*if (typeof loadStockItems === 'function') {
-                    loadStockItems(currentStockItemsPage || 1);
-                }*/
-            },
-            error: function (xhr) {
-                if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    Object.keys(xhr.responseJSON.errors).forEach(function (key) {
-                        toastr.error(xhr.responseJSON.errors[key][0]);
-                    });
-                } else {
-                    toastr.error(
-                        (xhr.responseJSON && xhr.responseJSON.message)
-                            ? xhr.responseJSON.message
-                            : 'Ocurrió un error al guardar.'
-                    );
-                }
-            },
-            complete: function () {
-                $('#btn-save-inventory-levels').prop('disabled', false);
-            }
-        });
-    });
-
-    $(document).on('click', '[data-ajustar_stock]', function () {
-        const stockItemId = $(this).data('id');
-        const displayName = $(this).data('display-name') || '';
-        const stockActual = parseFloat($(this).data('stock-actual') || 0);
-
-        if (!stockItemId) {
-            toastr.error('No se encontró el stock item.');
-            return;
-        }
-
-        $('#adjust_stock_item_id').val(stockItemId);
-        $('#adjust_display_name').val(displayName);
-        $('#adjust_stock_actual').val(stockActual);
-        $('#adjust_quantity').val('');
-
-        $('#modalAdjustStock').modal('show');
-    });
-
-    $('#formAdjustStock').on('submit', function (e) {
-        e.preventDefault();
-
-        const stockItemId = $('#adjust_stock_item_id').val();
-        const quantity = parseFloat($('#adjust_quantity').val() || 0);
-        const stockActual = parseFloat($('#adjust_stock_actual').val() || 0);
-
-        if (!stockItemId) {
-            toastr.error('No se encontró el stock item.');
-            return;
-        }
-
-        if (quantity <= 0) {
-            toastr.error('La cantidad debe ser mayor a cero.');
-            return;
-        }
-
-        if (quantity > stockActual) {
-            toastr.error('La cantidad no puede ser mayor al stock actual.');
-            return;
-        }
-
-        $.ajax({
-            url: window.APP.URLS.ADJUST_STOCK_ITEM,
-            method: 'POST',
-            data: {
-                stock_item_id: stockItemId,
-                quantity: quantity,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            beforeSend: function () {
-                $('#formAdjustStock button[type="submit"]').prop('disabled', true);
-            },
-            success: function (response) {
-                toastr.success(response.message || 'Stock ajustado correctamente.');
-
-                $('#modalAdjustStock').modal('hide');
-
-                // Aquí llamas tu función para recargar la tabla
-                // Ejemplo:
-                loadStockItems();
-            },
-            error: function (xhr) {
-                let message = 'No se pudo ajustar el stock.';
-
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    message = xhr.responseJSON.message;
-                }
-
-                toastr.error(message);
-            },
-            complete: function () {
-                $('#formAdjustStock button[type="submit"]').prop('disabled', false);
-            }
-        });
-    });
-});
-
-var $permissions;
-
-function openInventoryLevelsModal(stockItemId) {
-    const url = window.stockItemInventoryLevelsUrl.replace(':id', stockItemId);
-
-    $.ajax({
-        url: url,
-        method: 'GET',
-        beforeSend: function () {
-            $('#tbody-modal-inventory-levels').html(`
-                <tr>
-                    <td colspan="9" class="text-center">Cargando...</td>
-                </tr>
-            `);
-            $('#modalInventoryLevels').modal('show');
-        },
-        success: function (response) {
-            fillInventoryLevelsModal(response);
-        },
-        error: function (xhr) {
-            let message = 'No se pudo cargar el inventario.';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                message = xhr.responseJSON.message;
-            }
-            toastr.error(message);
-        }
-    });
-}
-
-function can(permission) {
-    return $.inArray(permission, $permissions) !== -1;
-}
-
-function fillInventoryLevelsModal(response) {
-    const stockItem = response.stock_item || {};
-    const levels = Array.isArray(response.inventory_levels) ? response.inventory_levels : [];
-
-    $('#modal_stock_item_id').val(stockItem.id || '');
-    $('#modal_sku').val(stockItem.sku || '');
-    $('#modal_barcode').val(stockItem.barcode || '');
-    $('#modal_display_name').val(stockItem.display_name || '');
-
-    renderInventoryLevelsModalRows(levels);
-}
-
-function renderInventoryLevelsModalRows(levels) {
-    const $tbody = $('#tbody-modal-inventory-levels');
-    $tbody.empty();
-
-    if (!levels.length) {
-        $tbody.html(`
-            <tr>
-                <td colspan="9" class="text-center text-muted">
-                    No hay inventory levels registrados.
-                </td>
-            </tr>
-        `);
-        return;
+/* Read-only StockItem screen. Business mutations are intentionally not bound here. */
+(function ($) {
+    'use strict';
+    let permissions = [], listRequest, levelsRequest, modalTrigger, listSequence = 0, levelsSequence = 0;
+    const present = value => value === null || value === undefined || value === '' ? '—' : String(value);
+    const escapeHtml = value => $('<div>').text(present(value)).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const can = permission => permissions.indexOf(permission) !== -1;
+    function errorMessage(xhr, fallback) {
+        const data = xhr.responseJSON || {};
+        const errors = data.errors && Object.values(data.errors);
+        return errors && errors.length ? [].concat(errors[0])[0] : data.message || fallback;
     }
-
-    levels.forEach(function (level, index) {
-        $tbody.append(`
-            <tr>
-                <td>
-                    <input type="hidden" name="inventory_levels[${index}][id]" value="${escapeHtml(level.id || '')}">
-                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.warehouse_name || '')}" readonly>
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm" value="${escapeHtml(level.location_name || '')}" readonly>
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_on_hand)}" readonly>
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_reserved)}" readonly>
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.qty_available)}" readonly>
-                </td>
-                <td>
-                    <input type="number"
-                           class="form-control form-control-sm"
-                           name="inventory_levels[${index}][min_alert]"
-                           value="${normalizeNumber(level.min_alert)}"
-                           min="0" step="0.01">
-                </td>
-                <td>
-                    <input type="number"
-                           class="form-control form-control-sm"
-                           name="inventory_levels[${index}][max_alert]"
-                           value="${normalizeNumber(level.max_alert)}"
-                           min="0" step="0.01">
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.average_cost)}" readonly>
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" value="${normalizeNumber(level.last_cost)}" readonly>
-                </td>
-            </tr>
-        `);
-    });
-}
-
-function normalizeNumber(value) {
-    if (value === null || value === undefined || value === '') {
-        return 0;
+    function status(value, yes, no) {
+        if (value === null || value === undefined) return '—';
+        return '<span class="badge ' + (Number(value) === 1 ? 'badge-success' : 'badge-secondary') + '">' + (Number(value) === 1 ? yes : no) + '</span>';
     }
-
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
-}
-
-function updateInventoryToggle(id, current) {
-    $.ajax({
-        url: `/dashboard/stock-items/${id}/toggle-inventory`,
-        method: 'POST',
-        data: {
-            value: current === 1 ? 0 : 1,
-            _token: $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function () {
-            toastr.success('Inventario actualizado');
-            loadStockItems();
-        },
-        error: function (xhr) {
-            toastr.error(stockItemErrorMessage(xhr, 'Error al actualizar inventario'));
-        }
-    });
-}
-
-function updateActiveToggle(id, variantId, current) {
-    $.ajax({
-        url: `/dashboard/stock-items/${id}/toggle-active`,
-        method: 'POST',
-        data: {
-            value: current === 1 ? 0 : 1,
-            variant_id: variantId,
-            _token: $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function () {
-            toastr.success('Estado actualizado');
-            loadStockItems();
-        },
-        error: function (xhr) {
-            toastr.error(stockItemErrorMessage(xhr, 'Error al actualizar estado'));
-        }
-    });
-}
-
-function loadStockItems(page = 1) {
-    let search = $('#search-stock-item').val().trim();
-    let stockItemsUrl = window.APP.URLS.STOCK_ITEMS;
-    $.ajax({
-        url: stockItemsUrl,
-        method: 'GET',
-        data: {
-            search: search,
-            page: page
-        },
-        success: function (response) {
-            renderStockItemsTable(response.data);
-            renderStockItemsPagination(response);
-            renderStockItemsInfo(response);
-        },
-        error: function (xhr) {
-            toastr.error(stockItemErrorMessage(xhr, 'No se pudo cargar el listado de stock items.'), 'Error');
-        }
-    });
-}
-
-function renderStockItemsTable(items) {
-    let html = '';
-
-    if (!items || items.length === 0) {
-        html = `
-                <tr>
-                    <td colspan="11" class="text-center">No se encontraron registros.</td>
-                </tr>
-            `;
-        $('#tbody-stock-items').html(html);
-        return;
+    function quantity(local, general) {
+        return 'Local: ' + escapeHtml(local) + '<small class="text-muted d-block">General: ' + escapeHtml(general) + '</small>';
     }
-
-    items.forEach(function (item) {
-        let materialName = item.material ? (item.material.full_name || '') : '';
-        let variantText = '';
-
-        if (item.variant) {
-            if (item.variant.attribute_summary) {
-                variantText = item.variant.attribute_summary;
-            } else {
-                let talla = item.variant.talla ? (item.variant.talla.short_name || item.variant.talla.name || '') : '';
-                let color = item.variant.color ? (item.variant.color.name || '') : '';
-                variantText = [talla, color].filter(Boolean).join(' / ');
-            }
+    function loadStockItems(page) {
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+        const sequence = ++listSequence;
+        if (listRequest) listRequest.abort();
+        $('#tbody-stock-items').html('<tr><td colspan="12" class="next-table-empty">Cargando…</td></tr>');
+        $('#stock-items-pagination, #stock-items-info').empty();
+        $('#stock-items-count').text('Cargando…');
+        listRequest = $.ajax({url: window.APP.URLS.STOCK_ITEMS, method: 'GET', data: {search: $('#search-stock-item').val().trim(), page: page}})
+            .done(function (response) {
+                if (sequence !== listSequence) return;
+                renderStockItemsTable(response.data);
+                renderStockItemsPagination(response);
+                $('#stock-items-count').text(response.total + ' StockItems');
+                $('#stock-items-info').text('Mostrando ' + (response.from || 0) + ' a ' + (response.to || 0) + ' de ' + response.total + ' registros');
+            }).fail(function (xhr, status) {
+                if (status === 'abort' || sequence !== listSequence) return;
+                $('#stock-items-count').text('Consulta no disponible');
+                $('#tbody-stock-items').html('<tr><td colspan="12" class="next-table-empty text-danger">' + escapeHtml(errorMessage(xhr, 'No se pudo cargar el listado.')) + '</td></tr>');
+            });
+    }
+    function renderStockItemsTable(items) {
+        if (!items || !items.length) {
+            $('#tbody-stock-items').html('<tr><td colspan="12" class="next-table-empty">No se encontraron StockItems en este contexto.</td></tr>');
+            return;
         }
-
-        let inventariable = parseInt(item.tracks_inventory) === 1
-            ? '<span class="badge badge-success">Sí</span>'
-            : '<span class="badge badge-danger">No</span>';
-
-        let activo = parseInt(item.is_active) === 1
-            ? '<span class="badge badge-success">Activo</span>'
-            : '<span class="badge badge-secondary">Inactivo</span>';
-
-        // Quantities are resolved by the backend for the current branch.
-        const stockActual = normalizeNumber(item.stock_current);
-        const stockReservado = normalizeNumber(item.stock_reserved);
-        const stockGeneral = normalizeNumber(item.stock_general);
-        const reservadoGeneral = normalizeNumber(item.stock_general_reserved);
-
-        let unitMeasure = item.unit_measure ? (item.unit_measure.name || '') : '';
-
-        let buttons = '';
-
-        if (can('configInventariable_material')) {
-            buttons += `
-                <button class="btn btn-sm btn-warning btn-toggle-inventory"
-                    data-id="${item.id}"
-                    data-value="${item.tracks_inventory}">
-                    Config. Inv
-                </button>
-            `;
-        }
-
-        if (can('configActive_material')) {
-            buttons += `
-                <button class="btn btn-sm btn-secondary btn-toggle-active"
-                    data-id="${item.id}"
-                    data-variant="${item.variant_id || ''}"
-                    data-value="${item.is_active}">
-                    Config. Act
-                </button>
-            `;
-        }
-
-        if (can('verInventario_material')) {
-            buttons += `
-                <button class="btn btn-sm btn-outline-primary"
-                    data-id="${item.id}"
-                    data-variant="${item.variant_id || ''}"
-                    data-ver_inventario>
-                    Ver Inventario
-                </button>
-            `;
-        }
-
-        if (can('ajustarStock_material')) {
-            buttons += `
-                <button class="btn btn-sm btn-outline-success"
-                    data-id="${item.id}"
-                    data-variant="${item.variant_id || ''}"
-                    data-display-name="${escapeHtml(item.display_name || '')}"
-                    data-stock-actual="${stockActual}"
-                    data-ajustar_stock>
-                    Ajustar Stock
-                </button>
-            `;
-        }
-
-        if (can('verItems_material') && item.material.tipo_venta_id == 3) {
-            buttons += `
-                <a 
-                    data-ver_items
-                    href="${document.location.origin}/dashboard/view/stock/material/items/${item.id}"
-                    class="btn btn-outline-info btn-sm"
-                    data-toggle="tooltip"
-                    data-placement="top"
-                    title="Ver items">
-                    Ver Items</i>
-                </a>
-            `;
-        }
-
-        if (buttons === '') {
-            buttons = `<span class="text-muted">Sin acciones</span>`;
-        }
-
-        html += `
-            <tr>
-                <td>${escapeHtml(item.sku || '')}</td>
-                <td>${escapeHtml(item.barcode || '')}</td>
-                <td>${escapeHtml(item.display_name || '')}</td>
-                <td>${escapeHtml(materialName)}</td>
-                <td>${escapeHtml(variantText)}</td>
-                <td>${escapeHtml(unitMeasure)}</td>
-                <td>${inventariable}</td>
-                <td>${activo}</td>
-                <td>${stockActual}<small class="text-muted d-block">General: ${stockGeneral}</small></td>
-                <td>${stockReservado}<small class="text-muted d-block">General: ${reservadoGeneral}</small></td>
-                <td>${buttons}</td>
-            </tr>
-        `;
-    });
-
-    $('#tbody-stock-items').html(html);
-}
-
+        $('#tbody-stock-items').html(items.map(function (item) {
+            const material = item.material || {}, variant = item.variant || {};
+            const variantText = variant.attribute_summary || [variant.talla && (variant.talla.short_name || variant.talla.name), variant.color && variant.color.name].filter(Boolean).join(' / ');
+            let actions = '';
+            if (can('verInventario_material')) actions += '<button type="button" class="dropdown-item" data-ver_inventario data-id="' + escapeHtml(item.id) + '"><i class="fas fa-boxes next-row-action-item-icon" aria-hidden="true"></i>Ver inventario</button>';
+            if (can('verItems_material') && material.tipo_venta_id == 3) actions += '<a class="dropdown-item" data-ver_items href="' + escapeHtml(window.stockItemItemsUrl.replace(':id', encodeURIComponent(item.id))) + '"><i class="fas fa-list next-row-action-item-icon" aria-hidden="true"></i>Ver Items</a>';
+            actions = actions ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ' + escapeHtml(item.sku) + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + actions + '</div></div>' : '<span class="text-muted">Sin acciones</span>';
+            return '<tr data-stock-item-id="' + escapeHtml(item.id) + '"><td class="text-center text-nowrap">' + escapeHtml(item.sku) + '</td><td class="text-center text-nowrap">' + escapeHtml(item.barcode) + '</td><td>' + escapeHtml(item.display_name) + '</td><td>' + escapeHtml(material.full_name) + '</td><td>' + escapeHtml(variantText) + '</td><td class="text-center text-nowrap">' + escapeHtml(item.unit_measure && item.unit_measure.name) + '</td><td class="text-center text-nowrap">' + status(item.tracks_inventory, 'Sí', 'No') + '</td><td class="text-center text-nowrap">' + status(item.is_active, 'Activo', 'Inactivo') + '</td><td class="text-center text-nowrap">' + quantity(item.stock_current, item.stock_general) + '</td><td class="text-center text-nowrap">' + quantity(item.stock_reserved, item.stock_general_reserved) + '</td><td class="text-center text-nowrap">' + quantity(item.stock_available, item.stock_general_available) + '</td><td class="text-center text-nowrap">' + actions + '</td></tr>';
+        }).join(''));
+    }
+    function openInventoryLevelsModal(id) {
+        const sequence = ++levelsSequence;
+        if (levelsRequest) levelsRequest.abort();
+        $('#modal_sku, #modal_barcode, #modal_display_name').text('—');
+        $('#tbody-modal-inventory-levels').html('<tr><td colspan="9" class="next-table-empty">Cargando…</td></tr>');
+        $('#modalInventoryLevels').modal('show');
+        levelsRequest = $.ajax({url: window.stockItemInventoryLevelsUrl.replace(':id', encodeURIComponent(id)), method: 'GET'})
+            .done(function (response) {
+                if (sequence !== levelsSequence) return;
+                const item = response.stock_item || {};
+                $('#modal_sku').text(present(item.sku)); $('#modal_barcode').text(present(item.barcode)); $('#modal_display_name').text(present(item.display_name));
+                const rows = (response.inventory_levels || []).map(function (level) {
+                    const scope = level.warehouse_branch_id === null ? 'General' : 'Local ' + present(level.warehouse_branch_id);
+                    return '<tr><td>' + escapeHtml(level.warehouse_name) + '<small class="d-block text-muted">' + escapeHtml(scope) + '</small></td><td>' + escapeHtml(level.location_name) + '</td>' + ['qty_on_hand', 'qty_reserved', 'qty_available', 'min_alert', 'max_alert', 'average_cost', 'last_cost'].map(function (key) { return '<td class="' + (key.indexOf('cost') !== -1 ? 'text-right' : 'text-center') + '">' + escapeHtml(level[key]) + '</td>'; }).join('') + '</tr>';
+                });
+                $('#tbody-modal-inventory-levels').html(rows.join('') || '<tr><td colspan="9" class="next-table-empty">No hay niveles de inventario en este contexto.</td></tr>');
+            }).fail(function (xhr, status) {
+                if (status === 'abort' || sequence !== levelsSequence) return;
+                $('#tbody-modal-inventory-levels').html('<tr><td colspan="9" class="next-table-empty text-danger">' + escapeHtml(errorMessage(xhr, 'No se pudo consultar inventario.')) + '</td></tr>');
+            });
+    }
 function getPaginationPages(currentPage, lastPage) {
     currentPage = parseInt(currentPage);
     lastPage = parseInt(lastPage);
@@ -542,57 +143,25 @@ function renderStockItemsPagination(response) {
     $('#stock-items-pagination').html(html);
 }
 
-function renderStockItemsPaginationO(response) {
-    let html = '';
 
-    if (response.last_page <= 1) {
-        $('#stock-items-pagination').html('');
-        return;
-    }
-
-    html += '<ul class="pagination pagination-sm mb-0 pagination-stock-item">';
-
-    html += `
-            <li class="page-item ${response.current_page === 1 ? 'disabled' : ''}">
-                <a href="#" class="page-link" data-page="${response.current_page - 1}">«</a>
-            </li>
-        `;
-
-    for (let i = 1; i <= response.last_page; i++) {
-        html += `
-                <li class="page-item ${response.current_page === i ? 'active' : ''}">
-                    <a href="#" class="page-link" data-page="${i}">${i}</a>
-                </li>
-            `;
-    }
-
-    html += `
-            <li class="page-item ${response.current_page === response.last_page ? 'disabled' : ''}">
-                <a href="#" class="page-link" data-page="${response.current_page + 1}">»</a>
-            </li>
-        `;
-
-    html += '</ul>';
-
-    $('#stock-items-pagination').html(html);
-}
-
-function renderStockItemsInfo(response) {
-    let from = response.from || 0;
-    let to = response.to || 0;
-    let total = response.total || 0;
-
-    $('#stock-items-info').html(`Mostrando ${from} a ${to} de ${total} registros`);
-}
-
-function escapeHtml(text) {
-    return $('<div>').text(text).html();
-}
-function stockItemErrorMessage(xhr, fallback) {
-    const data = xhr && xhr.responseJSON;
-    if (data && data.errors) {
-        const messages = Object.values(data.errors);
-        if (messages.length) return Array.isArray(messages[0]) ? messages[0][0] : messages[0];
-    }
-    return data && data.message ? data.message : fallback;
-}
+    $(function () {
+        permissions = JSON.parse($('#permissions').val());
+        $('#stock-items-search-form').on('submit', function (e) { e.preventDefault(); loadStockItems(1); });
+        $(document).on('click', '.pagination-stock-item a', function (e) {
+            e.preventDefault();
+            if (!$(this).closest('.page-item').is('.disabled, .active')) loadStockItems($(this).data('page'));
+        });
+        $(document).on('click', '[data-ver_inventario]', function () {
+            const owner = $(this).closest('.next-row-actions-menu').data('nextRowActionsOwner');
+            modalTrigger = owner ? $(owner).find('.next-row-actions-trigger')[0] : $(this).closest('.next-row-actions').find('.next-row-actions-trigger')[0];
+            $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+            openInventoryLevelsModal($(this).data('id'));
+        });
+        $('#modalInventoryLevels').on('hidden.bs.modal', function () {
+            ++levelsSequence;
+            if (levelsRequest) levelsRequest.abort();
+            if (modalTrigger && document.contains(modalTrigger)) modalTrigger.focus();
+        });
+        loadStockItems(1);
+    });
+})(window.jQuery);

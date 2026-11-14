@@ -20,27 +20,26 @@
             $('#wa-selected').text(data.product.text); $('#wa-checked').text('Consultado: ' + data.checked_at); $('#wa-summary').removeClass('d-none');
             var target = $('#wa-groups').empty();
             data.groups.forEach(function (group, index) {
-                var section = $('<section class="col-12 col-md-6 col-xl-3 mb-3">').attr('aria-labelledby', 'wa-group-' + index);
-                var heading = $('<h2 class="h6 mb-3">').attr('id', 'wa-group-' + index).text(group.title);
-                if (group.current) heading.append($('<span class="badge badge-primary ml-2">').text('Local actual'));
-                section.append(heading);
-                if (!group.warehouses.length) section.append($('<p class="text-muted small">').text('Sin almacenes configurados.'));
+                var section = $('<section>').attr('aria-labelledby', 'wa-group-' + index).attr('data-group-key', group.key);
+                var header = $('<div class="next-list-summary">');
+                header.append($('<h2 class="h6 mb-0">').attr('id', 'wa-group-' + index).text(group.title));
+                header.append($('<span class="badge badge-light">').text(group.current ? 'Local actual' : (group.key === 'general' ? 'Almacén general' : 'Otro local')));
+                section.append(header);
+                var scroll = $('<div class="table-responsive" tabindex="0">').attr('aria-label', group.title + '; desplazamiento horizontal');
+                var table = $('<table class="table table-bordered table-hover table-sm next-data-table">');
+                table.append('<thead><tr><th>Almacén</th><th class="text-center">Existencias</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Por recibir</th><th class="text-center">Enviado en tránsito</th><th class="text-center">Trazabilidad</th></tr></thead>');
+                var body = $('<tbody>');
+                if (!group.warehouses.length) body.append('<tr><td colspan="7" class="next-table-empty">Sin almacenes visibles en este grupo.</td></tr>');
                 group.warehouses.forEach(function (warehouse) {
-                    var box = $('<article class="info-box align-items-start mb-3">');
-                    box.append($('<span class="info-box-icon bg-light text-primary">').append($('<i class="fas fa-warehouse" aria-hidden="true">')));
-                    var content = $('<div class="info-box-content">');
-                    content.append($('<h3 class="h6 text-wrap mb-2">').text(warehouse.name));
-                    content.append($('<span class="text-muted small">').text('Disponible'));
-                    content.append($('<strong class="info-box-number h3 mt-0">').text(quantity(warehouse.available)));
-                    content.append($('<span class="small text-muted d-block">').text('Existencias: ' + quantity(warehouse.on_hand)));
-                    content.append($('<span class="small text-muted d-block mb-2">').text('Reservado: ' + quantity(warehouse.reserved)));
-                    if (Number(warehouse.incoming) > 0) content.append($('<span class="small text-info d-block">').text('Por recibir: ' + warehouse.incoming));
-                    if (Number(warehouse.outgoing) > 0) content.append($('<span class="small text-info d-block">').text('Enviado en tránsito: ' + warehouse.outgoing));
-                    if (warehouse.requires_review) content.append($('<span class="small text-warning d-block mt-2">').text('Revisar inventario y trazabilidad antes de trasladar.'));
-                    if (warehouse.request_url) content.append($('<a class="btn btn-outline-primary btn-sm mt-2">').attr('href', warehouse.request_url).text('Solicitar traslado'));
-                    box.append(content); section.append(box);
+                    var row = $('<tr>').attr('data-warehouse-id', warehouse.id).attr('data-stock-item-id', data.product.id);
+                    row.append($('<td>').text(warehouse.name));
+                    ['on_hand', 'reserved', 'available', 'incoming', 'outgoing'].forEach(function (field) {
+                        row.append($('<td class="text-center">').toggleClass('font-weight-bold', field === 'available').text(quantity(warehouse[field])));
+                    });
+                    row.append($('<td class="text-center">').append($('<span class="badge">').addClass(warehouse.requires_review ? 'badge-warning' : 'badge-success').text(warehouse.requires_review ? 'Requiere revisión' : 'Consistente')));
+                    body.append(row);
                 });
-                target.append(section);
+                table.append(body); scroll.append(table); section.append(scroll); target.append(section);
             });
         }
         function load() {

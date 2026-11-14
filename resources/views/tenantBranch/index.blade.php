@@ -20,70 +20,45 @@
 @endsection
 
 @section('page-title')
-    <div class="d-flex justify-content-between align-items-start w-100">
-
-        {{-- Información de la empresa --}}
-        <div class="flex-grow-1" style="min-width: 0;">
-            <h5 class="card-title mb-1">Listado sucursales</h5>
-
-            <div class="text-muted" style="overflow-wrap: anywhere; clear: both;">
-                {{ $company->business_name }} - RUC {{ $company->ruc }}
-            </div>
-        </div>
-
-        {{-- Botones de acción --}}
-        <div class="d-flex align-items-start flex-shrink-0 ml-3">
-            <a href="{{ route('tenantCompany.index') }}"
-               class="btn btn-secondary mr-2">
-                Volver
-            </a>
-
-            @can('create_branch')
-                @if($company->is_active)
-                    <a href="{{ route('tenantBranch.create', $company->id) }}"
-                       class="btn btn-primary">
-                        Nueva sucursal
-                    </a>
-                @endif
-            @endcan
-        </div>
-
-    </div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Locales de la empresa</strong><span>{{ $company->business_name }} · RUC {{ $company->ruc }}</span></div><div class="next-toolbar-actions">
+<a href="{{ route('tenantCompany.index') }}" class="btn btn-outline-secondary btn-sm">Volver</a>
+@can('create_branch') @if($company->is_active)<a href="{{ route('tenantBranch.create', $company->id) }}" class="btn btn-primary btn-sm">Nueva sucursal</a>@endif @endcan
+</div></div>
 @endsection
 
 @section('content')
 
-    <div class="table-responsive">
+    <div class="table-responsive" tabindex="0" aria-label="Sucursales; tabla con desplazamiento horizontal">
 
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover table-sm next-data-table">
 
             <thead>
             <tr>
-                <th style="width: 130px;">
+                <th scope="col" class="text-center">
                     Código
                 </th>
 
-                <th>
+                <th scope="col" class="text-left">
                     Nombre
                 </th>
 
-                <th>
+                <th scope="col" class="text-left">
                     Dirección
                 </th>
 
-                <th>
+                <th scope="col" class="text-center">
                     Teléfono
                 </th>
 
-                <th style="width: 110px;">
+                <th scope="col" class="text-center">
                     Principal
                 </th>
 
-                <th style="width: 100px;">
+                <th scope="col" class="text-center">
                     Estado
                 </th>
 
-                <th style="width: 220px;">
+                <th scope="col" class="text-center">
                     Acciones
                 </th>
             </tr>
@@ -96,27 +71,27 @@
 
                 <tr>
 
-                    <td>
+                    <td class="text-center">
                         {{ $branch->code }}
                     </td>
 
 
-                    <td>
+                    <td class="text-left">
                         {{ $branch->name }}
                     </td>
 
 
-                    <td>
+                    <td class="text-left">
                         {{ $branch->address ?: '-' }}
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
                         {{ $branch->phone ?: '-' }}
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
 
                         @if($branch->is_main)
 
@@ -135,7 +110,7 @@
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
 
                         @if($branch->is_active)
 
@@ -154,9 +129,9 @@
                     </td>
 
 
-                    <td>
+                    <td class="text-center">
 
-                        <div class="d-flex flex-wrap">
+                        <div class="next-toolbar-actions flex-wrap justify-content-center">
 
                             @can('edit_branch')
                                 <a

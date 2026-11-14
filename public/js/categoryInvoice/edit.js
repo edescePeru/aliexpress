@@ -11,7 +11,7 @@ function mayus(e) {
     e.value = e.value.toUpperCase();
 }
 
-function updateCategory() {
+function updateCategory(event) {
     event.preventDefault();
     // Obtener la URL
     var editUrl = $formEdit.data('url');
@@ -46,7 +46,11 @@ function updateCategory() {
             }, 2000 )
         },
         error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
+            var response = data.responseJSON || {};
+            if (!response.errors) {
+                toastr.error(response.message || 'No se pudo completar la operación.', 'Error');
+            }
+            for ( var property in (response.errors || {}) ) {
                 toastr.error(data.responseJSON.errors[property], 'Error',
                     {
                         "closeButton": true,

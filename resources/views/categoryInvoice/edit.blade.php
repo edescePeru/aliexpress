@@ -25,20 +25,17 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
+
+
+
 
 @section('page-header')
-    <h1 class="page-title">Categorias de Facturas</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Finanzas · Configuración</span><h1 class="page-title">Editar categoría de factura</h1><p class="next-page-description">Categorías de la empresa activa.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Editar categoría  de factura {{$category->name}}</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Datos de la categoría</strong><span>Nombre y descripción.</span></div><div class="next-toolbar-actions flex-wrap">
+<a href="{{ route('categoryInvoice.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a>
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -58,29 +55,10 @@
         @csrf
         <input type="hidden" class="form-control" name="category_id" value="{{$category->id}}">
 
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Nombre <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Categoría de Factura" value="{{$category->name}}">
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Descripción</label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción" value="{{$category->description}}">
-                </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar Cambios</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
+        <section class="next-form-section"><div class="row">
+<div class="col-md-6 form-group"><label for="category-name">Nombre <span class="next-required">(*)</span></label><input type="text" id="category-name" class="form-control @error('name') is-invalid @enderror" onkeyup="mayus(this);" name="name" value="{{ old('name', $category->name) }}" placeholder="Nombre">@error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+<div class="col-md-6 form-group"><label for="category-description">Descripción</label><input type="text" id="category-description" class="form-control @error('description') is-invalid @enderror" onkeyup="mayus(this);" name="description" value="{{ old('description', $category->description) }}" placeholder="Descripción">@error('description')<span class="invalid-feedback">{{ $message }}</span>@enderror</div>
+</div></section><div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap"><button type="reset" class="btn btn-outline-secondary">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambios</button></div></div>
     </form>
 @endsection
 

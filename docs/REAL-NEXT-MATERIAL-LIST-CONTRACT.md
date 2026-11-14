@@ -1,5 +1,23 @@
 # REAL NEXT — Material List Contract
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+FINAL QA PASSED — READ PATH para dataset actual EDESCE/Gamarra. MaterialCompanyCatalog/MaterialStockReadModel mantienen físico local y general separados; null de variantes/umbrales no se convierte en cero. Inventario detallado Gamarra comprobado. Indicadores probados adicionalmente con colecciones en memoria; no sustituyen datos reales de almacenes locales/reservas. SEPARAR PAQUETE — STILL BLOCKED FOR FRONTEND por fuente stock legacy/ownership; flujo no ejecutado.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
+## Reclasificación vigente — 2026-10-26
+
+Ver [matriz y evidencia posterior al merge](REAL-NEXT-BACKEND-SYNC-RECLASSIFICATION.md), commit `20cea30`. Se preserva debajo la auditoría histórica; las decisiones de alcance ya no son preguntas abiertas.
+
+**FUNCTIONAL DECISION DEFINED — BACKEND IMPLEMENTATION/VALIDATION PENDING**. **NON-BLOCKING FOR VISUAL INTEGRATION**. La superficie operativa corresponde a company activa y almacenes generales o de branch activa. La vista global del owner será independiente; no ampliar esta pantalla.
+
+`Material`/`StockItem` siguen siendo maestros del tenant. Los accessors de stock/min/max filtran company pero aún no branch/general; `stock_actual`, resumen y prioridad conservan fuentes legacy. La consistencia de indicadores NO está resuelta. No recalcular stock, disponible, min/max, resumen o prioridad en JS. Min/max pertenecen al almacén, con permisos/contexto; stock readonly en esta superficie.
+
+Trigger: backend normaliza fuentes/cálculos y aplica alcance operativo de forma consistente; después QA Principal/Outlet/general y entre companies. Pendiente antes del cierre funcional productivo.
+
+Correcciones concretas verificadas en código: `/dashboard/get/types/{subcategory_id}` usa `create_material|update_material|list_material|list_materialType`; inventory-levels ya no duplica `/dashboard` y tiene permisos GET/POST explícitos. **RESOLVED** sólo esos defectos de definición, sin cerrar aislamiento ni equivalencia de indicadores. Los endpoints históricos citados debajo describen el estado anterior.
+
 ## Estado
 
 **APPROVED WITH BACKEND SYNC OPEN**

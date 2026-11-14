@@ -6,48 +6,38 @@
 
 @section('title') Mis Movimientos de Caja @endsection
 
-@section('styles')
-    <style>
-        .income-row {
-            background-color: #d4edda; /* Verde claro */
-        }
 
-        .expense-row {
-            background-color: #f8d7da; /* Rojo claro */
-        }
-
-        .regularize-row {
-            background-color: #f4c3a1; /* Verde claro */
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Mis Movimientos de Caja</h1>
+<div class="next-page-heading">
+    <span class="next-page-eyebrow">Caja · Operaciones</span>
+    <h1 class="page-title">Mis movimientos de caja</h1>
+    <p class="next-page-description">Movimientos propios de la empresa y local activos.</p>
+</div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de movimientos</h5>
-    <div class="float-right">
-        <div class="btn-group" role="group" aria-label="Cajas">
-            @foreach($cashBoxes as $box)
+<div class="next-page-toolbar flex-wrap flex-xl-nowrap">
+    <div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta del usuario actual.</span></div>
+    <div class="next-toolbar-actions flex-wrap justify-content-xl-end flex-shrink-1" role="group" aria-label="Cajas disponibles">@foreach($cashBoxes as $box)
                 @php $isOpen = in_array($box->id, $openCashBoxIds); @endphp
 
                 <button
                         type="button"
-                        class="btn btn-sm {{ $isOpen ? 'btn-success' : 'btn-secondary' }} mr-1"
+                        class="btn btn-sm {{ $isOpen ? 'btn-outline-success' : 'btn-outline-secondary' }}"
                         data-cashbox-btn
                         data-cash_box_id="{{ $box->id }}"
                         data-cash_box_name="{{ $box->name }}"
                         data-cash_box_type="{{ $box->type }}"
                         data-is_open="{{ $isOpen ? 1 : 0 }}"
-                        style="font-weight:600;"
+                        title="{{ $isOpen ? 'Ver sesión abierta' : 'Iniciar sesión' }}"
                 >
-                    {{ $box->name }}
+                    {{ $box->name }} · {{ $isOpen ? 'Abierta' : 'Sin sesión' }}
                 </button>
-            @endforeach
-        </div>
-    </div>
+            @endforeach</div>
+
+    @if($cashBoxes->isEmpty())<span class="text-muted">Sin cajas disponibles.</span>@endif
+</div>
 @endsection
 
 @section('page-breadcrumb')
@@ -60,39 +50,35 @@
     </ol>
 @endsection
 
-@section('styles')
-    <style>
-        .letraTabla { font-family: "Calibri", Arial, sans-serif; font-size: 15px; }
-        .normal-title { background-color: #203764; color:#fff; text-align:center; }
-        .badge-pill { padding: .35rem .6rem; }
-    </style>
-@endsection
+
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions ?? []) }}">
 
-    <form onsubmit="return false;">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <input type="text" id="q" class="form-control" placeholder="Buscar descripción..." autocomplete="off">
+    <section class="next-operational-list">
+    @if(session('warning'))<div class="next-list-toolbar"><div class="alert alert-warning mb-0" role="status">{{ session('warning') }}</div></div>@endif
+    <div class="next-list-toolbar"><form onsubmit="return false;">
+        <div class="form-row align-items-end">
+            <div class="form-group col-12 col-xl-3 mb-xl-0">
+                <label for="q">Descripción</label><div class="input-group input-group-sm">
+                    <input aria-label="Buscar movimientos" type="text" id="q" class="form-control form-control-sm" placeholder="Buscar descripción..." autocomplete="off">
                     <div class="input-group-append">
-                        <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
+                        <button class="btn btn-primary btn-sm" type="button" id="btn-search">Buscar</button>
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-2">
-                <select id="cash_box_id" class="form-control">
+            <div class="form-group col-sm-6 col-md-4 col-xl mb-xl-0">
+                <label for="cash_box_id">Caja</label><select id="cash_box_id" class="form-control form-control-sm">
                     <option value="">Todas las cajas</option>
                     @foreach($cashBoxes as $b)
-                        <option value="{{ $b->id }}">{{ $b->name }}</option>
+                        <option value="{{ $b->id }}" data-currency="{{ $b->currency }}">{{ $b->name }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="col-md-2">
-                <select id="type" class="form-control">
+            <div class="form-group col-sm-6 col-md-4 col-xl mb-xl-0">
+                <label for="type">Tipo</label><select id="type" class="form-control form-control-sm">
                     <option value="">Todos los tipos</option>
                     <option value="sale">Venta</option>
                     <option value="income">Ingreso</option>
@@ -100,8 +86,8 @@
                 </select>
             </div>
 
-            <div class="col-md-2">
-                <select id="subtype_id" class="form-control">
+            <div class="form-group col-sm-6 col-md-4 col-xl mb-xl-0">
+                <label for="subtype_id">Subtipo</label><select id="subtype_id" class="form-control form-control-sm">
                     <option value="">Todos los subtipos</option>
                     <option value="none">(Sin subtipo)</option>
                     @foreach($subtypes as $st)
@@ -110,75 +96,65 @@
                 </select>
             </div>
 
-            <div class="col-md-1">
-                <input type="date" id="date_from" class="form-control" title="Desde">
+            <div class="form-group col-sm-6 col-xl mb-xl-0">
+                <label for="date_from">Desde</label><input type="date" id="date_from" class="form-control form-control-sm" title="Desde">
             </div>
-            <div class="col-md-1">
-                <input type="date" id="date_to" class="form-control" title="Hasta">
+            <div class="form-group col-sm-6 col-xl mb-xl-0">
+                <label for="date_to">Hasta</label><input type="date" id="date_to" class="form-control form-control-sm" title="Hasta">
             </div>
         </div>
     </form>
 
-    <div class="d-flex flex-wrap flex-stack pb-2 mt-3">
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1">
-                <span id="numberItems"></span> movimientos encontrados
-            </h3>
-        </div>
     </div>
-
-    <hr>
-
+    <div id="list-error" class="alert alert-danger d-none" role="alert"></div>
+    <div class="next-list-summary"><span><strong id="numberItems"></strong> movimientos</span><span>Fecha de registro · más recientes primero</span></div>
     <div class="table-responsive">
-        <table class="table table-bordered letraTabla table-hover table-sm mb-2">
+        <table class="table table-bordered table-hover table-sm next-data-table">
             <thead>
-            <tr class="normal-title">
-                <th>N°</th>
-                <th>Fecha</th>
-                <th>Caja</th>        <!-- ✅ nueva -->
-                <th>Tipo</th>
-                <th>Subtipo</th>
-                <th>Estado</th>
-                <th>Monto</th>
-                <th>Abonado</th>
-                <th>Comisión</th>
-                <th>Descripción</th>
-                <th>Acciones</th>
+            <tr>
+                <th class="text-center">N°</th>
+                <th class="text-center">Fecha</th>
+                <th class="text-left">Caja</th>        <!-- ✅ nueva -->
+                <th class="text-center">Tipo</th>
+                <th class="text-left">Subtipo</th>
+                <th class="text-center">Estado</th>
+                <th class="text-right">Moneda de caja</th><th class="text-right">Monto</th>
+                <th class="text-right">Abonado</th>
+                <th class="text-right">Comisión</th>
+                <th class="text-left w-25">Descripción</th>
+                <th class="text-center">Acciones</th>
             </tr>
             </thead>
             <tbody id="body-table"></tbody>
         </table>
     </div>
 
-    <div class="d-flex flex-stack flex-wrap pt-1">
-        <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-        <ul class="pagination" style="margin-left: auto;" id="pagination"></ul>
-    </div>
-
+    <div class="next-list-pagination"><div id="textPagination"></div><ul class="pagination" id="pagination"></ul></div>
+    </section>
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-date></td>
-            <td data-cashbox></td>
-            <td data-type></td>
-            <td data-subtype></td>
-            <td data-status></td>
-            <td data-amount class="text-right"></td>
+            <td data-id class="text-center"></td>
+            <td data-date class="text-center text-nowrap"></td>
+            <td data-cashbox class="text-left"></td>
+            <td data-type class="text-center"></td>
+            <td data-subtype class="text-left"></td>
+            <td data-status class="text-center"></td>
+            <td data-currency class="text-right"></td><td data-amount class="text-right"></td>
             <td data-amount_regularize class="text-right"></td>
             <td data-commission class="text-right"></td>
-            <td data-desc></td>
-            <td data-buttons></td>
+            <td data-desc class="text-left"></td>
+            <td data-buttons class="text-center"></td>
         </tr>
     </template>
 
     <template id="item-table-empty">
         <tr>
-            <td colspan="10" align="center">No se encontraron movimientos</td>
+            <td colspan="12" align="center">No se encontraron movimientos</td>
         </tr>
     </template>
 
     <template id="template-button">
-        <a href="" target="_blank" data-print_nota data-id=""
+        <a href="" target="_blank" rel="noopener" data-print_nota data-id=""
            class="btn btn-outline-dark btn-sm" data-toggle="tooltip" data-placement="top" title="Imprimir">
             <i class="fas fa-print"></i>
         </a>

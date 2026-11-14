@@ -25,7 +25,7 @@
 
     <div
             id="platform-tenant-show-app"
-            class="container-fluid"
+            class="next-form-section"
 
             data-tenant-id="{{$tenant->id}}"
 

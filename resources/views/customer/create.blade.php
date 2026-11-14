@@ -27,20 +27,12 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Clientes</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Clientes</span><h1 class="page-title">Nuevo cliente</h1><p class="next-page-description">Catálogo compartido por las empresas del grupo empresarial.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nuevo cliente</h5>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Nuevo cliente</strong><span>Los campos con * son obligatorios.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -56,52 +48,18 @@
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('customer.store') }}" enctype="multipart/form-data">
-        @csrf
-        <div class="form-group row">
-            <div class="col-md-4">
-                <label for="inputEmail3" class="col-12 col-form-label">RUC <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" name="ruc" placeholder="Ejm: 1234678901">
-                </div>
-            </div>
-            <div class="col-md-2">
-                <label for="btn-grouped" class="col-12 col-form-label">Extranjero <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-12">
-                    <input id="btn-grouped" type="checkbox" name="special" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
-                </div>
-            </div>
+<form id="formCreate" class="form-horizontal" data-url="{{ route('customer.store') }}" enctype="multipart/form-data">
+@csrf
 
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Razon Social <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="business_name" placeholder="Ejm: Edesce EIRL">
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Direccion</label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="address" placeholder="Ejm: Jr Union">
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Ubicacion</label>
-                <div class="col-sm-12">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="location" placeholder="Ejm: Moche">
-                </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
-            <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
-        <!-- /.card-footer -->
-    </form>
+<section class="next-form-section"><div class="next-section-header"><div><h2>Identificación del cliente</h2><p>Cliente del grupo empresarial, sin asignación exclusiva de empresa o sucursal.</p></div></div><div class="row">
+<div class="form-group col-md-4"><label for="customer-ruc">Documento (RUC / DNI) *</label><input id="customer-ruc" type="text" name="ruc" class="form-control @error('ruc') is-invalid @enderror" value="{{ old('ruc') }}">@error('ruc')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-8"><label for="customer-business_name">Razón social *</label><input id="customer-business_name" type="text" name="business_name" class="form-control @error('business_name') is-invalid @enderror" value="{{ old('business_name') }}" onkeyup="mayus(this);">@error('business_name')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-12"><label for="btn-grouped" class="d-block">Extranjero</label><input id="btn-grouped" type="checkbox" name="special" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success" {{ filter_var(old('special', false), FILTER_VALIDATE_BOOLEAN) ? 'checked' : '' }}></div>
+<div class="form-group col-md-6"><label for="customer-address">Dirección</label><input id="customer-address" type="text" name="address" class="form-control @error('address') is-invalid @enderror" value="{{ old('address') }}" onkeyup="mayus(this);">@error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+<div class="form-group col-md-6"><label for="customer-location">Ubicación</label><input id="customer-location" type="text" name="location" class="form-control @error('location') is-invalid @enderror" value="{{ old('location') }}" onkeyup="mayus(this);">@error('location')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+</div></section>
+<div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap justify-content-end"><button type="reset" class="btn btn-outline-secondary">Cancelar</button><button type="button" id="btn-submit" class="btn btn-primary">Guardar</button></div></div>
+</form>
 @endsection
 
 @section('plugins')

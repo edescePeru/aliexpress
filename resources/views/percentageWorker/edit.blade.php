@@ -54,7 +54,7 @@
 
     <form
             id="formEdit"
-            class="form-horizontal"
+            class="form-horizontal next-form-section"
             data-url="{{ route('platformPercentageWorker.update', $percentageWorker->id) }}"
     >
         @csrf
@@ -107,11 +107,11 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-end">
+        <div class="next-toolbar-actions flex-wrap justify-content-end">
 
             <a
                     href="{{ route('platformPercentageWorker.index') }}"
-                    class="btn btn-outline-secondary mr-2"
+                    class="btn btn-outline-secondary"
             >
                 Cancelar
             </a>

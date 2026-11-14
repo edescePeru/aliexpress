@@ -6,6 +6,20 @@
         var create = document.getElementById('wt-create');
         var nextRow = 0;
 
+        // The shared shell portals row menus outside their table container.
+        $(document).on('hidden.bs.dropdown', '.next-row-actions', function () {
+            $(this).children('.next-row-actions-trigger').attr('aria-expanded', 'false');
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            var menu = event.target.closest('.next-row-actions-menu');
+            var id = menu && menu.getAttribute('aria-labelledby');
+            if (!id || id.indexOf('wt-actions-') !== 0) return;
+            var trigger = document.getElementById(id);
+            event.preventDefault(); event.stopPropagation();
+            $(trigger).dropdown('hide'); trigger.focus();
+        }, true);
+
         function message(text) {
             $('#wt-errors').removeClass('d-none').text(text);
             document.getElementById('wt-errors').scrollIntoView({block: 'nearest'});

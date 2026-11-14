@@ -26,7 +26,7 @@
 
 @section('content')
     <section class="next-operational-list" aria-labelledby="platform-overview-title">
-        <div class="p-3 p-md-4">
+        <div class="next-form-section">
             <div class="row">
                 <div class="col-12">
                     <div class="next-list-surface-heading">

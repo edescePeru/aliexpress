@@ -1,307 +1,51 @@
 @extends('layouts.appAdmin2')
-
-@section('openMaterial')
-    menu-open
-@endsection
-
-@section('activeMaterial')
-    active
-@endsection
-
-@section('activeListStockItems')
-    active
-@endsection
-
-@section('title')
-    Materiales
-@endsection
-
-@section('styles-plugins')
-    <!-- Select2 -->
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.standalone.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.css') }}">
-    <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.standalone.css') }}">
-
-@endsection
-
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
-@endsection
-
+@section('openMaterial', 'menu-open')
+@section('activeMaterial', 'active')
+@section('activeListStockItems', 'active')
+@section('title', 'StockItems')
 @section('page-header')
-    <h1 class="page-title">Materiales en Almacen</h1>
+<h1 class="page-title">StockItems</h1>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listar materiales almacen</h5>
-    {{--<button type="button" class="btn btn-outline-info btn-sm float-right" id="btn-resumen-stock">
-        Ver resumen de stock
-    </button>--}}
-    {{--@can('create_material')
-        <a href="{{ route('material.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo material </a>
-    @endcan--}}
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Catálogo habilitado por empresa</strong><span>Consulta del local activo y almacenes generales permitidos.</span></div><span class="badge badge-info">Solo lectura</span></div>
 @endsection
-
-@section('page-breadcrumb')
-    <ol class="breadcrumb float-sm-right">
-        <li class="breadcrumb-item">
-            <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
-        </li>
-        <li class="breadcrumb-item"><i class="fa fa-archive"></i> Materiales </li>
-    </ol>
-@endsection
-
 @section('content')
-    @include('material._inventoryContext')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <input type="text" id="search-stock-item" class="form-control"
-                   placeholder="Buscar por SKU, código de barras o nombre">
-        </div>
-        <div class="col-md-2">
-            <button type="button" id="btn-search-stock-item" class="btn btn-primary btn-block">
-                Buscar
-            </button>
-        </div>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover table-sm">
-            <thead class="normal-title">
-            <tr>
-                <th>SKU</th>
-                <th>Barcode</th>
-                <th>Nombre visible</th>
-                <th>Producto padre</th>
-                <th>Variante</th>
-                <th>UM</th>
-                <th>Inventariable</th>
-                <th>Activo</th>
-                <th>Stock local</th>
-                <th>Reservado local</th>
-                <th>Acción</th>
-            </tr>
-            </thead>
-            <tbody id="tbody-stock-items">
-            </tbody>
-        </table>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mt-2">
-        <div id="stock-items-info"></div>
-        <div id="stock-items-pagination"></div>
-    </div>
-
-    <div class="modal fade" id="modalInventoryLevels" tabindex="-1" role="dialog" aria-labelledby="modalInventoryLevelsLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl" role="document">
-            <div class="modal-content">
-                <form id="formInventoryLevels">
-                    @csrf
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="modalInventoryLevelsLabel">Inventario por almacén</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-
-                    <div class="modal-body">
-                        <input type="hidden" id="modal_stock_item_id">
-
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <label>SKU</label>
-                                <input type="text" class="form-control form-control-sm" id="modal_sku" readonly>
-                            </div>
-                            <div class="col-md-3">
-                                <label>Barcode</label>
-                                <input type="text" class="form-control form-control-sm" id="modal_barcode" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label>Nombre visible</label>
-                                <input type="text" class="form-control form-control-sm" id="modal_display_name" readonly>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead>
-                                <tr>
-                                    <th>Almacén</th>
-                                    <th>Ubicación</th>
-                                    <th>Stock actual</th>
-                                    <th>Reservado</th>
-                                    <th>Disponible</th>
-                                    <th>Min</th>
-                                    <th>Max</th>
-                                    <th>Promedio</th>
-                                    <th>Últ. costo</th>
-                                </tr>
-                                </thead>
-                                <tbody id="tbody-modal-inventory-levels">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                        @can('update_material')
-                            <button type="submit" class="btn btn-primary" id="btn-save-inventory-levels">
-                                Guardar cambios
-                            </button>
-                        @endcan
-                    </div>
-                </form>
+@include('material._inventoryContext')
+<input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+<section class="next-operational-list next-advanced-operational-list" aria-label="Listado de StockItems">
+    <form class="next-list-toolbar" id="stock-items-search-form" role="search">
+        <div class="next-list-search-row"><div class="input-group next-list-search-control">
+            <input id="search-stock-item" class="form-control" maxlength="250" placeholder="Buscar por SKU, código de barras o descripción" aria-label="Buscar StockItem" autocomplete="off">
+            <div class="input-group-append"><button id="btn-search-stock-item" class="btn btn-primary" type="submit"><i class="fas fa-search mr-1" aria-hidden="true"></i>Buscar</button></div>
+        </div></div>
+    </form>
+    <div class="next-list-summary"><div class="next-list-summary-copy"><strong id="stock-items-count" aria-live="polite">Cargando…</strong><span>Stock local y general por separado; no implican vendibilidad.</span></div></div>
+    <div class="next-list-content"><div class="table-responsive" tabindex="0" aria-label="StockItems; desplazamiento horizontal de tabla">
+        <table class="table table-bordered table-hover table-sm next-data-table"><thead><tr>
+            <th class="text-center">SKU</th><th class="text-center">Código barras</th><th>Nombre visible</th><th>Producto padre</th><th>Variante</th><th class="text-center">UM</th><th class="text-center">Inventariable</th><th class="text-center">Estado</th><th class="text-center">Stock</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Acciones</th>
+        </tr></thead><tbody id="tbody-stock-items"></tbody></table>
+    </div></div>
+    <nav class="next-list-pagination" aria-label="Paginación de StockItems"><div id="stock-items-info" aria-live="polite"></div><div id="stock-items-pagination"></div></nav>
+</section>
+<div class="modal fade next-aux-modal" id="modalInventoryLevels" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modalInventoryLevelsLabel">
+    <div class="modal-dialog modal-xl" role="document"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title h5" id="modalInventoryLevelsLabel">Inventario por ubicación</h2><button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button></div>
+        <div class="modal-body">
+            <p id="modal_display_name" class="font-weight-bold"></p><p class="text-muted">SKU: <span id="modal_sku"></span> · Código barras: <span id="modal_barcode"></span></p>
+            <div class="table-responsive" tabindex="0" aria-label="Niveles de inventario; desplazamiento horizontal de tabla">
+                <table class="table table-sm table-bordered next-data-table"><thead><tr><th>Almacén / ámbito</th><th>Ubicación</th><th class="text-center">Stock actual</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Mínimo</th><th class="text-center">Máximo</th><th class="text-right">Costo promedio</th><th class="text-right">Último costo</th></tr></thead><tbody id="tbody-modal-inventory-levels"></tbody></table>
             </div>
         </div>
-    </div>
-
-    <div class="modal fade" id="modalAdjustStock" tabindex="-1" role="dialog" aria-labelledby="modalAdjustStockLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <form id="formAdjustStock">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Ajustar Stock</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-
-                    <div class="modal-body">
-                        <input type="hidden" id="adjust_stock_item_id">
-
-                        <div class="form-group">
-                            <label>Producto</label>
-                            <input type="text" id="adjust_display_name" class="form-control" readonly>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Stock actual</label>
-                            <input type="text" id="adjust_stock_actual" class="form-control" readonly>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Cantidad a descontar</label>
-                            <input type="number" id="adjust_quantity" class="form-control" min="0.01" step="0.01">
-                            <small class="text-muted">
-                                Esta cantidad se descontará del stock actual.
-                            </small>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="btn btn-success">
-                            Confirmar ajuste
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button></div>
+    </div></div>
+</div>
 @endsection
-
-@section('plugins')
-    <!-- Datatables -->
-    <script src="{{ asset('admin/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-    <!-- Select2 -->
-    <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
-
-    <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-
-    <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
-    <script src="{{ asset('admin/plugins/inputmask/min/jquery.inputmask.bundle.min.js') }}"></script>
-@endsection
-
 @section('scripts')
-    <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
-    <script>
-        window.stockItemInventoryLevelsUrl = "{{ route('stockitems.inventory-levels', ':id') }}";
-        window.stockItemInventoryLevelsUpdateUrl = "{{ route('stockitems.inventory-levels.update', ':id') }}";
-    </script>
-    <script>
-        window.APP = {
-            URLS: {
-                STOCK_ITEMS: "{{ route('stockitems.list') }}",
-                ADJUST_STOCK_ITEM: "{{ route('stock-item.output-adjustment') }}"
-            }
-        };
-    </script>
-    <script src="{{ asset('js/stockItem/list.js') }}?v={{ time() }}"></script>
-
+<script src="{{ asset('js/material/inventory-context.js') }}"></script>
+<script>
+window.stockItemInventoryLevelsUrl = @json(route('stockitems.inventory-levels', ':id'));
+window.stockItemItemsUrl = @json(route('material.stock.getItems', ':id'));
+window.APP = {URLS: {STOCK_ITEMS: @json(route('stockitems.list'))}};
+</script>
+<script src="{{ asset('js/stockItem/list.js') }}?v={{ filemtime(public_path('js/stockItem/list.js')) }}"></script>
 @endsection

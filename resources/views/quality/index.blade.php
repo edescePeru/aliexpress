@@ -21,7 +21,7 @@
 @endsection
 
 @section('title')
-    Tallas
+    Calidades
 @endsection
 
 @section('styles-plugins')
@@ -33,25 +33,13 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="m-0 text-dark">Tallas</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Materiales</span><h1 class="page-title">Calidades</h1><p class="next-page-description">Catálogo compartido de calidades de material.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de Tallas</h5>
-    @can('create_quality')
-    <a href="{{ route('talla.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nueva talla </a>
-    @endcan
-    <button id="delete-selected" class="btn btn-danger btn-sm float-right">Eliminar seleccionados</button>
-
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado de calidades</strong><span>Nombre y descripción de la calidad.</span></div><div class="next-toolbar-actions flex-wrap">@can('create_quality')<a href="{{ route('quality.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nueva calidad</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -60,7 +48,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('talla.index') }}"><i class="fa fa-archive"></i> Tallas</a>
+            <a href="{{ route('quality.index') }}"><i class="fa fa-archive"></i> Calidades</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>
@@ -69,11 +57,11 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
-                <th><input type="checkbox" id="select-all"></th>
+                <th>ID</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
                 <th>Acciones</th>
@@ -85,7 +73,7 @@
         </table>
     </div>
     @can('destroy_quality')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">

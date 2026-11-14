@@ -25,6 +25,9 @@
         !!permissions.can_toggle;
 
     let currentPage = 1;
+    let listRequest, listSequence = 0, returnFocus;
+
+    function escapeHtml(value) { return $('<span>').text(value == null ? '' : String(value)).html(); }
 
     function csrf() {
         return $('meta[name="csrf-token"]').attr('content');
@@ -45,7 +48,16 @@
         }
     }
 
+    function selectPersisted(selector, value, label) {
+        const select = $(selector);
+        if (value !== null && value !== undefined && value !== '' && !select.find('option').toArray().some(option => String(option.value) === String(value))) {
+            $('<option>').val(value).text((label || 'Relación actual') + ' (no disponible en el catálogo actual)').attr('data-current-only', 'true').appendTo(select);
+        }
+        select.val(value);
+    }
+
     function resetModal() {
+        $form.find('[data-current-only]').remove();
         $('#subtypeTitle').text('Nuevo Subtipo');
         $('#st_id').val('');
         $('#st_cash_box_id').val('global');
@@ -63,7 +75,7 @@
     function fillModal(item) {
         $('#subtypeTitle').text('Editar Subtipo');
         $('#st_id').val(item.id);
-        $('#st_cash_box_id').val(item.cash_box_id === null ? 'global' : item.cash_box_id);
+        selectPersisted('#st_cash_box_id', item.cash_box_id === null ? 'global' : item.cash_box_id, item.cash_box_name);
         $('#st_code').val(item.code || '');
         $('#st_name').val(item.name || '');
         $('#st_position').val(item.position !== null && item.position !== undefined ? item.position : 0);
@@ -75,74 +87,25 @@
     }
 
     function renderButtons(item) {
-
-        const container =
-            document.createElement(
-                'div'
-            );
-
-        container.className =
-            'btn-group';
-
-        /*
-         * Editar.
-         */
+        if (!canEdit && !canToggle) return document.createTextNode('—');
+        const container = document.querySelector('#template-row-actions').content.cloneNode(true).firstElementChild;
+        const trigger = container.querySelector('.next-row-actions-trigger');
+        const menu = container.querySelector('.next-row-actions-menu');
+        trigger.id = 'cash-subtype-actions-' + item.id;
+        trigger.setAttribute('aria-label', 'Acciones de ' + item.name);
+        menu.setAttribute('aria-labelledby', trigger.id);
         if (canEdit) {
-
-            const btnEditTpl =
-                document.querySelector(
-                    '#template-btn-edit'
-                );
-
-            const btnEdit =
-                btnEditTpl
-                    .content
-                    .cloneNode(true)
-                    .querySelector(
-                        'button'
-                    );
-
-            btnEdit.dataset.item =
-                JSON.stringify(
-                    item
-                );
-
-            container.appendChild(
-                btnEdit
-            );
+            const button = document.querySelector('#template-btn-edit').content.cloneNode(true).querySelector('button');
+            button.dataset.item = JSON.stringify(item);
+            menu.appendChild(button);
         }
-
-        /*
-         * Activar / desactivar.
-         */
         if (canToggle) {
-
-            const btnToggleTpl =
-                document.querySelector(
-                    '#template-btn-toggle'
-                );
-
-            const btnToggle =
-                btnToggleTpl
-                    .content
-                    .cloneNode(true)
-                    .querySelector(
-                        'button'
-                    );
-
-            btnToggle.dataset.id =
-                item.id;
-
-            btnToggle.dataset.active =
-                item.is_active
-                    ? '1'
-                    : '0';
-
-            container.appendChild(
-                btnToggle
-            );
+            const button = document.querySelector('#template-btn-toggle').content.cloneNode(true).querySelector('button');
+            button.dataset.id = item.id;
+            button.dataset.active = item.is_active ? '1' : '0';
+            button.querySelector('[data-toggle-label]').textContent = item.is_active ? 'Desactivar' : 'Activar';
+            menu.appendChild(button);
         }
-
         return container;
     }
 
@@ -185,7 +148,7 @@
         $pagination.html('');
 
         if (!meta || meta.last_page <= 1) {
-            $textPagination.text(meta && meta.total ? `Mostrando ${meta.total} registros` : '');
+            $textPagination.text(`Mostrando ${meta && meta.total || 0} registros`);
             return;
         }
 
@@ -245,16 +208,23 @@
 
     function fetchList(page = 1) {
         currentPage = page;
+        const sequence = ++listSequence;
+        if (listRequest) listRequest.abort();
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+        $('#list-feedback').addClass('d-none').text('');
+        $bodyTable.empty(); $pagination.empty(); $numberItems.text('—');
+        $textPagination.text('Cargando…');
 
         const q = ($('#search').val() || '').trim();
         const cash_box_id = $('#filter_cash_box').val();
 
-        $.ajax({
+        listRequest = $.ajax({
             url: urlList,
             type: 'GET',
             dataType: 'json',
             data: { page: page, q: q, cash_box_id: cash_box_id },
             success: function (res) {
+                if (sequence !== listSequence) return;
                 $bodyTable.html('');
 
                 const items = res.data || [];
@@ -272,9 +242,10 @@
 
                 renderPagination(meta);
             },
-            error: function () {
-                $bodyTable.html('');
-                renderEmpty();
+            error: function (xhr, status) {
+                if (status === 'abort' || sequence !== listSequence) return;
+                $bodyTable.empty(); $pagination.empty(); $textPagination.text('Consulta no disponible');
+                $('#list-feedback').removeClass('d-none').text(xhr.status === 403 ? 'No tiene permiso para consultar este listado.' : 'No se pudo cargar el listado. Vuelva a buscar o recargue la página.');
             }
         });
     }
@@ -357,7 +328,7 @@
                                         if (firstKey) msg = xhr.responseJSON.errors[firstKey][0];
                                     }
                                 }
-                                $.alert({ title: 'Error', content: msg, type: 'red' });
+                                $.alert({ title: 'Error', content: escapeHtml(msg), type: 'red' });
                             }
                         });
                     }
@@ -367,6 +338,7 @@
     }
 
     function toggleActive(id, currentActive) {
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
         const willActivate = currentActive === '0';
         const title = willActivate ? 'Activar subtipo' : 'Desactivar subtipo';
         const content = willActivate ? '¿Deseas activarlo?' : '¿Deseas desactivarlo?';
@@ -397,7 +369,7 @@
                             error: function (xhr) {
                                 let msg = 'Ocurrió un error.';
                                 if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                                $.alert({ title: 'Error', content: msg, type: 'red' });
+                                $.alert({ title: 'Error', content: escapeHtml(msg), type: 'red' });
                             }
                         });
                     }
@@ -412,6 +384,8 @@
     $(document).on('change', '#filter_cash_box', function () { fetchList(1); });
 
     $(document).on('click', '[data-btn_create]', function () {
+        returnFocus = this;
+        $('#btnSaveSubtype').prop('disabled', !permissions.can_create);
         resetModal();
         $modal.modal('show');
     });
@@ -420,6 +394,9 @@
 
     $(document).on('click', '[data-editar]', function () {
         const item = JSON.parse(this.dataset.item || '{}');
+        returnFocus = document.getElementById('cash-subtype-actions-' + item.id);
+        $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+        $('#btnSaveSubtype').prop('disabled', !permissions.can_edit);
         resetModal();
         fillModal(item);
         $modal.modal('show');
@@ -431,6 +408,7 @@
 
     $(document).on('click', '#pagination a.page-link', function (e) {
         e.preventDefault();
+        if ($(this).closest('.page-item').hasClass('disabled')) return;
         const page = parseInt(this.dataset.page || '1', 10);
         if (!isNaN(page)) fetchList(page);
     });
@@ -438,6 +416,23 @@
     $(document).on('change', '#st_is_deferred', function () {
         toggleCommissionUI();
     });
+
+
+    $form.on('submit', function (event) { event.preventDefault(); });
+    $modal.on('shown.bs.modal', function () { $form.find('input[type="text"]').first().trigger('focus'); });
+    $modal.on('hidden.bs.modal', function () { if (returnFocus && document.contains(returnFocus)) returnFocus.focus(); });
+    $(document).on('hidden.bs.dropdown', '.next-row-actions', function () {
+        $(this).children('.next-row-actions-trigger').attr('aria-expanded', 'false');
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        const menu = event.target.closest('.next-row-actions-menu');
+        const id = menu && menu.getAttribute('aria-labelledby');
+        if (!id || id.indexOf('cash-subtype-actions-') !== 0) return;
+        event.preventDefault(); event.stopPropagation();
+        const trigger = document.getElementById(id);
+        $(trigger).dropdown('hide'); trigger.focus();
+    }, true);
 
     $(function () {
         fetchList(1);

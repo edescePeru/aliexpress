@@ -3,9 +3,7 @@
 @section('activeMyCashMovements')
     active
 @endsection
-@section('activeAdminCashMovements')
-    active
-@endsection
+
 
 @section('title')
     Caja {{ $active }}
@@ -21,49 +19,18 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/typehead/typeahead.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .income-row {
-            background-color: #d4edda; /* Verde claro */
-        }
 
-        .expense-row {
-            background-color: #f8d7da; /* Rojo claro */
-        }
-
-        .regularize-row {
-            background-color: #f4c3a1; /* Verde claro */
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <div class="row">
-        <div class="col-md-4">
-            <h1 class="page-title">Caja {{ $active }}</h1>
-        </div>
-        <div class="col-md-4 col-sm-6 col-12" id="label_balance">
-
-            <div class="bg-success py-2 px-3 align-content-end">
-                <h2 class="mb-0" id="valueBalanceTotal">
-                    S/. {{ $balance_total }}
-                </h2>
-            </div>
-        </div>
-        {!! $state !!}
-
-    </div>
-
+<div class="next-page-heading"><span class="next-page-eyebrow">Caja · Sesión propia</span><h1 class="page-title">{{ $active }}</h1><p class="next-page-description">Sesión de la empresa y local activos.</p></div>
 @endsection
 
 @section('page-title')
-    <div class="btn-group float-right">
-        <button type="button" id="btn-incomeCashRegister" class="btn btn-success mr-1">Ingreso</button>
-        <button type="button" id="btn-expenseCashRegister" class="btn btn-danger mr-1">Egreso</button>
-    </div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Sesión #{{ $cashRegister->id }}</strong><span>Movimientos y saldo de caja.</span></div><div class="next-toolbar-actions flex-wrap">
+<button type="button" id="btn-incomeCashRegister" class="btn btn-outline-success">Ingreso</button>
+<button type="button" id="btn-expenseCashRegister" class="btn btn-outline-danger">Egreso</button>
+<button type="button" id="btn-arqueoCashRegister" class="btn btn-outline-secondary">Arqueo de caja</button>
+</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -86,36 +53,29 @@
     <input type="hidden" id="cash_box_id" value="{{ $cashBox->id }}">
     <input type="hidden" id="cash_box_type" value="{{ $cashBox->type }}"> {{-- cash | bank --}}
     <input type="hidden" id="cash_box_uses_subtypes" value="{{ $cashBox->uses_subtypes ? 1 : 0 }}">
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Movimientos de caja
-                <span class="text-gray-400 fs-6"> ordenandos por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
-    <!--begin::Tab Content-->
-    <div class="tab-content">
-        <!--begin::Tab pane-->
-        <hr>
-        <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
+    <section class="next-operational-list">
+    <div class="next-form-section"><div class="row">
+        <div class="col-sm-6 col-lg-3"><span class="text-muted">Usuario</span><p class="font-weight-bold">{{ auth()->user()->name }}</p></div>
+        <div class="col-sm-6 col-lg-3"><span class="text-muted">Apertura</span><p>{{ $cashRegister->opening_time ? $cashRegister->opening_time->format('d/m/Y H:i') : 'No registrada' }}</p></div>
+        <div class="col-sm-6 col-lg-3"><span class="text-muted">Estado</span><p><span class="badge {{ $cashRegister->status ? 'badge-success' : 'badge-secondary' }}">{{ $cashRegister->status ? 'Abierta' : 'Cerrada' }}</span></p></div>
+        <div class="col-sm-6 col-lg-3" id="label_balance"><span class="text-muted">Saldo de sesión · {{ $cashBox->currency ?: 'Moneda no informada' }}</span><p class="h4 text-primary font-weight-bold" id="valueBalanceTotal" data-currency="{{ $cashBox->currency }}">{{ $cashBox->currency }} {{ $balance_total }}</p></div>
+    </div></div>
+    <div id="list-error" class="alert alert-danger d-none" role="alert"></div>
+    <div class="next-list-summary"><span><strong id="numberItems"></strong> movimientos de caja</span><span>Fecha de registro · más recientes primero · {{ $cashBox->currency ?: 'Moneda no informada' }}</span></div>
+    <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm next-data-table">
                 <thead>
-                <tr class="normal-title">
-                    <th>N°</th>
-                    <th>Tipo</th>
-                    <th>Subtipo</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Monto</th>
-                    <th>Abonado</th>
-                    <th>Comisión</th>
-                    <th>Descripción</th>
-                    <th>Acciones</th>
+                <tr >
+                    <th class="text-center">N°</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-left">Subtipo</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Fecha</th>
+                    <th class="text-right">Monto</th>
+                    <th class="text-right">Abonado</th>
+                    <th class="text-right">Comisión</th>
+                    <th class="text-left w-25">Descripción</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
                 </thead>
                 <tbody id="body-table">
@@ -123,19 +83,8 @@
                 </tbody>
             </table>
         </div>
-        <!--end::Tab pane-->
-        <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
-
-            </ul>
-            <!--end::Pages-->
-        </div>
-        <!--end::Pagination-->
-    </div>
-    <!--end::Tab Content-->
+    <div class="next-list-pagination"><div id="textPagination"></div><ul class="pagination" id="pagination"></ul></div>
+    </section>
 
     {{--<div id="modalOpen" class="modal fade" tabindex="-1">
         <div class="modal-dialog">
@@ -302,7 +251,7 @@
                         </div>
 
                         <p><b>Caja:</b> {{ $active }}</p>
-                        <p><b>Saldo teórico:</b> S/. <span id="arqueo_teorico">{{ $balance_total }}</span></p>
+                        <p><b>Saldo teórico:</b> {{ $cashBox->currency }} <span id="arqueo_teorico">{{ $balance_total }}</span></p>
 
                         {{-- Solo si deseas que el cajero ingrese contado en efectivo --}}
                         @if($cashBox->type === 'cash')
@@ -360,16 +309,16 @@
 
     <template id="item-table">
         <tr>
-            <td data-id></td>
-            <td data-type></td>
-            <td data-subtype></td>
-            <td data-status></td>
-            <td data-date></td>
-            <td data-amount></td>
-            <td data-amount_regularize></td>
-            <td data-commission></td>
-            <td data-description></td>
-            <td data-buttons></td>
+            <td data-id class="text-center"></td>
+            <td data-type class="text-center"></td>
+            <td data-subtype class="text-left"></td>
+            <td data-status class="text-center"></td>
+            <td data-date class="text-center text-nowrap"></td>
+            <td data-amount class="text-right"></td>
+            <td data-amount_regularize class="text-right"></td>
+            <td data-commission class="text-right"></td>
+            <td data-description class="text-left"></td>
+            <td data-buttons class="text-center"></td>
         </tr>
     </template>
 
@@ -380,7 +329,7 @@
     </template>
 
     <template id="template-button">
-        <a href="" target="_blank" data-print_nota data-id=""
+        <a href="" target="_blank" rel="noopener" data-print_nota data-id=""
            class="btn btn-outline-dark btn-sm" title="Imprimir boleta">
             <i class="fas fa-print"></i>
         </a>

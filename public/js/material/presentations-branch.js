@@ -15,6 +15,7 @@
     function rowHtml(p) {
         var values = {
             id: Number(p.id), label: escape(p.label || 'Paquete de ' + p.quantity), quantity: Number(p.quantity), price: p.price === null ? '' : escape(p.price),
+            currency: escape(p.currency),
             active: p.active ? 1 : 0, row_class: p.active ? '' : 'bg-light text-muted',
             badge_class: p.active ? 'badge-success' : 'badge-secondary',
             status_text: !p.definition_active ? 'DEFINICIÓN INACTIVA / INVÁLIDA' :
@@ -37,9 +38,10 @@
                 $('#presentaciones-content').html($('#tpl-mp-wrapper').html());
                 $('#mp-branch-name').text(res.branch.name);
                 $('#mp-branch-currency').text(res.currency);
+                $('[data-mp-currency]').text(res.currency);
                 var rows = res.presentations || [];
                 $('#mp-list').html(rows.length ? rows.map(rowHtml).join('') :
-                    '<div class="text-muted">No hay presentaciones registradas.</div>');
+                    '<div class="alert alert-light border" role="status">No hay presentaciones definidas para este material. Habilitar una presentación registra su oferta en el local actual.</div>');
             }).fail(function (xhr) {
                 if (sequence !== generation) return;
                 $('#presentaciones-content').html('<div class="text-danger">' + error(xhr) + '</div>');

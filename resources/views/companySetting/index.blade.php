@@ -5,11 +5,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Configuración de empresa</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración</span><h1 class="page-title">Configuración de empresa</h1><p class="next-page-description">Identidad, catálogo y preferencias de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de configuraciones de empresa</h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Preferencias de empresa</strong><span>Los cambios se aplican únicamente al guardar.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -30,7 +30,7 @@
         <input type="hidden" name="settings_context_tenant" value="{{ \App\Support\TenantContext::tenantId() }}">
         <input type="hidden" name="settings_context_company" value="{{ \App\Support\TenantContext::companyId() }}">
 
-        <div class="card-body">
+        <div>
 
             @if(session('success'))
                 <div
@@ -40,7 +40,7 @@
             @endif
 
             @if($errors->any())
-                <div class="alert alert-danger">
+                <div class="alert alert-danger m-3" role="alert">
                     <strong>
                         No se pudieron guardar las configuraciones.
                     </strong>
@@ -55,14 +55,11 @@
 
             @forelse($modules as $module => $definitions)
 
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h3 class="card-title font-weight-bold mb-0">
-                            {{ $module ? strtoupper(str_replace('_', ' ', $module)) : 'GENERAL' }}
-                        </h3>
-                    </div>
-
-                    <div class="card-body">
+                <section class="next-form-section" aria-labelledby="settings-module-{{ $loop->iteration }}">
+                    <div class="next-section-header"><div>
+                        <span class="next-section-kicker">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                        <h2 id="settings-module-{{ $loop->iteration }}">{{ $module ? strtoupper(str_replace('_', ' ', $module)) : 'GENERAL' }}</h2>
+                    </div></div>
 
                         @foreach($definitions as $definition)
 
@@ -80,9 +77,9 @@
                                     );
                             @endphp
 
-                            <div class="form-group row align-items-center border-bottom pb-3 mb-3">
+                            <div class="form-group row align-items-start border-bottom pb-3 mb-3">
 
-                                <div class="col-md-5">
+                                <div class="col-lg-5 mb-2 mb-lg-0">
                                     <label
                                             for="{{ $fieldId }}"
                                             class="mb-1"
@@ -97,11 +94,11 @@
                                     @endif
 
                                     <small class="form-text text-muted">
-                                        <code>{{ $definition->key }}</code>
+                                        <code class="text-break">{{ $definition->key }}</code>
                                     </small>
                                 </div>
 
-                                <div class="col-md-7">
+                                <div class="col-lg-7">
 
                                     {{-- BOOLEAN --}}
                                     @if($definition->is_image_upload)
@@ -110,15 +107,15 @@
                                                    name="setting_images[{{ $definition->id }}]"
                                                    accept="image/png,image/jpeg,image/webp" data-setting-image-input>
                                             <small class="form-text text-muted">
-                                                PNG, JPG o WebP, máximo 2 MB. Si no seleccionas otra imagen, se conserva la actual.
+                                                PNG, JPG o WebP, máximo 2 MB; hasta 4096 px por lado y 8 megapíxeles. Sin seleccionar otra imagen, se conserva la actual.
                                             </small>
-                                            <div class="mt-2">
+                                            <div class="mt-3">
                                                 <img @if($definition->image_preview_url) src="{{ $definition->image_preview_url }}" @endif
                                                      data-current-src="{{ $definition->image_preview_url }}"
                                                      data-setting-image-preview
                                                      class="img-fluid img-thumbnail {{ $definition->image_preview_url ? '' : 'd-none' }}"
                                                      width="180" alt="Vista previa de {{ $definition->label }}">
-                                                <small class="form-text text-muted" data-setting-image-status>
+                                                <small class="form-text text-muted" data-setting-image-status aria-live="polite">
                                                     {{ $definition->image_preview_url ? 'Imagen actual' : 'Sin imagen configurada' }}
                                                 </small>
                                             </div>
@@ -157,6 +154,7 @@
                                                 id="{{ $fieldId }}"
                                                 class="form-control"
                                         >
+                                            <option value="" {{ $currentValue === null || $currentValue === '' ? 'selected' : '' }}>Sin configurar</option>
                                             @foreach(($definition->options_json ?? []) as $option)
                                                 <option
                                                         value="{{ $option }}"
@@ -226,8 +224,7 @@
 
                         @endforeach
 
-                    </div>
-                </div>
+                </section>
 
             @empty
 
@@ -244,16 +241,9 @@
         </div>
 
         @if($modules->isNotEmpty())
-            <div
-                    class="position-sticky bg-white border-top py-3 px-3"
-                    style="
-            bottom: 0;
-            z-index: 1030;
-            margin-left: -1.25rem;
-            margin-right: -1.25rem;
-        "
-            >
-                <div class="d-flex justify-content-end">
+            {{-- Preserve the existing sticky save action; sections own the gutters. --}}
+            <div class="next-list-toolbar position-sticky bg-white border-top" style="bottom: 0; z-index: 20;">
+                <div class="next-toolbar-actions flex-wrap justify-content-end">
                     @can('edit_companySetting')
                         <button
                                 type="submit"
@@ -272,5 +262,5 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/companySetting/index.js') }}"></script>
+    <script src="{{ asset('js/companySetting/index.js') }}?v={{ filemtime(public_path('js/companySetting/index.js')) }}"></script>
 @endsection

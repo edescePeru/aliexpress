@@ -1801,7 +1801,7 @@ function addProductCartSpecial() {
                 $('#tbody-stock-items-venta').html(`
                     <tr>
                         <td colspan="7" class="text-center">
-                            No se encontraron presentaciones.
+                            No se encontraron opciones comerciales para este material.
                         </td>
                     </tr>
                 `);
@@ -1814,7 +1814,7 @@ function addProductCartSpecial() {
             $('#tbody-stock-items-venta').html(`
                 <tr>
                     <td colspan="7" class="text-center text-danger">
-                        Error al cargar las presentaciones.
+                        No se pudieron cargar las opciones comerciales.
                     </td>
                 </tr>
             `);
@@ -1833,15 +1833,15 @@ function renderStockItemsVenta(items) {
             'data-product-tax':item.tax,'data-product-type':item.type,'data-price':item.price === null ? '' : item.price,
             'data-stock':item.stock_available});
         $('<td>').text(item.variant_text || 'Presentación única').appendTo(row);
-        $('<td>').text(item.sku || '').appendTo(row);
-        $('<td>').text(item.barcode || '').appendTo(row);
+        $('<td class="text-center next-pos-identifier">').text(item.sku || '').attr('title', item.sku || '').appendTo(row);
+        $('<td class="text-center next-pos-identifier">').text(item.barcode || '').attr('title', item.barcode || '').appendTo(row);
         var available = $('<div class="input-group input-group-sm flex-nowrap">');
-        available.append($('<input type="text" class="form-control text-primary font-weight-bold input-disponible" readonly>').val(Number(item.stock_available).toFixed(2)));
+        available.append($('<input type="text" class="form-control text-center text-primary font-weight-bold input-disponible" aria-label="Disponible local" readonly>').val(Number(item.stock_available).toFixed(2)));
         available.append($('<div class="input-group-append">').append($('<button type="button" class="btn btn-outline-info" data-pos-stock title="Consultar stock en otros almacenes" aria-label="Consultar stock en otros almacenes"><i class="fas fa-search"></i></button>').attr('data-pos-stock-item-id',item.stock_item_id)));
         $('<td>').append(available).appendTo(row);
-        $('<td>').append($('<input type="text" class="form-control form-control-sm input-precio-tienda" readonly>').val(item.has_price ? Number(item.price).toFixed(2) : '').attr('placeholder',item.has_price ? '' : 'Sin precio')).appendTo(row);
-        $('<td>').append($('<input type="number" class="form-control form-control-sm input-cantidad-stock-item" min="0" value="0">').attr('max',item.stock_available).prop('disabled',disabled)).appendTo(row);
-        $('<td class="text-center">').append($('<button type="button" class="btn btn-outline-primary btn-sm btn-presentacion-stock-item">Presentación</button>').attr({'data-material_id':item.material_id,'data-stock_item_id':item.stock_item_id}).prop('disabled',disabled)).appendTo(row);
+        $('<td>').append($('<input type="text" class="form-control form-control-sm text-right input-precio-tienda" aria-label="Precio de la opción" readonly>').val(item.has_price ? Number(item.price).toFixed(2) : '').attr('placeholder',item.has_price ? '' : 'Sin precio')).appendTo(row);
+        $('<td>').append($('<input type="number" class="form-control form-control-sm text-center input-cantidad-stock-item" aria-label="Cantidad de la opción" min="0" value="0">').attr('max',item.stock_available).prop('disabled',disabled)).appendTo(row);
+        $('<td class="text-center">').append($('<button type="button" class="btn btn-outline-primary btn-sm next-pos-icon btn-presentacion-stock-item" aria-label="Elegir presentación" title="Elegir presentación"><i class="fas fa-box" aria-hidden="true"></i></button>').attr({'data-material_id':item.material_id,'data-stock_item_id':item.stock_item_id}).prop('disabled',disabled)).appendTo(row);
         body.append(row);
     });
 }
@@ -2974,9 +2974,10 @@ function getDataTableNew($numberPage) {
 }
 
 function renderDataTableEmptyNew() {
-    $("#table-body").html('');
-    $("#pagination").html('');
-    $("#textPagination").html('No se encontraron productos.');
+    $("#body-card, #pagination").empty();
+    $("#numberItems").text(0);
+    $("#textPagination").text('No se encontraron materiales.');
+    renderDataCardEmpty();
 }
 
 function renderDataTableNewO(data) {
@@ -3058,13 +3059,15 @@ function renderDataTableNew(data) {
     var table = $('<table class="table table-bordered table-striped"><thead><tr><th>Imagen</th><th>Nombre</th><th>Precio</th><th>Unidad</th><th>Impuesto</th><th>Acción</th></tr></thead><tbody></tbody></table>');
     data.data.forEach(function (item) {
         var row = $('<tr>');
-        $('<td>').append($('<img width="50" alt="">').attr('src', item.image_url || '')).appendTo(row);
+        var image = $('<img width="50" alt="">');
+        preparePosProductImage(image[0], item);
+        $('<td>').append(image).appendTo(row);
         $('<td>').text(item.full_name).appendTo(row);
         $('<td data-price>').text(item.price).appendTo(row);
         $('<td>').text(item.unit).appendTo(row);
         $('<td>').text(item.tax).appendTo(row);
         var actions = $('<td>').appendTo(row);
-        $('<button type="button" class="btn btn-success btn-sm" data-add_cart_special>AGREGAR CARRITO</button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
+        $('<button type="button" class="btn btn-primary btn-sm next-pos-icon" data-add_cart_special aria-label="Seleccionar opciones" title="Seleccionar variante / presentación"><i class="fas fa-layer-group" aria-hidden="true"></i></button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
         window.posCatalogPrepareProduct(row[0], item);
         table.find('tbody').append(row);
     });
@@ -3317,6 +3320,13 @@ function renderDataCard2(data) {
     $('[data-toggle="tooltip"]').tooltip();
 }
 
+function preparePosProductImage(image, data) {
+    var fallback = document.getElementById('formCreate').getAttribute('data-pos-image-fallback');
+    image.alt = data.full_name || '';
+    image.onerror = function () { this.onerror = null; this.src = fallback; };
+    image.src = data.image_url || fallback;
+}
+
 function renderDataCard(data) {
     var clone = activateTemplate('#item-card');
     let url_image = document.location.origin + '/images/material/' + data.image;
@@ -3340,6 +3350,11 @@ function renderDataCard(data) {
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_barcode", data.barcode || '');
 
     window.posCatalogPrepareProduct(clone, data);
+    preparePosProductImage(clone.querySelector('[data-image1]'), data);
+    clone.querySelector('[data-name]').setAttribute('title', data.full_name || '');
+    clone.querySelector('[data-pos-sku]').textContent = data.stock_items_count === 1 && data.sku ? 'SKU ' + data.sku : '';
+    clone.querySelector('[data-pos-presentation]').textContent = data.stock_items_count + (data.stock_items_count === 1 ? ' opción' : ' opciones');
+    clone.querySelector('[data-pos-local-stock]').textContent = 'Stock local agregado: ' + data.stock + (data.unit ? ' ' + data.unit : '');
     $("#body-card").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();
@@ -3347,6 +3362,8 @@ function renderDataCard(data) {
 
 function renderDataCardEmpty() {
     var clone = activateTemplate('#item-card-empty');
+    clone.querySelector('.next-pos-empty').textContent = $('#product_search').val() || $('#category_id').val()
+        ? 'No hay materiales que coincidan con los filtros.' : 'No hay materiales habilitados en este contexto.';
     $("#body-card").append(clone);
 }
 

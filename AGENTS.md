@@ -495,6 +495,34 @@ When the real application adds fields:
 place them inside the existing approved grid;
 adapt the grid minimally;
 do not invent a parallel form system.
+## Surface Spacing Standard
+
+Every Venti Next surface must provide intentional internal spacing. ERP density
+never means content touching a surface border.
+
+- Keep the main card body unpadded for composition; place functional content in
+  `.next-form-section`, toolbars/actions in `.next-list-toolbar`, and action
+  groups in `.next-toolbar-actions` (add Bootstrap `flex-wrap` when needed).
+- Reuse the existing scale: section padding `--next-space-5` (20px), reduced to
+  `--next-space-4` (16px) below 768px. Header/toolbar mobile gutters are 12px
+  by the approved compact pattern; do not invent another scale.
+- Fix the wrapper, never individual field margins or route-specific CSS.
+- Create/edit must share section axes, grid gutters and action composition.
+- Keep Bootstrap rows inside padded sections; do not put `.row` and section
+  padding on the same element. Preserve the grid's negative-margin contract.
+- Nested surfaces need a padded parent. Avoid redundant wrapper cards that
+  displace section headings, search and the first group onto different axes.
+- Operational tables may remain edge-to-edge with local horizontal scroll.
+  Do not add padding to the main card body or every table to fix raw forms.
+- DataTables summaries must wrap during loading as well as after initialization.
+- Remove legacy negative action-bar margins when the new surface already owns
+  padding. Preserve sticky behavior, controls, permissions and JS hooks.
+- Document exceptions and validate 320/375/390/576/768/992/1200/1440px, including
+  loading states, modals and long labels. No global horizontal overflow.
+
+See `docs/VENTI-NEXT-COMPONENT-PATTERNS.md` and
+`docs/REAL-NEXT-GLOBAL-SURFACE-SPACING-AUDIT.md` for the concrete matrix.
+
 Tables and operational lists
 
 ## Table Alignment Standard
@@ -874,3 +902,14 @@ Find the approved Venti Next pattern.
 Reuse it.
 
 Adapt only what the real contract requires.
+
+
+## POS V1/V2 Shared Visual Baseline
+
+- POS V1 (`puntoVenta.index`) is the approved operational visual baseline, including its compact stepper, mini partial-payment control, section gutters and aligned voucher action.
+- POS V2 (`puntoVenta.indexV2`) reuses `public/admin/dist/css/venti-next-pos.css`, composition, toolbar, cart and product card language. Differences are allowed only when Material/Variant/StockItem resolution requires them.
+- Main POS panels stay expanded; cart grows with the document, without internal scrolling or artificial sticky checkout. Desktop toolbar is one row when the container permits it.
+- Store Web remains the product-language reference and stays isolated; the experimental POS is historical composition reference only.
+- Do not create divergent POS interfaces or duplicate the shared stylesheet. Preserve separate JS contracts; controlled Blade duplication is acceptable when extraction risks legacy hooks.
+- Shared POS changes must be checked on both V1 and V2. Never bypass option resolution or pass a Material ID as a StockItem ID for visual convenience.
+- See docs/REAL-NEXT-POS-V1-INTEGRATION.md and docs/REAL-NEXT-POS-V2-VISUAL-INTEGRATION.md.

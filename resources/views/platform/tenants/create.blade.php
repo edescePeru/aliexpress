@@ -25,7 +25,7 @@
 
     <div
             id="platform-tenant-create-app"
-            class="container-fluid"
+            class="next-form-section"
 
             data-url-index="{{route('platformTenant.index')}}"
 

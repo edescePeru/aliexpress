@@ -1,29 +1,40 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
+
     $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/all/categories/invoices",
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        drawCallback: function () {
+            $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap');
+        },
+        dom:
+            '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>>' +
+            '<"next-list-summary"i>' +
+            '<"next-list-content"<"table-responsive"t>>' +
+            '<"next-list-pagination"p>',
         "aoColumns": [
-            { data: 'name' },
-            { data: 'description' },
+            { data: 'name', render: $.fn.dataTable.render.text() },
+            { data: 'description', render: $.fn.dataTable.render.text() },
             { data: null,
-                title: 'Acciones',
+                title: 'Acciones', className: 'text-center', orderable: false, searchable: false,
                 wrap: true,
                 "render": function (item)
                 {
-                    var text = '';
-                    if ( $.inArray('update_categoryInvoice', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/categoria/factura/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i></a>';
+                    var menu = $('<div class="dropdown-menu dropdown-menu-right"></div>');
+                    if ($.inArray('update_categoryInvoice', $permissions) !== -1) {
+                        $('<a class="dropdown-item"><i class="fas fa-pen mr-2" aria-hidden="true"></i>Editar</a>')
+                            .attr('href', '/dashboard/editar/categoria/factura/' + item.id).appendTo(menu);
                     }
-                    if ( $.inArray('destroy_categoryInvoice', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-name="'+item.name+'" '+
-                            '" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i></button>';
+                    if ($.inArray('destroy_categoryInvoice', $permissions) !== -1) {
+                        $('<button type="button" class="dropdown-item text-danger"><i class="fas fa-trash mr-2" aria-hidden="true"></i>Eliminar</button>')
+                            .attr('data-delete', item.id).attr('data-name', item.name).appendTo(menu);
                     }
+                    if (!menu.children().length) { return ''; }
+                    var text = $('<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm next-row-actions-toggle" data-toggle="dropdown" aria-expanded="false" aria-label="Acciones de categoría"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button></div>')
+                        .append(menu).prop('outerHTML');
                     return text;
 
                 } },
@@ -185,12 +196,12 @@ function openModalDelete() {
     var name = $(this).data('name');
 
     $modalDelete.find('[id=category_id]').val(category_id);
-    $modalDelete.find('[id=name]').html(name);
+    $modalDelete.find('[id=name]').text(name);
 
     $modalDelete.modal('show');
 }
 
-function destroyCategory() {
+function destroyCategory(event) {
     event.preventDefault();
     // Obtener la URL
     var deleteUrl = $formDelete.data('url');
@@ -226,7 +237,11 @@ function destroyCategory() {
             }, 2000 )
         },
         error: function (data) {
-            for ( var property in data.responseJSON.errors ) {
+            var response = data.responseJSON || {};
+            if (!response.errors) {
+                toastr.error(response.message || 'No se pudo completar la operación.', 'Error');
+            }
+            for ( var property in (response.errors || {}) ) {
                 toastr.error(data.responseJSON.errors[property], 'Error',
                     {
                         "closeButton": true,

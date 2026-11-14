@@ -616,7 +616,7 @@
     </div>
 
     <!-- Modal para ver vencimientos -->
-    <div class="modal fade" id="modalPresentaciones" tabindex="-1" role="dialog" aria-labelledby="modalPresentacionesLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalPresentaciones" tabindex="-1" role="dialog" aria-labelledby="modalPresentacionesLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -766,32 +766,33 @@
 @section('scripts')
     <script src="{{ asset('js/material/inventory-context.js') }}?v={{ time() }}"></script>
     <script type="text/template" id="tpl-mp-wrapper">
-        <div class="mb-3 p-2 border rounded">
-            <div class="d-flex align-items-center justify-content-between">
+        <div class="next-form-section">
+            <div class="next-page-toolbar flex-wrap mb-3">
                 <div>
                     <strong>Presentaciones de <span id="mp-branch-name"></span> · <span id="mp-branch-currency"></span></strong>
-                    <div class="text-muted" style="font-size:12px;">El nombre es compartido entre los locales que usan esta presentación. El precio y la activación son de este local. La cantidad del paquete no se modifica.</div>
+                    <div class="small text-muted" >El nombre es compartido entre los locales que usan esta presentación. El precio y la activación son de este local. La cantidad del paquete no se modifica.</div>
                 </div>
                 <button class="btn btn-sm btn-outline-secondary" data-mp-refresh>
                     <i class="fas fa-sync"></i> Recargar
                 </button>
             </div>
 
+            <div class="next-section-header"><div><h2>Habilitar presentación</h2><p>Nombre y cantidad: definición compartida. Precio y activación: oferta de este local.</p></div></div>
             <div class="form-row mt-2">
                 <div class="form-group col-12">
                     <label class="mb-1" for="mp-new-label">Nombre de la presentación</label>
                     <input type="text" id="mp-new-label" class="form-control form-control-sm" maxlength="255" required placeholder="Ej.: Docena, Caja de 6, Paquete familiar" data-mp-new-label>
                 </div>
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Cantidad</label>
-                    <input type="number" step="1" min="1" max="999999999" class="form-control form-control-sm" data-mp-new-quantity>
+                    <label class="mb-1" for="mp-new-quantity">Unidades por paquete</label>
+                    <input type="number" step="1" min="1" max="999999999" class="form-control form-control-sm" id="mp-new-quantity" data-mp-new-quantity>
                 </div>
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Precio del paquete en este local</label>
-                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" data-mp-new-price>
+                    <label class="mb-1" for="mp-new-price">Precio local · <span data-mp-currency></span></label>
+                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" id="mp-new-price" data-mp-new-price>
                 </div>
                 <div class="form-group col-md-4 d-flex align-items-end">
-                    <button class="btn btn-success btn-sm w-100" data-mp-create>
+                    <button class="btn btn-primary btn-sm w-100" data-mp-create>
                         <i class="fas fa-plus"></i> Habilitar en este local
                     </button>
                 </div>
@@ -802,26 +803,26 @@
     </script>
 
     <script type="text/template" id="tpl-mp-row">
-        <div class="p-2 border rounded mb-2 {row_class}" data-mp-row data-id="{id}" data-active="{active}">
-            <div class="form-row">
+        <div class="next-form-section" data-mp-row data-id="{id}" data-active="{active}">
+            <div class="next-section-header"><div><h2>Definición compartida</h2><p>El nombre cambia en todos los locales que usan esta presentación. La cantidad es fija.</p></div></div><div class="form-row">
                 <div class="form-group col-12">
                     <label class="mb-1" for="mp-label-{id}">Nombre de la presentación (compartido)</label>
                     <input type="text" id="mp-label-{id}" class="form-control form-control-sm" maxlength="255" required data-mp-label value="{label}" disabled>
                 </div>
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Cantidad</label>
-                    <input type="number" step="1" min="1" class="form-control form-control-sm" data-mp-quantity value="{quantity}" disabled>
+                    <label class="mb-1" for="mp-quantity-{id}">Unidades por paquete</label>
+                    <input type="number" step="1" min="1" class="form-control form-control-sm" id="mp-quantity-{id}" data-mp-quantity value="{quantity}" disabled>
                 </div>
 
                 <div class="form-group col-md-4">
-                    <label class="mb-1">Precio del paquete en este local</label>
-                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" data-mp-price value="{price}" disabled>
+                    <label class="mb-1" for="mp-price-{id}">Precio local · {currency}</label>
+                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" id="mp-price-{id}" placeholder="Sin precio" data-mp-price value="{price}" disabled>
                 </div>
 
                 <div class="form-group col-md-4 d-flex align-items-end">
                     <div class="w-100">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="badge {badge_class}" data-mp-status>{status_text}</span>
+                            <span class="badge {badge_class} text-wrap" data-mp-status>{status_text}</span>
                         </div>
 
                         <div class="btn-group w-100" role="group">

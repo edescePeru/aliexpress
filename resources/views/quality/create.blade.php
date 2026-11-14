@@ -21,7 +21,7 @@
 @endsection
 
 @section('title')
-    Tallas
+    Calidades
 @endsection
 
 @section('styles-plugins')
@@ -33,21 +33,13 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Tallas</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Materiales</span><h1 class="page-title">Calidades</h1><p class="next-page-description">Catálogo compartido de calidades de material.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nueva talla</h5>
-    <a href="{{ route('talla.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de calidades </a>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Nueva calidad</strong><span>Nombre y descripción de la calidad.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('quality.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -56,35 +48,31 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('talla.index') }}"><i class="fa fa-archive"></i> Tallas</a>
+            <a href="{{ route('quality.index') }}"><i class="fa fa-archive"></i> Calidades</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nuevo</li>
     </ol>
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('talla.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal" data-url="{{ route('quality.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Talla <span class="right badge badge-danger">(*)</span></label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" onkeyup="mayus(this);" name="name" placeholder="Ejm: Talla">
+        <section class="next-form-section"><div class="row">
+                <div class="col-md-6 form-group">
+                    <label for="name">Calidad <span class="next-required">(*)</span></label>
+                    <input id="name" type="text" class="form-control @error('name') is-invalid @enderror" onkeyup="mayus(this);" name="name" placeholder="Ejm: Calidad" value="{{ old('name') }}">
+                    @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-            </div>
-
-            <div class="col-md-6">
-                <label for="inputEmail3" class="col-12 col-form-label">Descripción</label>
-                <div class="col-sm-10">
-                     <input type="text" class="form-control" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción">
+                <div class="col-md-6 form-group">
+                    <label for="description">Descripción</label>
+                    <input id="description" type="text" class="form-control @error('description') is-invalid @enderror" onkeyup="mayus(this);" name="description" placeholder="Ejm: Descripción" value="{{ old('description') }}">
+                    @error('description')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-outline-success">Guardar</button>
+        </div></section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+        </div></div>
         <!-- /.card-footer -->
     </form>
 @endsection

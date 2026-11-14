@@ -11,6 +11,9 @@ $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
 
     $('#sandbox-container .input-daterange').datepicker({
+        // Match the positioned shell origin; body has a navbar offset.
+        container: ".wrapper",
+        orientation: "bottom",
         todayBtn: "linked",
         clearBtn: true,
         language: "es",
@@ -222,11 +225,13 @@ function getFilenameFromDisposition(disposition) {
     return filename;
 }
 
-function showDataSearch() {
+function showDataSearch(event) {
+    event.preventDefault();
     getDataGanancias(1)
 }
 
-function showData() {
+function showData(event) {
+    event.preventDefault();
     //event.preventDefault();
     var numberPage = $(this).attr('data-item');
     console.log(numberPage);
@@ -258,7 +263,7 @@ function getDataGanancias($numberPage) {
     }).fail(function(jqXHR, textStatus, errorThrown) {
         // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
+        if (jqXHR.responseJSON && jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
             toastr.error(jqXHR.responseJSON.message, 'Error', {
                 "closeButton": true,
                 "debug": false,
@@ -277,7 +282,7 @@ function getDataGanancias($numberPage) {
                 "hideMethod": "fadeOut"
             });
         }
-        for (var property in jqXHR.responseJSON.errors) {
+        for (var property in ((jqXHR.responseJSON || {}).errors || {})) {
             toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
                 "closeButton": true,
                 "debug": false,
@@ -319,11 +324,11 @@ function renderDataGananciasEmpty(data) {
     $("#pagination").html('');
     $("#textPagination").html('');
 
-    $("#resumen-quantity").text("S/ " +0.00);
-    $("#resumen-total-sale").text("S/ " +0.00);
-    $("#resumen-total-utility").text("S/ " +0.00);
+    $("#resumen-quantity").text(data.totals.quantity_sale_sum);
+    $("#resumen-total-sale").text("S/ " + Number(data.totals.total_sale_sum).toFixed(2));
+    $("#resumen-total-utility").text(data.totals.total_utility_sum === null ? "Sin costo registrado" : "S/ " + Number(data.totals.total_utility_sum).toFixed(2));
 
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' ganancias');
+    $("#textPagination").html('Sin ventas para los filtros seleccionados ('+pagination.totalFilteredRecords+').');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -383,7 +388,7 @@ function renderDataGanancias(data) {
             {
                 renderDisabledPage();
             }
-            renderItemPage(i, pagination.currentPage);
+            renderItemPage(pagination.totalPages, pagination.currentPage);
         }
 
     }
@@ -405,8 +410,8 @@ function renderDataTable(data) {
     clone.querySelector("[data-author]").textContent = data.author;
     clone.querySelector("[data-date_resumen]").innerHTML = data.date_resumen;
     clone.querySelector("[data-quantity_sale]").innerHTML = data.quantity_sale;
-    clone.querySelector("[data-total_sale]").innerHTML = data.total_sale;
-    clone.querySelector("[data-total_utility]").textContent = data.total_utility === null ? 'Sin costo registrado' : data.total_utility;
+    clone.querySelector("[data-total_sale]").textContent = Number(data.total_sale).toLocaleString("es-PE", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    clone.querySelector("[data-total_utility]").textContent = data.total_utility === null ? 'Sin costo registrado' : Number(data.total_utility).toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     var botones = clone.querySelector("[data-buttons]");
 
@@ -430,12 +435,11 @@ function renderDataTable(data) {
         printBtn.setAttribute('target', '_blank');
     }
 
-    botones.append(cloneBtn);
-    const detailLink = document.createElement("a");
+    const detailLink = cloneBtn.querySelector('[data-profit-detail]');
     detailLink.href = data.detail_url;
-    detailLink.className = "btn btn-outline-secondary btn-sm ml-1";
-    detailLink.textContent = "Ganancia";
-    botones.append(detailLink);
+    cloneBtn.querySelector('.next-row-actions-trigger').setAttribute('aria-label', 'Acciones de venta ' + data.id);
+    printBtn.setAttribute('rel', 'noopener');
+    botones.append(cloneBtn);
 
     $("#body-table").append(clone);
 

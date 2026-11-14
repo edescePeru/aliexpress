@@ -1167,6 +1167,7 @@ function renderVariantRowEdit(item) {
     $row.find('[data-toggle_inventory_levels]').on('click', function () {
         const $wrapper = $row.next('[data-inventory_levels_wrapper]');
         $wrapper.toggleClass('d-none');
+        $wrapper.toggleClass('d-block d-xl-table-row', !$wrapper.hasClass('d-none'));
         $(this).attr('aria-expanded', !$wrapper.hasClass('d-none'));
     });
 

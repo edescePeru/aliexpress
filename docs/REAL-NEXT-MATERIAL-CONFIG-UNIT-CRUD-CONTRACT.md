@@ -1,5 +1,11 @@
 # REAL NEXT Material Configuration CRUD — Unit Pilot Contract
 
+## Backend Sync Notes vigentes — 2026-11-05
+
+FRONTEND READY / BACKEND IMPLEMENTED — DESTRUCTIVE QA PENDING. El backend actual implementa requests/services de borrado seguro; esto sustituye las afirmaciones históricas de ausencia de implementación. Bulk permanece deshabilitado. En los once requests se rechazaron colecciones vacías, inexistentes, mixtas y duplicadas. IDs de otro tenant rechazados donde existen datos aptos; Colores y Tipo Retacería no tienen muestra ajena apta. No se ejecutaron deletes, cascadas ni pruebas de atomicidad destructiva sobre la BD compartida. Permisos/dependencias/históricos se conservan como contratos backend; cerrar QA destructivo requiere ambiente aislado.
+
+Evidencia, límites y triggers: [Material Post-Merge QA](REAL-NEXT-MATERIAL-POST-MERGE-QA.md). Esta nota prevalece sobre los estados históricos siguientes, que se conservan como evidencia.
+
 Status: **APPROVED WITH BACKEND SYNC OPEN**  
 Reference route: `/dashboard/Unidades`  
 Validated: 2026-09-26

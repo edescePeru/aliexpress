@@ -25,12 +25,8 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Proveedores</span><h1 class="page-title">Proveedores</h1><p class="next-page-description">Catálogo compartido por las empresas del grupo empresarial.</p></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -43,31 +39,26 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de proveedores</h5>
-    @can('exportreport_supplier')
-    <div class="card-tools">
-        <button type="button" id="btn-download" class="btn btn-sm btn-success btn-sm" > <i class="far fa-file-excel"></i> Descargar proveedores </button>
-    </div>
-    @endcan
-    @can('create_supplier')
-    <a href="{{ route('supplier.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo Proveedor </a>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Proveedores</strong><span>Activos · Datos y cuentas de proveedores.</span></div><div class="next-toolbar-actions flex-wrap">@can('destroy_supplier')<a href="{{ route('supplier.indexrestore') }}" class="btn btn-outline-secondary btn-sm">Eliminados</a>@endcan
+@can('exportreport_supplier')<button type="button" id="btn-download" class="btn btn-outline-secondary btn-sm"><i class="far fa-file-excel" aria-hidden="true"></i> Exportar</button>@endcan
+@can('create_supplier')<a href="{{ route('supplier.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo proveedor</a>@endcan</div></div>
 @endsection
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
                 <th>Código</th>
-                <th>Razon Social</th>
+                <th>Razón social</th>
                 <th>RUC</th>
-                <th>Direccion</th>
+                <th>Dirección</th>
                 <th>Teléfono</th>
                 <th>Email</th>
                 <th>Cuentas</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
             </thead>

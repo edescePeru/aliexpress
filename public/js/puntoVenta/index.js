@@ -2283,21 +2283,24 @@ function renderDataTableNew(data) {
     var table = $('<table class="table table-bordered table-striped"><thead><tr><th>Imagen</th><th>Nombre</th><th>Precio</th><th>Unidad</th><th>Impuesto</th><th>Acción</th></tr></thead><tbody></tbody></table>');
     data.data.forEach(function (item) {
         var row = $('<tr>');
-        $('<td>').append($('<img width="50" alt="">').attr('src', item.image_url || '')).appendTo(row);
+        var image = $('<img width="50" alt="">');
+        preparePosProductImage(image[0], item);
+        $('<td>').append(image).appendTo(row);
         $('<td>').text(item.full_name).appendTo(row);
         $('<td data-price>').text(item.price).appendTo(row);
         $('<td>').text(item.unit).appendTo(row);
         $('<td>').text(item.tax).appendTo(row);
-        var actions = $('<td>').appendTo(row);
-        $('<button type="button" class="btn btn-primary btn-sm" data-add_cart>ADD TO CART</button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
-        $('<button type="button" class="btn btn-success btn-sm" data-add_cart_special>AGREGAR CARRITO</button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
-        $('<button type="button" class="btn btn-outline-info btn-sm mt-2" data-pos-stock title="Consultar existencias en otros almacenes"><i class="fas fa-search"></i> Consultar stock</button>').appendTo(actions);
+        var actions = $('<div class="next-pos-product-actions">').appendTo($('<td>').appendTo(row));
+        $('<button type="button" class="btn btn-outline-secondary btn-sm next-pos-icon" data-add_cart_special aria-label="Selección especial" title="Selección especial / presentaciones"><i class="fas fa-sliders-h" aria-hidden="true"></i></button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
+        $('<button type="button" class="btn btn-primary btn-sm next-pos-icon" data-add_cart aria-label="Agregar al carrito" title="Agregar al carrito"><i class="fas fa-cart-plus" aria-hidden="true"></i></button>').attr({'data-product_id':item.id,'data-material_id':item.material_id,'data-product_source':item.source,'data-product_price':item.price,'data-product_stock':item.stock,'data-product_name':item.full_name,'data-product_unit':item.unit,'data-product_tax':item.tax,'data-product_type':item.type,'data-product_sku':item.sku,'data-product_barcode':item.barcode}).appendTo(actions);
+        $('<button type="button" class="btn btn-outline-secondary btn-sm next-pos-icon" data-pos-stock aria-label="Consultar stock" title="Consultar existencias en otros almacenes"><i class="fas fa-search-location" aria-hidden="true"></i></button>').appendTo(actions);
         window.posCatalogPrepareProduct(row[0], item);
         table.find('tbody').append(row);
     });
     $('#body-card').append($('<div class="table-responsive">').append(table));
     renderPaginationNew(p);
 }
+
 
 function renderPaginationNew(pagination) {
     $("#pagination").html('');
@@ -2504,6 +2507,13 @@ function renderDataCardO(data) {
     $('[data-toggle="tooltip"]').tooltip();
 }
 
+function preparePosProductImage(image, data) {
+    var fallback = document.getElementById('formCreate').getAttribute('data-pos-image-fallback');
+    image.alt = data.full_name || '';
+    image.onerror = function () { this.onerror = null; this.src = fallback; };
+    image.src = data.image_url || fallback;
+}
+
 function renderDataCard(data) {
     var clone = activateTemplate('#item-card');
     let url_image = document.location.origin + '/images/material/' + data.image;
@@ -2540,6 +2550,14 @@ function renderDataCard(data) {
     clone.querySelector("[data-add_cart_special]").setAttribute("data-product_barcode", data.barcode || '');
 
     window.posCatalogPrepareProduct(clone, data);
+    var image = clone.querySelector('[data-image1]');
+    preparePosProductImage(image, data);
+    clone.querySelector('[data-name]').setAttribute('title', data.full_name || '');
+    clone.querySelector('[data-pos-sku]').textContent = data.sku ? 'SKU ' + data.sku : '';
+    clone.querySelector('[data-pos-presentation]').textContent = data.variant_text || '';
+    var localStock = data.stock_available;
+    clone.querySelector('[data-pos-local-stock]').textContent = localStock !== null && localStock !== undefined
+        ? 'Stock local: ' + localStock + (data.unit ? ' ' + data.unit : '') : '';
     $("#body-card").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();

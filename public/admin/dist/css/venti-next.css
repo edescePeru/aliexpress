@@ -1234,6 +1234,16 @@ table.next-data-table [data-buttons] .next-row-actions-trigger:focus {
   box-shadow: none;
 }
 
+/* Bootstrap datepicker uses an inline ancestor z-index + 10.
+   Use Bootstrap's popover layer (above sticky headers and modals); !important
+   is required to override that inline value without changing plugin behavior. */
+body > .datepicker-dropdown,
+.wrapper > .datepicker-dropdown {
+  z-index: 1060 !important;
+}
+
+body > .datepicker-dropdown,
+.wrapper > .datepicker-dropdown,
 .next-navbar-floating-menu,
 .next-column-visibility-menu,
 .next-row-actions-menu {
@@ -1392,6 +1402,16 @@ table.next-data-table [data-buttons] .next-row-actions-trigger:focus {
   color: var(--next-text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+/* Keep the summary contained before DataTables initComplete adds its utilities. */
+.next-list-summary .dataTables_info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--next-space-1) var(--next-space-2);
+  width: 100%;
 }
 
 .next-list-sort-context {
@@ -2721,14 +2741,14 @@ table.next-data-table .bootstrap-switch .bootstrap-switch-handle-off.bootstrap-s
   }
 
   .next-variants-table,
-  .next-variants-table tbody {
+  .next-variants-table > tbody {
     display: block;
     width: 100%;
     min-width: 0;
   }
 
-  .next-variants-table colgroup,
-  .next-variants-table thead {
+  .next-variants-table > colgroup,
+  .next-variants-table > thead {
     display: none;
   }
 
