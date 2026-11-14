@@ -41,6 +41,7 @@
 
     function badgeStatus(status) {
         if (status === 'ACCEPTED') return '<span class="badge badge-success">ACEPTADA</span>';
+        if (status === 'SENT') return '<span class="badge badge-warning">POR CONFIRMAR</span>';
         if (status === 'PENDING_SUNAT') return '<span class="badge badge-warning">PENDIENTE</span>';
         if (status === 'REJECTED') return '<span class="badge badge-danger">RECHAZADA</span>';
         if (status === 'ERROR') return '<span class="badge badge-danger">ERROR</span>';
@@ -55,7 +56,7 @@
         parts.push(`<a class="btn btn-sm btn-outline-primary" href="${urlShow}">Ver</a>`);
 
         // Consultar si está pendiente / o no tiene links aún
-        if (g.status === 'PENDING_SUNAT') {
+        if (['PENDING_SUNAT', 'SENT', 'ERROR'].includes(g.status)) {
             parts.push(`<button class="btn btn-sm btn-outline-warning ml-1 btnConsultar" data-id="${g.id}">Consultar</button>`);
         }
 

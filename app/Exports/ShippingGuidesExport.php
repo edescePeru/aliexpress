@@ -44,11 +44,7 @@ class ShippingGuidesExport implements FromCollection, WithHeadings, WithMapping
             ->toArray();
 
         // Tipos de doc (code => name)
-        $this->docTypeMap = IdentityDocumentType::where(
-            'is_active',
-            1
-        )
-            ->pluck('name', 'code')
+        $this->docTypeMap = IdentityDocumentType::query()->pluck('name', 'code')
             ->toArray();
     }
 
@@ -63,7 +59,7 @@ class ShippingGuidesExport implements FromCollection, WithHeadings, WithMapping
 
     public function collection(): Collection
     {
-        return ShippingGuide::query()
+        return ShippingGuide::forCurrentLocal()
             ->where('tipo_de_comprobante', 7) // Remitente
             ->whereDate('fecha_emision', '>=', $this->from)
             ->whereDate('fecha_emision', '<=', $this->to)

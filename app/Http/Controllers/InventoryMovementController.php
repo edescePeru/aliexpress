@@ -6,22 +6,19 @@ use App\DataGeneral;
 use App\InventoryMovement;
 use App\Material;
 use App\Services\SettingService;
+use App\Services\Inventory\KardexMovementQuery;
+use App\Services\Materials\MaterialInventoryScope;
+use App\Support\TenantContext;
+use Illuminate\Support\Facades\DB;
 use App\StockItem;
 use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
 {
-    public function test()
-    {
-        $movs = InventoryMovement::where('material_id', 123)
-            ->orderBy('movement_date')
-            ->get();
-
-        dd($movs->take(5)->toArray());
-    }
-
     public function index()
     {
+        app(MaterialInventoryScope::class)->context();
+
         return view('inventory.kardex');
     }
 
@@ -59,8 +56,6 @@ class InventoryMovementController extends Controller
         $costoPromedio = 0.0;
 
         $rows = [];
-
-        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $simboloMoneda = "S/. ";
 
@@ -142,27 +137,29 @@ class InventoryMovementController extends Controller
 
     public function kardex(Request $request, $stockItemId)
     {
-        $stockItem = StockItem::with('material')->findOrFail($stockItemId);
+        $scope = app(MaterialInventoryScope::class);
+        $scope->context();
+        $data = $request->validate(['warehouse_id' => ['nullable', 'integer', 'min:1']]);
+        $stockItem = StockItem::with('material')->where('tenant_id', TenantContext::tenantId())
+            ->findOrFail($stockItemId);
+        $scope->stockItem($stockItem);
 
-        $warehouseId = $request->get('warehouse_id');
-
-        $query = InventoryMovement::where('stock_item_id', $stockItemId);
-
-        if (!empty($warehouseId)) {
-            $query->where('warehouse_id', $warehouseId);
+        $warehouses = $scope->warehouses(DB::table('warehouses'));
+        $warehouseId = $data['warehouse_id'] ?? null;
+        if ($warehouseId !== null) {
+            $warehouse = (clone $warehouses)->where('warehouses.id', $warehouseId)->first();
+            abort_unless($warehouse, 404);
+            $warehouses->where('warehouses.id', $warehouseId);
         }
 
-        $movements = $query
-            ->orderBy('movement_date')
-            ->orderBy('movement_id')
-            ->get();
+        $currency = strtoupper((string) app(SettingService::class)->get('finance.base_currency'));
+        $movements = app(KardexMovementQuery::class)
+            ->forStockItem($stockItem->id, $warehouses->select('warehouses.id'), $currency);
 
         $saldoCantidad = 0.0;
         $saldoImporte  = 0.0;
         $costoPromedio = 0.0;
         $rows = [];
-
-        $currency = app(SettingService::class)->get('finance.base_currency');
 
         $simboloMoneda = $currency === 'USD' ? '$ ' : 'S/. ';
 
@@ -185,6 +182,7 @@ class InventoryMovementController extends Controller
                     'type' => 'IN',
                     'source_type' => $m->source_type,
                     'source_id' => $m->source_id,
+                    'receipt_id' => $m->receipt_id,
                     'warehouse_id' => $m->warehouse_id,
                     'location_id' => $m->location_id,
                     'qty_in' => $cantidad,
@@ -204,12 +202,14 @@ class InventoryMovementController extends Controller
 
                 $saldoCantidad -= $cantidad;
                 $saldoImporte  -= $importeSalida;
+                $costoPromedio = $saldoCantidad > 0 ? $saldoImporte / $saldoCantidad : 0.0;
 
                 $rows[] = [
                     'date' => optional($m->movement_date)->format('Y-m-d'),
                     'type' => 'OUT',
                     'source_type' => $m->source_type,
                     'source_id' => $m->source_id,
+                    'receipt_id' => $m->receipt_id,
                     'warehouse_id' => $m->warehouse_id,
                     'location_id' => $m->location_id,
                     'qty_in' => 0,
@@ -231,6 +231,7 @@ class InventoryMovementController extends Controller
             'material_id' => $stockItem->material_id,
             'material_name' => optional($stockItem->material)->full_name,
             'stock_item_name' => $stockItem->display_name,
+            'warehouse_name' => $warehouse->name ?? null,
             'rows' => $rows,
         ]);
     }

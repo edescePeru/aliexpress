@@ -578,4 +578,9 @@ return [
     'cancel_transfer' => 'Cancelar traslados antes del despacho',
     'manageAll_transfer' => 'Gestionar todos los almacenes de la empresa en los traslados',
     'viewStock_transfer' => 'Consultar disponibilidad de productos por sucursal y almacén',
+
+    'list_kardex' => 'Consultar Kardex',
+
+    'edit_metas' => 'Editar metas',
+    'destroy_metas' => 'Eliminar metas',
 ];

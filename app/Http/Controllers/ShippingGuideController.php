@@ -12,6 +12,7 @@ use App\ShippingGuideItem;
 use App\ShippingGuideVehicle;
 use App\SunatShippingIndicator;
 use App\TransferReason;
+use App\TransportType;
 use App\WeightUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,9 +31,62 @@ class ShippingGuideController extends Controller
         $this->nubefact = $nubefact;
     }
 
+    private function customers()
+    {
+        return Customer::query()->where('tenant_id', TenantContext::tenantId());
+    }
+
+    private function sales()
+    {
+        return Sale::query()->where('tenant_id', TenantContext::tenantId())
+            ->where('company_id', TenantContext::companyId())->where('branch_id', TenantContext::branchId())
+            ->where('state_annulled', false)->where(function ($query) {
+                $query->whereNull('internal_reversal_status')->orWhere('internal_reversal_status', '<>', 'reversed');
+            });
+    }
+
+    private function nextGreNumber(array $numbering): int
+    {
+        $last = ShippingGuide::query()->where('tipo_de_comprobante', 7)
+            ->where('tenant_id', TenantContext::tenantId())
+            ->where('company_id', TenantContext::companyId())
+            ->where('serie', $numbering['series'])
+            ->max(DB::raw('CAST(numero AS UNSIGNED)'));
+
+        return max($numbering['first_number'], (int) $last + 1);
+    }
+
+    public function customerPayload($id)
+    {
+        return app(CustomerController::class)->payload($this->customers()->findOrFail($id));
+    }
+
+    public function products(Request $request)
+    {
+        $filters = $request->validate(['q' => 'nullable|string|max:100', 'page' => 'nullable|integer|min:1']);
+        $term = trim($filters['q'] ?? '');
+        $query = app(\App\Services\Sales\PosCatalogReadService::class)->catalog()->with('material:id,full_name');
+        if ($term !== '') {
+            $query->where(function ($query) use ($term) {
+                $query->where('display_name', 'like', '%'.$term.'%')->orWhere('sku', 'like', '%'.$term.'%')
+                    ->orWhere('barcode', 'like', '%'.$term.'%');
+            });
+        }
+        $page = $query->orderBy('display_name')->orderBy('id')->paginate(10);
+        $results = $page->getCollection()->map(function ($item) {
+            $name = $item->display_name ?: $item->material->full_name;
+            return [
+                'id' => $item->id, 'text' => $name, 'descripcion' => $name,
+                'stock_item_id' => $item->id, 'material_id' => $item->material_id,
+                'codigo' => $item->sku ?: (string) $item->id,
+            ];
+        });
+        return response()->json(['results' => $results, 'pagination' => ['more' => $page->hasMorePages()]]);
+    }
+
     public function index(Request $request)
     {
-        $query = ShippingGuide::query()
+        $query = ShippingGuide::forCurrentLocal()
             ->where('shipping_guides.tipo_de_comprobante', 7) // SOLO REMITENTE
             ->leftJoin('transfer_reasons', 'transfer_reasons.code', '=', 'shipping_guides.motivo_traslado_code')
             ->orderByDesc('shipping_guides.id')
@@ -77,23 +131,35 @@ class ShippingGuideController extends Controller
         if ($type !== 'remitente') abort(404);
 
         // Cargar catálogos para los selects
-        $transferReasons = TransferReason::orderBy('code')->get();
-        $weightUnits = WeightUnit::orderBy('code')->get();
-        $indicators = SunatShippingIndicator::orderBy('code')->get();
-        $identityDocTypes = IdentityDocumentType::orderBy('code')->get();
+        $transportTypes = TransportType::where('is_active', true)->whereIn('code', ['01', '02'])
+            ->orderBy('sort_order')->orderBy('code')->get();
+        $transferReasons = TransferReason::where('is_active', true)->orderBy('sort_order')->orderBy('code')->get();
+        $weightUnits = WeightUnit::where('is_active', true)->whereIn('code', ['KGM', 'TNE'])
+            ->orderBy('sort_order')->orderBy('code')->get();
+        $indicators = SunatShippingIndicator::where('is_active', true)->orderBy('sort_order')->orderBy('code')->get();
+        $identityDocTypes = IdentityDocumentType::where('is_active', true)->orderBy('sort_order')->orderBy('code')->get();
+        $recipientDocTypes = $identityDocTypes->whereIn('code', ['6', '1', '4', '7']);
+        $carrierDocTypes = $identityDocTypes->where('code', '6');
 
-        // Serie por defecto: una por empresa (lo puedes leer de DataGeneral si ya lo tienes)
-        $defaultSerie = 'TTT1';
+        try {
+            $numbering = app(\App\Services\NubefactCompanyConfigService::class)
+                ->forCompany(TenantContext::tenantId(), TenantContext::companyId())->greRemitterNumbering();
+        } catch (\RuntimeException $e) {
+            $numbering = null;
+        }
 
-        $maxNum = ShippingGuide::where('serie', $defaultSerie)
-            ->whereNotNull('numero')
-            ->max(DB::raw('CAST(numero AS UNSIGNED)'));
+        $defaultSerie = $numbering['series'] ?? null;
+        $nextNum = $numbering ? $this->nextGreNumber($numbering) : null;
+        if ($nextNum > 99999999) {
+            $nextNum = null;
+        }
 
-        $nextNum = ($maxNum ?: 0) + 1;
-
-        $customers = Customer::all();
+        $customers = $this->customers()->orderBy('business_name')->get();
 
         return view('shipping_guides.create', compact(
+            'transportTypes',
+            'recipientDocTypes',
+            'carrierDocTypes',
             'transferReasons',
             'weightUnits',
             'indicators',
@@ -106,6 +172,7 @@ class ShippingGuideController extends Controller
 
     public function show(ShippingGuide $guide)
     {
+        $guide = ShippingGuide::forCurrentLocal()->where('tipo_de_comprobante', 7)->findOrFail($guide->id);
         $guide->load(['items', 'vehicles', 'drivers']);
 
         // para mostrar nombre del motivo en show (tabla transfer_reasons)
@@ -119,304 +186,46 @@ class ShippingGuideController extends Controller
         ]);
     }
 
-    public function store1(Request $request)
-    {
-        // Remitente ONLY
-        $data = $request->validate([
-            'serie' => ['required', 'string', 'max:4'],
-            'numero' => ['nullable', 'string', 'max:20'], // editable "por si acaso"
-
-            'fecha_emision' => ['required', 'date'],
-            'fecha_inicio_traslado' => ['required', 'date'],
-
-            'motivo_traslado_code' => ['required', 'string', 'size:2'],
-            'tipo_transporte' => ['required', 'string', Rule::in(['01', '02'])], // 01 publico, 02 privado
-
-            'peso_bruto_total' => ['required', 'numeric', 'min:0'],
-            'peso_bruto_um_code' => ['required', 'string', 'max:3'], // KGM/TNE (de tu seeder)
-            'numero_bultos' => ['required', 'integer', 'min:1'],
-
-            'sunat_shipping_indicator_code' => ['nullable', 'string', 'max:60'],
-
-            // Partida/llegada
-            'partida_ubigeo' => ['required', 'string', 'size:6'],
-            'partida_direccion' => ['required', 'string', 'max:255'],
-            'partida_cod_establecimiento' => ['nullable', 'string', 'size:4'],
-
-            'llegada_ubigeo' => ['required', 'string', 'size:6'],
-            'llegada_direccion' => ['required', 'string', 'max:255'],
-            'llegada_cod_establecimiento' => ['nullable', 'string', 'size:4'],
-
-            // Destinatario snapshot
-            'customer_doc_type' => ['required', 'string', 'max:2'],
-            'customer_doc_number' => ['required', 'string', 'max:20'],
-            'customer_name' => ['required', 'string', 'max:200'],
-            'customer_address' => ['nullable', 'string', 'max:255'],
-            'customer_email' => ['nullable', 'email', 'max:120'],
-            'customer_email_1' => ['nullable', 'email', 'max:120'],
-            'customer_email_2' => ['nullable', 'email', 'max:120'],
-
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-
-            // Items mode
-            'items_mode' => ['required', Rule::in(['SALE', 'MANUAL'])],
-            'sale_id' => ['required_if:items_mode,SALE', 'nullable', 'integer', 'exists:sales,id'],
-
-            'items' => ['required_if:items_mode,MANUAL', 'array'],
-            'items.*.descripcion' => ['required_if:items_mode,MANUAL', 'string', 'max:255'],
-            'items.*.cantidad' => ['required_if:items_mode,MANUAL', 'numeric', 'min:0.001'],
-            'items.*.codigo' => ['nullable', 'string', 'max:60'],
-            'items.*.detalle_adicional' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        // Validaciones condicionales por transporte (Remitente)
-        if ($data['tipo_transporte'] === '01') {
-            // Público: agencia
-            $request->validate([
-                'transportista_doc_type' => ['required', 'string', 'max:2'], // normalmente 6
-                'transportista_doc_number' => ['required', 'string', 'max:20'],
-                'transportista_name' => ['required', 'string', 'max:200'],
-                'vehicle_primary_plate' => ['required', 'string', 'max:20'],
-            ]);
-        } else {
-            // Privado: conductor + placa
-            $request->validate([
-                'vehicle_primary_plate' => ['required', 'string', 'max:20'],
-
-                'driver_primary.document_type_code' => ['required', 'string', 'max:2'],
-                'driver_primary.document_number' => ['required', 'string', 'max:20'],
-                'driver_primary.first_name' => ['required', 'string', 'max:120'],
-                'driver_primary.last_name' => ['required', 'string', 'max:120'],
-                'driver_primary.license_number' => ['required', 'string', 'max:30'],
-
-                'vehicles_secondary' => ['nullable', 'array', 'max:2'],
-                'vehicles_secondary.*.plate_number' => ['required', 'string', 'max:20'],
-
-                'drivers_secondary' => ['nullable', 'array', 'max:2'],
-                'drivers_secondary.*.document_type_code' => ['required', 'string', 'max:2'],
-                'drivers_secondary.*.document_number' => ['required', 'string', 'max:20'],
-                'drivers_secondary.*.first_name' => ['required', 'string', 'max:120'],
-                'drivers_secondary.*.last_name' => ['required', 'string', 'max:120'],
-                'drivers_secondary.*.license_number' => ['required', 'string', 'max:30'],
-            ]);
-        }
-
-        DB::beginTransaction();
-        try {
-            $guide = ShippingGuide::create([
-                'guide_type' => 'REMITENTE',
-                'tipo_de_comprobante' => 7,
-
-                'serie' => $data['serie'],
-                'numero' => $data['numero'] ?? null,
-
-                'fecha_emision' => $data['fecha_emision'],
-                'fecha_inicio_traslado' => $data['fecha_inicio_traslado'],
-
-                'motivo_traslado_code' => $data['motivo_traslado_code'],
-                'tipo_transporte' => $data['tipo_transporte'],
-
-                'peso_bruto_total' => $data['peso_bruto_total'],
-                'peso_bruto_um_code' => $data['peso_bruto_um_code'],
-                'numero_bultos' => $data['numero_bultos'],
-
-                'sunat_shipping_indicator_code' => $data['sunat_shipping_indicator_code'] ?? null,
-
-                'partida_ubigeo' => $data['partida_ubigeo'],
-                'partida_direccion' => $data['partida_direccion'],
-                'partida_cod_establecimiento' => $data['partida_cod_establecimiento'] ?? '0000',
-
-                'llegada_ubigeo' => $data['llegada_ubigeo'],
-                'llegada_direccion' => $data['llegada_direccion'],
-                'llegada_cod_establecimiento' => $data['llegada_cod_establecimiento'] ?? '0000',
-
-                'customer_doc_type' => $data['customer_doc_type'],
-                'customer_doc_number' => $data['customer_doc_number'],
-                'customer_name' => $data['customer_name'],
-                'customer_address' => $data['customer_address'] ?? null,
-                'customer_email' => $data['customer_email'] ?? null,
-                'customer_email_1' => $data['customer_email_1'] ?? null,
-                'customer_email_2' => $data['customer_email_2'] ?? null,
-
-                'observaciones' => $data['observaciones'] ?? null,
-
-                'items_mode' => $data['items_mode'],
-                'status' => 'DRAFT',
-            ]);
-
-            // Público: agencia
-            if ($data['tipo_transporte'] === '01') {
-                $guide->update([
-                    'transportista_doc_type' => $request->input('transportista_doc_type'),
-                    'transportista_doc_number' => $request->input('transportista_doc_number'),
-                    'transportista_name' => $request->input('transportista_name'),
-                ]);
-            }
-
-            // Vehículo principal (siempre)
-            ShippingGuideVehicle::create([
-                'shipping_guide_id' => $guide->id,
-                'is_primary' => true,
-                'plate_number' => $request->input('vehicle_primary_plate'),
-            ]);
-
-            // Privado: conductores y secundarios
-            if ($data['tipo_transporte'] === '02') {
-                foreach ((array)$request->input('vehicles_secondary', []) as $v) {
-                    ShippingGuideVehicle::create([
-                        'shipping_guide_id' => $guide->id,
-                        'is_primary' => false,
-                        'plate_number' => $v['plate_number'],
-                    ]);
-                }
-
-                $dp = $request->input('driver_primary');
-
-                ShippingGuideDriver::create([
-                    'shipping_guide_id' => $guide->id,
-                    'is_primary' => true,
-                    'document_type_code' => $dp['document_type_code'],
-                    'document_number' => $dp['document_number'],
-                    'first_name' => $dp['first_name'],
-                    'last_name' => $dp['last_name'],
-                    'license_number' => $dp['license_number'],
-                ]);
-
-                foreach ((array)$request->input('drivers_secondary', []) as $d) {
-                    ShippingGuideDriver::create([
-                        'shipping_guide_id' => $guide->id,
-                        'is_primary' => false,
-                        'document_type_code' => $d['document_type_code'],
-                        'document_number' => $d['document_number'],
-                        'first_name' => $d['first_name'],
-                        'last_name' => $d['last_name'],
-                        'license_number' => $d['license_number'],
-                    ]);
-                }
-            }
-
-            // Items
-            if ($data['items_mode'] === 'SALE') {
-                $sale = Sale::with(['details.material', 'details.materialPresentation'])
-                    ->findOrFail((int)$data['sale_id']);
-
-                $guide->update([
-                    'source_sale_id' => $sale->id,
-                    'source_sale_ref' => ($sale->serie_sunat ? ($sale->serie_sunat.'-'.$sale->numero) : ('SALE#'.$sale->id)),
-                    'customer_doc_type' => (string)($sale->tipo_documento_cliente ?? $guide->customer_doc_type),
-                    'customer_doc_number' => (string)($sale->numero_documento_cliente ?? $guide->customer_doc_number),
-                    'customer_name' => (string)($sale->nombre_cliente ?? $guide->customer_name),
-                    'customer_address' => $sale->direccion_cliente ?? $guide->customer_address,
-                    'customer_email' => $sale->email_cliente ?? $guide->customer_email,
-                ]);
-
-                $line = 1;
-                foreach ($sale->details as $detail) {
-                    $descripcion = $this->buildDetailDescription($detail);
-                    $cant = (!empty($detail->material_presentation_id)) ? ($detail->packs ?: 0) : ($detail->quantity ?: 0);
-
-                    ShippingGuideItem::create([
-                        'shipping_guide_id' => $guide->id,
-                        'line' => $line++,
-                        'product_id' => $detail->material_id,
-                        'codigo' => (string)$detail->material_id,
-                        'descripcion' => $descripcion,
-                        'detalle_adicional' => null,
-                        'cantidad' => $cant,
-                        'unidad_medida' => 'NIU',
-                    ]);
-                }
-            } else {
-                $line = 1;
-                foreach ($data['items'] as $it) {
-                    ShippingGuideItem::create([
-                        'shipping_guide_id' => $guide->id,
-                        'line' => $line++,
-                        'product_id' => null,
-                        'codigo' => $it['codigo'] ?? null,
-                        'descripcion' => $it['descripcion'],
-                        'detalle_adicional' => $it['detalle_adicional'] ?? null,
-                        'cantidad' => $it['cantidad'],
-                        'unidad_medida' => 'NIU',
-                    ]);
-                }
-            }
-
-            // Envío Nubefact
-            $guide->load(['items', 'vehicles', 'drivers']);
-
-            $payload = $this->nubefact->buildPayload($guide);
-            $guide->update(['last_nubefact_payload' => $payload]);
-
-            $resp = $this->nubefact->send($guide);
-
-            $guide->update([
-                'last_nubefact_response' => $resp,
-                'nubefact_enlace' => $resp['enlace'] ?? null,
-                'nubefact_accepted' => (bool)($resp['aceptada_por_sunat'] ?? false),
-                'sunat_description' => $resp['sunat_description'] ?? null,
-                'sunat_note' => $resp['sunat_note'] ?? null,
-                'sunat_responsecode' => $resp['sunat_responsecode'] ?? null,
-                'sunat_soap_error' => $resp['sunat_soap_error'] ?? null,
-                'pdf_link' => $resp['enlace_del_pdf'] ?? null,
-                'xml_link' => $resp['enlace_del_xml'] ?? null,
-                'cdr_link' => $resp['enlace_del_cdr'] ?? null,
-                'status' => (($resp['aceptada_por_sunat'] ?? false) ? 'ACCEPTED' : 'PENDING_SUNAT'),
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Guía creada y enviada a Nubefact.',
-                'data' => $guide->fresh(['items', 'vehicles', 'drivers']),
-                'nubefact' => $resp,
-            ]);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al crear/enviar la guía.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
     public function store(Request $request)
     {
-        // Remitente ONLY (tipo_de_comprobante = 7)
+        foreach (['tenant' => TenantContext::tenantId(), 'company' => TenantContext::companyId(),
+            'branch' => TenantContext::branchId()] as $key => $expected) {
+            if ((string) $request->input('gre_'.$key, '') !== (string) $expected) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['context' => 'Cambió el contexto. Vuelva a abrir el formulario.']);
+            }
+        }
 
         $data = $request->validate(
             [
                 // ====== Encabezado ======
-                'serie'  => ['required', 'string', 'max:4'],
-                'numero' => ['nullable', 'string', 'max:20'],
 
                 'fecha_emision'         => ['required', 'date'],
                 'fecha_inicio_traslado' => ['required', 'date'],
 
-                'motivo_traslado_code' => ['required', 'string', 'size:2'],
-                'tipo_transporte'      => ['required', 'string', Rule::in(['01', '02'])],
+                'motivo_traslado_code' => ['required', 'string', 'size:2', Rule::exists('transfer_reasons', 'code')->where('is_active', true)],
+                'tipo_transporte'      => ['required', 'string', Rule::in(['01', '02']), Rule::exists('shipping_transport_types', 'code')->where('is_active', true)],
 
                 // ====== Traslado ======
                 'peso_bruto_total'   => ['required', 'numeric', 'min:0'],
-                'peso_bruto_um_code' => ['required', 'string', 'max:3'],
+                'peso_bruto_um_code' => ['required', Rule::in(['KGM', 'TNE']), Rule::exists('weight_units', 'code')->where('is_active', true)],
                 'numero_bultos'      => ['required', 'integer', 'min:1'],
 
-                'sunat_shipping_indicator_code' => ['nullable', 'string', 'max:60'],
+                'sunat_shipping_indicator_code' => ['nullable', 'string', 'max:60', Rule::exists('sunat_shipping_indicators', 'code')->where('is_active', true)],
 
                 // ====== Partida / Llegada ======
-                'partida_ubigeo'    => ['required', 'string', 'size:6'],
+                'partida_ubigeo'    => ['required', 'string', 'size:6', 'exists:districts,id'],
                 'partida_direccion' => ['required', 'string', 'max:255'],
                 'partida_cod_establecimiento' => ['nullable', 'string', 'size:4'],
 
-                'llegada_ubigeo'    => ['required', 'string', 'size:6'],
+                'llegada_ubigeo'    => ['required', 'string', 'size:6', 'exists:districts,id'],
                 'llegada_direccion' => ['required', 'string', 'max:255'],
                 'llegada_cod_establecimiento' => ['nullable', 'string', 'size:4'],
 
                 // ====== Destinatario (Customer del ERP) ======
-                'customer_id' => ['required', 'integer', 'exists:customers,id'],
+                'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('tenant_id', TenantContext::tenantId())->whereNull('deleted_at')],
 
                 // Snapshot
-                'customer_doc_type'   => ['required', 'string', 'max:2'],
+                'customer_doc_type'   => ['required', 'string', Rule::in(['6', '1', '4', '7']), Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                 'customer_doc_number' => ['required', 'string', 'max:20'],
                 'customer_address'    => ['nullable', 'string', 'max:255'],
                 'customer_email'      => ['nullable', 'email', 'max:120'],
@@ -427,11 +236,11 @@ class ShippingGuideController extends Controller
 
                 // ====== Items ======
                 'items_mode' => ['required', Rule::in(['SALE', 'MANUAL'])],
-                'sale_id'    => ['required_if:items_mode,SALE', 'nullable', 'integer', 'exists:sales,id'],
+                'sale_id'    => ['required_if:items_mode,SALE', 'nullable', 'integer'],
 
                 'items' => ['required_if:items_mode,MANUAL', 'array'],
-                'items.*.product_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:stock_items,id'],
-                'items.*.material_id' => ['required_if:items_mode,MANUAL', 'integer', 'exists:materials,id'],
+                'items.*.product_id' => ['required_if:items_mode,MANUAL', 'integer'],
+                'items.*.material_id' => ['required_if:items_mode,MANUAL', 'integer'],
                 'items.*.descripcion' => ['required_if:items_mode,MANUAL', 'string', 'max:255'],
                 'items.*.cantidad'    => ['required_if:items_mode,MANUAL', 'numeric', 'min:0.001'],
                 'items.*.codigo'      => ['nullable', 'string', 'max:60'],
@@ -453,6 +262,7 @@ class ShippingGuideController extends Controller
                 'motivo_traslado_code.size'     => 'El motivo de traslado no es válido.',
 
                 'tipo_transporte.required' => 'Debes seleccionar el tipo de transporte.',
+                'tipo_transporte.exists'   => 'El tipo de transporte seleccionado está inactivo.',
                 'tipo_transporte.in'       => 'El tipo de transporte seleccionado no es válido.',
 
                 // ====== Traslado ======
@@ -527,7 +337,7 @@ class ShippingGuideController extends Controller
 
             $request->validate(
                 [
-                    'transportista_doc_type'   => ['required', 'string', 'max:2'],
+                    'transportista_doc_type'   => ['required', 'string', Rule::in(['6']), Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                     'transportista_doc_number' => ['required', 'string', 'max:20'],
                     'transportista_name'       => ['required', 'string', 'max:200'],
                     'vehicle_primary_plate'    => ['required', 'string', 'max:20'],
@@ -549,7 +359,7 @@ class ShippingGuideController extends Controller
                 [
                     'vehicle_primary_plate' => ['required', 'string', 'max:20'],
 
-                    'driver_primary.document_type_code' => ['required', 'string', 'max:2'],
+                    'driver_primary.document_type_code' => ['required', 'string', 'max:2', Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                     'driver_primary.document_number'    => ['required', 'string', 'max:20'],
                     'driver_primary.first_name'         => ['required', 'string', 'max:120'],
                     'driver_primary.last_name'          => ['required', 'string', 'max:120'],
@@ -559,7 +369,7 @@ class ShippingGuideController extends Controller
                     'vehicles_secondary.*.plate_number' => ['required', 'string', 'max:20'],
 
                     'drivers_secondary' => ['nullable', 'array', 'max:2'],
-                    'drivers_secondary.*.document_type_code' => ['required', 'string', 'max:2'],
+                    'drivers_secondary.*.document_type_code' => ['required', 'string', 'max:2', Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                     'drivers_secondary.*.document_number'    => ['required', 'string', 'max:20'],
                     'drivers_secondary.*.first_name'         => ['required', 'string', 'max:120'],
                     'drivers_secondary.*.last_name'          => ['required', 'string', 'max:120'],
@@ -596,10 +406,30 @@ class ShippingGuideController extends Controller
             );
         }
 
+        $customer = $this->customers()->findOrFail($data['customer_id']);
+        $sale = null;
+        if ($data['items_mode'] === 'SALE') {
+            $sale = $this->sales()->with(['details.material', 'details.stockItem', 'details.materialPresentation'])
+                ->findOrFail($data['sale_id']);
+            if ($sale->details->isEmpty()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['sale_id' => 'La venta no tiene líneas para la guía.']);
+            }
+        } else {
+            $items = collect($data['items']);
+            $products = app(\App\Services\Sales\PosCatalogReadService::class)->catalog()
+                ->whereIn('stock_items.id', $items->pluck('product_id'))->get()->keyBy('id');
+            foreach ($items as $item) {
+                $product = $products->get($item['product_id']);
+                if (!$product || (int) $product->material_id !== (int) $item['material_id']) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Hay un producto que no corresponde al catálogo de la empresa.']);
+                }
+            }
+        }
+
+        $persisted = false;
         DB::beginTransaction();
         try {
             // ====== Customer (Opción A) ======
-            $customer = Customer::findOrFail((int)$data['customer_id']);
             $customerName = $customer->business_name;
 
             $docNumber = $data['customer_doc_number'];
@@ -607,16 +437,36 @@ class ShippingGuideController extends Controller
                 $docNumber = $customer->RUC;
             }
 
-            // ====== Autogenerar número si no viene ======
-            if (empty($data['numero'])) {
-                $next = ShippingGuide::where('serie', $data['serie'])
-                    ->whereNotNull('numero')
-                    ->max(DB::raw('CAST(numero AS UNSIGNED)'));
-                $data['numero'] = (string)(($next ?: 0) + 1);
+            DB::table('companies')->where('tenant_id', TenantContext::tenantId())
+                ->where('id', TenantContext::companyId())->lockForUpdate()->first();
+            try {
+                $connection = app(\App\Services\NubefactCompanyConfigService::class)
+                    ->forCompany(TenantContext::tenantId(), TenantContext::companyId());
+            } catch (\RuntimeException $e) {
+                DB::rollBack();
+                return response()->json(['message' => 'Revise la conexión Nubefact de la empresa emisora.'], 422);
             }
+
+            $numbering = $connection->greRemitterNumbering();
+            if (!$numbering || $request->input('serie') !== $numbering['series']) {
+                DB::rollBack();
+                return response()->json(['message' => 'La serie GRE remitente falta o cambió. Revise la configuración y vuelva a abrir el formulario.'], 422);
+            }
+
+            $nextNum = $this->nextGreNumber($numbering);
+            if ($nextNum > 99999999) {
+                DB::rollBack();
+                return response()->json(['message' => 'La serie GRE remitente agotó sus correlativos. Solicite una nueva serie a Platform Admin.'], 422);
+            }
+
+            $data['serie'] = $numbering['series'];
+            $data['numero'] = (string) $nextNum;
 
             // ====== Crear guía ======
             $guide = ShippingGuide::create([
+                'tenant_id' => TenantContext::tenantId(),
+                'company_id' => TenantContext::companyId(),
+                'branch_id' => TenantContext::branchId(),
                 'guide_type' => 'REMITENTE',
                 'tipo_de_comprobante' => 7,
 
@@ -714,18 +564,11 @@ class ShippingGuideController extends Controller
             // ====== Items ======
             if ($data['items_mode'] === 'SALE') {
 
-                $sale = Sale::with(['details.material', 'details.materialPresentation'])
-                    ->findOrFail((int)$data['sale_id']);
 
                 $guide->update([
                     'source_sale_id' => $sale->id,
                     'source_sale_ref' => ($sale->serie_sunat ? ($sale->serie_sunat . '-' . $sale->numero) : ('SALE#' . $sale->id)),
 
-                    'customer_doc_type'   => (string)($sale->tipo_documento_cliente ?? $guide->customer_doc_type),
-                    'customer_doc_number' => (string)($sale->numero_documento_cliente ?? $guide->customer_doc_number),
-                    'customer_name'       => (string)($sale->nombre_cliente ?? $guide->customer_name),
-                    'customer_address'    => $sale->direccion_cliente ?? $guide->customer_address,
-                    'customer_email'      => $sale->email_cliente ?? $guide->customer_email,
                 ]);
 
                 $line = 1;
@@ -796,7 +639,10 @@ class ShippingGuideController extends Controller
                 'status' => 'SENT', // <-- aquí
             ]);
 
-            $resp = $this->nubefact->send($guide);
+            DB::commit();
+            $persisted = true;
+
+            $resp = $this->nubefact->send($guide, $connection);
 
             // Estado por SUNAT
             $accepted = (bool)($resp['aceptada_por_sunat'] ?? false);
@@ -836,8 +682,6 @@ class ShippingGuideController extends Controller
                 'status' => $finalStatus,
             ]);
 
-            DB::commit();
-
             $message = 'Guía creada y enviada correctamente.';
 
             if ($finalStatus === 'REJECTED') {
@@ -857,21 +701,18 @@ class ShippingGuideController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
-
-            if (isset($guide) && !empty($guide->id)) {
-                try {
-                    $guide->update([
-                        'status' => 'ERROR',
-                        'last_nubefact_response' => ['error' => $e->getMessage()],
-                    ]);
-                } catch (\Throwable $ignored) {}
+            if (!$persisted) {
+                if (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
+                return response()->json(['message' => 'No se pudo guardar la guía. Revise sus datos.'], 422);
             }
 
             return response()->json([
-                'message' => 'Error al enviar a Nubefact.',
-                'detail'  => $e->getMessage(),
-            ], 500);
+                'message' => 'La guía quedó guardada. Consulte su estado antes de intentar emitir otra.',
+                'status' => 'SENT',
+                'data' => $guide->fresh(),
+            ], 502);
         }
     }
 
@@ -896,10 +737,13 @@ class ShippingGuideController extends Controller
 
     public function consultNubefact($id)
     {
-        $guide = ShippingGuide::findOrFail($id);
+        $guide = ShippingGuide::forCurrentLocal()->where('tipo_de_comprobante', 7)->findOrFail($id);
 
         try {
-            $resp = $this->nubefact->consult($guide->serie, $guide->numero, (int)$guide->tipo_de_comprobante);
+            $connection = app(\App\Services\NubefactCompanyConfigService::class)->forCompany(
+                (int) $guide->tenant_id, (int) $guide->company_id
+            );
+            $resp = $this->nubefact->consult($guide->serie, $guide->numero, (int) $guide->tipo_de_comprobante, $connection);
 
             // Estado según Nubefact/SUNAT
             $accepted = (bool)($resp['aceptada_por_sunat'] ?? false);
@@ -938,15 +782,7 @@ class ShippingGuideController extends Controller
                 'nubefact' => $resp,
             ]);
         } catch (\Throwable $e) {
-            $guide->update([
-                'status' => 'ERROR',
-                'last_nubefact_response' => ['error' => $e->getMessage()],
-            ]);
-
-            return response()->json([
-                'message' => 'Error al consultar en Nubefact.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'No se pudo consultar la guía en Nubefact.'], 502);
         }
     }
 
@@ -1019,7 +855,7 @@ class ShippingGuideController extends Controller
 
         [$serieSunat, $numeroSunat] = $this->parseSaleRef($request->sale_ref);
 
-        $sale = Sale::with(['details.material', 'details.stockItem', 'details.materialPresentation'])
+        $sale = $this->sales()->with(['details.material', 'details.stockItem', 'details.materialPresentation'])
             ->where('serie_sunat', $serieSunat)
             ->where('numero', $numeroSunat)
             ->firstOrFail();
@@ -1031,7 +867,7 @@ class ShippingGuideController extends Controller
             $items[] = [
                 'line' => $line++,
                 'descripcion' => $this->buildDetailDescription($detail),
-                'cantidad' => (float)$detail->quantity,
+                'cantidad' => (float) ($detail->material_presentation_id ? $detail->packs : $detail->quantity),
                 'unidad_medida' => 'NIU',
             ];
         }
@@ -1055,7 +891,7 @@ class ShippingGuideController extends Controller
         $page = max(1, (int)$request->get('page', 1));
         $perPage = 10;
 
-        $query = Sale::query()
+        $query = $this->sales()
             ->select(['id','serie_sunat','numero','type_document','nombre_cliente','numero_documento_cliente','fecha_emision','importe_total'])
             ->orderByDesc('id');
 
@@ -1109,6 +945,7 @@ class ShippingGuideController extends Controller
 
     public function items(Sale $sale)
     {
+        $sale = $this->sales()->findOrFail($sale->id);
         $sale->load(['details.material', 'details.stockItem', 'details.materialPresentation']);
 
         $items = [];

@@ -495,6 +495,14 @@
                                 <p>Nubefact</p>
                             </a>
                         </li>
+
+                        <li class="nav-item">
+                            <a href="{{ route('platformShippingCatalogs.index') }}"
+                               class="nav-link @yield('activePlatformShippingCatalogs')">
+                                <i class="nav-icon fas fa-list-alt"></i>
+                                <p>Catálogos de guías</p>
+                            </a>
+                        </li>
                     @endif
 
                     @can('enable_puntoVenta')
@@ -1715,50 +1723,16 @@
                         </li>
                     @endcan
 
-                    @can('enableArea_inventory')
-                        <li class="nav-header">INVENTARIO</li>
-                        <li class="nav-item has-treeview @yield('openInventory')">
-                            <a href="#" class="nav-link @yield('activeInventory')">
-                                <i class="nav-icon fas fa-book"></i>
-                                <p>
-                                    Inventario Físico
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                {{--@can('list_area')
-                                <li class="nav-item">
-                                    <a href="{{ route('area.index') }}" class="nav-link @yield('activeAreas')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Áreas</p>
-                                    </a>
-                                </li>
-                                @endcan
-                                @can('list_location')
-                                <li class="nav-item">
-                                    <a href="{{ route('location.index') }}" class="nav-link @yield('activeLocations')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Ubicaciones</p>
-                                    </a>
-                                </li>
-                                @endcan--}}
-
-                                @can('list_inventory')
-                                    {{--<li class="nav-item">
-                                        <a href="{{ route('inventory.index') }}" class="nav-link @yield('activeListInventory')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listado</p>
-                                        </a>
-                                    </li>--}}
-                                    <li class="nav-item">
-                                        <a href="{{ route('kardex.index') }}" class="nav-link @yield('activeListInventoryKardex')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Kardex</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                            </ul>
-                        </li>
+                    @can('list_kardex')
+                        @unless(auth()->user()->isPlatformAdmin())
+                            <li class="nav-header">KARDEX</li>
+                            <li class="nav-item">
+                                <a href="{{ route('kardex.index') }}" class="nav-link @yield('activeListInventoryKardex')">
+                                    <i class="nav-icon fas fa-book"></i>
+                                    <p>Kardex</p>
+                                </a>
+                            </li>
+                        @endunless
                     @endcan
 
                     @canany(['viewStock_transfer', 'list_transfer'])

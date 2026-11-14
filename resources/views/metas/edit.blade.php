@@ -78,25 +78,25 @@
                 </div>
             </div>
 
-            {{-- Trabajadores --}}
+            {{-- Usuarios --}}
             <div class="card mb-3">
                 <div class="card-header">
-                    Trabajadores asignados a la Meta
+                    Usuarios asignados a la Meta
                 </div>
                 <div class="card-body">
                     <div class="form-row align-items-end">
                         <div class="form-group col-md-6">
-                            <label>Seleccionar trabajador</label>
+                            <label>Seleccionar usuario</label>
                             <select id="worker-select" class="form-control select2">
-                                <option value="">Buscar trabajador...</option>
-                                @foreach($workers as $w)
+                                <option value="">Buscar usuario...</option>
+                                @foreach($users as $w)
                                     <option value="{{ $w->id }}">
-                                        {{ $w->first_name }} {{ $w->last_name }}
+                                        {{ $w->name }}
                                     </option>
                                 @endforeach
                             </select>
                             <small class="form-text text-muted">
-                                Solo se muestran trabajadores habilitados que no estén asignados a otra meta.
+                                Puedes conservar los usuarios ya asignados.
                             </small>
                         </div>
 
@@ -115,7 +115,7 @@
 
                     <hr>
 
-                    <h6>Trabajadores asignados:</h6>
+                    <h6>Usuarios asignados:</h6>
                     <ul id="workers-list" class="list-group">
                         {{-- se llenará por JS con los ya asignados --}}
                     </ul>
@@ -123,7 +123,7 @@
                     {{-- inputs hidden --}}
                     <div id="workers-hidden-inputs"></div>
 
-                    @error('workers')<small class="text-danger">{{ $message }}</small>@enderror
+                    @error('users')<small class="text-danger">{{ $message }}</small>@enderror
                 </div>
             </div>
 
@@ -144,12 +144,15 @@
 
 @section('scripts')
     <script>
-        // Trabajadores ya asignados a esta meta
-        const existingWorkers = @json($metaWorkers);
+        // Usuarios ya asignados a esta meta
+        @php
+            $initialUsers = $users->whereIn('id', (array) old('users', $selectedUserIds))->map->only(['id', 'name'])->values();
+        @endphp
+        const existingWorkers = @json($initialUsers);
 
         $(function () {
             $('#worker-select').select2({
-                placeholder: 'Buscar trabajador...',
+                placeholder: 'Buscar usuario...',
                 width: '100%'
             });
 
@@ -164,22 +167,23 @@
                 li.className = 'list-group-item d-flex justify-content-between align-items-center';
                 li.id = 'worker-li-' + id;
                 li.innerHTML = `
-                    <span>${text}</span>
+                    <span></span>
                     <button type="button" class="btn btn-sm btn-danger btn-remove-worker" data-id="${id}">
                         Quitar
                     </button>
                 `;
-                workersList.appendChild(li);
+                li.querySelector('span').textContent = text;
+            workersList.appendChild(li);
 
                 const input = document.createElement('input');
                 input.type  = 'hidden';
-                input.name  = 'workers[]';
+                input.name  = 'users[]';
                 input.value = id;
                 input.id    = 'worker-input-' + id;
                 hiddenInputs.appendChild(input);
             }
 
-            // Precargar los trabajadores ya asignados
+            // Precargar los usuarios ya asignados
             existingWorkers.forEach(function (w) {
                 addWorker(w.id, w.name);
             });
@@ -187,7 +191,7 @@
             // Asignar seleccionado
             $('#btn-add-worker').on('click', function () {
                 const select = $('#worker-select').select2('data')[0];
-                if (!select) return;
+                if (!select || !select.id) return;
                 addWorker(select.id, select.text);
             });
 
@@ -200,7 +204,7 @@
                 });
             });
 
-            // Quitar trabajador
+            // Quitar usuario
             $('#workers-list').on('click', '.btn-remove-worker', function () {
                 const id = $(this).data('id');
                 $('#worker-li-' + id).remove();

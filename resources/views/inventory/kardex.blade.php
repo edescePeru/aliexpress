@@ -47,17 +47,9 @@
             {{-- Filtros --}}
             <form id="form-kardex" autocomplete="off">
                 <div class="row">
-                    {{-- Material --}}
-                    {{--<div class="col-md-5">
-                        <div class="form-group">
-                            <label for="material_id">Material</label>
-                            <select id="material_id" class="form-control select2-material" style="width: 100%;">
-                            </select>
-                        </div>
-                    </div>--}}
                     <div class="col-md-5">
                         <div class="form-group">
-                            <label for="stock_item_id">Material</label>
+                            <label for="stock_item_id">Producto o variante</label>
                             <select id="stock_item_id" name="stock_item_id" class="form-control select2-material" style="width: 100%;">
                                 {{-- Se cargan por AJAX --}}
                             </select>
@@ -90,7 +82,7 @@
             <div id="kardex-header" class="mb-3" style="display:none;">
                 <h5>
                     Material: <span id="kardex-material-name"></span><br>
-                    <small>Rango: <span id="kardex-range"></span></small>
+                    <small>Almacén: <span id="kardex-range"></span></small>
                 </h5>
             </div>
 
@@ -113,7 +105,7 @@
                     </thead>
                     <tbody id="kardex-body">
                     <tr>
-                        <td colspan="10" class="text-center">Seleccione un material y rango de fechas.</td>
+                        <td colspan="10" class="text-center">Seleccione un producto o variante.</td>
                     </tr>
                     </tbody>
                 </table>

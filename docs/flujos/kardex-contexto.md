@@ -1,0 +1,5 @@
+# Kardex operativo
+
+La consulta requiere un usuario con list_material y un contexto autorizado de tenant, empresa y sucursal. El selector de productos usa StockItems habilitados en CompanyStockItem de la empresa. El selector de almacenes permite los generales de la empresa y los del local actual. El servidor valida los IDs recibidos y filtra las filas de inventory_movements_view por tenant, empresa, StockItem y almacenes permitidos.
+
+La vista SQL vigente toma el contexto de stock_lots y registra entradas y salidas. Los movimientos que carecen de contexto quedan fuera del reporte operativo. Los traslados todavía no se reflejan como salida al despachar y entrada por cada recepción. Un lote creado al recibir un traslado tiene detail_entry_id nulo, así que el join de entradas no lo incluye. La vista también alimenta InventoryCostService. La integración de traslados requiere validar cantidades, costo histórico y el efecto sobre los consumidores de la vista. Este bloque conserva la valoración existente.

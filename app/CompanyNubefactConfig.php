@@ -13,6 +13,7 @@ class CompanyNubefactConfig extends Model
     protected $fillable = [
         'tenant_id', 'company_id', 'ruc', 'api_url', 'api_token', 'is_enabled',
         'serie_factura', 'serie_boleta', 'serie_nc_factura', 'serie_nc_boleta',
+        'serie_gre_remitente', 'gre_remitente_numero_inicial',
     ];
 
     protected $hidden = ['api_token', 'api_token_encrypted'];

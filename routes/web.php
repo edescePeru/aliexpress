@@ -3315,33 +3315,33 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         // TODO: Metas
         Route::prefix('metas')->name('metas.')->group(function () {
-
-            // Listado
-            Route::get('/', [MetaController::class, 'index'])->name('index');
-
-            // Configurar tipo de meta (POST desde el formulario de configuración)
-            Route::post('/config-tipo', [MetaController::class, 'configTipo'])->name('configTipo');
-
-            // Crear (la vista la harás luego)
-            Route::get('/create', [MetaController::class, 'create'])->name('create');
-
-            // Guardar meta
-            Route::post('/store', [MetaController::class, 'store'])->name('store');
-
-            Route::get('/{meta}/edit', [MetaController::class, 'edit'])->name('edit');
-            Route::put('/{meta}/update', [MetaController::class, 'update'])->name('update');
-
-            Route::get('/weeks', [MetaController::class, 'getWeeksByYearMonth'])->name('weeks');
-
-            // Progreso (lo verás después)
-            //Route::get('/progreso', [MetaController::class, 'progreso'])->name('progreso');
-
-            // Eliminar meta
-            Route::delete('/delete/{meta}', [MetaController::class, 'destroy'])->name('destroy');
-
-            Route::get('/ranking', [MetaController::class, 'ranking'])->name('ranking');
-
-            Route::get('/ranking/data', [MetaController::class, 'getRankingData'])->name('ranking.data');
+            Route::get('/', [MetaController::class, 'index'])
+                ->middleware('permission:list_metas')
+                ->name('index');
+            Route::get('/create', [MetaController::class, 'create'])
+                ->middleware('permission:create_metas')
+                ->name('create');
+            Route::post('/store', [MetaController::class, 'store'])
+                ->middleware('permission:create_metas')
+                ->name('store');
+            Route::get('/{meta}/edit', [MetaController::class, 'edit'])
+                ->middleware('permission:edit_metas')
+                ->name('edit');
+            Route::put('/{meta}/update', [MetaController::class, 'update'])
+                ->middleware('permission:edit_metas')
+                ->name('update');
+            Route::delete('/delete/{meta}', [MetaController::class, 'destroy'])
+                ->middleware('permission:destroy_metas')
+                ->name('destroy');
+            Route::get('/weeks', [MetaController::class, 'getWeeksByYearMonth'])
+                ->middleware('permission:create_metas|progress_metas')
+                ->name('weeks');
+            Route::get('/ranking', [MetaController::class, 'ranking'])
+                ->middleware('permission:progress_metas')
+                ->name('ranking');
+            Route::get('/ranking/data', [MetaController::class, 'getRankingData'])
+                ->middleware('permission:progress_metas')
+                ->name('ranking.data');
         });
 
         // TODO: Faces
@@ -3492,15 +3492,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('/check-promotions', 'PromotionOrderController@checkPromotions');
 
         // TODO: KARDEX
-        Route::get('/kardex/{materialId}', 'InventoryMovementController@kardex')
-            ->name('kardex.material');
-        Route::get('/kardex', 'InventoryMovementController@index')
-            ->name('kardex.index');
+        Route::middleware('permission:list_kardex')->group(function () {
+            Route::get('/kardex', 'InventoryMovementController@index')->name('kardex.index');
+            Route::get('/kardex/{materialId}', 'InventoryMovementController@kardex')
+                ->where('materialId', '[0-9]+')->name('kardex.material');
+            Route::get('/stock-items/select', 'MaterialController@selectStockItemsAjax')->name('stockitems.select');
+            Route::get('/warehouses/select', 'MaterialController@selectWarehousesAjax')->name('warehouses.select');
+        });
         Route::get('/materials/select', 'MaterialController@selectAjax')->name('materials.selectAjax');
-        Route::get('/stock-items/select', 'MaterialController@selectStockItemsAjax')
-            ->name('stockitems.select');
-        Route::get('/warehouses/select', 'MaterialController@selectWarehousesAjax')
-            ->name('warehouses.select');
 
         // TODO: PARAMTRIZACION DE MATERIAL DETAILS
         Route::prefix('settings')
@@ -3595,6 +3594,9 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             Route::post('/{guide}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
             Route::post('/export', 'ShippingGuideController@exportExcel')->name('shipping_guides.export');
             //Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
+            Route::get('/customer/{id}/payload', 'ShippingGuideController@customerPayload')
+                ->where('id', '[0-9]+')->name('shipping_guides.customer_payload');
+            Route::get('/products/select2', 'ShippingGuideController@products')->name('shipping_guides.products');
         });
 
         Route::get('/customers/{customer}/payload', 'CustomerController@payload')->name('customers.payload');
@@ -3854,6 +3856,13 @@ Route::middleware(['auth','check.user.enabled', 'password.changed', 'platform.ad
         Route::get('nubefact','Platform\NubefactConfigController@index')->name('platformNubefact.index');
         Route::get('tenants/{tenantId}/companies/{companyId}/nubefact','Platform\NubefactConfigController@edit')->where(['tenantId' => '[0-9]+','companyId' => '[0-9]+',])->name('platformNubefact.edit');
         Route::post('tenants/{tenantId}/companies/{companyId}/nubefact','Platform\NubefactConfigController@update')->where(['tenantId' => '[0-9]+','companyId' => '[0-9]+',])->name('platformNubefact.update');
+
+        Route::get('catalogos-guias/{catalog?}', 'Platform\ShippingCatalogController@index')
+            ->name('platformShippingCatalogs.index');
+        Route::put('catalogos-guias/{catalog}/{id}', 'Platform\ShippingCatalogController@update')
+            ->where('id', '[0-9]+')->name('platformShippingCatalogs.update');
+        Route::post('catalogos-guias/{catalog}', 'Platform\ShippingCatalogController@store')
+            ->where('catalog', 'motivos|indicadores')->name('platformShippingCatalogs.store');
 });
 
 Route::prefix('store-web/')->group(function () {
@@ -3989,8 +3998,6 @@ Route::get('/api/sunat/v1', function () {
     return $response;
 
 });
-
-Route::get('/test/view/inventory', 'InventoryMovementController@test');
 
 Route::get('/inventory-migration/run', 'InventoryMigrationController@run')
     ->name('inventory.migration.run');

@@ -96,13 +96,15 @@
                                 <p>{{ $rankingPeriodText ?: 'Periodo actual sin configuración disponible' }}</p>
                             </div>
                         </div>
-                        <a href="{{ route('metas.ranking') }}" class="btn btn-outline-secondary btn-sm">Ver ranking completo</a>
+                        @can('progress_metas')
+                            <a href="{{ route('metas.ranking') }}" class="btn btn-outline-secondary btn-sm">Ver ranking completo</a>
+                        @endcan
                     </header>
                     <div class="next-dashboard-panel-body">
                         @if(empty($rankingMetasDashboard))
                             <div class="next-dashboard-empty" role="status">
                                 <span class="next-dashboard-empty-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></span>
-                                <strong>Sin datos de metas</strong>
+                                <strong>Sin datos de metas para este período</strong>
                                 <span>No hay metas configuradas para el periodo actual.</span>
                             </div>
                         @else
@@ -116,10 +118,10 @@
                                         <span class="next-goals-position">{{ $loop->iteration }}</span>
                                         <div class="next-goals-detail">
                                             <div class="next-goals-summary">
-                                                <strong>{{ $row['worker_name'] }}</strong>
+                                                <strong>{{ $row['user_name'] }}</strong>
                                                 <span>{{ number_format($row['porcentaje'], 1) }}%</span>
                                             </div>
-                                            <div class="next-goals-progress" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Cumplimiento de {{ $row['worker_name'] }}">
+                                            <div class="next-goals-progress" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Cumplimiento de {{ $row['user_name'] }}">
                                                 <span class="{{ $progressClass }}" style="width: {{ $pct }}%"></span>
                                             </div>
                                         </div>

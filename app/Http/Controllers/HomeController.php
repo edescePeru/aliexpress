@@ -2,21 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Sales\MetaProgress;
+
+use App\Helpers\MetaCalendarHelper;
+
+use App\Services\SettingService;
+
+use App\Support\TenantContext;
+
 use App\ContactName;
 use App\Customer;
 use App\DateDimension;
 use App\Entry;
-use App\Helpers\MetaCalendarHelper;
 use App\Location;
 use App\Material;
-use App\Meta;
 use App\Output;
 use App\Sale;
 use App\Supplier;
 use App\Warehouse;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use App\Services\SettingService;
 use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
@@ -94,94 +99,24 @@ class HomeController extends Controller
          * =============================
          */
         $rankingMetasDashboard = [];
-        $rankingPeriodText     = null;
-
-        // leer tipo_meta
-        $tipoMeta = app(SettingService::class)->get('sales.goals.frequency');
-        $tiposValidos = ['semanal', 'quincenal', 'mensual'];
-
-        if (in_array($tipoMeta, $tiposValidos)) {
-
-            try {
-                // Determinar año / mes / semana / quincena según HOY
-                $hoy = $fechaActual->copy();
-
-                if ($tipoMeta === 'mensual') {
-                    $params = [
-                        'year'  => $hoy->year,
-                        'month' => $hoy->month,
-                    ];
-                } elseif ($tipoMeta === 'quincenal') {
-                    $quincena = ($hoy->day <= 15) ? 1 : 2;
-                    $params = [
-                        'year'     => $hoy->year,
-                        'month'    => $hoy->month,
-                        'quincena' => $quincena,
-                    ];
-                } else { // semanal
-                    $rowHoy = DateDimension::whereDate('date', $hoy->toDateString())->first();
-                    if ($rowHoy) {
-                        $params = [
-                            'year' => $rowHoy->year,
-                            'month' => $rowHoy->month,
-                            'week'  => $rowHoy->week_of_year, // usamos week_of_year como en MetaCalendarHelper
-                        ];
-                    } else {
-                        $params = null;
-                    }
+        $rankingPeriodText = null;
+        if (auth()->user()->can('showBoxMetas_dashboard')
+            && TenantContext::tenantIdOrNull() && TenantContext::companyIdOrNull()) {
+            $type = app(SettingService::class)->get('sales.goals.frequency');
+            if (in_array($type, ['semanal', 'quincenal', 'mensual'], true)) {
+                $day = DateDimension::whereDate('date', $fechaActual->toDateString())->first();
+                if ($type !== 'semanal' || $day) {
+                    $period = MetaCalendarHelper::getRangeForPeriod($type, [
+                        'year' => $fechaActual->year,
+                        'month' => $fechaActual->month,
+                        'week' => $day ? $day->week_of_year : null,
+                        'quincena' => $fechaActual->day <= 15 ? 1 : 2,
+                    ]);
+                    $rankingPeriodText = $period['start']->format('d/m/Y').' al '.$period['end']->format('d/m/Y');
+                    $rows = app(MetaProgress::class)->rows($type, $period['start'], $period['end']);
+                    usort($rows, function ($a, $b) { return $b['porcentaje'] <=> $a['porcentaje']; });
+                    $rankingMetasDashboard = array_slice($rows, 0, 10);
                 }
-
-                if ($params) {
-                    // obtener rango real usando el helper
-                    $range = MetaCalendarHelper::getRangeForPeriod($tipoMeta, $params);
-                    $inicio = $range['start']->copy()->startOfDay();
-                    $fin    = $range['end']->copy()->endOfDay();
-
-                    $rankingPeriodText = $inicio->format('d/m/Y') . ' al ' . $fin->format('d/m/Y');
-
-                    // metas del periodo
-                    $metas = Meta::with('workers')
-                        ->whereDate('fecha_inicio', $inicio->toDateString())
-                        ->whereDate('fecha_fin', $fin->toDateString())
-                        ->get();
-
-                    $tempRanking = [];
-
-                    foreach ($metas as $meta) {
-                        foreach ($meta->workers as $worker) {
-                            // suma de ventas del trabajador en el periodo
-                            $ventasTotal = Sale::where('worker_id', $worker->id)
-                                ->whereBetween('date_sale', [$inicio, $fin])
-                                ->where('state_annulled', false)
-                                ->sum('importe_total');
-
-                            $porcentaje = 0;
-                            if ($meta->monto > 0) {
-                                $porcentaje = round(($ventasTotal / $meta->monto) * 100, 2);
-                            }
-
-                            $tempRanking[] = [
-                                'worker_name'  => trim($worker->first_name . ' ' . $worker->last_name),
-                                'meta_nombre'  => $meta->nombre,
-                                'meta_monto'   => (float) $meta->monto,
-                                'ventas_total' => (float) $ventasTotal,
-                                'porcentaje'   => $porcentaje,
-                            ];
-                        }
-                    }
-
-                    // ordenar por porcentaje desc
-                    usort($tempRanking, function ($a, $b) {
-                        return $b['porcentaje'] <=> $a['porcentaje'];
-                    });
-
-                    // tomar solo top 10
-                    $rankingMetasDashboard = array_slice($tempRanking, 0, 10);
-                }
-
-            } catch (\Throwable $e) {
-                // Si falla algo, simplemente dejamos el ranking vacío
-                $rankingMetasDashboard = [];
             }
         }
 
@@ -201,8 +136,7 @@ class HomeController extends Controller
                 'currentYear',
                 'currentMonth',
                 'rankingMetasDashboard',
-                'rankingPeriodText',
-                'tipoMeta'
+                'rankingPeriodText'
             )
         );
     }

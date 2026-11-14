@@ -4614,9 +4614,19 @@ class MaterialController extends Controller
 
     public function selectStockItemsAjax(Request $request)
     {
-        $term = trim($request->get('q', ''));
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $term = trim($data['q'] ?? '');
 
+        app(MaterialInventoryScope::class)->context();
         $query = StockItem::query()
+            ->where('stock_items.tenant_id', TenantContext::tenantId())
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')->from('company_stock_items')
+                    ->whereColumn('company_stock_items.stock_item_id', 'stock_items.id')
+                    ->where('company_stock_items.tenant_id', TenantContext::tenantId())
+                    ->where('company_stock_items.company_id', TenantContext::companyId())
+                    ->where('company_stock_items.is_active', true);
+            })
             ->with('material:id,full_name,code')
             ->select('id', 'material_id', 'sku', 'barcode', 'display_name')
             ->where('is_active', 1);
@@ -4653,11 +4663,13 @@ class MaterialController extends Controller
 
     public function selectWarehousesAjax(Request $request)
     {
-        $term = trim($request->get('q', ''));
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $term = trim($data['q'] ?? '');
 
-        $query = Warehouse::query()
-            ->select('id', 'name')
-            ->orderBy('name');
+        $query = app(MaterialInventoryScope::class)->warehouses(Warehouse::query())
+            ->select('warehouses.id', 'warehouses.name', 'warehouses.branch_id')
+            ->orderByRaw('warehouses.branch_id IS NOT NULL')
+            ->orderBy('warehouses.name');
 
         if ($term !== '') {
             $query->where('name', 'like', "%{$term}%");
@@ -4670,12 +4682,13 @@ class MaterialController extends Controller
         $results = $warehouses->map(function ($warehouse) {
             return [
                 'id' => $warehouse->id,
-                'text' => $warehouse->name,
+                'text' => $warehouse->name . ($warehouse->branch_id === null ? ' (General)' : ' (Local actual)'),
             ];
         });
 
         return response()->json($results);
     }
+
 
     public function select2Or(Request $request)
     {

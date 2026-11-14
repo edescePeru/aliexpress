@@ -60,7 +60,7 @@
         {{-- Filtros de periodo --}}
         <div class="card mb-3">
             <div class="card-header">
-                Periodo de análisis (Tipo: {{ strtoupper($tipoMeta) }})
+                Ventas en soles · Período de análisis (Tipo: {{ strtoupper($tipoMeta) }})
             </div>
             <div class="card-body">
                 <div class="form-row">
@@ -119,7 +119,7 @@
                         <thead class="thead-light">
                         <tr>
                             <th>Puesto</th>
-                            <th>Trabajador</th>
+                            <th>Usuario</th>
                             <th>Meta</th>
                             <th>Monto Meta (S/.)</th>
                             <th>Ventas (S/.)</th>
@@ -286,8 +286,8 @@
                         const tr = `
                             <tr>
                                 <td>${row.puesto}</td>
-                                <td>${row.worker_name}</td>
-                                <td>${row.meta_nombre}</td>
+                                <td>${$('<div>').text(row.user_name).html()}</td>
+                                <td>${$('<div>').text(row.meta_nombre).html()}</td>
                                 <td>S/ ${parseFloat(row.meta_monto).toFixed(2)}</td>
                                 <td>S/ ${parseFloat(row.ventas_total).toFixed(2)}</td>
                                 <td>

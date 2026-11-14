@@ -1,29 +1,5 @@
 $(function () {
 
-    // 1) Inicializar select de materiales (Select2 con AJAX)
-    $('#material_id').select2({
-        placeholder: 'Busque y seleccione un material...',
-        allowClear: true,
-        width: 'resolve',
-        ajax: {
-            url: '/dashboard/stock-items/select',
-            dataType: 'json',
-            delay: 250,
-            data: function (params) {
-                return {
-                    q: params.term // término de búsqueda
-                };
-            },
-            processResults: function (data) {
-                return {
-                    results: data
-                };
-            },
-            cache: true
-        },
-        minimumInputLength: 1
-    });
-
     $('#stock_item_id').select2({
         placeholder: 'Busque y seleccione un producto...',
         allowClear: true,
@@ -91,6 +67,7 @@ function money(simbolo, valor) {
 }
 
 function loadKardex(stockItemId, warehouseId = null) {
+    $('#kardex-header').hide();
     $('#kardex-body').html(
         '<tr><td colspan="10" class="text-center">Cargando...</td></tr>'
     );
@@ -109,10 +86,15 @@ function loadKardex(stockItemId, warehouseId = null) {
             res.rows.forEach(function (r) {
                 let origen = r.source_type + ' #' + r.source_id;
 
+                if (r.source_type === 'transfer_dispatch' || r.source_type === 'transfer_receipt') {
+                    const transfer = 'TR-' + String(r.source_id).padStart(6, '0');
+                    origen = r.receipt_id ? transfer + ' · Recepción #' + r.receipt_id : transfer + ' · Despacho';
+                }
+
                 let tr = $('<tr>');
                 tr.append('<td>' + (r.date || '') + '</td>');
                 tr.append('<td>' + r.type + '</td>');
-                tr.append('<td>' + origen + '</td>');
+                tr.append($('<td>').text(origen));
                 tr.append('<td class="text-right">' + (r.qty_in || '') + '</td>');
                 tr.append('<td class="text-right">' + (r.qty_out || '') + '</td>');
                 tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.unit_cost_in) + '</td>');
@@ -131,12 +113,14 @@ function loadKardex(stockItemId, warehouseId = null) {
         );
 
         $('#kardex-range').text(
-            warehouseId ? 'Filtrado por almacén' : 'Todos los almacenes'
+            res.warehouse_name || 'General y almacenes del local actual'
         );
 
-    }).fail(function () {
-        $('#kardex-body').html(
-            '<tr><td colspan="10" class="text-center text-danger">Error al obtener el Kardex.</td></tr>'
+    }).fail(function (xhr) {
+        const errors = xhr.responseJSON && xhr.responseJSON.errors;
+        const message = errors && errors.currency ? errors.currency[0] : 'Error al obtener el Kardex.';
+        $('#kardex-body').empty().append(
+            $('<tr>').append($('<td>', { colspan: 10, class: 'text-center text-danger' }).text(message))
         );
     });
 }

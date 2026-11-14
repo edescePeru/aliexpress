@@ -32,38 +32,15 @@
             </div>
             <div class="card-body">
 
-                @if(!$tipoMeta)
-                    {{-- No configurado: mostrar select editable --}}
-                    <form action="{{ route('metas.configTipo') }}" method="POST" class="form-inline">
-                        @csrf
-                        <div class="form-group mr-2">
-                            <label for="tipo_meta" class="mr-2 mb-0">Tipo de meta:</label>
-                            <select name="tipo_meta" id="tipo_meta" class="form-control form-control-sm">
-                                <option value="">-- Seleccione --</option>
-                                <option value="semanal">Semanal</option>
-                                <option value="quincenal">Quincenal</option>
-                                <option value="mensual">Mensual</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            Guardar configuración
-                        </button>
-                    </form>
-
-                    <small class="text-muted d-block mt-2">
-                        Debes configurar el tipo de meta antes de poder crear metas.
-                    </small>
-
-                @else
-                    {{-- Ya configurado: mostrar valor bloqueado --}}
-                    <p class="mb-1">
-                        <strong>Tipo de meta configurado:</strong>
+                @if ($tipoMeta)
+                    <p class="mb-1"><strong>Tipo de meta configurado</strong>
                         <span class="badge badge-info text-uppercase">{{ $tipoMeta }}</span>
                     </p>
-                    <small class="text-muted">
-                        Para cambiar el tipo de meta se deberá evaluar borrar las metas existentes (se hará en otra etapa).
-                    </small>
+                @else
+                    <p class="mb-1">Frecuencia pendiente de configurar</p>
+                @endif
+                @if(auth()->user()->isTenantOwner() && auth()->user()->can('list_companySetting'))
+                    <a href="{{ route('companySetting.index') }}">Configuración de Empresa</a>
                 @endif
 
             </div>
@@ -74,6 +51,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h3 class="card-title mb-0">Listado de metas</h3>
 
+                @can('create_metas')
                 <div>
                     <a href="{{ $canCreateMetas ? route('metas.create') : '#' }}"
                        class="btn btn-success btn-sm {{ $canCreateMetas ? '' : 'disabled' }}"
@@ -81,6 +59,7 @@
                         <i class="fas fa-plus"></i> Crear meta
                     </a>
                 </div>
+                @endcan
             </div>
 
             <div class="card-body p-0">
@@ -92,7 +71,7 @@
                             <th>Nombre</th>
                             <th style="width: 120px;">Tipo</th>
                             <th style="width: 150px;">Monto</th>
-                            <th style="width: 150px;"># Trabajadores</th>
+                            <th style="width: 150px;">Usuarios</th>
                             <th style="width: 80px;">Acciones</th>
                         </tr>
                         </thead>
@@ -103,22 +82,24 @@
                                 <td>{{ $meta->nombre }}</td>
                                 <td class="text-uppercase">{{ $meta->tipo }}</td>
                                 <td>S/ {{ number_format($meta->monto, 2) }}</td>
-                                <td>{{ $meta->workers_count }}</td>
+                                <td>{{ $meta->users_count }}</td>
                                 <td>
-                                    {{-- BOTÓN EDITAR --}}
+                                    @can('edit_metas')
                                     <a href="{{ route('metas.edit', $meta->id) }}"
                                        class="btn btn-warning btn-sm"
                                        title="Editar meta">
                                         <i class="fas fa-edit"></i>
                                     </a>
 
-                                    {{-- BOTÓN ELIMINAR --}}
+                                    @endcan
+                                    @can('destroy_metas')
                                     <button type="button"
                                             class="btn btn-danger btn-sm btn-delete-meta"
                                             data-id="{{ $meta->id }}"
                                             title="Eliminar meta">
                                         <i class="fas fa-trash"></i>
                                     </button>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty

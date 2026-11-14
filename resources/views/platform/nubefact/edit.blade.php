@@ -46,7 +46,23 @@
                         <div class="col-md-3 form-group"><label for="serie_nc_factura">Nota de crédito de factura</label><input id="serie_nc_factura" name="serie_nc_factura" class="form-control" maxlength="4" pattern="F[A-Z0-9]{3}" value="{{ old('serie_nc_factura', $config ? $config->serie_nc_factura : '') }}"></div>
                         <div class="col-md-3 form-group"><label for="serie_nc_boleta">Nota de crédito de boleta</label><input id="serie_nc_boleta" name="serie_nc_boleta" class="form-control" maxlength="4" pattern="B[A-Z0-9]{3}" value="{{ old('serie_nc_boleta', $config ? $config->serie_nc_boleta : '') }}"></div>
                     </div>
-                    <small class="text-muted">Usa las series configuradas en Nubefact. La numeración seguirá asignándose desde el proveedor.</small>
+                    <small class="text-muted">Nubefact asigna la numeración de facturas y boletas.</small>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-3 form-group">
+                            <label for="serie_gre_remitente">Serie GRE remitente</label>
+                            <input id="serie_gre_remitente" name="serie_gre_remitente" class="form-control"
+                                maxlength="4" pattern="T[A-Z0-9]{3}" placeholder="TTT1"
+                                value="{{ old('serie_gre_remitente', optional($config)->serie_gre_remitente) }}">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label for="gre_remitente_numero_inicial">Correlativo inicial GRE</label>
+                            <input type="number" id="gre_remitente_numero_inicial" name="gre_remitente_numero_inicial"
+                                class="form-control" min="1" max="99999999" step="1"
+                                value="{{ old('gre_remitente_numero_inicial', optional($config)->gre_remitente_numero_inicial) }}">
+                        </div>
+                    </div>
+                    <small class="text-muted">Completa ambos campos para emitir guías. Ingresa el primer número libre en Nubefact para esa serie.</small>
                 </div>
             </div>
             <div class="d-flex justify-content-end mb-3"><a href="{{ route('platformNubefact.index') }}" class="btn btn-outline-secondary mr-2">Volver</a><button id="btnSaveNubefactConfig" type="submit" class="btn btn-primary">Guardar configuración</button></div>

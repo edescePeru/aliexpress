@@ -41,7 +41,11 @@
                         @elseif($connection->is_enabled)<span class="badge badge-success">Habilitada</span>
                         @else<span class="badge badge-secondary">Deshabilitada</span>@endif
                     </td>
-                    <td class="text-center">{{ $connection ? $connection->serie_factura . ' / ' . $connection->serie_boleta : '—' }}</td>
+                    <td class="text-center">{{ $connection ? $connection->serie_factura . ' / ' . $connection->serie_boleta : '—' }}
+                        @if ($connection && $connection->serie_gre_remitente)
+                            <small class="d-block text-muted">GRE {{ $connection->serie_gre_remitente }}</small>
+                        @endif
+                    </td>
                     <td class="text-center"><a class="btn btn-outline-primary btn-sm" href="{{ route('platformNubefact.edit', [$company->tenant_id, $company->id]) }}">Configurar</a></td>
                 </tr>
             @empty

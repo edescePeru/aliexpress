@@ -3,21 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Services\SettingService;
-use App\DateDimension;
+use App\Services\Sales\MetaProgress;
 use App\Helpers\MetaCalendarHelper;
+use Illuminate\Support\Facades\Validator;
+use App\DateDimension;
 use App\Meta;
-use App\MetaWorker;
-use App\Sale;
-use App\Worker;
+use App\User;
+use App\Support\TenantContext;
+use App\Services\Materials\MaterialParameters;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Helpers\CalendarioHelper;
-use Illuminate\Support\Facades\Validator;
 
 class MetaController extends Controller
 {
     public function index(Request $request)
     {
+        app(MaterialParameters::class)->context();
         $tipoMeta = app(SettingService::class)
             ->get('sales.goals.frequency');
 
@@ -37,7 +41,7 @@ class MetaController extends Controller
             $tipoMeta = null;
         }
 
-        $metas = Meta::withCount('workers')
+        $metas = Meta::forCurrentCompany()->withCount('users')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -48,30 +52,9 @@ class MetaController extends Controller
         ));
     }
 
-    /**
-     * Guardar / configurar el tipo de meta
-     */
-    public function configTipo(Request $request)
-    {
-        $request->validate([
-            'tipo_meta' => 'required|in:semanal,quincenal,mensual',
-        ]);
-
-        app(SettingService::class)->set(
-            'sales.goals.frequency',
-            $request->tipo_meta
-        );
-
-        return redirect()
-            ->route('metas.index')
-            ->with(
-                'success',
-                'Tipo de meta configurado correctamente.'
-            );
-    }
-
     public function create()
     {
+        app(MaterialParameters::class)->context();
         $tipoMeta = app(SettingService::class)
             ->get('sales.goals.frequency');
 
@@ -83,28 +66,27 @@ class MetaController extends Controller
 
         if (!in_array($tipoMeta, $tipoValido, true)) {
             return redirect()
-                ->route('metas.index')
+                ->route(auth()->user()->can('list_metas') ? 'metas.index' : 'home')
                 ->with(
                     'error',
-                    'Primero configure el tipo de meta en el listado de metas.'
+                    'Primero configure el tipo de meta en Configuración de Empresa.'
                 );
         }
 
         $calendarData = CalendarioHelper::buildCalendarData();
 
-        $workers = Worker::where('enable', true)
-            ->orderBy('first_name')
-            ->get();
+        $users = $this->eligibleUsers()->orderBy('users.name')->get();
 
         return view('metas.create', compact(
             'tipoMeta',
             'calendarData',
-            'workers'
+            'users'
         ));
     }
 
     public function store(Request $request)
     {
+        app(MaterialParameters::class)->context();
         // Tipo de meta desde configuración
         $tipoMeta = app(SettingService::class)->get('sales.goals.frequency');
 
@@ -121,11 +103,11 @@ class MetaController extends Controller
 
         $rules = [
             'nombre' => 'required|string|max:255',
-            'monto'  => 'required|numeric|min:0',
-            'year'   => 'required|integer',
-            'month'  => 'required|integer',
-            'workers' => 'array',
-            'workers.*' => 'integer|exists:workers,id',
+            'monto'  => 'required|numeric|gt:0|max:99999999.99',
+            'year'   => 'required|integer|between:1900,9998',
+            'month'  => 'required|integer|between:1,12',
+            'users' => 'required|array|min:1',
+            'users.*' => 'integer|distinct',
         ];
 
         if ($tipoMeta === 'semanal') {
@@ -178,144 +160,112 @@ class MetaController extends Controller
             }
         }
 
-        // Crear meta
-        $meta = Meta::create([
-            'tipo'         => $tipoMeta,
-            'nombre'       => $data['nombre'],
-            'monto'        => $data['monto'],
-            'fecha_inicio' => $fecha_inicio,
-            'fecha_fin'    => $fecha_fin,
-        ]);
-
-        // Asignar workers
-        $workerIds = $data['workers'] ?? [];
-        if (!empty($workerIds)) {
-            // si tienes belongsToMany en Meta:
-            // $meta->workers()->sync($workerIds);
-
-            // usando modelo MetaWorker explícito:
-            foreach ($workerIds as $wid) {
-                MetaWorker::create([
-                    'meta_id'   => $meta->id,
-                    'worker_id' => $wid,
-                ]);
-            }
-        }
-
-        return redirect()->route('metas.index')
-            ->with('success', 'Meta creada correctamente.');
-    }
-
-    public function edit(Meta $meta)
-    {
-        $tipoMeta = app(SettingService::class)
-            ->get('sales.goals.frequency');
-
-        $tipoMeta = $tipoMeta ?: $meta->tipo;
-
-        // Trabajadores actualmente asignados a esta meta
-        $meta->load('workers');
-        $metaWorkers = $meta->workers->map(function ($w) {
-            return [
-                'id'   => $w->id,
-                'name' => trim($w->first_name . ' ' . $w->last_name),
-            ];
-        })->values()->all();
-
-        // Trabajadores disponibles para agregar:
-        // todos los habilitados que NO estén en otra meta distinta a esta
-        $workers = Worker::where('enable', true)
-            ->whereNotIn('id', function ($q) use ($meta) {
-                $q->select('worker_id')
-                    ->from('meta_workers')
-                    ->where('meta_id', '!=', $meta->id);
-            })
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get();
-
-        return view('metas.edit', compact(
-            'meta',
-            'tipoMeta',
-            'workers',
-            'metaWorkers'
-        ));
-    }
-
-    public function update(Request $request, Meta $meta)
-    {
-        // Solo permitimos editar nombre, monto y trabajadores
-        $rules = [
-            'nombre'   => 'required|string|max:255',
-            'monto'    => 'required|numeric|min:0',
-            'workers'  => 'array',
-            'workers.*'=> 'integer|exists:workers,id',
-        ];
-
-        $data = $request->validate($rules);
-
-        // 1) Actualizar nombre y monto
-        $meta->update([
-            'nombre' => $data['nombre'],
-            'monto'  => $data['monto'],
-        ]);
-
-        // 2) Actualizar trabajadores
-        $workerIds = $data['workers'] ?? [];
-
-        // Seguridad extra: ningún worker puede pertenecer a otra meta
-        if (!empty($workerIds)) {
-            $invalidWorkers = MetaWorker::whereIn('worker_id', $workerIds)
-                ->where('meta_id', '!=', $meta->id)
-                ->pluck('worker_id')
-                ->unique();
-
-            if ($invalidWorkers->isNotEmpty()) {
-                $names = Worker::whereIn('id', $invalidWorkers)->get()
-                    ->map(function ($w) {
-                        return trim($w->first_name . ' ' . $w->last_name);
-                    })->implode(', ');
-
-                return back()
-                    ->withInput()
-                    ->with('error', 'Los siguientes trabajadores ya están asignados a otra meta: ' . $names);
-            }
-        }
-
-        // Borrar relaciones que ya no están
-        MetaWorker::where('meta_id', $meta->id)
-            ->whereNotIn('worker_id', $workerIds)
-            ->delete();
-
-        // Crear relaciones nuevas (si no existen)
-        foreach ($workerIds as $wid) {
-            MetaWorker::firstOrCreate([
-                'meta_id'   => $meta->id,
-                'worker_id' => $wid,
+        DB::transaction(function () use ($tipoMeta, $data, $fecha_inicio, $fecha_fin) {
+            $this->lockCompany();
+            $this->validateAssignments($data['users'], $fecha_inicio, $fecha_fin);
+            $meta = Meta::create([
+                'tenant_id' => TenantContext::tenantId(),
+                'company_id' => TenantContext::companyId(),
+                'tipo' => $tipoMeta,
+                'nombre' => $data['nombre'],
+                'monto' => $data['monto'],
+                'fecha_inicio' => $fecha_inicio,
+                'fecha_fin' => $fecha_fin,
             ]);
-        }
+            $meta->users()->sync($data['users']);
+        });
 
-        return redirect()->route('metas.index')
-            ->with('success', 'Meta actualizada correctamente.');
+        return redirect()->route(auth()->user()->can('list_metas') ? 'metas.index' : 'metas.create')->with('success', 'Meta creada correctamente.');
     }
 
-    public function progreso()
+    public function edit($meta)
     {
-        // Esta también luego
-        return view('metas.progreso');
+        app(MaterialParameters::class)->context();
+        $meta = Meta::forCurrentCompany()->findOrFail($meta);
+        $tipoMeta = $meta->tipo;
+        $users = $this->eligibleUsers()->orderBy('users.name')->get();
+        $selectedUserIds = $meta->users()->pluck('users.id')->all();
+        $assignedUsers = $meta->users()->get(['users.id', 'users.name']);
+        $users = $users->toBase()->merge($assignedUsers)->unique('id')->sortBy('name');
+
+        return view('metas.edit', compact('meta', 'tipoMeta', 'users', 'selectedUserIds'));
     }
 
-    public function destroy(Meta $meta)
+    public function update(Request $request, $meta)
     {
-        // aquí podrías borrar primero relaciones pivote, si no tienes cascade
-        $meta->workers()->detach();
-        $meta->delete();
+        app(MaterialParameters::class)->context();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'monto' => 'required|numeric|gt:0|max:99999999.99',
+            'users' => 'required|array|min:1',
+            'users.*' => 'integer|distinct',
+        ]);
+
+        DB::transaction(function () use ($meta, $data) {
+            $this->lockCompany();
+            $record = Meta::forCurrentCompany()->lockForUpdate()->findOrFail($meta);
+            $this->validateAssignments($data['users'], $record->fecha_inicio, $record->fecha_fin, $record);
+            $record->update(['nombre' => $data['nombre'], 'monto' => $data['monto']]);
+            $record->users()->sync($data['users']);
+        });
+
+        return redirect()->route(auth()->user()->can('list_metas') ? 'metas.index' : 'metas.edit', auth()->user()->can('list_metas') ? [] : [$meta])->with('success', 'Meta actualizada correctamente.');
+    }
+
+    public function destroy($meta)
+    {
+        app(MaterialParameters::class)->context();
+        DB::transaction(function () use ($meta) {
+            $this->lockCompany();
+            $record = Meta::forCurrentCompany()->findOrFail($meta);
+            $record->workers()->detach();
+            $record->delete();
+        });
 
         return response()->json(['ok' => true]);
     }
 
+    private function eligibleUsers()
+    {
+        return User::query()->where('users.tenant_id', TenantContext::tenantId())
+            ->where('users.enable', true)->where('users.is_platform_admin', false)
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')->from('company_user')
+                    ->whereColumn('company_user.user_id', 'users.id')
+                    ->where('company_user.company_id', TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            });
+    }
+
+    private function lockCompany(): void
+    {
+        DB::table('companies')->where('tenant_id', TenantContext::tenantId())
+            ->where('id', TenantContext::companyId())->lockForUpdate()->first();
+    }
+
+    private function validateAssignments(array $ids, $start, $end, Meta $meta = null): void
+    {
+        $existing = $meta ? $meta->users()->pluck('users.id')->all() : [];
+        $newIds = array_diff($ids, $existing);
+        if ($this->eligibleUsers()->whereIn('users.id', $newIds)->count() !== count($newIds)) {
+            throw ValidationException::withMessages(['users' => 'Seleccione usuarios habilitados en la empresa actual.']);
+        }
+
+        $conflicts = Meta::forCurrentCompany()->where('fecha_inicio', '<=', $end)->where('fecha_fin', '>=', $start)
+            ->whereHas('users', function ($query) use ($ids) {
+                $query->whereIn('users.id', $ids);
+            });
+        if ($meta) {
+            $conflicts->where('metas.id', '<>', $meta->id);
+        }
+        if ($conflicts->exists()) {
+            throw ValidationException::withMessages(['users' => 'Algún usuario ya tiene una meta en un período que se cruza con este.']);
+        }
+    }
+
     public function getWeeksByYearMonth(Request $request)
     {
+        app(MaterialParameters::class)->context();
         $year  = (int) $request->get('year');
         $month = (int) $request->get('month');
 
@@ -349,6 +299,7 @@ class MetaController extends Controller
 
     public function ranking()
     {
+        app(MaterialParameters::class)->context();
         $tipoValido = [
             'semanal',
             'quincenal',
@@ -389,6 +340,7 @@ class MetaController extends Controller
 
     public function getRankingData(Request $request)
     {
+        app(MaterialParameters::class)->context();
         $tipoMeta = app(SettingService::class)
             ->get('sales.goals.frequency');
 
@@ -406,8 +358,8 @@ class MetaController extends Controller
 
         // Validaciones básicas según tipo de meta
         $rules = [
-            'year'  => 'required|integer',
-            'month' => 'required|integer',
+            'year'  => 'required|integer|between:1900,9998',
+            'month' => 'required|integer|between:1,12',
         ];
 
         if ($tipoMeta === 'semanal') {
@@ -438,86 +390,16 @@ class MetaController extends Controller
             return response()->json([
                 'ok'    => false,
                 'error' => 'No se pudo calcular el rango de fechas.',
-            ], 500);
+            ], 422);
         }
 
         $fechaInicio = $range['start']; // Carbon
         $fechaFin    = $range['end'];   // Carbon
 
-        // 1) Buscar metas que tengan exactamente ese periodo
-        $metas = Meta::with('workers')
-            ->whereDate('fecha_inicio', $fechaInicio->format('Y-m-d'))
-            ->whereDate('fecha_fin', $fechaFin->format('Y-m-d'))
-            ->get();
-
-        if ($metas->isEmpty()) {
-            return response()->json([
-                'ok'     => true,
-                'data'   => [],
-                'period' => [
-                    'start' => $fechaInicio->format('d/m/Y'),
-                    'end'   => $fechaFin->format('d/m/Y'),
-                ],
-            ]);
-        }
-
-        // IMPORTANTE: asumimos que cada worker solo pertenece a una meta
-        $ranking = [];
-
-        $inicio = $fechaInicio->copy()->startOfDay();  // 2025-11-24 00:00:00
-        $fin    = $fechaFin->copy()->endOfDay();      // 2025-11-30 23:59:59
-
-        foreach ($metas as $meta) {
-            foreach ($meta->workers as $worker) {
-
-                // 2) Ventas del trabajador en ese rango
-                /*$ventasTotal = Sale::where('worker_id', $worker->id)
-                    ->whereBetween('date_sale', [
-                        $fechaInicio->format('Y-m-d'),
-                        $fechaFin->format('Y-m-d'),
-                    ])
-                    ->where('state_annulled', false)
-                    ->sum('importe_total');*/
-                $ventasTotal = Sale::where('worker_id', $worker->id)
-                    ->whereBetween('date_sale', [$inicio, $fin])
-                    ->where('state_annulled', false)
-                    ->sum('importe_total');
-
-                // Cálculo de % de cumplimiento
-                $metaMonto = (float) $meta->monto;
-                $porcentaje = $metaMonto > 0
-                    ? round(($ventasTotal / $metaMonto) * 100, 2)
-                    : 0;
-
-                $ranking[] = [
-                    'worker_id'       => $worker->id,
-                    'worker_name'     => trim($worker->first_name . ' ' . $worker->last_name),
-                    'meta_id'         => $meta->id,
-                    'meta_nombre'     => $meta->nombre,
-                    'meta_monto'      => round($metaMonto, 2),
-                    'ventas_total'    => round($ventasTotal, 2),
-                    'porcentaje'      => $porcentaje,
-                ];
-            }
-        }
-
-        // Ordenar de mayor a menor por ventas_total
-        usort($ranking, function ($a, $b) {
-            return $b['ventas_total'] <=> $a['ventas_total'];
-        });
-
-        // Agregar campo "puesto"
-        foreach ($ranking as $idx => &$row) {
-            $row['puesto'] = $idx + 1;
-        }
-
         return response()->json([
-            'ok'   => true,
-            'data' => $ranking,
-            'period' => [
-                'start' => $fechaInicio->format('d/m/Y'),
-                'end'   => $fechaFin->format('d/m/Y'),
-            ],
+            'ok' => true,
+            'data' => app(MetaProgress::class)->rows($tipoMeta, $fechaInicio, $fechaFin),
+            'period' => ['start' => $fechaInicio->format('d/m/Y'), 'end' => $fechaFin->format('d/m/Y')],
         ]);
     }
 }

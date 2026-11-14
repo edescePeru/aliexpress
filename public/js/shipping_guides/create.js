@@ -327,13 +327,18 @@
                             toastr.success(res.message || 'Guía creada');
                             window.location.href = window.routes.index;
                         }).fail(function (xhr) {
+                            const response = xhr.responseJSON || {};
+                            if (response.status === 'SENT' && response.data && response.data.id) {
+                                window.location.href = window.routes.index;
+                                return;
+                            }
                             if (xhr.status === 422) {
                                 var errs = (xhr.responseJSON && xhr.responseJSON.errors) ? xhr.responseJSON.errors : {};
                                 var msg = '';
                                 Object.keys(errs).forEach(function (k) {
                                     msg += (errs[k][0] || '') + '<br>';
                                 });
-                                toastr.error(msg || 'Validación fallida');
+                                toastr.error(msg || response.message || 'Validación fallida');
                             } else {
                                 var res = xhr.responseJSON || {};
                                 var msg2 = res.detail || res.message || 'Error inesperado';

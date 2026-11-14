@@ -22,6 +22,17 @@ final class NubefactCompanyConnection
     public function token(): string { return $this->token; }
     public function ruc(): string { return $this->ruc; }
 
+    public function greRemitterNumbering(): ?array
+    {
+        $series = $this->series['gre_remitente'] ?? '';
+        $firstNumber = $this->series['gre_remitente_numero_inicial'] ?? 0;
+        if (!preg_match('/\AT[A-Z0-9]{3}\z/', $series) || $firstNumber < 1 || $firstNumber > 99999999) {
+            return null;
+        }
+
+        return ['series' => $series, 'first_number' => $firstNumber];
+    }
+
     public function saleSeries(string $documentType): string
     {
         if (!in_array($documentType, ['01', '03'], true)) {

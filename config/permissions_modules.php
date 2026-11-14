@@ -116,5 +116,7 @@ return [
 
     'priceListMaterial' => 'LISTAS DE PRECIOS',
 
-    'workforce' => 'SERVICIOS PREDETERMINADOS'
+    'workforce' => 'SERVICIOS PREDETERMINADOS',
+
+    'kardex' => 'KARDEX'
 ];

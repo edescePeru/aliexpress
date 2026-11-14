@@ -8,26 +8,25 @@ use Illuminate\Support\Str;
 
 class NubefactGreService
 {
+    public const REMITTER_INDICATORS = [
+        'IndicadorRetornoVehiculoEnvaseVacio' => '04',
+        'IndicadorRetornoVehiculoVacio' => '05',
+        'IndicadorTrasladoVehiculoM1L' => '06',
+    ];
+
     /**
      * @param ShippingGuide $guide
      * @return array
      */
-    public function send(ShippingGuide $guide): array
+    public function send(ShippingGuide $guide, NubefactCompanyConnection $connection): array
     {
         $payload = $this->buildPayload($guide);
 
-        $url = config('services.nubefact.url');
-        $token = config('services.nubefact.token');
-
-        if (!$url || !$token) {
-            throw new \RuntimeException('Config Nubefact incompleta (NUBEFACT_URL / NUBEFACT_TOKEN).');
-        }
-
         $response = Http::withHeaders([
-            'Authorization' => 'Token token=' . $token,
+            'Authorization' => 'Token token=' . $connection->token(),
             'Content-Type'  => 'application/json',
             'Accept'        => 'application/json',
-        ])->timeout(30)->post($url, $payload);
+        ])->timeout(30)->post($connection->url(), $payload);
 
         if (!$response->ok()) {
             throw new \RuntimeException('Error HTTP Nubefact: ' . $response->status() . ' - ' . $response->body());
@@ -43,7 +42,7 @@ class NubefactGreService
      * @return array
      */
 
-    public function consult(string $serie, $numero, int $tipoDeComprobante): array
+    public function consult(string $serie, $numero, int $tipoDeComprobante, NubefactCompanyConnection $connection): array
     {
         $payload = [
             'operacion' => 'consultar_guia',
@@ -52,14 +51,11 @@ class NubefactGreService
             'numero' => (string)$numero,
         ];
 
-        $url = config('services.nubefact.url');
-        $token = config('services.nubefact.token');
-
         $response = Http::withHeaders([
-            'Authorization' => 'Token token=' . $token,
+            'Authorization' => 'Token token=' . $connection->token(),
             'Content-Type'  => 'application/json',
             'Accept'        => 'application/json',
-        ])->timeout(30)->post($url, $payload);
+        ])->timeout(30)->post($connection->url(), $payload);
 
         if (!$response->ok()) {
             throw new \RuntimeException('Error HTTP Nubefact (consultar): ' . $response->status() . ' - ' . $response->body());
@@ -132,7 +128,11 @@ class NubefactGreService
 
         // Indicador envío SUNAT (opcional)
         if (!empty($guide->sunat_shipping_indicator_code)) {
-            $payload['indicador_envio_sunat'] = $guide->sunat_shipping_indicator_code;
+            $code = self::REMITTER_INDICATORS[$guide->sunat_shipping_indicator_code] ?? null;
+            if ($code === null) {
+                throw new \InvalidArgumentException('El indicador SUNAT no está implementado para guías remitente.');
+            }
+            $payload['sunat_envio_indicador'] = $code;
         }
 
         // MTC (opcional)

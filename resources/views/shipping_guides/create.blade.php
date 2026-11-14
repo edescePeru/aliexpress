@@ -69,8 +69,14 @@
         <div class="card">
             <div class="card-body">
 
+                @if ($nextNum === null)
+                    <div class="alert alert-warning">Solicite a Platform Admin que revise la conexion y la numeracion de guias de esta empresa.</div>
+                @endif
                 <form id="frmGuide">
                     @csrf
+                <input type="hidden" name="gre_tenant" value="{{ \App\Support\TenantContext::tenantId() }}">
+                <input type="hidden" name="gre_company" value="{{ \App\Support\TenantContext::companyId() }}">
+                <input type="hidden" name="gre_branch" value="{{ \App\Support\TenantContext::branchId() }}">
 
                     {{-- Acordeón (solo 1 abierto) --}}
                     <div id="accordionGuide">
@@ -104,10 +110,10 @@
                                     <div class="col-md-2">
                                         <label class="required">Tipo doc</label>
                                         <select class="form-control" name="customer_doc_type" id="customer_doc_type">
-                                            <option value="6">RUC</option>
-                                            <option value="1">DNI</option>
-                                            <option value="4">CE</option>
-                                            <option value="7">PASAPORTE</option>
+                                            <option value="">Elegir</option>
+                                            @foreach ($recipientDocTypes as $documentType)
+                                                <option value="{{ $documentType->code }}">{{ $documentType->name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
 
@@ -135,12 +141,12 @@
 
                                     <div class="col-md-2">
                                         <label class="required">Serie</label>
-                                        <input type="text" class="form-control" name="serie" value="{{ $defaultSerie ?? 'TTT1' }}" readonly>
+                                        <input type="text" class="form-control" name="serie" value="{{ $defaultSerie }}" readonly>
                                     </div>
 
                                     <div class="col-md-2">
                                         <label>Número</label>
-                                        <input type="text" class="form-control" name="numero" placeholder="Auto/Editable" value="{{ $nextNum }}" readonly>
+                                        <input type="text" class="form-control" name="numero" placeholder="Correlativo referencial" value="{{ $nextNum }}" readonly>
                                     </div>
                                 </div>
 
@@ -159,8 +165,9 @@
                                         <label class="required">Tipo transporte</label>
                                         <select class="form-control" name="tipo_transporte" id="tipo_transporte">
                                             <option value="">Elegir</option>
-                                            <option value="01">01 - Público (Agencia)</option>
-                                            <option value="02">02 - Privado (Propio)</option>
+                                            @foreach ($transportTypes as $transportType)
+                                                <option value="{{ $transportType->code }}">{{ $transportType->code }} - {{ $transportType->name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
 
@@ -347,7 +354,11 @@
                                         <div class="col-md-2">
                                             <label class="required">Tipo doc</label>
                                             <select class="form-control" name="transportista_doc_type">
-                                                <option value="6">RUC</option>
+                                                @forelse ($carrierDocTypes as $documentType)
+                                                    <option value="{{ $documentType->code }}">{{ $documentType->name }}</option>
+                                                @empty
+                                                    <option value="">RUC no disponible</option>
+                                                @endforelse
                                             </select>
                                         </div>
 
@@ -514,7 +525,7 @@
                     </div>
 
                     <div class="mt-4 text-right">
-                        <button type="button" class="btn btn-success" id="btnSubmitGuide">
+                        <button type="button" class="btn btn-success" id="btnSubmitGuide" @if ($nextNum === null) disabled @endif>
                             <i class="fa fa-paper-plane"></i> Crear y enviar a SUNAT
                         </button>
                     </div>
@@ -596,14 +607,14 @@
         window.routes = {
             store: "{{ route('shipping_guides.store') }}",
             index: "{{ route('shipping_guides.view') }}",
-            customerPayload: "{{ route('customers.payload', ['customer' => ':id']) }}",
+            customerPayload: "{{ route('shipping_guides.customer_payload', ['id' => ':id']) }}",
             saleItems: "{{ route('shipping_guides.sale_items') }}",
             salesSelect2: "{{ route('sales.select2') }}",
             saleItemsById: "{{ url('dashboard/sales') }}/:id/items",
             ubigeoDepartments: "{{ route('ubigeo.departments.select2') }}",
             ubigeoProvinces: "{{ route('ubigeo.provinces.select2')}}",
             ubigeoDistricts: "{{ route('ubigeo.districts.select2')}}",
-            materialsSelect2: "{{ route('materials.select2') }}",
+            materialsSelect2: "{{ route('shipping_guides.products') }}",
         };
     </script>
     <script>

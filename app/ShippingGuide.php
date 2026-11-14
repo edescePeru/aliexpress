@@ -3,12 +3,14 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\TenantContext;
 
 class ShippingGuide extends Model
 {
     protected $table = 'shipping_guides';
 
     protected $fillable = [
+        'tenant_id', 'company_id', 'branch_id',
         'guide_type',
         'tipo_de_comprobante',
         'serie',
@@ -105,5 +107,13 @@ class ShippingGuide extends Model
     public function sunatIndicator()
     {
         return $this->belongsTo(SunatShippingIndicator::class, 'sunat_shipping_indicator_code', 'code');
+    }
+    public function scopeForCurrentLocal($query)
+    {
+        return $query->where([
+            'shipping_guides.tenant_id' => TenantContext::tenantId(),
+            'shipping_guides.company_id' => TenantContext::companyId(),
+            'shipping_guides.branch_id' => TenantContext::branchId(),
+        ]);
     }
 }

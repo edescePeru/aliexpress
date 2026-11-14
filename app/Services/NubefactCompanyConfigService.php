@@ -58,6 +58,8 @@ class NubefactCompanyConfigService
             'boleta' => trim((string) $config->serie_boleta),
             'nc_factura' => trim((string) $config->serie_nc_factura),
             'nc_boleta' => trim((string) $config->serie_nc_boleta),
+            'gre_remitente' => (string) $config->serie_gre_remitente,
+            'gre_remitente_numero_inicial' => (int) $config->gre_remitente_numero_inicial,
         ];
         foreach (['factura' => 'F', 'boleta' => 'B', 'nc_factura' => 'F', 'nc_boleta' => 'B'] as $key => $prefix) {
             if ($series[$key] === '' && strpos($key, 'nc_') === 0) {

@@ -108,11 +108,13 @@ class MetaCalendarHelper
             $weekNumber = $data['week'];
 
             $start = DateDimension::where('year', $y)
+                ->where('month', $m)
                 ->where('week_of_year', $weekNumber)
                 ->orderBy('date')
                 ->first();
 
             $end = DateDimension::where('year', $y)
+                ->where('month', $m)
                 ->where('week_of_year', $weekNumber)
                 ->orderByDesc('date')
                 ->first();

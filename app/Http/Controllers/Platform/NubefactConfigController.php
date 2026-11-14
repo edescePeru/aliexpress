@@ -54,7 +54,7 @@ class NubefactConfigController extends Controller
             ->where('id', $companyId)->firstOrFail();
         $validator = Validator::make($request->only([
             'api_url', 'api_token', 'is_enabled', 'serie_factura', 'serie_boleta',
-            'serie_nc_factura', 'serie_nc_boleta', 'version',
+            'serie_nc_factura', 'serie_nc_boleta', 'version', 'serie_gre_remitente', 'gre_remitente_numero_inicial',
         ]), [
             'api_url' => ['required', 'string', 'max:2048', 'url'],
             'api_token' => ['nullable', 'string', 'max:4096'],
@@ -63,6 +63,8 @@ class NubefactConfigController extends Controller
             'serie_boleta' => ['required', 'regex:/^B[A-Z0-9]{3}$/'],
             'serie_nc_factura' => ['nullable', 'regex:/^F[A-Z0-9]{3}$/'],
             'serie_nc_boleta' => ['nullable', 'regex:/^B[A-Z0-9]{3}$/'],
+            'serie_gre_remitente' => ['nullable', 'required_with:gre_remitente_numero_inicial', 'regex:/\AT[A-Z0-9]{3}\z/'],
+            'gre_remitente_numero_inicial' => ['nullable', 'required_with:serie_gre_remitente', 'integer', 'between:1,99999999'],
             'version' => ['nullable', 'string', 'max:40'],
         ]);
         $validator->after(function ($validator) use ($request) {
@@ -128,6 +130,8 @@ class NubefactConfigController extends Controller
                     'serie_factura' => $data['serie_factura'], 'serie_boleta' => $data['serie_boleta'],
                     'serie_nc_factura' => $data['serie_nc_factura'] ?? null,
                     'serie_nc_boleta' => $data['serie_nc_boleta'] ?? null,
+                    'serie_gre_remitente' => $data['serie_gre_remitente'] ?? null,
+                    'gre_remitente_numero_inicial' => $data['gre_remitente_numero_inicial'] ?? null,
                 ]);
                 if ($newToken !== '') {
                     $config->api_token = $newToken;
@@ -158,7 +162,7 @@ class NubefactConfigController extends Controller
     private function safeInput(Request $request): array
     {
         return $request->only(['api_url', 'is_enabled', 'serie_factura', 'serie_boleta',
-            'serie_nc_factura', 'serie_nc_boleta', 'version']);
+            'serie_nc_factura', 'serie_nc_boleta', 'version', 'serie_gre_remitente', 'gre_remitente_numero_inicial']);
     }
 
     private function auditValues(CompanyNubefactConfig $config): array
@@ -166,6 +170,8 @@ class NubefactConfigController extends Controller
         return ['ruc' => $config->ruc, 'is_enabled' => (bool) $config->is_enabled,
             'api_host' => parse_url($config->api_url, PHP_URL_HOST),
             'serie_factura' => $config->serie_factura, 'serie_boleta' => $config->serie_boleta,
-            'serie_nc_factura' => $config->serie_nc_factura, 'serie_nc_boleta' => $config->serie_nc_boleta];
+            'serie_nc_factura' => $config->serie_nc_factura, 'serie_nc_boleta' => $config->serie_nc_boleta,
+            'serie_gre_remitente' => $config->serie_gre_remitente,
+            'gre_remitente_numero_inicial' => $config->gre_remitente_numero_inicial];
     }
 }
