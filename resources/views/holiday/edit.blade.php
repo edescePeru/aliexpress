@@ -29,21 +29,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Feriado: {{ $holiday->code }}</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · RRHH</span><h1 class="page-title">Feriados</h1><p class="next-page-description">Catálogo laboral compartido.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Modificar Feriado</h5>
-    <a href="{{ route('holiday.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Feriados</a>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Editar registro</strong><span>Datos del catálogo laboral.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('holiday.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -62,41 +53,43 @@
     <form id="formCreate" class="form-horizontal" data-url="{{ route('holiday.update') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="holiday_id" value="{{ $holiday->id }}">
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="description">Descripción <span class="right badge badge-danger">(*)</span></label>
+        <section class="next-form-section"><div class="row">
+            <div class="col-xl-6 form-group">
+                <label for="description">Descripción <span class="next-required">(*)</span></label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="far fa-keyboard"></i></span>
                     </div>
-                    <input id="description" type="text" class="form-control" name="description" value="{{ $holiday->description }}">
+                    <input id="description" type="text" class="form-control" name="description" value="{{ old('description', $holiday->description) }}">
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <label for="date_complete">Fecha <span class="right badge badge-danger">(*)</span></label>
+            <div class="col-sm-8 col-xl-4 form-group">
+                <label for="date_complete">Fecha <span class="next-required">(*)</span></label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
                     </div>
-                    <input type="text" id="date_complete" name="date_complete" class="form-control" value="{{ ($holiday->date_complete == null) ? '': $holiday->date_complete->format('d/m/Y') }}" data-inputmask-alias="datetime" data-inputmask-inputformat="dd/mm/yyyy" data-mask>
+                    <input type="text" id="date_complete" name="date_complete" class="form-control" value="{{ old('date_complete', ($holiday->date_complete == null) ? '': $holiday->date_complete->format('d/m/Y')) }}" data-inputmask-alias="datetime" data-inputmask-inputformat="dd/mm/yyyy" data-mask>
                 </div>
             </div>
-            <div class="col-md-2">
-                <label for="year">Año <span class="right badge badge-danger">(*)</span></label>
+            <div class="col-sm-4 col-xl-2 form-group">
+                <label for="year">Año <span class="next-required">(*)</span></label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
                     </div>
-                    <input id="year" type="text" class="form-control" name="year" value="{{ $holiday->year }}">
+                    <input id="year" type="text" class="form-control" name="year" value="{{ old('year', $holiday->year) }}">
                 </div>
             </div>
 
         </div>
 
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+        </section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
+            <button type="button" id="btn-submit" class="btn btn-primary">Guardar</button>
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
+        </div>
         </div>
         <!-- /.card-footer -->
     </form>

@@ -29,21 +29,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Nueva razón de suspensión</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · RRHH</span><h1 class="page-title">Motivos de suspensión</h1><p class="next-page-description">Catálogo laboral compartido.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nueva razón de suspensión</h5>
-    <a href="{{ route('reasonSuspension.index') }}" class="btn btn-outline-primary btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de razones de suspensión</a>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Nuevo registro</strong><span>Datos del catálogo laboral.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('reasonSuspension.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -62,30 +53,32 @@
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('reasonSuspension.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
+        <section class="next-form-section"><div class="row">
 
-            <div class="col-md-6">
+            <div class="col-md-6 form-group">
                 <label for="reason">Razón de Suspensión </label>
 
-                <textarea name="reason" id="reason" class="form-control"></textarea>
+                <textarea name="reason" id="reason" class="form-control">{{ old('reason', '') }}</textarea>
 
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6 form-group">
                 <label for="days">Días de Suspensión</label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="fas fa-sort-numeric-up"></i></span>
                     </div>
-                    <input type="number" name="days" id="days" class="form-control" min="1" value="1" step="1">
+                    <input type="number" name="days" id="days" class="form-control" min="1" value="{{ old('days', '1') }}" step="1">
                 </div>
             </div>
 
         </div>
 
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+        </section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
+            <button type="button" id="btn-submit" class="btn btn-primary">Guardar</button>
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
+        </div>
         </div>
         <!-- /.card-footer -->
     </form>
