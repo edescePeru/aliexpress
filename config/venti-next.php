@@ -17,6 +17,10 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'priceList.index',
+        'warrant.index',
+        'warrant.create',
+        'warrant.edit',
         // RRHH basic maintainers: explicit view routes only.
         'workFunctions.index',
         'workFunctions.create',

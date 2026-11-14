@@ -21,7 +21,7 @@
 @endsection
 
 @section('title')
-    Genero
+    Cédulas
 @endsection
 
 @section('styles-plugins')
@@ -33,21 +33,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Materiales</span><h1 class="page-title">Cédulas</h1><p class="next-page-description">Catálogo compartido de cédulas de material.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de Géneros</h5>
-    @can('create_warrant')
-    <a href="{{ route('genero.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo género </a>
-    @endcan
-    <button id="delete-selected" class="btn btn-danger btn-sm float-right">Eliminar seleccionados</button>
-
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado de cédulas</strong><span>Nombre y descripción de la cédula.</span></div><div class="next-toolbar-actions flex-wrap">@can('create_warrant')<a href="{{ route('warrant.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nueva cédula</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -56,7 +47,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('genero.index') }}"><i class="fa fa-key"></i> Géneros</a>
+            <a href="{{ route('warrant.index') }}"><i class="fa fa-key"></i> Cédulas</a>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Listado</li>
     </ol>
@@ -65,11 +56,11 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm" id="dynamic-table">
             <thead>
             <tr>
-                <th><input type="checkbox" id="select-all"></th>
+                <th>ID</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
                 <th>Acciones</th>
@@ -81,14 +72,14 @@
         </table>
     </div>
     @can('destroy_warrant')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <form id="formDelete" data-url="{{ route('genero.destroy') }}">
+                <form id="formDelete" data-url="{{ route('warrant.destroy') }}">
                     @csrf
                     <div class="modal-body">
                         <input type="hidden" id="warrant_id" name="warrant_id">
