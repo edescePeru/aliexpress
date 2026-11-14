@@ -18,13 +18,16 @@
 
 @endsection
 
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas · Metas</span><h1 class="page-title">Crear meta</h1><p class="next-page-description">Objetivos por usuario de la empresa · Todas las sucursales · PEN.</p></div>
+@endsection
+@section('page-title')
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Crear meta</strong><span>Metas comerciales de la empresa activa.</span></div></div>
+@endsection
+
 @section('content')
-    <div class="container-fluid">
-        <div class="row mb-3">
-            <div class="col">
-                <h4>Crear Meta (Tipo: {{ ucfirst($tipoMeta) }})</h4>
-            </div>
-        </div>
+    <div class="next-operational-list">
+
 
         @if(session('error'))
             <div class="alert alert-danger">{{ session('error') }}</div>
@@ -34,11 +37,11 @@
             @csrf
 
             {{-- Tipo de meta fijo --}}
-            <div class="card mb-3">
-                <div class="card-header">
+            <div class="next-form-section">
+                <div class="next-section-header">
                     Tipo de Meta
                 </div>
-                <div class="card-body">
+                <div class="p-0">
                     <p class="mb-0">
                         Todas las metas actuales se configurarán como:
                         <strong>{{ strtoupper($tipoMeta) }}</strong>
@@ -47,15 +50,15 @@
             </div>
 
             {{-- Rango de fechas (año / mes / semana o quincena) --}}
-            <div class="card mb-3">
-                <div class="card-header">
+            <div class="next-form-section">
+                <div class="next-section-header">
                     Periodo de la Meta
                 </div>
-                <div class="card-body">
+                <div class="p-0">
                     <div class="form-row">
                         {{-- Año --}}
                         <div class="form-group col-md-4">
-                            <label>Año <span class="text-danger">*</span></label>
+                            <label for="year">Año <span class="text-danger">*</span></label>
                             <select name="year" id="year" class="form-control">
                                 <option value="">Seleccione año</option>
                             </select>
@@ -64,7 +67,7 @@
 
                         {{-- Mes --}}
                         <div class="form-group col-md-4">
-                            <label>Mes <span class="text-danger">*</span></label>
+                            <label for="month">Mes <span class="text-danger">*</span></label>
                             <select name="month" id="month" class="form-control" disabled>
                                 <option value="">Seleccione mes</option>
                             </select>
@@ -74,7 +77,7 @@
                         {{-- Semana / Quincena según tipo --}}
                         @if($tipoMeta === 'semanal')
                             <div class="form-group col-md-4">
-                                <label>Semana <span class="text-danger">*</span></label>
+                                <label for="week">Semana <span class="text-danger">*</span></label>
                                 <select name="week" id="week" class="form-control" disabled>
                                     <option value="">Seleccione semana</option>
                                 </select>
@@ -82,7 +85,7 @@
                             </div>
                         @elseif($tipoMeta === 'quincenal')
                             <div class="form-group col-md-4">
-                                <label>Quincena <span class="text-danger">*</span></label>
+                                <label for="quincena">Quincena <span class="text-danger">*</span></label>
                                 <select name="quincena" id="quincena" class="form-control" disabled>
                                     <option value="">Seleccione quincena</option>
                                     <option value="1">Primera quincena (1–15)</option>
@@ -96,22 +99,22 @@
             </div>
 
             {{-- Datos de la Meta --}}
-            <div class="card mb-3">
-                <div class="card-header">
+            <div class="next-form-section">
+                <div class="next-section-header">
                     Datos de la Meta
                 </div>
-                <div class="card-body">
+                <div class="p-0">
                     <div class="form-row">
                         <div class="form-group col-md-6">
-                            <label>Nombre de la meta <span class="text-danger">*</span></label>
-                            <input type="text" name="nombre" class="form-control"
+                            <label for="meta-nombre">Nombre de la meta <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre" id="meta-nombre" class="form-control"
                                    value="{{ old('nombre') }}">
                             @error('nombre')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
 
                         <div class="form-group col-md-4">
-                            <label>Monto objetivo (S/.) <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" name="monto" class="form-control"
+                            <label for="meta-monto">Monto objetivo (S/.) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" name="monto" id="meta-monto" class="form-control"
                                    value="{{ old('monto') }}">
                             @error('monto')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
@@ -120,14 +123,14 @@
             </div>
 
             {{-- Usuarios --}}
-            <div class="card mb-3">
-                <div class="card-header">
+            <div class="next-form-section">
+                <div class="next-section-header">
                     Usuarios asignados a la Meta
                 </div>
-                <div class="card-body">
+                <div class="p-0">
                     <div class="form-row align-items-end">
                         <div class="form-group col-md-6">
-                            <label>Seleccionar usuario</label>
+                            <label for="worker-select">Seleccionar usuario</label>
                             <select id="worker-select" class="form-control select2">
                                 <option value="">Buscar usuario...</option>
                                 @foreach($users as $w)
@@ -145,7 +148,7 @@
                         </div>
 
                         <div class="form-group col-md-3">
-                            <button type="button" id="btn-add-all-workers" class="btn btn-secondary btn-block">
+                            <button type="button" id="btn-add-all-workers" class="btn btn-outline-secondary btn-block">
                                 Asignar todos
                             </button>
                         </div>
@@ -165,12 +168,14 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-success">
+            <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
+            <button type="submit" class="btn btn-primary">
                 Guardar Meta
             </button>
-            <a href="{{ route('metas.index') }}" class="btn btn-secondary">
+            <a href="{{ route('metas.index') }}" class="btn btn-outline-secondary">
                 Cancelar
             </a>
+            </div></div>
         </form>
     </div>
 @endsection

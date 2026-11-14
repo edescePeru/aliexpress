@@ -40,14 +40,17 @@
     </style>
 @endsection
 
-@section('content')
-    <div class="container-fluid">
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas · Metas</span><h1 class="page-title">Ranking de metas</h1><p class="next-page-description">Objetivos por usuario de la empresa · Todas las sucursales · PEN.</p></div>
+@endsection
+@section('page-title')
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Ranking de metas</strong><span>Metas comerciales de la empresa activa.</span></div></div>
+@endsection
 
-        <div class="row mb-3">
-            <div class="col">
-                <h4>Ranking de Cumplimiento de Metas</h4>
-            </div>
-        </div>
+@section('content')
+    <div class="next-operational-list">
+
+
 
         @if(!$tipoMetaValida)
             <div class="alert alert-warning">
@@ -58,15 +61,15 @@
         @endif
 
         {{-- Filtros de periodo --}}
-        <div class="card mb-3">
-            <div class="card-header">
+        <div class="next-form-section">
+            <div class="next-section-header">
                 Ventas en soles · Período de análisis (Tipo: {{ strtoupper($tipoMeta) }})
             </div>
-            <div class="card-body">
+            <div class="p-0">
                 <div class="form-row">
                     {{-- Año --}}
                     <div class="form-group col-md-4">
-                        <label>Año <span class="text-danger">*</span></label>
+                        <label for="rank-year">Año <span class="text-danger">*</span></label>
                         <select id="rank-year" class="form-control">
                             <option value="">Seleccione año</option>
                         </select>
@@ -74,7 +77,7 @@
 
                     {{-- Mes --}}
                     <div class="form-group col-md-4">
-                        <label>Mes <span class="text-danger">*</span></label>
+                        <label for="rank-month">Mes <span class="text-danger">*</span></label>
                         <select id="rank-month" class="form-control" disabled>
                             <option value="">Seleccione mes</option>
                         </select>
@@ -83,14 +86,14 @@
                     {{-- Semana / Quincena --}}
                     @if($tipoMeta === 'semanal')
                         <div class="form-group col-md-4">
-                            <label>Semana <span class="text-danger">*</span></label>
+                            <label for="rank-week">Semana <span class="text-danger">*</span></label>
                             <select id="rank-week" class="form-control" disabled>
                                 <option value="">Seleccione semana</option>
                             </select>
                         </div>
                     @elseif($tipoMeta === 'quincenal')
                         <div class="form-group col-md-4">
-                            <label>Quincena <span class="text-danger">*</span></label>
+                            <label for="rank-quincena">Quincena <span class="text-danger">*</span></label>
                             <select id="rank-quincena" class="form-control" disabled>
                                 <option value="">Seleccione quincena</option>
                                 <option value="1">Primera quincena (1–15)</option>
@@ -107,23 +110,23 @@
         </div>
 
         {{-- Tabla de ranking --}}
-        <div class="card">
-            <div class="card-header">
+        <div class="next-form-section">
+            <div class="next-section-header">
                 Resultado
             </div>
-            <div class="card-body">
+            <div class="p-0">
                 <div id="rank-period-text" class="mb-2 text-muted" style="display:none;"></div>
 
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered table-striped" id="ranking-table">
                         <thead class="thead-light">
                         <tr>
-                            <th>Puesto</th>
+                            <th class="text-center">Puesto</th>
                             <th>Usuario</th>
                             <th>Meta</th>
-                            <th>Monto Meta (S/.)</th>
-                            <th>Ventas (S/.)</th>
-                            <th>% Cumplimiento</th>
+                            <th class="text-right">Monto Meta (S/.)</th>
+                            <th class="text-right">Ventas (S/.)</th>
+                            <th class="text-right">% Cumplimiento</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -285,11 +288,11 @@
 
                         const tr = `
                             <tr>
-                                <td>${row.puesto}</td>
+                                <td class="text-center">${row.puesto}</td>
                                 <td>${$('<div>').text(row.user_name).html()}</td>
                                 <td>${$('<div>').text(row.meta_nombre).html()}</td>
-                                <td>S/ ${parseFloat(row.meta_monto).toFixed(2)}</td>
-                                <td>S/ ${parseFloat(row.ventas_total).toFixed(2)}</td>
+                                <td class="text-right">S/ ${parseFloat(row.meta_monto).toFixed(2)}</td>
+                                <td class="text-right">S/ ${parseFloat(row.ventas_total).toFixed(2)}</td>
                                 <td>
                                     <div class="meta-progress">
                                         <div class="meta-progress-fill"

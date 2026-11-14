@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**74 registros:** 24 BUG / FALLA (20 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**76 registros:** 26 BUG / FALLA (22 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -335,3 +335,31 @@ Sólo SERVICE-03 incrementa inventario (+1). Show/edit/Lost escriben Audit duran
 GENERAL-01: getAllOutputsRequestsV2 página1, T1/C1,T1/C2,T3/C3 devuelve data[],totalPages0,startRecord1,endRecord0. Dataset actual íntegramente confirmed queda excluido por filtro de pendientes. Mismo root cause de rango vacío; ampliar finding sin contar otro.
 
 GET con Audit::create en lista legacy/área/detalles/create por orden: escritura auxiliar, no equivale automáticamente a exploit; no se invocaron ni se certificaron read-only. Ver REAL-NEXT-OUTPUTS.md. Frontend/backend/allowlist sin cambios.
+
+
+## Addendum — Warehouses (2026-11-13)
+
+Maestro legacy por área excluido: misma frontera company/warehouse ya registrada en INV-01; AreaController comparte esa deuda. No duplicar inventario/MaterialInventoryScope. ManagedWarehouseService sí valida tenant, company explícita y branch; su UI en Empresa/Sucursal se integra sin backend nuevo. No se ejecutaron mutaciones.
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| WAREHOUSE-01 | Warehouse legacy | Alta omite company_id obligatorio | BUG / FALLA | MEDIUM / P2 | OPEN | store crea name/comment/area_id; BelongsToTenant sólo asigna tenant. SHOW COLUMNS confirma company_id NOT NULL sin default. Alinear alta con company autorizada o retirar camino legacy. Evidencia estática+schema, no POST; managed sí asigna company. |
+| WAREHOUSE-02 | Warehouse managed/legacy | Límite validado255 excede VARCHAR191 real | BUG / FALLA | MEDIUM / P2 | OPEN | name/comment max255 en ManagedWarehouseController y requests legacy; maxlength255 managed; schema local ambos VARCHAR191. Alinear validación/esquema. No se enviaron valores límite ni se cambió contrato frontend. |
+
+Dataset:7 warehouses; T1 C1=[1,8,9], C2=[2], C5=[7]; T3 C3=[4]; T4 C4=[6]. Lecturas managed separadas y rechazo cross-tenant/branch ajena; legacy T1 conserva[1,2,7,8,9] al cambiar company. Delete físico sin política controller de stock/historia: BUSINESS/BACKEND DESIGN bajo INV-01; no se ejecutó. Ver REAL-NEXT-WAREHOUSES.md.
+
+
+## Addendum — Metas: delta DEV 4567897 (2026-11-13)
+
+**METRIC-01 — PARCIALMENTE ATENDIDO EN CÓDIGO; QA METAS BLOQUEADO POR SCHEMA LOCAL.** Meta::forCurrentCompany fail-closed T/C; MetaController guard de membresía activa y permisos de acciones/JSON; User elegible T/C en lugar de Worker. MetaProgress agrega sales.created_by del mismo T/C, sólo PEN, excluye anuladas/reversed; company-wide deliberado. Dashboard reutiliza ese servicio para su widget. No cerrar Financial Summary ni otros indicadores de METRIC-01.
+
+Migrate:status: migración 2026_11_13_000001_add_company_context_and_users_to_metas **No**. Columnas T/C y meta_users ausentes; metas=0/meta_workers=0. Query nueva falla1054 en C1/B1, C1/B8, C2, C5 y Gamarra. No es evidencia de fuga del código nuevo ni razón para ejecutar migración sin autorización. QA negativo/positivo y de roles queda pendiente. Estado actual **BACKEND SYNC REQUIRED — LOCAL SCHEMA PENDING**; frontend no integrado. Véase REAL-NEXT-GOALS.md.
+
+Sin finding duplicado ni cambio de conteos. Evidencia adicional al problema de límites validación/esquema WAREHOUSE-02: Meta.nombre max255 vs VARCHAR191 local; revisar coherencia, sin escritura de prueba. docs/flujos/metas-contexto.md conserva texto de progreso pendiente contradicho por MetaProgress y ranking-metas-usuario.md; sincronizar documentación DEV. Backend intacto.
+
+
+## Addendum — Metas post-migración / frontend (2026-11-13)
+
+**METRIC-01 / GOALS — FIXED IN BACKEND + QA PASSED** para contrato company-wide por usuario/PEN. Migración aplicada batch167, índice y FKs meta_users confirmados. Cinco contextos reales ahora [] sin1054; metas/meta_users vacíos no bloquean frontend. GoalContextContractTest SQLite privado:6tests/62assertions (scope, IDs, candidatos/asignaciones,150PEN/75%, exclusiones,periodos,ranking,rutas/middleware). Gate controlado, no roles reales modificados; no QA global del Dashboard ni mutaciones comerciales.
+
+Integradas metas.index/create/edit/ranking; responsive ocho anchos PASS, edit con Blade real+fixture aislado. **METRIC-01 general permanece OPEN para Resumen financiero y otros agregados Dashboard**. No sumar finding ni cerrar root completo. MUTATION QA PENDING; nombre max255/schema191 y eventual conversión USD no cerrados. Ver REAL-NEXT-GOALS.md. Backend unchanged, CSS0, sin commit.
