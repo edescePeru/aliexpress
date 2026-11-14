@@ -12,9 +12,7 @@
     active
 @endsection
 
-@section('title')
-    Categoria de Equipos
-@endsection
+@section('title', 'Categorías de equipos')
 
 @section('styles-plugins')
     <!-- Datatables -->
@@ -26,33 +24,15 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/typehead/typeahead.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        #suggestions-container {
-            position: relative;
-            width: 100%;
-            max-height: 150px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
-    <h1 class="page-title">Categoria de Equipos</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración auxiliar de cotización</span><h1 class="page-title">Categorías de equipos</h1><p class="next-page-description">Clasificación del catálogo de equipos.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de categorias de equipos</h5>
-    @can('createCategory_defaultEquipment')
-        <button type="button"  class="btn btn-outline-success btn-sm float-right" data-toggle="modal" data-target="#createModal" id="btn-createModal"> <i class="fa fa-plus font-20"></i> Nueva Categoria </button>
-    @endcan
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Catálogo de categorías</strong><span>Descripción e imagen.</span></div><div class="next-toolbar-actions flex-wrap">@can('eliminatedCategory_defaultEquipment')<a class="btn btn-outline-secondary btn-sm" href="{{ route('categoryEquipment.eliminated') }}">Eliminadas</a>@endcan
+ @can('createCategory_defaultEquipment')<button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createModal" id="btn-createModal"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva categoría</button>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -69,73 +49,18 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    <form action="#">
-        <div class="card card-primary mb-3">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="form-group">
-                            <input type="text" placeholder="Nombre de la categoría del equipo" id="inputNameCategoryEquipment" class="form-control rounded-0 typeahead categoryTypeahead">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <button type="button" id="btn-search" class="btn btn-primary btn-block">Buscar</button>
-                    </div>
-
-                </div>
-                <div id="suggestions-container" class="col-md-8 suggestions-container"></div>
-            </div>
-        </div>
-    </form>
-
-    <div class="d-flex flex-wrap align-items-center mb-4">
-        <h5 class="fw-bold me-5 my-1"><span id="numberItems"></span> Categorías de Equipo encontradas</h5>
+    <div class="next-operational-list">
+        <div class="next-list-toolbar"><div class="w-100">
+            <div class="form-row"><div class="col"><input type="text" aria-label="Buscar categoría" placeholder="Nombre de la categoría del equipo" id="inputNameCategoryEquipment" name="search" class="form-control typeahead categoryTypeahead"></div><div class="col-auto"><button type="button" id="btn-search" class="btn btn-primary">Buscar</button></div></div>
+            <div id="suggestions-container" class="list-group suggestions-container"></div>
+        </div></div>
+        <div class="next-list-summary"><strong><span id="numberItems">0</span> categorías</strong><span>Catálogo global legacy</span></div>
+        <div class="table-responsive" tabindex="0" aria-label="Categorías de equipos; desplazamiento horizontal"><table class="table table-bordered table-hover table-sm"><thead><tr><th>Descripción</th><th class="text-center">Imagen</th><th class="text-center">Equipos</th><th class="text-center">Acciones</th></tr></thead><tbody id="body-card"><tr><td colspan="4" class="text-center py-4">Cargando categorías…</td></tr></tbody></table></div>
+        <div class="next-list-toolbar d-flex flex-wrap justify-content-between align-items-center"><div id="textPagination" class="text-muted small"></div><ul class="pagination pagination-sm mb-0 flex-wrap" id="pagination"></ul></div>
     </div>
-
-    <div class="">
-        <div class="row" id="body-card"></div>
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <ul class="pagination" id="pagination"></ul>
-        </div>
-    </div>
-
-
-
-    <template id="item-card">
-        <div class="col-12 col-sm-6 col-md-3 d-flex align-items-stretch">
-            <div class="card bg-light">
-                <div class="card-body pt-3">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="hidden" data-id></div>
-                            <h2 class="lead text-center"><b data-description></b></h2>
-                            <ul class="ml-4 mb-0 fa-ul text-muted">
-                                <li class="small"><span class="fa-li"><i class="fas fa-wrench"></i></span>Numero de Equipos: <span data-number></span></li>
-                            </ul>
-                        </div>
-                        <div class="col-md-8 offset-2 text-center mt-3">
-                            <img data-image src="" alt="" class="img-circle img-fluidcpt-3">
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="text-center">
-                        <a data-equip href="#" class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-wrench"></i> Equipos
-                        </a>
-                        <a data-edit="" data-description="" data-image=""  href="#" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#editModal">
-                            <i class="fas fa-edit"></i> Editar
-                        </a>
-                        <a data-delete="" data-description="" data-image="" href="#" class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteModal">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
-
+    <template id="item-card"><tr data-id><td data-description></td><td class="text-center"><img data-image src="" alt="Imagen de categoría" width="48" class="img-fluid"></td><td data-number class="text-center"></td><td class="text-center"><div class="next-toolbar-actions flex-wrap justify-content-center"><a data-equip href="#" class="btn btn-sm btn-outline-secondary">Equipos</a>
+ @can('editCategory_defaultEquipment')<button type="button" data-edit="" data-description="" data-image="" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#editModal">Editar</button>@endcan
+ @can('destroyCategory_defaultEquipment')<button type="button" data-delete="" data-description="" data-image="" class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteModal">Eliminar</button>@endcan</div></td></tr></template>
 
     <template id="previous-page">
         <li class="page-item previous">
@@ -165,7 +90,7 @@
         </li>
     </template>
     @can('destroyCategory_defaultEquipment')
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal next-aux-modal-form" id="deleteModal" data-url="{{ route('categoryEquipment.destroy', ['id' => '__ID__']) }}" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -174,7 +99,7 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body next-form-section">
                     <p>¿Estás seguro de que quieres eliminar esta categoría?</p>
                 </div>
                 <div class="modal-footer">
@@ -186,7 +111,7 @@
     </div>
     @endcan
     @can('editCategory_defaultEquipment')
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal next-aux-modal-form" id="editModal" data-url="{{ route('categoryEquipment.update', ['categoryEquipment' => '__ID__']) }}" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -195,7 +120,7 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body next-form-section">
                     <form id="editCategoryForm"  enctype="multipart/form-data">
                             @csrf
                         <input type="hidden" name="categoryEquipment_id" id="categoryEquipment_id">
@@ -203,8 +128,8 @@
                             <label for="editDescription">Descripción<span class="right badge badge-danger">(*)</span></label>
                             <input type="text" id="editDescription" class="form-control" placeholder="Nueva descripción">
                         </div>
-                        <div class="col-md-12">
-                            <label for="editImage">Archivo IMG/PDF </label>
+                        <div class="form-group">
+                            <label for="editImage">Imagen </label>
                             <div class="input-group">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text"><i class="far fa-file-archive"></i></span>
@@ -213,7 +138,7 @@
                             </div>
                             <label id="selectedFileNameLabel"></label>
                         </div>
-                        <img id="editImagePreview" src="" alt="Vista previa de la imagen">
+                        <img class="img-fluid" id="editImagePreview" src="" alt="Vista previa de la imagen">
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -226,7 +151,7 @@
     @endcan
 
     @can('createCategory_defaultEquipment')
-    <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal next-aux-modal-form" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -237,7 +162,7 @@
                 </div>
                 <form id="formCreate" class="form-horizontal" data-url="{{ route('categoryEquipment.store') }}" enctype="multipart/form-data">
                     @csrf
-                <div class="modal-body">
+                <div class="modal-body next-form-section">
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Descripción<span class="text-danger">*</span></label>

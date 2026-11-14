@@ -12,9 +12,7 @@
     active
 @endsection
 
-@section('title')
-    Categoria de Equipos Eliminados
-@endsection
+@section('title', 'Categorías de equipos eliminadas')
 
 @section('styles-plugins')
     <!-- Datatables -->
@@ -25,19 +23,13 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
+
 @section('page-header')
-    <h1 class="page-title">Categoria de Equipos Eliminados</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración auxiliar de cotización</span><h1 class="page-title">Categorías de equipos eliminadas</h1><p class="next-page-description">Clasificación del catálogo de equipos.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de categorias de equipos eliminados</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Catálogo de categorías</strong><span>Descripción e imagen.</span></div><div class="next-toolbar-actions flex-wrap">@can('listCategory_defaultEquipment')<a class="btn btn-outline-secondary btn-sm" href="{{ route('categoryEquipment.index') }}">Volver al listado</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -54,66 +46,16 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    <form action="#">
-        <div class="card card-primary mb-3">
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-search"></i>
-                        </span>
-                            <input type="text" class="form-control" id="inputNameCategoryEquipment" name="search" value="" placeholder="Nombre de la categoría del equipo">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <button type="button" id="btn-search" class="btn btn-primary btn-block">Buscar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
+    <div class="next-operational-list">
+        <div class="next-list-toolbar"><div class="w-100">
+            <div class="input-group"><input type="text" aria-label="Buscar categoría" placeholder="Nombre de la categoría del equipo" id="inputNameCategoryEquipment" name="search" class="form-control "><div class="input-group-append"><button type="button" id="btn-search" class="btn btn-primary">Buscar</button></div></div>
 
-    <div class="d-flex flex-wrap align-items-center mb-4">
-        <h5 class="fw-bold me-5 my-1"><span id="numberItems"></span> Categorías de Equipos eliminados encontrados</h5>
+        </div></div>
+        <div class="next-list-summary"><strong><span id="numberItems">0</span> categorías</strong><span>Eliminadas</span></div>
+        <div class="table-responsive" tabindex="0" aria-label="Categorías de equipos; desplazamiento horizontal"><table class="table table-bordered table-hover table-sm"><thead><tr><th>Descripción</th><th class="text-center">Imagen</th><th class="text-center">Equipos</th><th class="text-center">Acciones</th></tr></thead><tbody id="body-card"><tr><td colspan="4" class="text-center py-4">Cargando categorías…</td></tr></tbody></table></div>
+        <div class="next-list-toolbar d-flex flex-wrap justify-content-between align-items-center"><div id="textPagination" class="text-muted small"></div><ul class="pagination pagination-sm mb-0 flex-wrap" id="pagination"></ul></div>
     </div>
-
-    <div class="container">
-        <div class="row" id="body-card"></div>
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
-            <ul class="pagination" id="pagination"></ul>
-        </div>
-    </div>
-
-    <template id="item-card">
-        <div class="col-12 col-sm-6 col-md-3 d-flex align-items-stretch">
-            <div class="card bg-light">
-                <div class="card-body pt-3">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="hidden" data-id></div>
-                            <h2 class="lead text-center"><b data-description></b></h2>
-                            <ul class="ml-4 mb-0 fa-ul text-muted">
-                                <li class="small"><span class="fa-li"><i class="fas fa-wrench"></i></span>Numero de Equipos: <span data-number></span></li>
-                            </ul>
-                        </div>
-                        <div class="col-md-8 offset-2 text-center mt-3">
-                            <img data-image src="" alt="" class="img-circle img-fluidcpt-3">
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="text-center">
-                        <a data-restore="" data-description="" data-image="" href="#" class="btn btn-sm btn-success" data-toggle="modal" data-target="#restoreModal">
-                            <i class="fas fa-history"></i> Restaurar
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
-
+    <template id="item-card"><tr data-id><td data-description></td><td class="text-center"><img data-image src="" alt="Imagen de categoría" width="48" class="img-fluid"></td><td data-number class="text-center"></td><td class="text-center"><div class="next-toolbar-actions flex-wrap justify-content-center">@can('restoreCategory_defaultEquipment')<button type="button" data-restore="" data-description="" data-image="" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#restoreModal">Restaurar</button>@endcan</div></td></tr></template>
 
     <template id="previous-page">
         <li class="page-item previous">
@@ -143,7 +85,7 @@
         </li>
     </template>
     @can('restoreCategory_defaultEquipment')
-    <div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal next-aux-modal-form" id="restoreModal" data-url="{{ route('categoryEquipment.restore', ['id' => '__ID__']) }}" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -152,7 +94,7 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body next-form-section">
                     <p>¿Estás seguro de que quieres restaurar esta categoría?</p>
                 </div>
                 <div class="modal-footer">

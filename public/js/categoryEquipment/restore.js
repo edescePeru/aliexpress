@@ -7,7 +7,7 @@ $(document).on('click', '[data-restore]', function () {
 
     $('#btn-restore-confirm').off('click').on('click', function () {
         $.ajax({
-            url:  'equiposxrestaurar/' + categoryId,
+            url:  $('#restoreModal').data('url').replace('__ID__', categoryId),
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

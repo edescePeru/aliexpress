@@ -7,7 +7,7 @@ $(document).on('click', '[data-delete]', function () {
     $('#btn-delete-confirm').off('click').on('click', function () {
 
         $.ajax({
-            url: 'equiposxeliminar/' + categoryId,
+            url: $('#deleteModal').data('url').replace('__ID__', categoryId),
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

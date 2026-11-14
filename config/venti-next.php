@@ -17,6 +17,9 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'workforce.index',
+        'categoryEquipment.index',
+        'categoryEquipment.eliminated',
         'priceList.index',
         'warrant.index',
         'warrant.create',
