@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**71 registros:** 21 BUG / FALLA (17 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**72 registros:** 22 BUG / FALLA (18 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -307,3 +307,17 @@ Auditoría acotada, sin mutaciones. Scope global documentado junto a deuda trans
 | EXPENSE-01 | Rendición de gastos | Operaciones sin frontera de ownership | BUG / FALLA | HIGH / P1 | OPEN | Expense sin scope/tenant/company/branch; getAllExpenses sólo fecha; edit/update/destroy find global; reporte global. Eager Worker tenant no restringe Expense. Dataset actual0, no explotación cross-ID ni POST ejecutado. Definir ownership/historia y aplicar lectura/binding contextual; mantener lista/edit fuera del rollout. Véase REAL-NEXT-EXPENSES. |
 
 PUR-01 — evidencia adicional sin duplicar finding: ExpenseSupplierController indexV2/getDataExpenseSuppliers mezclan compras scoped con OrderService global; lookup Supplier tenant no garantiza frontera del conjunto. GET de facturación rama servicio también find global. Superficie alternativa excluida; no export/mutación ejecutada. Backend unchanged.
+
+
+## Addendum — Órdenes de Servicio (2026-11-13)
+
+Auditoría focalizada; dataset0 órdenes/0detalles revalidado READ ONLY. Sin navegación de documentos, GET que escriben Audit ni POST.
+
+- **SERVICE-01 → PUR-01 (alias de seguimiento, no registro adicional):** OrderService sin scope/columnas T/C/B; listas/find/deleted/lost globales. Supplier scoped no filtra parent. Amplía causa ya registrada en Egresos proveedores a las propias superficies OrderService.
+- **SERVICE-02 → USER-01 (alias de seguimiento, no registro adicional):** create/show/edit/regularize usan User::all. Create renderiza approved_by. DB actual tiene usuarios en tenants1/2/3/4 y NULL; requiere lookup autorizado, no filtrado JS. No se copiaron identidades.
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| SERVICE-03 | OrderService | AJAX auxiliares sin permiso de acción | BUG / FALLA | HIGH / P1 | OPEN | routes/web.php: all/order/service/regularize, deleted y lost no declaran permission; vistas sí list_orderPurchaseNormal. Middleware común auth/context no sustituye capability. Alinear gate por superficie y verificar acceso directo/no permiso en entorno aislado. Evidencia estática; no se ejecutó getAllOrderLost (escribe Audit). Ver REAL-NEXT-ORDER-SERVICES. |
+
+Sólo SERVICE-03 incrementa inventario (+1). Show/edit/Lost escriben Audit durante GET; fuera de la lectura estricta de esta fase. Ninguna superficie integrada ni allowlist ampliada. Backend intacto.
