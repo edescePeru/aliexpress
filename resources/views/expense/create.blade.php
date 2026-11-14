@@ -29,21 +29,13 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Nuevo Gasto</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Operaciones · Rendición de gastos</span><h1 class="page-title">Nuevo gasto</h1><p class="next-page-description">Trabajador, tipo de gasto, fecha e importe.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nuevo gasto</h5>
-    <a href="{{ route('expense.index') }}" class="btn btn-outline-primary btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Rendición de Gastos</a>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Datos del gasto</strong><span>Completa los datos de la rendición.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -52,7 +44,7 @@
             <a href="{{ route('dashboard.principal') }}"><i class="fa fa-home"></i> Dashboard</a>
         </li>
         <li class="breadcrumb-item">
-            <a href="{{ route('expense.index') }}"><i class="fa fa-archive"></i> Rendición de Gastos</a>
+            <span>Rendición de gastos</span>
         </li>
         <li class="breadcrumb-item"><i class="fa fa-plus-circle"></i> Nuevo</li>
     </ol>
@@ -62,56 +54,62 @@
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('expense.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-            <div class="col-md-6">
+        <section class="next-form-section">
+        <div class="row">
+            <div class="col-md-6 form-group">
                 <label for="worker_id">Trabajador: </label>
-                <select id="worker_id" name="worker_id" class="form-control select2" style="width: 100%;">
+                <select id="worker_id" name="worker_id" class="form-control select2 w-100 @error('worker_id') is-invalid @enderror">
                     <option></option>
                     @foreach( $workers as $worker )
-                        <option value="{{ $worker->id }}" data-supervisor="{{  $worker->first_name . ' ' . $worker->last_name }}">{{ $worker->first_name . ' ' . $worker->last_name}}</option>
+                        <option value="{{ $worker->id }}" {{ (string) old('worker_id') === (string) $worker->id ? 'selected' : '' }} data-supervisor="{{  $worker->first_name . ' ' . $worker->last_name }}">{{ $worker->first_name . ' ' . $worker->last_name}}</option>
                     @endforeach
                 </select>
+                @error('worker_id')<span class="text-danger small">{{ $message }}</span>@enderror
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6 form-group">
                 <label for="bill_id">Tipo de Gastos </label>
 
-                <select id="bill_id" name="bill_id" class="form-control select2" style="width: 100%;">
+                <select id="bill_id" name="bill_id" class="form-control select2 w-100 @error('bill_id') is-invalid @enderror">
                     <option></option>
                     @foreach( $bills as $bill )
-                        <option value="{{ $bill->id }}" >{{ $bill->description}}</option>
+                        <option value="{{ $bill->id }}" {{ (string) old('bill_id') === (string) $bill->id ? 'selected' : '' }} >{{ $bill->description}}</option>
                     @endforeach
                 </select>
+                @error('bill_id')<span class="text-danger small">{{ $message }}</span>@enderror
 
             </div>
 
         </div>
 
-        <div class="form-group row">
-            <div class="col-md-6">
+        <div class="row">
+            <div class="col-md-6 form-group">
                 <label for="date_expense">Fecha</label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
                     </div>
-                    <input type="text" id="date_expense" name="date_expense" class="form-control" data-inputmask-alias="datetime" data-inputmask-inputformat="dd/mm/yyyy" data-mask>
+                    <input type="text" id="date_expense" value="{{ old('date_expense') }}" name="date_expense" class="form-control @error('date_expense') is-invalid @enderror" data-inputmask-alias="datetime" data-inputmask-inputformat="dd/mm/yyyy" data-mask>
                 </div>
+                @error('date_expense')<span class="text-danger small">{{ $message }}</span>@enderror
             </div>
-            <div class="col-md-6">
+            <div class="col-md-6 form-group">
                 <label for="total">Monto</label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="fas fa-dollar-sign"></i></span>
                     </div>
-                    <input type="number" id="total" min="0" step="0.01" name="total" class="form-control">
+                    <input type="number" id="total" value="{{ old('total') }}" min="0" step="0.01" name="total" class="form-control @error('total') is-invalid @enderror">
                 </div>
+                @error('total')<span class="text-danger small">{{ $message }}</span>@enderror
             </div>
         </div>
 
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+        </section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+            <button type="button" id="btn-submit" class="btn btn-primary">Guardar</button>
+        </div></div>
         <!-- /.card-footer -->
     </form>
 @endsection
@@ -136,9 +134,11 @@
             $('#date_expense').inputmask('dd/mm/yyyy', { 'placeholder': 'dd/mm/yyyy' });
             $('#worker_id').select2({
                 placeholder: "Selecione trabajador",
+                width: '100%',
             });
             $('#bill_id').select2({
                 placeholder: "Selecione tipo de gasto",
+                width: '100%',
             });
 
         })

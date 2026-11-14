@@ -4,7 +4,7 @@ Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y docu
 
 ## Resumen para triage
 
-**70 registros:** 20 BUG / FALLA (16 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
+**71 registros:** 21 BUG / FALLA (17 OPEN y 4 FIXED — QA PASSED), 38 DEUDA TÉCNICA y 12 DECISIÓN DE NEGOCIO / PRODUCTO. Incluye los addenda Sales/Reporting Exports, Warehouse Transfers y Material Edit. Los registros cerrados preservan trazabilidad; no son trabajo nuevo. DEV ACTION LIST original contiene nueve bugs abiertos: cinco P1 y cuatro P2; añadir SALES-NEW-01 y TRANSFER-01 como P2, MAT-03 como P1 y MAT-04/05 como P2. Sin P0 asignado.
 
 Prioridad inmediata: límites de acceso Entry/creadores/usuarios legacy, limpieza PDF y validación monetaria Cash. En paralelo, Producto debe definir mutabilidad histórica de cajas/subtipos y consistencia de moneda. La infraestructura documental se consolida en DOC-01. Pricing/Cash todavía no son dependencias POS certificadas; no se autoriza iniciar core POS por este informe.
 
@@ -298,3 +298,12 @@ Auditoría acotada, sin mutaciones. Scope global documentado junto a deuda trans
 | ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
 |---|---|---|---|---|---|---|
 | PERCENT-01 | PorcentageQuote | Eliminación de claves reservadas protegida sólo en JS | BUG / FALLA | MEDIUM / P2 | OPEN | index.js oculta delete para utility/rent/letter/igv; DeletePorcentageQuoteRequest sólo required/exists y destroy llama delete físico sin guard. Consumers buscan esas claves y algunos usan first()->value/firstOrFail. Agregar protección backend equivalente y QA aislado; no ejecutado POST ni eliminación real. Backend unchanged; frontend conserva condición existente. Ver REAL-NEXT-PERCENTAGES. |
+
+
+## Addendum — Gastos (2026-11-13)
+
+| ID | Módulo | Hallazgo | Clasificación | Prioridad | Estado | Evidencia / Acción |
+|---|---|---|---|---|---|---|
+| EXPENSE-01 | Rendición de gastos | Operaciones sin frontera de ownership | BUG / FALLA | HIGH / P1 | OPEN | Expense sin scope/tenant/company/branch; getAllExpenses sólo fecha; edit/update/destroy find global; reporte global. Eager Worker tenant no restringe Expense. Dataset actual0, no explotación cross-ID ni POST ejecutado. Definir ownership/historia y aplicar lectura/binding contextual; mantener lista/edit fuera del rollout. Véase REAL-NEXT-EXPENSES. |
+
+PUR-01 — evidencia adicional sin duplicar finding: ExpenseSupplierController indexV2/getDataExpenseSuppliers mezclan compras scoped con OrderService global; lookup Supplier tenant no garantiza frontera del conjunto. GET de facturación rama servicio también find global. Superficie alternativa excluida; no export/mutación ejecutada. Backend unchanged.
