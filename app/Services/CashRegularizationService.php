@@ -52,6 +52,9 @@ class CashRegularizationService
         if(!$movement)$this->fail('El movimiento no pertenece a la empresa y local actuales.');
         if(!$movement->user_id||!$movement->cash_box_id||!$movement->cash_register_id||!$movement->cash_box_subtype_id)
             $this->fail('El movimiento no tiene usuario, caja, sesión y subtipo identificables. Requiere conciliación.');
+        if ($movement->deferred_cancelled_at !== null) {
+            $this->fail('El cobro diferido está cancelado.');
+        }
         if($movement->regularize||$movement->cash_movement_regularize_id||$movement->regularization_source_id||$movement->balance_effect===false)
             $this->fail('El movimiento ya fue regularizado o pertenece a una regularización.');
         if(!in_array($movement->type,['sale','income'],true))$this->fail('Solo se regularizan ventas o ingresos diferidos.');

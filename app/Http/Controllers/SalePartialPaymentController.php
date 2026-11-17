@@ -198,15 +198,19 @@ class SalePartialPaymentController extends Controller
                 ->where('state', 1)
                 ->firstOrFail();
 
-            $sale = Sale::findOrFail($payment->sale_id);
+            $sale = Sale::where('company_id', \App\Support\TenantContext::companyId())
+                ->where('branch_id', \App\Support\TenantContext::branchId())
+                ->lockForUpdate()->findOrFail($payment->sale_id);
+            $payment = SalePartialPayment::where('state', 1)->where('sale_id', $sale->id)
+                ->where('company_id', $sale->company_id)->where('branch_id', $sale->branch_id)
+                ->lockForUpdate()->findOrFail($id);
 
-            $movement = CashMovement::find($payment->cash_movement_id);
+            $movement = CashMovement::where('company_id', $sale->company_id)->where('branch_id', $sale->branch_id)
+                ->lockForUpdate()->find($payment->cash_movement_id);
 
             if (!$movement) {
                 throw new \Exception('No se encontró el movimiento asociado al pago.');
             }
-
-            app(\App\Services\CashRegularizationGuard::class)->movement($movement);
 
             $cashBoxSubType = $movement->cash_box_subtype_id
                 ? CashBoxSubtype::find($movement->cash_box_subtype_id)
@@ -219,10 +223,17 @@ class SalePartialPaymentController extends Controller
                 throw new \Exception('El movimiento asociado no corresponde a una venta.');
             }
 
-            if ($isDeferred == 1 && (int) $movement->regularize === 0) {
-                // Si fue diferido y aún no regularizado, eliminamos el movimiento original
-                $movement->delete();
+            if ((int) $movement->regularize === 0) {
+                $movement->cancelPendingDeferred('partial_payment_reversal');
+            } elseif ($movement->regularize && ($isDeferred || $movement->amount_regularize !== null || $movement->balance_effect === false)) {
+                $refunds = app(\App\Services\Sales\DeferredSaleRefund::class);
+                $planned = $refunds->plan($sale, (int) $movement->id);
+                if (!array_key_exists($movement->id, $planned)) {
+                    throw new \RuntimeException('El cobro regularizado requiere conciliación.');
+                }
+                $refunds->post($sale, $planned);
             } else {
+                app(\App\Services\CashRegularizationGuard::class)->movement($movement);
                 $amountToReverse = (float) ($movement->amount_regularize ?? $movement->amount ?? 0);
 
                 CashMovement::create([

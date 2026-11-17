@@ -3576,7 +3576,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
                 ->name('cashMovement.regularize')->middleware('permission:regularize_caja');
         });
 
-        Route::get('/financial/summary', 'CashRegisterController@financialSummary')->name('financial.summary');
+        Route::get('/financial/summary', 'CashRegisterController@financialSummary')
+            ->middleware('permission:showFinancialSummary_cashBox')->name('financial.summary');
+        Route::middleware('permission:showFinancialSummary_cashBox')->group(function () {
+            Route::get('/financial/summary/cash-boxes/{cashBox}/movements', 'CashBoxController@summaryIndex')
+                ->where('cashBox', '[0-9]+')->name('financial.summary.movements');
+            Route::get('/financial/summary/cash-boxes/{cashBox}/movements/list', 'CashBoxController@summaryList')
+                ->where('cashBox', '[0-9]+')->name('financial.summary.movements.list');
+        });
         Route::get('/sales/export-range/excel', 'GraphsController@exportSalesByDateRange')->name('sales.export.range');
         Route::get('/cashflow/export-range/excel', 'GraphsController@exportCashFlowRangeExcel')
             ->name('cashflow.export.range');

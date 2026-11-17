@@ -576,7 +576,9 @@ function renderDataTable(data) {
 
     // Estado: pendiente/confirmado según regularize (0/1)
     let statusHtml = '-';
-    if (data.regularize === 0 || data.regularize === '0') {
+    if (data.deferred_cancelled) {
+        statusHtml = '<span class="badge badge-secondary">Cancelado</span>';
+    } else if (data.regularize === 0 || data.regularize === '0') {
         statusHtml = '<span class="badge badge-warning">Pendiente</span>';
     } else if (data.regularize === 1 || data.regularize === '1') {
         statusHtml = (data.balance_effect === false ? '<span class="badge badge-info">Regularizado en otra sesión</span>' : '<span class="badge badge-success">Confirmado</span>');
@@ -650,7 +652,7 @@ function renderDataTable(data) {
     var regularizarBtn = cloneBtn2.querySelector("[data-regularizar]");
 
     // ✅ mostrar si regularize=0 y (sale o income)
-    const isPending = (data.regularize === 0 || data.regularize === '0');
+    const isPending = !data.deferred_cancelled && (data.regularize === 0 || data.regularize === '0');
     const canBeRegularized = (data.type_raw === 'sale' || data.type_raw === 'income');
     // si no tienes type_raw, usa data.type == 'Regularizar' o agrega type_raw en backend
 
