@@ -17,6 +17,8 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'shipping_guides.view',
+        'shipping_guides.show',
         'workforce.index',
         'categoryEquipment.index',
         'categoryEquipment.eliminated',
