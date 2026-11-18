@@ -1,5 +1,14 @@
 $(function () {
 
+    function fieldError(field, message) {
+        $('#' + field).addClass('is-invalid').attr('aria-invalid', 'true');
+        $('#' + field + '-error').text(message).addClass('d-block');
+    }
+
+    function errorSummary(message) {
+        $('#password-change-error').text(message).removeClass('d-none').trigger('focus');
+    }
+
     /*
      * Mostrar / ocultar contraseña.
      */
@@ -55,6 +64,10 @@ $(function () {
 
             }
 
+            const visible = $input.attr('type') === 'text';
+            $(this).attr('aria-pressed', String(visible)).attr('aria-label',
+                (visible ? 'Ocultar ' : 'Mostrar ') + $('label[for="' + $input.attr('id') + '"]').text().toLowerCase());
+
         }
     );
 
@@ -64,6 +77,10 @@ $(function () {
         function (event) {
 
             event.preventDefault();
+
+            $('#password, #password_confirmation').removeClass('is-invalid').attr('aria-invalid', 'false');
+            $('#password-error, #password_confirmation-error').empty().removeClass('d-block');
+            $('#password-change-error').empty().addClass('d-none');
 
 
             const $form =
@@ -85,6 +102,8 @@ $(function () {
                 password.length < 8
             ) {
 
+                fieldError('password', 'La contraseña debe tener al menos 8 caracteres.');
+
                 showWarning(
                     'La contraseña debe tener al menos 8 caracteres.'
                 );
@@ -96,6 +115,8 @@ $(function () {
             if (
                 password !== confirmation
             ) {
+
+                fieldError('password_confirmation', 'Las contraseñas no coinciden.');
 
                 showWarning(
                     'Las contraseñas no coinciden.'
@@ -195,7 +216,7 @@ $(function () {
                             )
                             .html(
                                 '<i class="fas fa-save mr-1"></i>' +
-                                'Guardar nueva contraseña'
+                                'Actualizar contraseña'
                             );
 
                     }
@@ -210,16 +231,7 @@ $(function () {
         message
     ) {
 
-        $.alert({
-            title:
-                'Atención',
-
-            content:
-            message,
-
-            type:
-                'orange'
-        });
+        errorSummary(message);
 
     }
 
@@ -238,6 +250,11 @@ $(function () {
             xhr.responseJSON &&
             xhr.responseJSON.errors
         ) {
+
+            ['password', 'password_confirmation'].forEach(function (field) {
+                const errors = xhr.responseJSON.errors[field];
+                if (errors && errors[0]) fieldError(field, errors[0]);
+            });
 
             const first =
                 Object.values(
@@ -266,18 +283,9 @@ $(function () {
         }
 
 
-        $.alert({
-
-            title:
-                'Aviso',
-
-            content:
-            message,
-
-            type:
-                'orange'
-
-        });
+        if (xhr.status === 419) message = 'La sesión ha expirado. Recarga la página para continuar.';
+        if (xhr.status === 401) message = 'La sesión ha expirado. Inicia sesión para continuar.';
+        errorSummary(message);
 
     }
 

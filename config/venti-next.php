@@ -57,6 +57,8 @@ return [
         'porcentageQuote.index',
         'porcentageQuote.create',
         'porcentageQuote.edit',
+        'user.profile',
+        'password.required.edit',
         'bill.index',
         'bill.create',
         'bill.edit',

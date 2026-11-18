@@ -1,326 +1,59 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-
     <meta charset="utf-8">
-
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1"
-    >
-
-    <meta
-            name="csrf-token"
-            content="{{ csrf_token() }}"
-    >
-
-    <title>
-        {{ config('app.name', 'Venti360') }}
-        | Cambiar contraseña
-    </title>
-
-
-    <link
-            rel="stylesheet"
-            href="{{
-            asset(
-                'admin/plugins/fontawesome-free/css/all.min.css'
-            )
-        }}"
-    >
-
-    <link
-            rel="stylesheet"
-            href="{{
-            asset(
-                'admin/dist/css/adminlte.min.css'
-            )
-        }}"
-    >
-
-    <link
-            rel="stylesheet"
-            href="{{
-            asset(
-                'admin/plugins/jquery-confirm/jquery-confirm.min.css'
-            )
-        }}"
-    >
-
-
-    <style>
-
-        body {
-            background:
-                    #f4f6f9;
-        }
-
-        .password-change-wrapper {
-            min-height: 100vh;
-
-            display: flex;
-            justify-content: center;
-            align-items: center;
-
-            padding: 20px;
-        }
-
-        .password-change-card {
-            width: 100%;
-            max-width: 470px;
-        }
-
-        .password-requirements {
-            font-size: 0.85rem;
-        }
-
-    </style>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ config('app.name', 'Venti360') }} | Cambiar contraseña</title>
+    <link rel="stylesheet" href="{{ asset('admin/plugins/fontawesome-free/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/dist/css/adminlte.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/plugins/jquery-confirm/jquery-confirm.min.css') }}">
+    @if(config('venti-next.enabled', false) === true && in_array(optional(request()->route())->getName(), config('venti-next.routes', []), true))
+    <link rel="stylesheet" href="{{ asset('admin/dist/css/venti.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin/dist/css/venti-next.css') }}">
+    @endif
 </head>
-
-
 <body>
-
-<div class="password-change-wrapper">
-
-    <div
-            class="
-            card
-            card-outline
-            card-primary
-            password-change-card
-        "
-    >
-
-        <div class="card-header text-center">
-
-            <h4 class="mb-0">
-                Venti360
-            </h4>
-
-        </div>
-
-
-        <div class="card-body">
-
-            <div class="text-center mb-4">
-
-                <i
-                        class="
-                        fas
-                        fa-key
-                        fa-3x
-                        text-primary
-                        mb-3
-                    "
-                ></i>
-
-                <h5>
-                    Cambia tu contraseña
-                </h5>
-
-                <p class="text-muted mb-0">
-                    Estás utilizando una contraseña temporal.
-                    Debes crear una nueva antes de continuar.
-                </p>
-
-            </div>
-
-
-            <form
-                    id="formRequiredPasswordChange"
-
-                    data-url="{{
-                    route(
-                        'password.required.update'
-                    )
-                }}"
-            >
-
-                @csrf
-
-
-                <div class="form-group">
-
-                    <label for="password">
-                        Nueva contraseña
-                    </label>
-
-
-                    <div class="input-group">
-
-                        <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                class="form-control"
-                                autocomplete="new-password"
-                                required
-                        >
-
-
-                        <div class="input-group-append">
-
-                            <button
-                                    type="button"
-                                    class="
-                                    btn
-                                    btn-outline-secondary
-                                    btn-show-password
-                                "
-                                    data-target="#password"
-                            >
-
-                                <i class="fas fa-eye"></i>
-
-                            </button>
-
+<main class="container-fluid min-vh-100 d-flex align-items-center py-4">
+    <div class="row justify-content-center w-100 mx-0">
+        <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4 px-0">
+            <section class="card mb-0" aria-labelledby="password-change-title">
+                <div class="card-header"><span class="text-primary font-weight-bold">Venti360</span></div>
+                <div class="next-form-section">
+                    <h1 id="password-change-title" class="h4">Actualizar contraseña</h1>
+                    <p class="text-muted">Debes actualizar tu contraseña antes de continuar.</p>
+                    <form id="formRequiredPasswordChange" data-url="{{ route('password.required.update') }}">
+                        @csrf
+                        @foreach(['password' => 'Nueva contraseña', 'password_confirmation' => 'Confirmar contraseña'] as $field => $label)
+                        <div class="form-group">
+                            <label for="{{ $field }}">{{ $label }}</label>
+                            <div class="input-group">
+                                <input type="password" id="{{ $field }}" name="{{ $field }}" class="form-control @error($field) is-invalid @enderror" autocomplete="new-password" required aria-describedby="password-requirements {{ $field }}-error" aria-invalid="{{ $errors->has($field) ? 'true' : 'false' }}">
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-outline-secondary btn-show-password" data-target="#{{ $field }}" aria-label="Mostrar {{ strtolower($label) }}" aria-controls="{{ $field }}" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                            <span id="{{ $field }}-error" class="invalid-feedback {{ $errors->has($field) ? 'd-block' : '' }}">@error($field){{ $message }}@enderror</span>
                         </div>
-
-                    </div>
-
+                        @endforeach
+                        <p id="password-requirements" class="text-muted small">La contraseña debe tener al menos 8 caracteres y ser diferente a la contraseña temporal.</p>
+                        <div id="password-change-error" class="alert alert-danger d-none" role="alert" tabindex="-1"></div>
+                        <button type="submit" id="btnSavePassword" class="btn btn-primary btn-block">Actualizar contraseña</button>
+                    </form>
                 </div>
-
-
-                <div class="form-group">
-
-                    <label for="password_confirmation">
-                        Confirmar contraseña
-                    </label>
-
-
-                    <div class="input-group">
-
-                        <input
-                                type="password"
-                                id="password_confirmation"
-                                name="password_confirmation"
-                                class="form-control"
-                                autocomplete="new-password"
-                                required
-                        >
-
-
-                        <div class="input-group-append">
-
-                            <button
-                                    type="button"
-                                    class="
-                                    btn
-                                    btn-outline-secondary
-                                    btn-show-password
-                                "
-                                    data-target="#password_confirmation"
-                            >
-
-                                <i class="fas fa-eye"></i>
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
+                <div class="next-list-toolbar text-center">
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn btn-link text-muted btn-sm">Cerrar sesión</button>
+                    </form>
                 </div>
-
-
-                <div
-                        class="
-                        alert
-                        alert-light
-                        border
-                        password-requirements
-                    "
-                >
-
-                    <i
-                            class="
-                            fas
-                            fa-info-circle
-                            mr-1
-                        "
-                    ></i>
-
-                    La contraseña debe tener
-                    al menos 8 caracteres y ser
-                    diferente a la contraseña temporal.
-
-                </div>
-
-
-                <button
-                        type="submit"
-                        id="btnSavePassword"
-                        class="
-                        btn
-                        btn-primary
-                        btn-block
-                    "
-                >
-
-                    <i class="fas fa-save mr-1"></i>
-
-                    Guardar nueva contraseña
-
-                </button>
-
-            </form>
-
-
-            <hr>
-
-
-            <div class="text-center">
-
-                <form
-                        action="{{ route('logout') }}"
-                        method="POST"
-                >
-
-                    @csrf
-
-                    <button
-                            type="submit"
-                            class="
-                            btn
-                            btn-link
-                            text-muted
-                            btn-sm
-                        "
-                    >
-
-                        <i
-                                class="
-                                fas
-                                fa-sign-out-alt
-                                mr-1
-                            "
-                        ></i>
-
-                        Cerrar sesión
-
-                    </button>
-
-                </form>
-
-            </div>
-
+            </section>
         </div>
-
     </div>
-
-</div>
-
-
-<script src="{{ asset( 'admin/plugins/jquery/jquery.min.js')}}"></script>
-
-<script src="{{ asset('admin/plugins/bootstrap/js/bootstrap.bundle.min.js')}}"></script>
-
-<script src="{{ asset( 'admin/plugins/jquery-confirm/jquery-confirm.min.js' ) }}" ></script>
-
-<script src="{{ asset('js/auth/required-password-change.js')}}"></script>
-
+</main>
+<script src="{{ asset('admin/plugins/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('admin/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('admin/plugins/jquery-confirm/jquery-confirm.min.js') }}"></script>
+<script src="{{ asset('js/auth/required-password-change.js') }}"></script>
 </body>
-
 </html>
