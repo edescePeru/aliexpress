@@ -14,9 +14,10 @@ return [
     'enabled' => true,
 
     // Exact registered URI for the unnamed normal-purchase detail view.
-    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
+    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/eliminada/{id}'],
 
     'routes' => [
+        'order.purchase.delete',
         'entry.purchase.report.index',
         'invoice.create',
         'invoice.edit',
