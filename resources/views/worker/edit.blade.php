@@ -23,20 +23,14 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
-    <h1 class="page-title">Colaboradores</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Personal · Colaboradores</span><h1 class="page-title">Editar colaborador</h1><p class="next-page-description">Ficha laboral de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Modificar colaborador</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Ficha del colaborador</strong><span>Datos personales, laborales y de contacto.</span></div><div class="next-toolbar-actions"><a href="{{ route('worker.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -52,6 +46,7 @@
 @endsection
 
 @section('content')
+<div class="next-form-section">
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('worker.update', $worker->id) }}" enctype="multipart/form-data">
@@ -59,7 +54,7 @@
         @csrf
         <div class="row">
             <div class="col-md-6">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Datos generales</h3>
 
@@ -68,7 +63,7 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row">
 
                             <div class="col-md-6">
@@ -168,7 +163,7 @@
                 <!-- /.card -->
             </div>
             <div class="col-md-6">
-                <div class="card card-warning">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Datos de Ubicación</h3>
 
@@ -177,15 +172,15 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row">
                             <div class="col-sm-6">
                                 <label for="personal_address">Dirección </label>
-                                <textarea name="personal_address" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese dirección ....">{{ $worker->personal_address }}</textarea>
+                                <textarea id="personal_address" name="personal_address" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese dirección ....">{{ $worker->personal_address }}</textarea>
                             </div>
                             <div class="col-sm-6">
                                 <label for="email">Email </label>
-                                <textarea name="email" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese email ....">{{ $worker->email }}</textarea>
+                                <textarea id="email" name="email" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese email ....">{{ $worker->email }}</textarea>
 
                             </div>
 
@@ -249,7 +244,7 @@
         </div>
         <div class="row">
             <div class="col-md-6">
-                <div class="card card-primary collapsed-card">
+                <div class="card collapsed-card">
                     <div class="card-header">
                         <h3 class="card-title">Datos para RR.HH.</h3>
 
@@ -260,7 +255,7 @@
                             </div>
                         @endrole
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row">
 
                             <input type="hidden" id="value_assign_family" value="{{ $value_assign_family }}">
@@ -327,7 +322,7 @@
                 <!-- /.card -->
             </div>
             <div class="col-md-6">
-                <div class="card card-primary collapsed-card">
+                <div class="card collapsed-card">
                     <div class="card-header">
                         <h3 class="card-title">Contactos de Emergencia</h3>
 
@@ -340,7 +335,7 @@
                             </div>
                         @endrole
                     </div>
-                    <div class="card-body" id="body-contacts">
+                    <div class="card-body next-form-section" id="body-contacts">
                         @foreach( $worker->emergency_contacts as $emergency_contact )
                             <div class="callout callout-info">
                                 <div class="row">
@@ -350,14 +345,14 @@
                                             <div class="input-group-prepend">
                                                 <span class="input-group-text"><i class="fas fa-keyboard"></i></span>
                                             </div>
-                                            <input type="text" data-contactname name="contacts[]" class="form-control" placeholder="Nombre" value="{{ $emergency_contact->name }}">
+                                            <input type="text" data-contactname aria-label="Nombre del contacto de emergencia" name="contacts[]" class="form-control" placeholder="Nombre" value="{{ $emergency_contact->name }}">
                                         </div>
                                     </div>
 
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="work_function">Parentesco </label>
-                                            <select name="relations[]" class="relation form-control form-control-sm select2" style="width: 100%;">
+                                            <select aria-label="Parentesco del contacto de emergencia" name="relations[]" class="relation form-control form-control-sm select2" style="width: 100%;">
                                                 <option></option>
                                                 @foreach( $relationships as $relationship )
                                                     <option value="{{ $relationship->id }}" {{ (optional($relationship)->id == optional($emergency_contact->relationship)->id) ? 'selected' : '' }}>{{ $relationship->description }}</option>
@@ -372,7 +367,7 @@
                                                 <div class="input-group-prepend">
                                                     <span class="input-group-text"><i class="fas fa-phone"></i></span>
                                                 </div>
-                                                <input type="text" data-phone name="phones[]" class="form-control" placeholder="000000000" value="{{ $emergency_contact->phone }}">
+                                                <input type="text" data-phone aria-label="Teléfono del contacto de emergencia" name="phones[]" class="form-control" placeholder="000000000" value="{{ $emergency_contact->phone }}">
                                             </div>
                                         </div>
                                     </div>
@@ -391,14 +386,15 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 next-toolbar-actions flex-wrap">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar colaborador</button>
+                <button type="button" id="btn-submit" class="btn btn-primary">Guardar colaborador</button>
             </div>
         </div>
         <!-- /.card-footer -->
     </form>
 
+    </div>
     <template id="template-contact">
         <div class="callout callout-info">
             <div class="row">
@@ -408,14 +404,14 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text"><i class="fas fa-keyboard"></i></span>
                         </div>
-                        <input type="text" data-contactname name="contacts[]" class="form-control" placeholder="Nombre" value="">
+                        <input type="text" data-contactname aria-label="Nombre del contacto de emergencia" name="contacts[]" class="form-control" placeholder="Nombre" value="">
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="form-group">
                         <label for="work_function">Parentesco </label>
-                        <select name="relations[]" class="relation form-control form-control-sm select2" style="width: 100%;">
+                        <select aria-label="Parentesco del contacto de emergencia" name="relations[]" class="relation form-control form-control-sm select2" style="width: 100%;">
                             <option></option>
                             @foreach( $relationships as $relationship )
                                 <option value="{{ $relationship->id }}">{{ $relationship->description }}</option>
@@ -430,7 +426,7 @@
                             <div class="input-group-prepend">
                                 <span class="input-group-text"><i class="fas fa-phone"></i></span>
                             </div>
-                            <input type="text" data-phone name="phones[]" class="form-control" placeholder="000000000" value="">
+                            <input type="text" data-phone aria-label="Teléfono del contacto de emergencia" name="phones[]" class="form-control" placeholder="000000000" value="">
                         </div>
                     </div>
                 </div>
