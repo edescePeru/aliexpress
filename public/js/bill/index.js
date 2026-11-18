@@ -10,38 +10,30 @@ $(document).ready(function () {
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{ targets: [0, 2], className: 'text-center' }, { targets: 2, orderable: false, searchable: false }],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
+
         "aoColumns": [
-            { data: null,
-                title: 'Código',
-                wrap: true,
-                "render": function (item)
-                {
-                    return item.id;
-                }
-            },
-            { data: null,
-                title: 'Tipo de gastos',
-                wrap: true,
-                "render": function (item)
-                {
-                    return item.description;
-                }
-            },
+            { data: 'id' },
+            { data: 'description', render: $.fn.dataTable.render.text() },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
                 "render": function (item)
                 {
-                    var text = '';
-                    if ( $.inArray('update_bill', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/tipo/gasto/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar tipo de gasto"><i class="fa fa-pen"></i></a>';
+                    var id = encodeURIComponent(item.id);
+                    var name = $('<div>').text(item.description || '').html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var actions = '';
+                    if ($.inArray('update_bill', $permissions) !== -1) {
+                        actions += '<a href="' + document.location.origin + '/dashboard/editar/tipo/gasto/' + id + '" class="dropdown-item"><i class="fa fa-pen mr-2" aria-hidden="true"></i>Editar</a>';
                     }
-                    if ( $.inArray('destroy_bill', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-description="'+item.description+'" '+
-                            ' class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Eliminar tipo de gasto"><i class="fa fa-trash"></i></button>';
+                    if ($.inArray('destroy_bill', $permissions) !== -1) {
+                        actions += '<button type="button" data-delete="' + id + '" data-description="' + name + '" class="dropdown-item text-danger"><i class="fa fa-trash mr-2" aria-hidden="true"></i>Eliminar</button>';
                     }
-                    return text;
+                    if (!actions) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-expanded="false" aria-label="Acciones de tipo de gasto ' + id + '"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + actions + '</div></div>';
 
                 } },
 
@@ -55,7 +47,7 @@ $(document).ready(function () {
             "processing": "Procesando...",
             "lengthMenu": "Mostrar _MENU_ registros",
             "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
+            "emptyTable": "No hay tipos de gasto registrados.",
             "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
             "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
             "infoFiltered": "(filtrado de un total de _MAX_ registros)",
@@ -203,7 +195,7 @@ function openModalDelete() {
     var description = $(this).data('description');
 
     $modalDelete.find('[id=bill_id]').val(bill_id);
-    $modalDelete.find('[id=code]').html(description);
+    $modalDelete.find('[id=code]').text(description);
 
     $modalDelete.modal('show');
 }

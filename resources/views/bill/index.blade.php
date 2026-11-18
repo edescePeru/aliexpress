@@ -29,18 +29,11 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Gastos</span><h1 class="page-title">Tipos de gasto</h1><p class="next-page-description">Catálogo compartido de conceptos de gasto.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listado de tipos de gastos</h5>
-    <a href="{{ route('bill.create') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Nuevo tipo de gasto </a>
-
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado de tipos de gasto</strong><span>Descripción del concepto.</span></div><div class="next-toolbar-actions flex-wrap">@can('create_bill')<a href="{{ route('bill.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo tipo de gasto</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -58,13 +51,13 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover table-sm" id="dynamic-table">
+    <div class="next-operational-list">
+        <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
             <thead>
             <tr>
-                <th>Código</th>
+                <th class="text-center">ID</th>
                 <th>Descripción</th>
-                <th>Acciones</th>
+                <th class="text-center">Acciones</th>
             </tr>
             </thead>
             <tbody>
@@ -73,12 +66,13 @@
         </table>
     </div>
 
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    @can('destroy_bill')
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1" aria-labelledby="bill-delete-title">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="bill-delete-title">Confirmar eliminación</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <form id="formDelete" data-url="{{ route('bill.destroy') }}">
                     @csrf
@@ -96,6 +90,7 @@
         </div>
     </div>
 
+    @endcan
 @endsection
 
 @section('plugins')
