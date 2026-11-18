@@ -17,6 +17,7 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'entry.purchase.report.index',
         'invoice.create',
         'invoice.edit',
         'supplier.accounts.index',
