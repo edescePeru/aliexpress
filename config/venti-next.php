@@ -181,6 +181,7 @@ return [
         'stocks.files.index',
         'dashboard.principal',
         'platform.dashboard',
+        'platformShippingCatalogs.index',
         'plan.index',
         'roleTemplate.index',
         'roleTemplate.create',
