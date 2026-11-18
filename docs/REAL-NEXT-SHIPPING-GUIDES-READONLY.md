@@ -168,3 +168,128 @@ No confundir autorización granular ausente con AUTH-01 (permisos directos versu
 - PHP7.3 artisan view:cache PASS; node --check public/js/shipping_guides/index.js PASS; PHPUnit 2 tests/35 assertions PASS; git diff --check PASS.
 
 Archivos modificados: config/venti-next.php; resources/views/shipping_guides/index.blade.php y show.blade.php; public/js/shipping_guides/index.js. Archivos creados: tests/Feature/ShippingGuideReadContractTest.php y este documento. No cambios a controllers, modelos, services, rutas, CSS, documentos, consumidores ni create.js.
+
+## Create Remitente Audit — 2026-11-17
+
+HEAD auditado: `eb5ebbc` (`front: integrar guias de remision read only`). Esta sección amplía el documento canónico; las matrices de lectura anteriores son históricas del 14/11. No se reaudita ReferralGuide ni se cambia su clasificación previa.
+
+**Respuesta: todavía no habilitar creación.** El contrato de datos del GET y sus lookups permite avanzar técnicamente, pero el gate de permisos exigido para esta fase falla. No se integró la vista ni se añadió a allowlist. Store se probó sólo en SQLite en memoria con dependencias externas falsas; eso no significa readiness de autorización o emisión.
+
+### Readiness Matrix
+
+| Gate | Result | Evidencia / límite |
+|---|---|---|
+| Create GET | PASS | create retorna formulario, catálogos locales y customers del tenant; sin envío externo |
+| Permission | FAIL | Create/store/lookups sin permission/can, policy ni autorización funcional en controller |
+| Tenant | PASS | Contexto de sesión; customers y productos tenant-scoped; snapshots gre_* deben coincidir |
+| Company | PASS | Ventas y habilitación de productos por company; emisión/config/serie por company |
+| Branch | PASS | Ventas limitadas al local; guía persiste local de sesión; producto habilitado company-wide, no filtro de stock local inventado |
+| Sale lookup | PASS | Servicio real probado contra propia, otra branch/company/tenant, anulada/reversed |
+| Sale items | PASS | Ambos endpoints reconsultan venta contextual antes de relaciones; inexistente/ajenas404 |
+| Customer | PASS | exists tenant + not deleted; lookup reconsulta tenant; nombre viene del modelo |
+| Origin/Destination | PASS | Ubigeo existe; direcciones/códigos validados. No certificación fiscal externa |
+| Store validation | PASS — casos probados | Contexto, customer, sale, manual quantity/ownership, serie; no validación fiscal exhaustiva |
+| Nubefact boundary | OPEN | Orden y fallos probados con fake; proveedor real fuera de alcance |
+| Idempotency | OPEN — TECH DEBT | Doble POST reproduce dos guías; GUIDE-02 |
+| Documents | OPEN | DOC-01, sin abrir ni certificar |
+
+Decisiones: **CREATE REMITENTE — BACKEND SYNC REQUIRED (permission gate)**. **STORE — BACKEND SYNC REQUIRED**. No confundir aislamiento con autorización funcional. Una futura corrección de permisos puede liberar integración visual aunque idempotencia/emisión sigan pendientes; no se implementa un guard sólo en JS.
+
+### Permissions
+
+Grupo actual: auth + check.user.enabled + password.changed + tenant.context. InitializeTenantContext resuelve/valida tenant activo y company/branch autorizadas mediante memberships activos; Platform Admin no recibe contexto operativo. No es un permiso para emitir guías. ShippingGuideController no añade autorización funcional propia.
+
+| Endpoint | Method | Permission | Context | Result |
+|---|---|---|---|---|
+| shipping_guides.create | GET | Sin granular | Tenant + company para numeración; Blade requiere T/C/B | FAIL permission |
+| shipping_guides.store | POST | Sin granular | T/C/B + gre_* coincidentes | FAIL permission |
+| sales.select2 | GET | Sin granular | T/C/B, no anulada/reversed | Datos PASS, permission FAIL |
+| sales.items | GET | Sin granular | Reconsulta sale por T/C/B | Datos PASS, permission FAIL |
+| shipping_guides.sale_items | GET | Sin granular | Reconsulta por serie/número y T/C/B | Datos PASS, permission FAIL |
+| shipping_guides.customer_payload | GET | Sin granular | Tenant | Datos PASS, permission FAIL |
+| shipping_guides.products | GET | Sin granular de guías | MaterialInventoryScope exige membresía activa; catálogo T/C | Datos PASS, permission FAIL |
+| ubigeo.departments/provinces/districts.select2 | GET | Grupo, sin granular | Catálogo geográfico global | No datos empresariales |
+| customer.store (modal auxiliar) | POST | Contrato Customers separado | No ejecutado | OUT OF SCOPE |
+
+El test de permisos caracteriza la ausencia de middleware granular, NO afirma que el test verde sea autorización segura. El botón Emitir del listado usa create_referralGuide, pero no protege estas rutas directas. DEV debe definir permiso y aplicarlo coherentemente a vista, store y lookups; no se inventó nomenclatura frontend.
+
+### Type / Context
+
+GET lee `type` con default literal `remitente`. Sólo acepta ese literal: transportista, REMITENTE y valor inválido →404 (tests). POST no selecciona tipo desde query ni body: fija guide_type=REMITENTE y tipo_de_comprobante=7. Un payload con type=transportista sigue generando únicamente remitente en el test. No se habilita guía transportista.
+
+Inputs hidden gre_tenant/gre_company/gre_branch son snapshots de TenantContext; store compara cada uno con sesión y rechaza discrepancias con422 antes de persistir. tenant_id/company_id/branch_id arbitrarios no son usados para ownership. La prueba de store confirma que esos valores manipulados no alteran [1,1,1].
+
+### Lookups / Sale / Items
+
+JS usa sales.select2 y sales.items (`/dashboard/sales/:id/items`). shipping_guides.sale_items por sale_ref permanece declarado; se probó también para no dejar un endpoint alternativo sin revisión. sales() filtra tenant/company/branch, state_annulled=false e internal_reversal_status distinto de reversed o NULL. `q` se agrupa dentro de ese scope. No usa Worker ni scope de Sales List por analogía.
+
+Fixtures independientes: propia1; otra branch2; otra company3; otro tenant4; anulada5; reversed6; inexistente999. Select2 sólo devuelve1. Ambos endpoints de items y store rechazan las otras seis. SALE usa todos los detalles backend; quantity o packs si hay presentación, exige cantidad>0 y venta no vacía; copia stock_item_id/material_id y descripción backend. Unidad fijada NIU, no campo libre. source_sale_id/source_sale_ref se guardan como vínculo/snapshot. No requiere que destinatario seleccionado coincida con customer de la venta: contrato no lo impone, no se añadió regla.
+
+MANUAL no significa texto libre sin catálogo: items[].product_id es StockItem y material_id debe coincidir con el material del catálogo habilitado para company. Cantidad min0.001; descripción requerida max255; código nullable max60; detalle adicional max255. Unidad NIU fija. Duplicados no tienen regla distinct ni consolidación: se preservan filas; no se declara bug sin requisito comercial. No escribe InventoryLevel, stock, kardex ni Items físicos.
+
+Prueba usa PosCatalogReadService real, no filtro falso: devuelve producto propio; rechaza stock item de otra company/tenant y par stock/material incongruente. Guarda manual1.125 con NIU en memoria. No certifica cantidades/precios de una venta real.
+
+### Customer
+
+Customers es tenant-level. GET carga customers()->orderBy business_name. Payload cliente reconsulta tenant y delega a CustomerController::payload: documento RUC, nombre, dirección y email de primer contacto si existe. JS propone tipo documento por longitud (8→1,11→6, fallback6) y rellena campos; el usuario puede modificar snapshot permitido. Store valida customer_id por tenant/not deleted y reconsulta; customer_name usa business_name backend, no texto JS. Doc type permitido6/1/4/7 activo; número requerido max20; dirección opcional255; emails validados120. La propiedad no depende del documento/nombre enviado. No se ejercitó creación de cliente ni servicios de consulta DNI/RUC.
+
+### Transfer Data
+
+Catálogos GET: transportTypes activos01/02, transferReasons activos, weightUnits activos KGM/TNE, indicators activos, identityDocTypes activos. No requests separados: reglas inline en store. Motivo requerido string2 y exists activo. Labels provienen de DB; seeder actual enumera01 VENTA,02 COMPRA,04 TRASLADO ENTRE ESTABLECIMIENTOS DE LA MISMA EMPRESA,14 VENTA SUJETA A CONFIRMACIÓN DEL COMPRADOR,18 TRASLADO EMISOR ITINERANTE CP,08 IMPORTACIÓN,09 EXPORTACIÓN,05 CONSIGNACION,17 TRANSFORMACION,03 VENTA CON ENTREGA A TERCEROS,06 DEVOLUCION,07 RECOJO DE BIENES TRANSFORMADOS,13 OTROS. Esto describe seed/código, no un relevamiento actualizado de catálogos MySQL. No se encontraron condiciones frontend adicionales por motivo.
+
+Origen/destino: Select2 departamento/provincia/distrito global, filtros de parent; hidden ubigeo toma district.id. Ubigeo requerido6 caracteres y exists districts; dirección requerida255. No default de warehouse/branch ni reconstrucción automática desde compañía. Código establecimiento opcional4 caracteres, backend fallback0000; la vista no expone un selector nuevo. Fechas requeridas date, sin imponer relación temporal adicional desde frontend.
+
+Transporte01 público: RUC/tipo6 activo, documento y nombre transportista, placa principal. Transporte02 privado: placa principal, documento/tipo activo, nombres/apellidos/licencia conductor; hasta2 vehículos y2 conductores secundarios. JS alterna secciones. Son datos del transporte de una GRE remitente, no habilitación de GRE transportista.
+
+Peso requerido numeric min0 (cero aceptado por contrato), step UI0.001 y cast decimal3; KGM/TNE activo. Bultos integer min1. Defaults visuales peso1/bultos1. No cálculo automático. Indicador opcional activo; buildPayload sólo implementa los tres códigos REMITTER_INDICATORS (04/05/06 de proveedor). Catálogo futuro fuera de esa lista provocaría excepción antes del commit; no se inventan códigos.
+
+### Series / Number
+
+Serie proviene de NubefactCompanyConfigService por tenant/company, no branch. greRemitterNumbering valida patrón T +3 alfanuméricos mayúsculos, inicial1..99999999. Formulario readonly muestra serie/número referencial. Store exige serie exactamente igual a configuración y recalcula número; ignora numero enviado. Dentro de transacción bloquea fila company con lockForUpdate, calcula max(numero)+1 en T/C/tipo7/serie y respeta inicial. Índice de migración gre_company_document_unique cubre T/C/tipo/serie/numero.
+
+Tests: enviar numero999 obtiene1, repetición obtiene2; serie distinta422 sin persistencia. SQLite NO demuestra lock/concurrencia MySQL ni confirma índice aplicado en DB local. Concurrencia productiva queda pendiente, no requisito para inventar numeración UI.
+
+### Store Boundary
+
+1. Compara contexto gre_*.
+2. Valida campos y transporte condicional.
+3. Reconsulta customer, sale o catálogo manual; valida ownership.
+4. BEGIN; lock company, resuelve conexión/config y numeración.
+5. Crea ShippingGuide DRAFT, vehículo/conductores y líneas; guarda vínculo venta si aplica.
+6. buildPayload local; guarda payload y SENT.
+7. COMMIT; persisted=true.
+8. send Nubefact real (reemplazado por mock en tests).
+9. Actualiza respuesta, estado y links fuera de la transacción inicial.
+
+Guardar y enviar es una sola petición/acción de usuario, pero la llamada externa ocurre después del commit. No existe opción guardar borrador separada en este contrato. No se añadió ninguna.
+
+### Nubefact Boundary
+
+Antes del commit, error produce rollback y422 genérico (probado con excepción fake de buildPayload; cero guía/líneas). Después del commit, excepción send devuelve502 con status SENT y guía persistida; no ERROR ni rollback total. UI reconoce SENT+id y vuelve al listado. En aceptación guarda ACCEPTED; respuesta sin aceptación/errores →PENDING_SUNAT; SOAP error/responsecode no vacío →REJECTED (revisión código; aceptación y pending probados con fake). No hay evaluación fiscal real.
+
+Tests mockean config con objeto de conexión ficticio y NubefactGreService; Http::fake lanza ante cualquier llamada accidental y assertNothingSent verifica cero tráfico. No se leen credenciales reales, no se usa DB compartida, no se descarga documento. Payload proveedor real se audita por código; el mock de buildPayload no certifica compatibilidad externa.
+
+### Idempotency
+
+**TECH DEBT — GUIDE-02.** Deshabilitar botón mientras AJAX está activo no es idempotencia servidor. Dos solicitudes idénticas guardan/emiten dos guías con números1 y2. Lock/índice evitan repetir correlativo, no repetir intención. No hay request key, deduplicación ni recuperación de resultado por clave. Si respuesta se pierde tras commit/envío, reintentar la misma operación puede duplicar documento. Reproducción aislada determinista; no se ejecutó concurrencia real.
+
+DEV debe definir clave/resultado idempotente y semántica de reintento, sin asumir que todas las guías de una misma venta son duplicados. EXT-01 sigue cubriendo certificación proveedor; GUIDE-02 describe este root cause reproducido específico.
+
+### Create Frontend
+
+**NO INTEGRADO en esta fase:** permission gate FAIL. Blade/JS funcional/allowlist/CSS/backend intactos. No se reemplazó autorización con ocultamiento visual. Responsive320..1440: NO EJECUTADO para Create porque la decisión de integración está bloqueada; QA histórico de listado/detalle no se extrapola. CSS nuevo0. No submit en navegador ni petición de escritura MySQL.
+
+### Remaining Backend Sync
+
+- GUIDE-01: lectura moderna contextual demostrada; Create/lookups con scope correcto pero autorización funcional pendiente. Legacy conserva estado previo, sin nueva investigación.
+- GUIDE-02: doble submit no idempotente demostrado. Requiere decisión backend antes de habilitación operacional.
+- EXT-01: proveedor, concurrencia MySQL y recuperación externa no certificados.
+- DOC-01: DOCUMENT SECURITY — BACKEND/INFRA OPEN.
+- CREATE: BACKEND SYNC REQUIRED por permisos; puede integrarse cuando DEV defina/aplique el gate, separado del cierre de store.
+- STORE: BACKEND SYNC REQUIRED; apto para continuar pruebas aisladas, no calificado READY por tener tests verdes.
+
+### Isolated Tests / Delivery 2026-11-17
+
+`ShippingGuideCreateContractTest.php`: 8 tests /101 assertions PASS. Incluye type/default, catálogos tenant, permisos caracterizados, sale/items/store ajenos, contexto manipulado, customer ajeno, validaciones manuales, catálogo manual real, fake aceptación/pending, fallo antes/después de commit y duplicidad. Esquema mínimo SQLite, no replica constraints/tipos completos MySQL ni prueba política de roles HTTP.
+
+Con `ShippingGuideReadContractTest.php`: 10 tests /136 assertions PASS, PHP7.3. Sin frontend/backend modificado. Archivos de esta fase: este documento, backlog DEV y test nuevo. git diff --check PASS; sin commit.
