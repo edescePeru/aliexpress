@@ -28,29 +28,14 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
 
-        .modal-dialog {
-            height: 100% !important;
-        }
-
-        .modal-content {
-            height: auto;
-            min-height: 100%;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Facturas por compra/Servicios</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Finanzas · Facturas</span><h1 class="page-title">Editar factura de compra / servicio</h1><p class="next-page-description">Documento financiero de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Modificar factura por compra/Servicio</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Factura de compra / servicio</strong><span>Documento, líneas e importes.</span></div><div class="next-toolbar-actions"><a class="btn btn-outline-secondary btn-sm" href="{{ route('invoice.index') }}">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -66,21 +51,16 @@
 @endsection
 
 @section('content')
-    <form id="formEdit" class="form-horizontal" data-url="{{ route('invoice.update') }}" enctype="multipart/form-data">
+    <form id="formEdit" class="form-horizontal next-form-section" data-url="{{ route('invoice.update') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="entry_id" value="{{ $entry->id }}">
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Datos generales</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                        <div class="next-section-header mb-0"><div><span class="next-section-kicker">01</span><h2>Documento y proveedor</h2></div></div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group" id="sandbox-container">
@@ -104,7 +84,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="observation">Observación </label>
-                                    <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ....">{{$entry->observation}}</textarea>
+                                    <textarea id="observation" name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ....">{{$entry->observation}}</textarea>
                                 </div>
                                 <div class="form-group">
                                     <label for="category_invoice">Categoría </label>
@@ -118,18 +98,18 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group row">
-                                    <div class="col-md-8">
-                                        <label for="invoice">Factura <span class="right badge badge-danger">(*)</span></label>
+                                    <div class="col-12">
+                                        <label for="invoice">Factura <span class="next-required">(*)</span></label>
                                         <input type="text" id="invoice" name="invoice" class="form-control" value="{{ $entry->invoice }}">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="btn-grouped"> Diferido <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <div class="col-12 mt-3">
+                                        <label for="btn-grouped"> Diferido <span class="next-required">(*)</span></label> <br>
                                         <input id="btn-grouped" type="checkbox" name="deferred_invoice" {{ ($entry->deferred_invoice==='on') ? 'checked':'' }} data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
                                     </div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="type_order">Tipo de Orden <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="type_order">Tipo de Orden <span class="next-required">(*)</span></label>
                                     <input type="hidden" id="entry_type" value="Por compra" name="entry_type" class="form-control" readonly>
                                     <select id="type_order" name="type_order" class="form-control select2" style="width: 100%;">
                                         <option></option>
@@ -141,14 +121,14 @@
                                     <label for="image">Imagen/PDF Factura </label>
                                     <input type="file" id="image" name="image" class="form-control">
                                     @if ( strtoupper(substr($entry->image,-3)) == 'PDF' )
-                                        <a target="_blank" href="{{ asset('images/entries/'.$entry->image) }}" class="btn btn-outline-success float-right">Ver PDF</a>
+                                        <a target="_blank" href="{{ asset('images/entries/'.$entry->image) }}" class="btn btn-primary">Ver PDF</a>
                                     @else
                                         <img data-image src="{{ asset('images/entries/'.$entry->image) }}" alt="{{$entry->invoice}}" width="100px" height="100px">
                                     @endif
                                     {{--<img data-image src="{{ asset('images/entries/'.$entry->image) }}" alt="{{$entry->invoice}}" width="100px" height="100px">--}}
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <label for="btn-currency"> Moneda <span class="next-required">(*)</span></label> <br>
                                     <input id="btn-currency" type="checkbox" {{ ($entry->currency_invoice === 'USD') ? 'checked':''}} name="currency_invoice" data-bootstrap-switch data-off-color="primary" data-on-text="DOLARES" data-off-text="SOLES" data-on-color="success">
                                 </div>
                             </div>
@@ -159,29 +139,24 @@
                 <!-- /.card -->
             </div>
             <div class="col-md-12">
-                <div class="card card-warning">
-                    <div class="card-header">
-                        <h3 class="card-title">Materiales</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <div class="next-section-header mb-0"><div><span class="next-section-kicker">02</span><h2>Líneas de compra / servicio</h2></div></div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
 
                         @if ( substr($entry->purchase_order, 0, 1) === '0' || empty($entry->purchase_order) )
-                        <div class="row">
-                            <div class="col-md-4">
+                        <div class="row align-items-end">
+                            <div class="col-12 col-md-6 col-xl-4">
                                 <div class="form-group">
-                                    <label for="material_search">Ingresar material/Servicio <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="material_search">Material / Servicio <span class="next-required">(*)</span></label>
                                     <input type="text" id="material_search" onkeyup="mayus(this);" class="form-control">
 
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
-                                    <label for="material_unit">Unidad <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="material_unit">Unidad <span class="next-required">(*)</span></label>
                                     <select id="material_unit" name="material_unit" class="form-control select2" style="width: 100%;">
                                         <option></option>
                                         @foreach( $unitMeasures as $unitMeasure )
@@ -190,23 +165,24 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
-                                    <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="quantity">Cantidad <span class="next-required">(*)</span></label>
                                     <input type="number" id="quantity" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
-                                    <label for="price">Precio Total C/IGV <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="price">Precio Total C/IGV <span class="next-required">(*)</span></label>
                                     <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                     this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
                                     ">
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <label for="btn-add"> &nbsp; </label>
-                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary">Agregar <i class="fas fa-arrow-circle-right"></i></button>
+                            <div class="col-12 col-md-6 col-xl-2">
+                                <div class="form-group">
+                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary">Agregar</button>
+                                </div>
                             </div>
 
                         </div>
@@ -218,33 +194,33 @@
                             <div class="col-md-12">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h3 class="card-title">Materiales</h3>
+                                        <h3 class="card-title">Detalle agregado</h3>
                                     </div>
                                     <!-- /.card-header -->
                                     <div class="card-body table-responsive p-0">
-                                        <table id="tablita" class="table table-head-fixed text-nowrap">
+                                        <table id="tablita" class="table table-bordered table-hover table-sm next-data-table text-nowrap">
                                             <thead>
                                                 <tr>
                                                     <th>Material</th>
-                                                    <th>Cantidad</th>
-                                                    <th>Und</th>
-                                                    <th>Precio Unit.</th>
-                                                    <th>Total sin Imp.</th>
-                                                    <th>Total Imp.</th>
-                                                    <th>Importe</th>
-                                                    <th>Acciones</th>
+                                                    <th class="text-center">Cantidad</th>
+                                                    <th class="text-center">Und</th>
+                                                    <th class="text-right">Precio Unit.</th>
+                                                    <th class="text-right">Total sin Imp.</th>
+                                                    <th class="text-right">Total Imp.</th>
+                                                    <th class="text-right">Importe</th>
+                                                    <th class="text-center">Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="body-materials">
                                                 @foreach( $entry->details as $key => $detail )
                                                     <tr>
                                                         <td data-description>{{$detail->material_description}}</td>
-                                                        <td data-quantity>{{$detail->entered_quantity}}</td>
-                                                        <td data-unit>{{$detail->unit}}</td>
-                                                        <td data-price>{{$detail->unit_price}}</td>
-                                                        <td data-subtotal>{{ $detail->sub_total }}</td>
-                                                        <td data-taxes>{{ $detail->taxes }}</td>
-                                                        <td data-total>{{ $detail->total }}</td>
+                                                        <td class="text-center" data-quantity>{{$detail->entered_quantity}}</td>
+                                                        <td class="text-center" data-unit>{{$detail->unit}}</td>
+                                                        <td class="text-right" data-price>{{$detail->unit_price}}</td>
+                                                        <td class="text-right" data-subtotal>{{ $detail->sub_total }}</td>
+                                                        <td class="text-right" data-taxes>{{ $detail->taxes }}</td>
+                                                        <td class="text-right" data-total>{{ $detail->total }}</td>
                                                         <td data-action>
                                                             @if ( substr($entry->purchase_order, 0, 1) === '0' || empty($entry->purchase_order) )
                                                                 <button type="button" data-delete="{{ $detail->id }}" data-i="{{ $key+1 }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i> </button>
@@ -257,12 +233,12 @@
                                             <template id="materials-selected">
                                                 <tr>
                                                     <td data-description>John Doe</td>
-                                                    <td data-quantity>John Doe</td>
-                                                    <td data-unit>11-7-2014</td>
-                                                    <td data-price>11-7-2014</td>
-                                                    <td data-subtotal>11-7-2014</td>
-                                                    <td data-taxes>11-7-2014</td>
-                                                    <td data-total>11-7-2014</td>
+                                                    <td class="text-center" data-quantity>John Doe</td>
+                                                    <td class="text-center" data-unit>11-7-2014</td>
+                                                    <td class="text-right" data-price>11-7-2014</td>
+                                                    <td class="text-right" data-subtotal>11-7-2014</td>
+                                                    <td class="text-right" data-taxes>11-7-2014</td>
+                                                    <td class="text-right" data-total>11-7-2014</td>
                                                     <td>
                                                         <button type="button" data-deleteNew="" class="btn btn-outline-warning btn-sm"><i class="fas fa-trash"></i></button>
                                                     </td>
@@ -274,26 +250,26 @@
                                     <hr>
                                     <div class="row">
                                         <!-- accepted payments column -->
-                                        <div class="col-6">
+                                        <div class="col-12 col-md-6">
 
                                         </div>
                                         <!-- /.col -->
-                                        <div class="col-6">
+                                        <div class="col-12 col-md-6">
                                             <p class="lead">Resumen de factura</p>
 
                                             <div class="table-responsive">
                                                 <table class="table">
                                                     <tr>
                                                         <th style="width:50%">Subtotal: </th>
-                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="subtotal">{{ $entry->sub_total }}</span> </td>
+                                                        <td class="text-right"><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="subtotal">{{ $entry->sub_total }}</span> </td>
                                                     </tr>
                                                     <tr>
                                                         <th>Igv: </th>
-                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="taxes">{{ $entry->taxes }}</span> </td>
+                                                        <td class="text-right"><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="taxes">{{ $entry->taxes }}</span> </td>
                                                     </tr>
                                                     <tr>
                                                         <th>Total: </th>
-                                                        <td ><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="total">{{ $entry->total }}</span> </td>
+                                                        <td class="text-right"><span class="moneda">{{ $entry->currency_invoice }}</span> <span id="total">{{ $entry->total }}</span> </td>
                                                     </tr>
 
                                                 </table>
@@ -312,15 +288,15 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 next-toolbar-actions flex-wrap">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar cambios</button>
+                <button type="button" id="btn-submit" class="btn btn-primary">Guardar cambios</button>
             </div>
         </div>
         <!-- /.card-footer -->
     </form>
 
-    <div id="modalImage" class="modal fade" tabindex="-1">
+    <div id="modalImage" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -337,7 +313,7 @@
         </div>
     </div>
 
-    <div id="modalAddItems" class="modal fade" tabindex="-1">
+    <div id="modalAddItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -428,7 +404,7 @@
         </div>
     </div>
 
-    <div id="modalAddGroupItems" class="modal fade" tabindex="-1">
+    <div id="modalAddGroupItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">

@@ -17,6 +17,8 @@ return [
     'route_uris' => ['dashboard/ver/orden/compra/normal/{id}'],
 
     'routes' => [
+        'invoice.create',
+        'invoice.edit',
         'supplier.accounts.index',
         'kardex.index',
         'shipping_guides.view',
