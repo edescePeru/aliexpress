@@ -1,0 +1,5 @@
+# Fondo inicial y diferidos anulados
+
+cash_opening_funds guarda el origen de una apertura positiva de efectivo, el importe, la procedencia, la caja, la sesión, el contexto y el operador. En la apertura por cashRegister.open se guarda en la misma transacción que la sesión. La caja está bloqueada cuando el origen consolidado descuenta su saldo rendido. El turno empieza con el fondo una vez. Actividad muestra los fondos externos y traspasos de apertura en columnas propias. Una apertura anterior puede carecer de origen verificable.
+
+Al anular un cobro diferido pendiente, cash_movements guarda la fecha, el usuario y el motivo de cancelación. Se conserva la relación con la sesión, la venta y el arqueo previo. El pendiente cancelado queda fuera del resumen y de nuevos recuentos de pendientes. Una regularización posterior de ese movimiento queda bloqueada. El abono confirmado se devuelve según el flujo de sesiones por importe bruto, incluido el pago parcial regularizado cuando se anula individualmente.

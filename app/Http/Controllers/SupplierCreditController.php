@@ -20,18 +20,36 @@ use App\Services\SettingService;
 
 class SupplierCreditController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:control_credit')->only(['indexCredits', 'getOnlyInvoicesPurchase', 'getOnlyCreditsSupplier', 'indexInvoicesPending', 'getInvoicesPending', 'getSummaryDeudaPending', 'getInvoiceForExpire', 'getAmountInvoiceCurrentMonth', 'getAmountInvoiceGeneral', 'exportCreditsExcel']);
+        $this->middleware('permission:control_credit|edit_credit|pay_credit|nopay_credit')->only(['getCreditById']);
+        $this->middleware('permission:control_credit|pay_credit|nopay_credit')->only(['getPaysCredit']);
+        $this->middleware('permission:edit_credit')->only(['addInvoiceToCredit', 'update', 'addDaysCredit']);
+        $this->middleware('permission:pay_credit')->only(['paid', 'savePaysCredit']);
+        $this->middleware('permission:nopay_credit')->only(['cancelPayCredit', 'deletePayCredit']);
+        $this->middleware('permission:pay_credit|nopay_credit')->only(['changeStatusCredit']);
+        $this->middleware(function ($request, $next) {
+            $tenant = \App\Support\TenantContext::tenantIdOrNull();
+            $company = \App\Support\TenantContext::companyIdOrNull();
+            abort_unless($tenant && $company && \App\Company::where('tenant_id', $tenant)->whereKey($company)->exists(), 403, 'Selecciona una empresa válida para consultar créditos.');
+            return $next($request);
+        });
+    }
+
     public function indexCredits()
     {
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         return view('credit.indexSupplierCredit', compact('permissions'));
     }
 
     public function getOnlyInvoicesPurchase()
     {
-        $entries = Entry::with('supplier')
+        $entries = Entry::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->with('supplier')
             ->doesntHave('credit')
+            ->where('state_annulled', false)
             ->where('type_order', 'purchase')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -40,63 +58,50 @@ class SupplierCreditController extends Controller
 
     public function getOnlyCreditsSupplier()
     {
-        $credits = SupplierCredit::with('supplier')
-            ->with('purchase')
-            ->with('service')
-            ->with('deadline')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $warning = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
+        $credits = SupplierCredit::with(['supplier', 'purchase', 'service', 'deadline'])
+            ->orderBy('created_at', 'desc')->get();
         foreach ($credits as $credit) {
-            if (isset($credit->date_expiration) && $credit->state_credit != 'paid_out') {
-                $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-                $dias_to_expire = $fecha->diffInDays(Carbon::now('America/Lima'));
-                $credit->days_to_expiration = (int)$dias_to_expire;
-                $credit->save();
-
-                if ((int)$dias_to_expire < 4 && (int)$dias_to_expire > 0) {
-                    $credit->state_credit = 'by_expire';
-                    $credit->save();
-                }
-
-                if ($dias_to_expire == 0) {
-                    $credit->state_credit = 'expired';
-                    $credit->save();
-                }
-            }
-
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, $warning);
         }
-        $credits = SupplierCredit::with('supplier')
-            ->with('purchase')
-            ->with('service')
-            ->with('deadline')
-            ->orderBy('created_at', 'desc')
-            ->get();
         return datatables($credits)->toJson();
     }
 
     public function addInvoiceToCredit($idEntry)
     {
-        DB::beginTransaction();
-        try {
-            $entry = Entry::with('supplier')->find($idEntry);
-
+        $result = DB::transaction(function () use ($idEntry) {
+            $entry = Entry::where('tenant_id', \App\Support\TenantContext::tenantId())
+                ->where('company_id', \App\Support\TenantContext::companyId())
+                ->where('type_order', 'purchase')->lockForUpdate()->findOrFail($idEntry);
+            if ($entry->state_annulled) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['entry' => 'La entrada está anulada.']);
+            }
+            $existing = SupplierCredit::where('entry_id', $entry->id)->lockForUpdate()->first();
+            if ($existing) { return ['credit' => $existing, 'created' => false]; }
+            if (!$entry->supplier_id || !\App\Supplier::whereKey($entry->supplier_id)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['entry' => 'La entrada requiere un proveedor disponible en este tenant.']);
+            }
+            if (!in_array($entry->currency_invoice, ['PEN', 'USD'], true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['entry' => 'La moneda de la entrada debe ser PEN o USD.']);
+            }
+            // Evitar crear otra deuda sobre una orden con crédito aún sin entrada asociada.
+            if ($entry->order_purchase_id && SupplierCredit::where('order_purchase_id', $entry->order_purchase_id)->whereNull('entry_id')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['entry' => 'La orden ya tiene un crédito sin entrada asociada. Revisa su vínculo antes de crear otra deuda.']);
+            }
+            $total = $entry->total;
             $credit = SupplierCredit::create([
-                'supplier_id' => $entry->supplier->id,
-                'entry_id' => $entry->id,
-                'invoice' => $entry->invoice,
-                'image_invoice' => $entry->image,
-                'purchase_order' => $entry->purchase_order,
-                'total_soles' => ($entry->currency_invoice == 'PEN') ? $entry->total:null,
-                'total_dollars' => ($entry->currency_invoice == 'USD') ? $entry->total:null,
+                'supplier_id' => $entry->supplier_id, 'entry_id' => $entry->id,
+                'invoice' => $entry->invoice, 'image_invoice' => $entry->image,
+                'total_soles' => $entry->currency_invoice === 'PEN' ? $total : null,
+                'total_dollars' => $entry->currency_invoice === 'USD' ? $total : null,
                 'date_issue' => $entry->date_entry,
             ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Factura agregada con éxito.'], 200);
-
+            return ['credit' => $credit, 'created' => true];
+        });
+        return response()->json([
+            'message' => $result['created'] ? 'Factura agregada con éxito.' : 'La factura ya estaba asociada a un crédito.',
+            'credit_id' => $result['credit']->id, 'created' => $result['created'],
+        ], 200);
     }
 
     public function getCreditById( $credit_id )
@@ -105,7 +110,7 @@ class SupplierCreditController extends Controller
             ->with('purchase')
             ->with('service')
             ->with('deadline')
-            ->find($credit_id);
+            ->findOrFail($credit_id);
 
         return response()->json(['credit' => $credit], 200);
     }
@@ -117,178 +122,91 @@ class SupplierCreditController extends Controller
 
     public function update(Request $request)
     {
-        //dd($request);
-        DB::beginTransaction();
-        try {
-
-            $credit = SupplierCredit::find($request->get('credit_id'));
-            // TODO: Solo se guarda las fechas, dias para expirar y la observacion
-            // TODO: Se actualiza los estados
-            $credit->date_issue = Carbon::createFromFormat('d/m/Y', $request->get('date_issue'), 'America/Lima');
-            $credit->date_expiration = Carbon::createFromFormat('d/m/Y', $request->get('date_expiration'), 'America/Lima' );
-            $credit->days_to_expiration = (int) $request->get('days_to_expiration');
-            $credit->observation = $request->get('observation');
+        \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'credit_id' => 'required|integer|min:1',
+            'date_issue' => 'required|date_format:d/m/Y',
+            'date_expiration' => 'required|date_format:d/m/Y|after_or_equal:date_issue',
+            'observation' => 'nullable|string',
+        ])->validate();
+        $warning = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
+        DB::transaction(function () use ($request, $warning) {
+            $credit = SupplierCredit::lockForUpdate()->findOrFail($request->input('credit_id'));
+            $this->requireCreditInvoice($credit);
+            $credit->date_issue = Carbon::createFromFormat('d/m/Y', $request->input('date_issue'), 'America/Lima')->toDateString();
+            $credit->date_expiration = Carbon::createFromFormat('d/m/Y', $request->input('date_expiration'), 'America/Lima')->toDateString();
+            $credit->observation = $request->input('observation');
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, $warning);
             $credit->save();
-
-            if ( isset($credit->date_expiration) && ($credit->invoice!=null || $credit->invoice!='') )
-            {
-                $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-                $dias_to_expire = $fecha->diffInDays(Carbon::now('America/Lima'));
-                $credit->days_to_expiration = (int)$dias_to_expire;
-                $credit->save();
-
-                if ( (int)$dias_to_expire < 4 && (int)$dias_to_expire > 0 )
-                {
-                    $credit->state_credit = 'by_expire';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire == 0 )
-                {
-                    $credit->state_credit = 'expired';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire > 4 )
-                {
-                    $credit->state_credit = 'outstanding';
-                    $credit->save();
-                }
-            } else {
-                return response()->json(['message' => "No tiene una factura aún"], 422);
-            }
-
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
+        });
         return response()->json(['message' => 'Crédito modificado correctamente'], 200);
-
     }
 
     public function paid(Request $request)
     {
-        DB::beginTransaction();
+        \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'credit_id' => 'required|integer|min:1', 'date_paid' => 'required|date_format:d/m/Y',
+            'observation2' => 'nullable|string', 'image_paid' => 'nullable|file|mimes:pdf,jpg,jpeg,png',
+        ])->validate();
+        $createdFile = null;
         try {
-
-            $credit = SupplierCredit::find($request->get('credit_id'));
-            // TODO: Solo se guarda las fechas, dias para expirar y la observacion
-            // TODO: Se actualiza los estados
-
-            if ( isset($credit->date_expiration) && ($credit->invoice!=null || $credit->invoice!='') )
-            {
-                $credit->observation_extra = $request->get('observation2');
-                $credit->date_paid = Carbon::createFromFormat('d/m/Y', $request->get('date_paid'), 'America/Lima' );
+            DB::transaction(function () use ($request, &$createdFile) {
+                $credit = SupplierCredit::lockForUpdate()->findOrFail($request->input('credit_id'));
+                $this->requireCreditInvoice($credit);
+                if (!$credit->date_expiration) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'El crédito requiere fecha de vencimiento.']);
+                }
+                if ($credit->state_credit === 'paid_out') {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'El crédito ya tiene una marca de pago.']);
+                }
+                $credit->date_paid = Carbon::createFromFormat('d/m/Y', $request->input('date_paid'), 'America/Lima')->toDateString();
+                $credit->observation_extra = $request->input('observation2');
                 $credit->state_credit = 'paid_out';
-
-                if (!$request->file('image_paid')) {
-                    $credit->image_paid = 'no_image.png';
-                    $credit->save();
-                } else {
-                    $path = public_path().'/images/credits/';
-                    $image = $request->file('image_paid');
-                    $extension = $request->file('image_paid')->getClientOriginalExtension();
-                    //$filename = $entry->id . '.' . $extension;
-                    if ( $extension != 'pdf' )
-                    {
-                        $filename = $credit->id . '.jpg';
-                        $img = Image::make($image);
-                        $img->orientate();
-                        $img->save($path.$filename, 80, 'jpg');
-                        //$request->file('image')->move($path, $filename);
-                        $credit->image_paid = $filename;
-                        $credit->save();
-                    } else {
-                        $filename = 'pdf'.$credit->id . '.' .$extension;
-                        $request->file('image_paid')->move($path, $filename);
-                        $credit->image_paid = $filename;
-                        $credit->save();
-                    }
-
+                if ($request->hasFile('image_paid')) {
+                    $file = $request->file('image_paid');
+                    $directory = public_path('images/credits');
+                    if (!is_dir($directory)) { \Illuminate\Support\Facades\File::makeDirectory($directory, 0755, true); }
+                    $pdf = $file->getMimeType() === 'application/pdf';
+                    $filename = (string) \Illuminate\Support\Str::uuid().($pdf ? '.pdf' : '.jpg');
+                    $createdFile = $directory.DIRECTORY_SEPARATOR.$filename;
+                    if ($pdf) { $file->move($directory, $filename); }
+                    else { Image::make($file)->orientate()->save($createdFile, 80, 'jpg'); }
+                    $credit->image_paid = $filename;
                 }
                 $credit->save();
-
-            } else {
-                return response()->json(['message' => "No tiene una factura aún"], 422);
-            }
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+            });
+        } catch (\Throwable $e) {
+            if ($createdFile && is_file($createdFile)) { \Illuminate\Support\Facades\File::delete($createdFile); }
+            throw $e;
         }
-
         return response()->json(['message' => 'Crédito pagado correctamente'], 200);
-
     }
 
     public function cancelPayCredit($idCredit)
     {
-        DB::beginTransaction();
-        try {
-
-            $credit = SupplierCredit::find($idCredit);
-            // TODO: Solo se guarda las fechas, dias para expirar y la observacion
-            // TODO: Se actualiza los estados
-
-            if ( isset($credit->date_expiration) && ($credit->invoice!=null || $credit->invoice!='') )
-            {
-                $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-                $dias_to_expire = $fecha->diffInDays(Carbon::now('America/Lima'));
-                $credit->days_to_expiration = ceil($dias_to_expire);
-                $credit->save();
-
-                if ( (int)$dias_to_expire < 4 && ceil($dias_to_expire) > 0 )
-                {
-                    $credit->state_credit = 'by_expire';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire == 0 )
-                {
-                    $credit->state_credit = 'expired';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire > 4 )
-                {
-                    $credit->state_credit = 'outstanding';
-                    $credit->save();
-                }
-
-                if ( $credit->image_paid != 'no_image.png' || $credit->image_paid != null )
-                {
-                    $path = public_path().'/images/credits/'.$credit->image_paid;
-                    unlink($path);
-                    $credit->image_paid = null;
-                    $credit->save();
-                }
-
-                $credit->date_paid = null;
-                $credit->observation_extra = '';
-                $credit->save();
-
-            } else {
-                return response()->json(['message' => "No tiene una factura aún"], 422);
+        $warning = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
+        DB::transaction(function () use ($idCredit, $warning) {
+            $credit = SupplierCredit::lockForUpdate()->findOrFail($idCredit);
+            $this->requireCreditInvoice($credit);
+            if (!$credit->date_expiration || $credit->state_credit !== 'paid_out') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'No existe una marca de pago con vencimiento que anular.']);
             }
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['message' => 'Pago cancelado correctamente'], 200);
-
+            if ($credit->state_pay === 'canceled') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'Primero revierte la marca de estado cancelado; ambas marcas deben revisarse por separado.']);
+            }
+            // Conservar archivo y referencia documental; no borrar abonos ni fabricar un egreso.
+            $credit->date_paid = null;
+            $credit->observation_extra = '';
+            $credit->state_credit = 'outstanding';
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, $warning);
+            $credit->save();
+        });
+        return response()->json(['message' => 'Marca de pago anulada correctamente'], 200);
     }
 
     public function indexInvoicesPending()
     {
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
         $years = DateDimension::distinct()->get(['year']);
 
         return view('credit.indexInvoicesPending', compact('permissions', 'years'));
@@ -306,94 +224,34 @@ class SupplierCreditController extends Controller
             ->orderBy('date_issue', 'desc')
             ->get();
 
-        foreach( $credits as $credit )
-        {
-            if ( isset($credit->date_expiration) && $credit->state_credit != 'paid_out' )
-            {
-                $ahora = Carbon::now('America/Lima');
-                $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-                $dias_to_expire = ceil($fecha->floatDiffInDays($ahora));
-                if ($fecha->timestamp < $ahora->timestamp) {
-                    $dias_to_expire *= -1; // Aplica el signo negativo si la primera fecha es anterior a la segunda
-                }
-                $credit->days_to_expiration = $dias_to_expire;
-                $credit->save();
-
-                if ($dias_to_expire < $expirationWarningDays && $dias_to_expire >= 0)
-                {
-                    $credit->state_credit = 'by_expire';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire < 0 )
-                {
-                    $credit->state_credit = 'expired';
-                    $credit->save();
-                }
-            }
-
+        foreach ($credits as $credit) {
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, $expirationWarningDays);
         }
-
-        $credits = SupplierCredit::with('supplier')
-            ->with('purchase')
-            ->with('service')
-            ->with('deadline')
-            ->orderBy('date_issue', 'desc')
-            ->get();
 
         $arrayOrders = [];
 
         foreach ( $credits as $credit )
         {
-            $pagos = CreditPay::where('supplier_credit_id', $credit->id)->sum('amount');
-            if ( $credit->entry_id == null )
-            {
-                if ( $credit->invoice != null || $this->onlyZeros($credit->invoice) == false )
-                {
-                    if ( $credit->order_purchase_id != null ) {
-                        $entry = Entry::where('invoice', $credit->invoice )->first();
-                    } elseif ( $credit->order_service_id != null ) {
-                        $entry = OrderService::where('invoice', $credit->invoice )->first();
-                    }
-
-                    if (isset( $entry ))
-                    {
-                        if ( $credit->order_purchase_id != null )
-                        {
-                            $url = route('entry.purchase.show', [$entry->id]);
-                        } elseif ( $credit->order_service_id != null ) {
-                            $url = route('show.order.service', [$credit->order_service_id]);
-                        } else {
-                            $url = route('show.order.purchase.finance', [$credit->order_purchase_finance_id]);
-                        }
-
-                    } else {
-                        $url = "";
-                    }
-
-                } else {
-                    $url = "";
-                }
-
-            } else {
-                $url = route('entry.purchase.show', [$credit->entry_id]);
-            }
+            $balance = \App\Services\Purchases\SupplierCreditBalance::forCredit($credit);
+            $pagos = $balance['paid'];
+            $url = $this->supplierCreditDocumentUrl($credit);
 
             array_push($arrayOrders, [
                 "id" => $credit->id,
                 'url' => $url,
                 "stateCredit" => $credit->state_credit,
-                "order" => substr(trim($credit->code_order), 0, 2),
-                "correlativo" => trim($credit->code_order),
-                "proveedor" => ($credit->supplier_id == null) ? 'Sin proveedor':$credit->supplier->business_name,
+                "order" => substr(trim((string) $credit->code_order), 0, 2),
+                "correlativo" => trim((string) $credit->code_order),
+                "proveedor" => !$credit->supplier ? 'Sin proveedor':$credit->supplier->business_name,
                 "moneda" => ($credit->total_soles != null) ? 'Soles':'Dólares',
-                "condicion" => ($credit->payment_deadline_id == null) ? 'Sin condición':$credit->deadline->description,
+                "condicion" => !$credit->deadline ? 'Sin condición':$credit->deadline->description,
                 "montoDolares" => ($credit->total_dollars == null) ? '':$credit->total_dollars,
                 "montoSoles" => ($credit->total_soles == null) ? '':$credit->total_soles,
-                "adelanto" =>  $pagos,
-                "deudaActualDolares" => ($credit->total_dollars != null) ? $credit->total_dollars-$pagos:'',
-                "deudaActualSoles" => ($credit->total_soles != null) ? $credit->total_soles-$pagos:'',
-                "deudaActual" => ($credit->total_soles != null) ? $credit->total_soles-$pagos:$credit->total_dollars-$pagos,
+                "adelanto" => $pagos,
+                "legacyAdvancePendingReview" => $balance['legacy_review'],
+                "deudaActualDolares" => $balance['currency'] === 'USD' ? $balance['balance'] : '',
+                "deudaActualSoles" => $balance['currency'] === 'PEN' ? $balance['balance'] : '',
+                "deudaActual" => $balance['balance'],
                 "factura" => ($credit->invoice == null) ? 'PENDIENTE':$credit->invoice,
                 "fechaEmision" => ($credit->date_issue == null) ? '': $credit->date_issue->format('d/m/Y'),
                 "fechaVencimiento" => ($credit->date_expiration == null) ? '': $credit->date_expiration->format('d/m/Y'),
@@ -433,156 +291,87 @@ class SupplierCreditController extends Controller
 
     public function savePaysCredit(Request $request, $credit_id)
     {
-        DB::beginTransaction();
+        if ($request->input('fechaPago') === '') { $request->merge(['fechaPago' => null]); }
+        \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'montoPago' => ['required', 'numeric', 'min:0.01', 'regex:/^[0-9]+(?:\.[0-9]{1,2})?$/'],
+            'fechaPago' => ['nullable', 'date_format:d/m/Y'],
+            'comprobantePago' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png'],
+        ])->validate();
+        $createdFile = null;
         try {
-            $credit = SupplierCredit::find($credit_id);
-
-            $creditPay = CreditPay::create([
-                'supplier_credit_id' => $credit->id,
-                'amount' => $request->get('montoPago'),
-                'date_pay' => ($request->get('fechaPago') != null) ? Carbon::createFromFormat('d/m/Y', $request->get('fechaPago')) : null,
-            ]);
-
-            if ($request->hasFile('comprobantePago')) {
-                $image = $request->file('comprobantePago');
-                $path = public_path().'/images/credits/pays/';
-                $extension = $request->file('comprobantePago')->getClientOriginalExtension();
-                //$filename = $entry->id . '.' . $extension;
-                if ( strtoupper($extension) != "PDF" )
-                {
-                    $filename = $creditPay->id.'_' . $this->generateRandomString(20).'.JPG';
-                    $img = Image::make($image);
-                    $img->orientate();
-                    $img->save($path.$filename, 80, 'JPG');
-                    //$request->file('image')->move($path, $filename);
-                    $creditPay->image = $filename;
-                    $creditPay->save();
-                } else {
-                    $filename = 'pdf'.$creditPay->id . $this->generateRandomString(20) . '.' .$extension;
-                    $request->file('comprobantePago')->move($path, $filename);
-                    $creditPay->image = $filename;
-                    $creditPay->save();
+            $credit = DB::transaction(function () use ($request, $credit_id, &$createdFile) {
+                $credit = SupplierCredit::lockForUpdate()->findOrFail($credit_id);
+                $pay = CreditPay::create([
+                    'supplier_credit_id' => $credit->id,
+                    'amount' => $request->input('montoPago'),
+                    'date_pay' => $request->filled('fechaPago') ? Carbon::createFromFormat('d/m/Y', $request->input('fechaPago'))->toDateString() : null,
+                ]);
+                if ($request->hasFile('comprobantePago')) {
+                    $file = $request->file('comprobantePago');
+                    $directory = public_path('images/credits/pays');
+                    if (!is_dir($directory)) { \Illuminate\Support\Facades\File::makeDirectory($directory, 0755, true); }
+                    $pdf = $file->getMimeType() === 'application/pdf';
+                    $filename = (string) \Illuminate\Support\Str::uuid().($pdf ? '.pdf' : '.jpg');
+                    $createdFile = $directory.DIRECTORY_SEPARATOR.$filename;
+                    if ($pdf) { $file->move($directory, $filename); }
+                    else { Image::make($file)->orientate()->save($createdFile, 80, 'jpg'); }
+                    $pay->image = $filename;
+                    $pay->save();
                 }
-            }
-
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+                return $credit;
+            });
+        } catch (\Throwable $e) {
+            // Únicamente el archivo nuevo de esta petición; nunca archivos históricos.
+            if ($createdFile && is_file($createdFile)) { \Illuminate\Support\Facades\File::delete($createdFile); }
+            throw $e;
         }
-
-        return response()->json([
-            'message' => 'Pago registrado con exito.',
-            'credit' => $credit],
-            200);
-
+        return response()->json(['message' => 'Pago registrado con éxito.', 'credit' => $credit], 200);
     }
 
     public function deletePayCredit(Request $request, $credit_pay_id)
     {
-        DB::beginTransaction();
-        try {
-
-            $creditPay = CreditPay::find($credit_pay_id);
-
-            $credit = SupplierCredit::find($creditPay->supplier_credit_id);
-
-            $creditPay->delete();
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json([
-            'message' => 'Pago eliminado con exito.',
-            'credit' => $credit],
-            200);
-
+        $credit = DB::transaction(function () use ($credit_pay_id) {
+            $parentId = CreditPay::whereKey($credit_pay_id)->value('supplier_credit_id');
+            abort_unless($parentId, 404);
+            $credit = SupplierCredit::lockForUpdate()->findOrFail($parentId);
+            $pay = CreditPay::where('supplier_credit_id', $credit->id)->lockForUpdate()->findOrFail($credit_pay_id);
+            $pay->delete();
+            return $credit;
+        });
+        return response()->json(['message' => 'Pago eliminado con éxito.', 'credit' => $credit], 200);
     }
 
     public function addDaysCredit(Request $request, $credit_id)
     {
-        $credit = SupplierCredit::find($credit_id);
-
-        if ( !isset($credit->date_expiration) || $credit->state_credit == 'paid_out' ) {
-            return response()->json([
-                'message' => "No se puede agregar dias porque la fecha de expiración no existe o el estado del crédito ya esta pagado"],
-                422);
-        }
-
-        DB::beginTransaction();
-        try {
-            $newDate = $credit->date_expiration->addDays(7);
-
-            $credit->date_expiration = $newDate;
-
+        $warning = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
+        $credit = DB::transaction(function () use ($credit_id, $warning) {
+            $credit = SupplierCredit::lockForUpdate()->findOrFail($credit_id);
+            if (!$credit->date_expiration || $credit->state_credit === 'paid_out' || $credit->state_pay === 'canceled') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'El crédito requiere fecha de vencimiento y no debe estar marcado pagado.']);
+            }
+            $credit->date_expiration = $credit->date_expiration->copy()->addDays(7)->toDateString();
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, $warning);
             $credit->save();
-
-            $ahora = Carbon::now('America/Lima');
-            $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-            $dias_to_expire = ceil($fecha->floatDiffInDays($ahora));
-            if ($fecha->timestamp < $ahora->timestamp) {
-                $dias_to_expire *= -1; // Aplica el signo negativo si la primera fecha es anterior a la segunda
-            }
-            $credit->days_to_expiration = $dias_to_expire;
-            $credit->save();
-
-            if ( $dias_to_expire >= 4 )
-            {
-                $credit->state_credit = 'outstanding';
-                $credit->save();
-            }
-
-            if ( $dias_to_expire < 4 && $dias_to_expire > 0 )
-            {
-                $credit->state_credit = 'by_expire';
-                $credit->save();
-            }
-
-            if ( $dias_to_expire <= 0 )
-            {
-                $credit->state_credit = 'expired';
-                $credit->save();
-            }
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json([
-            'message' => 'Se agregaron 7 días más a la fecha de expiración.',
-            'credit' => $credit],
-            200);
+            return $credit;
+        });
+        return response()->json(['message' => 'Se agregaron 7 días más a la fecha de expiración.', 'credit' => $credit], 200);
     }
 
     public function getSummaryDeudaPending()
     {
-        $credits = SupplierCredit::where('state_pay', '<>', 'canceled')->get();
-
-        $deudaSoles = 0;
-        $deudaDolares = 0;
-        foreach ( $credits as $credit )
-        {
-            if ( $credit->total_soles != null )
-            {
-                $deudaSoles = $deudaSoles + ($credit->total_soles-$credit->advance );
-            }
-
-            if ( $credit->total_dollars != null )
-            {
-                $deudaDolares = $deudaDolares + ( $credit->total_dollars-$credit->advance );
-            }
-
+        // Marcas manuales no sustituyen dinero registrado en el historial de abonos.
+        $credits = SupplierCredit::query()->get();
+        $pen = 0; $usd = 0; $legacy = 0;
+        foreach ($credits as $credit) {
+            $value = \App\Services\Purchases\SupplierCreditBalance::forCredit($credit);
+            $cents = (int) round($value['balance'] * 100);
+            if ($value['currency'] === 'PEN') { $pen += $cents; } else { $usd += $cents; }
+            if ($value['legacy_review']) { $legacy++; }
         }
-
         return response()->json([
-            "deudaSoles" => $deudaSoles,
-            "deudaDolares" => $deudaDolares
+            'deudaSoles' => $pen / 100, 'deudaDolares' => $usd / 100,
+            'legacyAdvancePendingReviewCount' => $legacy,
+            'balanceSource' => 'credit_pays',
         ], 200);
     }
 
@@ -598,19 +387,26 @@ class SupplierCreditController extends Controller
 
     public function changeStatusCredit($credit_id, $status)
     {
-        DB::beginTransaction();
-        try {
-
-            $supplierCredit = SupplierCredit::find($credit_id);
-            $supplierCredit->state_pay = $status;
-            $supplierCredit->save();
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Estado modificado.'], 200);
+        \Illuminate\Support\Facades\Validator::make(['status' => $status], [
+            'status' => 'required|in:pending,pending50,canceled',
+        ])->validate();
+        return DB::transaction(function () use ($credit_id, $status) {
+            $credit = SupplierCredit::lockForUpdate()->findOrFail($credit_id);
+            $before = $credit->state_pay;
+            if ($before !== $status) {
+                // Salir de cancelado o volver a pendiente revierte una marca de pago.
+                if ($before === 'canceled' || $status === 'pending') {
+                    abort_unless(Auth::user()->can('nopay_credit'), 403);
+                }
+                // Marcar parcial/cancelado requiere permiso de pago.
+                if ($status === 'pending50' || $status === 'canceled') {
+                    abort_unless(Auth::user()->can('pay_credit'), 403);
+                }
+                $credit->state_pay = $status;
+                $credit->save();
+            }
+            return response()->json(['message' => 'Estado modificado.'], 200);
+        });
     }
 
     public function onlyZeros($cadena) {
@@ -629,31 +425,21 @@ class SupplierCreditController extends Controller
 
     public function getInvoiceForExpire()
     {
-        $expirationWarningDays = app(
-            SettingService::class)->get('supplier_credit.expiration_warning_days');
-
-        // TODO: Esto mostrará las facturas por vencer
-        $supplier_credits = SupplierCredit::where('days_to_expiration', '<', $expirationWarningDays)
-            ->where('days_to_expiration', '>=', 0)
-            ->get();
-
+        $warning = app(SettingService::class)->get('supplier_credit.expiration_warning_days');
+        $credits = SupplierCredit::with('supplier')->whereNotNull('date_expiration')->get();
         $array = [];
-
-        foreach ($supplier_credits as $credit)
-        {
-            array_push($array, [
-                "orden" => $credit->code_order,
-                "proveedor" => ($credit->supplier == null) ? "No tiene": $credit->supplier->business_name,
-                "factura" => ($credit->invoice == null) ? "No tiene": $credit->invoice,
-                "fecha_vencimiento" => ($credit->date_expiration == null) ? '': $credit->date_expiration->format('d/m/Y'),
-                "vence_en" => ($credit->days_to_expiration === null) ? "": $credit->days_to_expiration ." DÍAS"
-            ]);
+        foreach ($credits as $credit) {
+            $value = \App\Services\Purchases\SupplierCreditExpiration::evaluate($credit, $warning);
+            if (!$value['eligible'] || $value['days'] < 0 || $value['days'] >= max(0, (int) $warning)) { continue; }
+            $array[] = [
+                'orden' => $credit->code_order,
+                'proveedor' => $credit->supplier ? $credit->supplier->business_name : 'No tiene',
+                'factura' => $credit->invoice === null ? 'No tiene' : $credit->invoice,
+                'fecha_vencimiento' => $credit->date_expiration->format('d/m/Y'),
+                'vence_en' => $value['days'].' DÍAS',
+            ];
         }
-
-        return response()->json([
-            "credits" => $array
-        ]);
-
+        return response()->json(['credits' => $array]);
     }
 
     public function getAmountInvoiceCurrentMonth()
@@ -684,8 +470,12 @@ class SupplierCreditController extends Controller
 
     public function getAmountInvoiceGeneral()
     {
-        $year = $_GET['year'];
-        $month = $_GET['month'];
+        $filters = \Illuminate\Support\Facades\Validator::make(request()->query(), [
+            'year' => 'required|integer|between:1,9999',
+            'month' => 'required|integer|between:1,12',
+        ])->validate();
+        $year = $filters['year'];
+        $month = $filters['month'];
 
         $supplier_credits = SupplierCredit::whereYear('date_issue', $year)
             ->whereMonth('date_issue', $month)
@@ -710,8 +500,12 @@ class SupplierCreditController extends Controller
     public function exportCreditsExcel()
     {
         //dd($request);
-        $start = $_GET['start'];
-        $end = $_GET['end'];
+        $filters = \Illuminate\Support\Facades\Validator::make(request()->query(), [
+            'start' => 'required|date_format:d/m/Y',
+            'end' => 'required|date_format:d/m/Y|after_or_equal:start',
+        ])->validate();
+        $start = $filters['start'];
+        $end = $filters['end'];
 
         $date_start = Carbon::createFromFormat('d/m/Y', $start);
         $end_start = Carbon::createFromFormat('d/m/Y', $end);
@@ -732,7 +526,9 @@ class SupplierCreditController extends Controller
 
         foreach ( $credits as $credit )
         {
-            $pagos = CreditPay::where('supplier_credit_id', $credit->id)->sum('amount');
+            \App\Services\Purchases\SupplierCreditExpiration::project($credit, app(SettingService::class)->get('supplier_credit.expiration_warning_days'));
+            $balance = \App\Services\Purchases\SupplierCreditBalance::forCredit($credit);
+            $pagos = $balance['paid'];
 
             if ( $credit->state_pay == 'pending' )
             {
@@ -745,17 +541,18 @@ class SupplierCreditController extends Controller
             array_push($arrayOrders, [
                 "id" => $credit->id,
                 "stateCredit" => $credit->state_credit,
-                "order" => substr(trim($credit->code_order), 0, 2),
-                "correlativo" => trim($credit->code_order),
-                "proveedor" => ($credit->supplier_id == null) ? 'Sin proveedor':$credit->supplier->business_name,
+                "order" => substr(trim((string) $credit->code_order), 0, 2),
+                "correlativo" => trim((string) $credit->code_order),
+                "proveedor" => !$credit->supplier ? 'Sin proveedor':$credit->supplier->business_name,
                 "moneda" => ($credit->total_soles != null) ? 'Soles':'Dólares',
-                "condicion" => ($credit->payment_deadline_id == null) ? 'Sin condición':$credit->deadline->description,
+                "condicion" => !$credit->deadline ? 'Sin condición':$credit->deadline->description,
                 "montoDolares" => ($credit->total_dollars == null) ? '':$credit->total_dollars,
                 "montoSoles" => ($credit->total_soles == null) ? '':$credit->total_soles,
-                "adelanto" =>  $pagos,
-                "deudaActualDolares" => ($credit->total_dollars != null) ? $credit->total_dollars-$pagos:'',
-                "deudaActualSoles" => ($credit->total_soles != null) ? $credit->total_soles-$pagos:'',
-                "deudaActual" => ($credit->total_soles != null) ? $credit->total_soles-$pagos:$credit->total_dollars-$pagos,
+                "adelanto" => $pagos,
+                "legacyAdvancePendingReview" => $balance['legacy_review'],
+                "deudaActualDolares" => $balance['currency'] === 'USD' ? $balance['balance'] : '',
+                "deudaActualSoles" => $balance['currency'] === 'PEN' ? $balance['balance'] : '',
+                "deudaActual" => $balance['balance'],
                 "factura" => ($credit->invoice == null) ? 'PENDIENTE':$credit->invoice,
                 "fechaEmision" => ($credit->date_issue == null) ? '': $credit->date_issue->format('d/m/Y'),
                 "fechaVencimiento" => ($credit->date_expiration == null) ? '': $credit->date_expiration->format('d/m/Y'),
@@ -772,5 +569,34 @@ class SupplierCreditController extends Controller
         //(new UsersExport)->download('users.xlsx');
         return (new CreditsReportExcelExport($arrayOrders, $dates))->download('reporteCreditos.xlsx');
 
+    }
+
+    private function requireCreditInvoice($credit)
+    {
+        if (trim((string) $credit->invoice) === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['credit' => 'El crédito no tiene una factura asociada.']);
+        }
+    }
+
+    private function supplierCreditDocumentUrl($credit)
+    {
+        $tenant = \App\Support\TenantContext::tenantId();
+        $company = \App\Support\TenantContext::companyId();
+        if ($credit->entry_id) {
+            $entry = Entry::where('tenant_id', $tenant)->where('company_id', $company)->find($credit->entry_id);
+            if ($entry && !$entry->finance && Auth::user()->can('list_entryPurchase')) {
+                return route('entry.purchase.show', [$entry->id]);
+            }
+        }
+        if ($credit->order_purchase_finance_id && Auth::user()->can('list_orderPurchaseFinance')) {
+            $order = OrderPurchaseFinance::find($credit->order_purchase_finance_id);
+            if ($order) { return route('show.order.purchase.finance', [$order->id]); }
+        }
+        if ($credit->order_purchase_id && Auth::user()->can('list_orderPurchaseNormal')) {
+            $order = OrderPurchase::find($credit->order_purchase_id);
+            if ($order) { return url('/dashboard/ver/orden/compra/normal/'.$order->id); }
+        }
+        // No adivinar por invoice/código ni enlazar a un servicio legacy sin contexto.
+        return '';
     }
 }

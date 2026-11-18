@@ -28,6 +28,7 @@
 
 @section('page-title')
     <h5 class="card-title">Listado global de movimientos</h5>
+    @empty($readOnly)
     <div class="float-right">
         <div class="btn-group" role="group" aria-label="Cajas">
             @foreach($cashBoxes as $box)
@@ -48,6 +49,7 @@
             @endforeach
         </div>
     </div>
+    @endempty
 @endsection
 
 @section('page-breadcrumb')
@@ -68,8 +70,28 @@
 @endsection
 
 @section('content')
+    @if (!empty($readOnly))
+        <div class="mb-3">
+            <a href="{{ $summaryBackUrl }}">Volver al resumen financiero</a>
+            <strong class="d-block">{{ $box->name }} · {{ $box->currency }}</strong>
+        </div>
+    @endif
     <input type="hidden" id="permissions" value="{{ json_encode($permissions ?? []) }}">
     <form onsubmit="return false;">
+        @if (!empty($readOnly))
+            <div class="form-group">
+                <label for="session_id">Sesión</label>
+                <select id="session_id" class="form-control">
+                    <option value="">Todas las sesiones</option>
+                    @foreach ($sessionOptions as $session)
+                        <option value="{{ $session->id }}" {{ ($data['session_id'] ?? null) == $session->id ? 'selected' : '' }}>
+                            #{{ $session->id }} · {{ optional($session->user)->name }} · {{ optional($session->branch)->name }}
+                            · {{ $session->status ? 'Abierta' : 'Cerrada' }} · {{ $session->opening_time }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         <div class="row">
             <div class="col-md-3">
                 <div class="input-group">
@@ -91,7 +113,7 @@
 
             <div class="col-md-2">
                 <select id="cash_box_id" class="form-control">
-                    <option value="">Todas las cajas</option>
+                    @empty($readOnly)<option value="">Todas las cajas</option>@endempty
                     @foreach($cashBoxes as $b)
                         <option value="{{ $b->id }}">{{ $b->name }}</option>
                     @endforeach
@@ -118,10 +140,10 @@
             </div>
 
             <div class="col-md-1">
-                <input type="date" id="date_from" class="form-control" title="Desde">
+                <input type="date" id="date_from" class="form-control" title="Desde" value="{{ $data['date_from'] ?? '' }}">
             </div>
             <div class="col-md-1">
-                <input type="date" id="date_to" class="form-control" title="Hasta">
+                <input type="date" id="date_to" class="form-control" title="Hasta" value="{{ $data['date_to'] ?? '' }}">
             </div>
         </div>
     </form>
@@ -189,15 +211,21 @@
         </button>
     </template>
 
+    @empty($readOnly)
     @include('cashRegister._regularization')
+    @endempty
 @endsection
 
 @section('scripts')
+    @empty($readOnly)
     <script src="{{ asset('js/cashRegister/regularization.js') }}?v={{ time() }}"></script>
+    @endempty
     <script>
-        window.CASH_MOVEMENT_LIST_URL = "{{ route('cashMovement.admin.list') }}";
+        window.CASH_MOVEMENT_LIST_URL = @json($summaryListUrl ?? route('cashMovement.admin.list'));
+        window.CASH_MOVEMENT_READ_ONLY = @json(!empty($readOnly));
         window.CASH_REGISTER_OPEN_URL = "{{ route('cashRegister.open') }}";
         window.CASH_REGISTER_SESSION_URL_BASE = "{{ url('dashboard/cash-registers/session/') }}";
     </script>
     <script src="{{ asset('js/cashBox/admin_index.js') }}"></script>
 @endsection
+

@@ -83,6 +83,8 @@
     function renderButtons(data) {
         const wrapper = document.createElement('div');
 
+        if (window.CASH_MOVEMENT_READ_ONLY) return wrapper;
+
         const tpl = document.querySelector('#template-button');
         const cloneBtn2 = tpl.content.cloneNode(true);
 
@@ -106,7 +108,7 @@
 
         // Regularizar solo si permitido y pendiente y sale/income
         const regBtn = cloneBtn2.querySelector('[data-regularizar]');
-        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const isPending = !data.deferred_cancelled && (data.regularize === 0 || data.regularize === '0');
         const typeRaw = data.type_raw || data.type;
         const canBeRegularized = (typeRaw === 'sale' || typeRaw === 'income');
 
@@ -124,16 +126,24 @@
     function renderRow(data) {
         const row = document.querySelector('#item-table').content.cloneNode(true);
 
-        const isPending = (data.regularize === 0 || data.regularize === '0');
+        const isPending = !data.deferred_cancelled && (data.regularize === 0 || data.regularize === '0');
         const typeRaw = data.type_raw || data.type;
 
         row.querySelector('[data-id]').textContent = data.id;
         row.querySelector('[data-user]').textContent = data.user_name || '-';
+        if (window.CASH_MOVEMENT_READ_ONLY) {
+            const detail = document.createElement('small');
+            detail.className = 'd-block text-muted';
+            detail.textContent = [data.branch_name, data.cash_register_id ? '#' + data.cash_register_id : null].filter(Boolean).join(' · ');
+            row.querySelector('[data-user]').appendChild(detail);
+        }
         row.querySelector('[data-cashbox]').textContent = data.cash_box_name || '-';
-        row.querySelector('[data-type]').textContent = (data.regularization_source_id ? 'Abono por regularización' : formatTypeLabel(typeRaw, data.regularize));
+        row.querySelector('[data-type]').textContent = (data.regularization_source_id ? 'Abono por regularización' : formatTypeLabel(typeRaw, data.deferred_cancelled ? null : data.regularize));
         row.querySelector('[data-subtype]').textContent = data.subtype_name || '-';
 
-        row.querySelector('[data-status]').innerHTML = isPending
+        row.querySelector('[data-status]').innerHTML = data.deferred_cancelled
+                ? '<span class="badge badge-secondary">Cancelado</span>'
+                : isPending
             ? '<span class="badge badge-warning">Pendiente</span>'
             : (data.balance_effect === false ? '<span class="badge badge-info">Regularizado en otra sesión</span>' : '<span class="badge badge-success">Confirmado</span>');
 
@@ -161,6 +171,7 @@
 
         const params = {
             page: page,
+            session_id: $('#session_id').val(),
             q: ($('#q').val() || '').trim(),
             user_id: $('#user_id').val(),
             cash_box_id: $('#cash_box_id').val(),
@@ -203,7 +214,7 @@
     // filtros
     $(document).on('click', '#btn-search', function () { fetchList(1); });
     $(document).on('keydown', '#q', function (e) { if (e.key === 'Enter') fetchList(1); });
-    $(document).on('change', '#user_id,#cash_box_id,#type,#subtype_id,#date_from,#date_to', function () { fetchList(1); });
+    $(document).on('change', '#session_id,#user_id,#cash_box_id,#type,#subtype_id,#date_from,#date_to', function () { fetchList(1); });
 
     // paginación
     $(document).on('click', '#pagination a.page-link', function (e) {
@@ -236,6 +247,16 @@
             <div class="form-group mb-0">
                 <label>Saldo inicial (Efectivo)</label>
                 <input type="number" step="0.01" min="0" class="form-control" id="opening_balance" value="0.00">
+                <label for="opening_origin" class="mt-2">Origen del fondo</label>
+                <select class="form-control" id="opening_origin">
+                    <option value="">Elegir si el saldo es mayor a cero</option>
+                    <option value="consolidated">Saldo rendido de esta caja</option>
+                    <option value="external">Fondos externos</option>
+                </select>
+                <label for="opening_provenance" class="mt-2">Procedencia (obligatoria para fondos externos)</label>
+                <input class="form-control" id="opening_provenance" maxlength="150">
+                <label for="opening_observation" class="mt-2">Observación (opcional)</label>
+                <input class="form-control" id="opening_observation" maxlength="500">
             </div>`;
         }
 
@@ -262,7 +283,10 @@
                             data: {
                                 _token: csrf(),
                                 cash_box_id: cashBoxId,
-                                opening_balance: openingBalance
+                                opening_balance: openingBalance,
+                                opening_origin: hasInput ? $('#opening_origin').val() : null,
+                                opening_provenance: hasInput ? $('#opening_provenance').val() : null,
+                                opening_observation: hasInput ? $('#opening_observation').val() : null
                             },
                             success: function (res) {
                                 $btn.removeClass('btn-secondary').addClass('btn-success');
@@ -275,7 +299,14 @@
                             },
                             error: function (xhr) {
                                 let msg = 'No se pudo iniciar la sesión.';
-                                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                                const response = xhr.responseJSON;
+                                const errors = response && response.errors;
+                                const fieldError = errors && Object.values(errors)[0];
+                                if (fieldError && fieldError[0]) {
+                                    msg = fieldError[0];
+                                } else if (response && response.message) {
+                                    msg = response.message;
+                                }
                                 $.alert({ title: 'Error', content: msg, type: 'red' });
                             }
                         });

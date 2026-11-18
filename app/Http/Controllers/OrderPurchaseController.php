@@ -1038,30 +1038,30 @@ class OrderPurchaseController extends Controller
         //        array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $balance));
         //    }
 
-            /*if ( $item['material_complete']->stock_current < $item['quantity'] )
+        /*if ( $item['material_complete']->stock_current < $item['quantity'] )
+        {
+            //$stringQuote = '<a target="_blank" class="btn btn-primary btn-xs" href="'.route('quote.show', 39).'" data-toggle="tooltip" data-placement="top" title="4">COT-00039</a> <a class="btn btn-primary btn-xs" href="'.route('quote.show', 27).'" data-toggle="tooltip" data-placement="top" title="9" target="_blank">COT-00027</a>';
+            $material_missing = MaterialOrder::where('material_id', $item['material_id'])->first();
+            $amount = MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_request') - MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_entered');
+            $materials_taken = MaterialTaken::where('material_id', $item['material_id'])->sum('quantity_request');
+            $missing = (float)$item['quantity'] - (float)$item['material_complete']->stock_current;
+            if ( !isset($material_missing) )
             {
-                //$stringQuote = '<a target="_blank" class="btn btn-primary btn-xs" href="'.route('quote.show', 39).'" data-toggle="tooltip" data-placement="top" title="4">COT-00039</a> <a class="btn btn-primary btn-xs" href="'.route('quote.show', 27).'" data-toggle="tooltip" data-placement="top" title="9" target="_blank">COT-00027</a>';
-                $material_missing = MaterialOrder::where('material_id', $item['material_id'])->first();
-                $amount = MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_request') - MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_entered');
-                $materials_taken = MaterialTaken::where('material_id', $item['material_id'])->sum('quantity_request');
-                $missing = (float)$item['quantity'] - (float)$item['material_complete']->stock_current;
-                if ( !isset($material_missing) )
+                $missing_real = $missing - $materials_taken;
+                //array_push($array_materials, array('quote'=>$stringQuote,'material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
+                array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
+
+            } else {
+                if ( $missing > $amount )
                 {
-                    $missing_real = $missing - $materials_taken;
+                    $missing_real = $missing - $amount - $materials_taken;
                     //array_push($array_materials, array('quote'=>$stringQuote,'material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
                     array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
 
-                } else {
-                    if ( $missing > $amount )
-                    {
-                        $missing_real = $missing - $amount - $materials_taken;
-                        //array_push($array_materials, array('quote'=>$stringQuote,'material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
-                        array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
-
-                    }
                 }
+            }
 
-            }*/
+        }*/
         //}
 
         //dump($materials_quantity);
@@ -1096,7 +1096,7 @@ class OrderPurchaseController extends Controller
         }
         //dump($arrayMaterialsFinal);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         $end = microtime(true) - $begin;
 
@@ -1619,23 +1619,23 @@ class OrderPurchaseController extends Controller
         //    {
         //        array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $balance));
         //    }
-            /*if ( $item['material_complete']->stock_current < $item['quantity'] )
+        /*if ( $item['material_complete']->stock_current < $item['quantity'] )
+        {
+            $material_missing = MaterialOrder::where('material_id', $item['material_id'])->first();
+            $amount = MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_request');
+            $missing = (float)$item['quantity'] - (float)$item['material_complete']->stock_current;
+            if ( !isset($material_missing) )
             {
-                $material_missing = MaterialOrder::where('material_id', $item['material_id'])->first();
-                $amount = MaterialOrder::where('material_id', $item['material_id'])->sum('quantity_request');
-                $missing = (float)$item['quantity'] - (float)$item['material_complete']->stock_current;
-                if ( !isset($material_missing) )
+                array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing));
+            } else {
+                if ( $missing > $amount )
                 {
-                    array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing));
-                } else {
-                    if ( $missing > $amount )
-                    {
-                        $missing_real = $missing - $amount;
-                        array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
-                    }
+                    $missing_real = $missing - $amount;
+                    array_push($array_materials, array('material_id'=>$item['material_id'], 'material'=>$item['material'], 'material_complete'=>$item['material_complete'], 'quantity'=> (float)$item['quantity'], 'missing_amount'=> $missing_real));
                 }
+            }
 
-            }*/
+        }*/
         //}
 
         $arrayMaterialsFinal = [];
@@ -1670,7 +1670,7 @@ class OrderPurchaseController extends Controller
         $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
             ->with(['material'])->get();
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable(OrderPurchase::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
 
         $end = microtime(true) - $begin;
 

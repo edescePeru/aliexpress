@@ -409,7 +409,8 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     var moneda = (item.moneda == "Soles") ? 'PEN':'USD';
-                    return '<p> '+ moneda+ ' ' +item.deudaActual +'</p>';
+                    var review = item.legacyAdvancePendingReview ? '<small class="text-warning d-block">Adelanto antiguo pendiente de revisar</small>' : '';
+                    return '<p> '+ moneda+ ' ' +item.deudaActual +'</p>' + review;
                 }
             },
             { data: null,
@@ -455,35 +456,7 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    var select = '';
-                    if ( item.estadoPago === 'pending' )
-                    {
-                        select += '<select data-id="' + item.id + '" name="state_paid" class="form-control form-control-sm select2 state_paid" style="width: 115px;">' +
-                            '       <option></option>' +
-                            '       <option value="pending" selected>PENDIENTE</option>' +
-                            '       <option value="pending50">CANC./PEND.50%</option>' +
-                            '       <option value="canceled">CANCELADO</option>' +
-                            '</select>';
-                    }
-                    if ( item.estadoPago === 'pending50' )
-                    {
-                        select += '<select data-id="' + item.id + '" name="state_paid" class="form-control form-control-sm select2 state_paid" style="width: 115px;">' +
-                            '       <option></option>' +
-                            '       <option value="pending">PENDIENTE</option>' +
-                            '       <option value="pending50" selected>CANC./PEND.50%</option>' +
-                            '       <option value="canceled">CANCELADO</option>' +
-                            '</select>';
-                    }
-                    if ( item.estadoPago === 'canceled' )
-                    {
-                        select += '<select data-id="' + item.id + '" name="state_paid" class="form-control form-control-sm select2 state_paid" style="width: 115px;">' +
-                            '       <option></option>' +
-                            '       <option value="pending">PENDIENTE</option>' +
-                            '       <option value="pending50">CANC./PEND.50%</option>' +
-                            '       <option value="canceled" selected>CANCELADO</option>' +
-                            '</select>';
-                    }
-                    return select;
+                    return SupplierCreditUi.stateControl(item.id, item.estadoPago, $permissions);
                 }
             },
             { data: null,
@@ -511,12 +484,12 @@ $(document).ready(function () {
                 {
                     var text = '';
 
-                    //if ( $.inArray('destroy_orderPurchaseNormal', $permissions) !== -1 ) {
-                        text = text + ' <button data-pays="'+item.id+'" '+
-                        ' class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Agregar pagos"><i class="fas fa-file-invoice-dollar"></i></button>';
-                        text = text + ' <button data-add_days="'+item.id+'" data-fecha="'+item.fechaVencimiento+'"'+
-                        ' class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Agregar 7 días"><i class="fas fa-plus-circle"></i></button>';
-                    //}
+                    if (['control_credit', 'pay_credit', 'nopay_credit'].some(function (p) { return SupplierCreditUi.can(p, $permissions); })) {
+                        text += ' <button data-pays="'+item.id+'" class="btn btn-outline-primary btn-sm" title="Ver pagos"><i class="fas fa-file-invoice-dollar"></i></button>';
+                    }
+                    if (SupplierCreditUi.can('edit_credit', $permissions)) {
+                        text += ' <button data-add_days="'+item.id+'" data-fecha="'+item.fechaVencimiento+'" class="btn btn-outline-success btn-sm" title="Agregar 7 días"><i class="fas fa-plus-circle"></i></button>';
+                    }
 
                     return text; /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
                 }
@@ -1111,8 +1084,14 @@ function renderTemplateExpire(orden, proveedor, factura, fecha_vencimiento, venc
 
 }
 
-function changeStatusPaid() {
-    event.preventDefault();
+function changeStatusPaid(e) {
+    if (e) e.preventDefault();
+    var $stateControl = $(this);
+    if (!SupplierCreditUi.transition($stateControl.attr('data-current'), $stateControl.val(), $permissions)) {
+        $stateControl.val($stateControl.attr('data-current')).trigger('change.select2');
+        toastr.warning('No tienes permiso para realizar este cambio.');
+        return;
+    }
     var credit_pay_id = $(this).attr('data-id');
     var status = $(this).val();
     $.ajax({
@@ -1122,6 +1101,7 @@ function changeStatusPaid() {
         processData:false,
         contentType:false,
         success: function (data) {
+            $stateControl.attr('data-current', status);
             console.log(data);
             toastr.success(data.message, 'Éxito',
                 {
@@ -1143,6 +1123,7 @@ function changeStatusPaid() {
                 });
         },
         error: function (data) {
+            $stateControl.val($stateControl.attr('data-current')).trigger('change.select2');
             if( data.responseJSON.message && !data.responseJSON.errors )
             {
                 toastr.error(data.responseJSON.message, 'Error',
@@ -1190,6 +1171,7 @@ function changeStatusPaid() {
 }
 
 function showModalAddDays() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     var credit_id = $(this).data('add_days');
     var fecha = $(this).data('fecha');
     var formatoEntrada = "DD/MM/YYYY";
@@ -1290,6 +1272,7 @@ function showModalAddDays() {
 }
 
 function deleteCredit() {
+    if (!SupplierCreditUi.allow('nopay_credit', $permissions)) return;
     $modalPays.modal('hide');
     var credit_pay_id = $(this).data('delete');
     vdialog({
@@ -1405,6 +1388,7 @@ function showImagePreview() {
 }
 
 function savePayCredit() {
+    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
     $modalPays.modal('hide');
     // Obtenemos los datos
     var credit_id = $("#credito_id").val();
@@ -1583,6 +1567,7 @@ function renderTemplatePay(i, id, type,amount, datePay, image) {
         clone2.querySelector("[data-fecha]").innerHTML = datePay;
         clone2.querySelector("[data-comprobante]").setAttribute('href', document.location.origin+ '/images/credits/pays/'+image);
         clone2.querySelector("[data-delete]").setAttribute('data-delete', id);
+        if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone2.querySelector('[data-delete]').remove();
 
         $('#body-pays').append(clone2);
     } else {
@@ -1593,6 +1578,7 @@ function renderTemplatePay(i, id, type,amount, datePay, image) {
         clone.querySelector("[data-fecha]").innerHTML = datePay;
         clone.querySelector("[data-comprobante]").setAttribute('data-image_comprobante', image);
         clone.querySelector("[data-delete]").setAttribute('data-delete', id);
+        if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone.querySelector('[data-delete]').remove();
 
         $('#body-pays').append(clone);
     }
@@ -1613,6 +1599,14 @@ function showModalSummary() {
         var formattedValueDolares = deudaDolares.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
         $("#deudaDolares").html("$. "+formattedValueDolares);
 
+        $modalSummary.find('[data-balance-source]').remove();
+        var $note = $('<div data-balance-source class="alert alert-info" role="status"></div>');
+        $note.text('Saldo calculado con los abonos registrados. Las marcas manuales de pago no descuentan importes.');
+        $modalSummary.find('.modal-body').prepend($note);
+        if (data.legacyAdvancePendingReviewCount > 0) {
+            $note.removeClass('alert-info').addClass('alert-warning');
+            $note.text('Hay ' + data.legacyAdvancePendingReviewCount + ' crédito(s) con adelantos antiguos pendientes de revisar. Los importes mostrados descuentan solo los abonos registrados.');
+        }
         $modalSummary.modal('show');
     }).done(function() {
         console.log("La solicitud se completó correctamente.");
@@ -1623,6 +1617,7 @@ function showModalSummary() {
 }
 
 function cancelPayCredit() {
+    if (!SupplierCreditUi.allow('nopay_credit', $permissions)) return;
     var id_credit = $(this).attr('data-nopay');
     $.confirm({
         icon: 'fas fa-window-close',
@@ -1668,6 +1663,7 @@ function cancelPayCredit() {
 }
 
 function paidCredit() {
+    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
     event.preventDefault();
     $("#btn-pay").attr("disabled", true);
     // Obtener la URL
@@ -1755,6 +1751,7 @@ function paidCredit() {
 }
 
 function payCredit() {
+    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
     var credit_id = $(this).data('pay');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,
@@ -1842,6 +1839,7 @@ function modifyDateIsuue() {
 }
 
 function updateCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     event.preventDefault();
     $("#btn-submit").attr("disabled", true);
     // Obtener la URL
@@ -1929,6 +1927,7 @@ function updateCredit() {
 }
 
 function addCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     var id_entry = $(this).attr('data-add');
     $.confirm({
         icon: 'fas fa-check-double',
@@ -1974,6 +1973,7 @@ function addCredit() {
 }
 
 function editCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     var credit_id = $(this).data('edit');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,

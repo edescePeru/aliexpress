@@ -338,28 +338,53 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function testDni($dni, DecolectaService $decolecta) {
-        try {
-            return response()->json($decolecta->consultarDni($dni));
-        } catch (\Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
-    public function testRuc($ruc, DecolectaService $decolecta) {
-        try {
-            return response()->json($decolecta->consultarRuc($ruc));
-        } catch (\Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
     public function searchOrCreateByDocument($documento, DecolectaService $decolectaService)
     {
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+        validator(['documento' => $documento], [
+            'documento' => ['required', 'string', 'regex:/\A(?:[0-9]{8}|[0-9]{11})\z/'],
+        ])->validate();
+
+        try {
+            $customer = Customer::where('RUC', $documento)->first();
+            if (!$customer) {
+                $result = $decolectaService->consultarDocumentoEnDecolecta($documento);
+
+                return response()->json(['success' => true] + $result);
+            }
+            $result = ['customer' => $customer, 'created' => false, 'source' => 'database'];
+
+            $customer = $result['customer'];
+
+            return response()->json([
+                'success' => true,
+                'created' => $result['created'],
+                'source' => $result['source'],
+                'customer' => [
+                    'id' => $customer->id,
+                    'business_name' => $customer->business_name,
+                    'RUC' => $customer->RUC,
+                    'address' => $customer->address,
+                    'location' => $customer->location,
+                ],
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function createByDocument($documento, DecolectaService $decolectaService)
+    {
+        abort_unless(auth()->user()->can('create_customer'), 403);
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+        validator(['documento' => $documento], [
+            'documento' => ['required', 'string', 'regex:/\A(?:[0-9]{8}|[0-9]{11})\z/'],
+        ])->validate();
+
         try {
             $result = $decolectaService->buscarOCrearClientePorDocumento($documento);
 

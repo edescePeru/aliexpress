@@ -50,7 +50,7 @@ class ProformaController extends Controller
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable()->get();
         $customers = Customer::all();
 
         return view('proforma.index', compact('permissions', 'paymentDeadlines', 'customers'));
@@ -172,7 +172,7 @@ class ProformaController extends Controller
         $maxId = Proforma::max('id')+1;
         $length = 5;
         $codeQuote = 'PCOT-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable()->get();
         $categories = CategoryEquipment::all();
 
         // TODO: Creamos la pre cotización vacía
@@ -1014,7 +1014,7 @@ class ProformaController extends Controller
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
         $customers = Customer::all();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Proforma::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($proforma_id)->value('payment_deadline_id'))->get();
         $categories = CategoryEquipment::all();
         $proforma = Proforma::where('id', $proforma_id)
             ->with('customer')

@@ -3257,8 +3257,9 @@ class PuntoVentaController extends Controller
          * 3) REVERTIR MOVIMIENTOS DE CAJA
          * ============================================================
          */
-        $movements = CashMovement::where('sale_id', $sale->id)
-            ->lockForUpdate()
+        $movements = CashMovement::where('tenant_id', $sale->tenant_id)
+            ->where('company_id', $sale->company_id)->where('branch_id', $sale->branch_id)
+            ->where('sale_id', $sale->id)->lockForUpdate()
             ->get();
 
         $refundService->post($sale, $deferredRefunds);
@@ -3272,6 +3273,11 @@ class PuntoVentaController extends Controller
                 continue;
             }
             if ($movement->type === 'expense' && strpos((string) $movement->description, 'Reversión de pago parcial') === 0) {
+                continue;
+            }
+
+            if (in_array($movement->type, ['sale', 'income'], true) && (int) $movement->regularize === 0) {
+                $movement->cancelPendingDeferred('sale_reversal');
                 continue;
             }
 
@@ -3289,10 +3295,7 @@ class PuntoVentaController extends Controller
 
             if ($movement->type === 'sale') {
                 if ($is_deferred == 1) {
-                    if ((int) $movement->regularize === 0) {
-                        $movement->delete();
-
-                    } elseif ((int) $movement->regularize === 1) {
+                    if ((int) $movement->regularize === 1) {
                         $amountToReverse = (float) (
                             $movement->amount_regularize
                             ?? $movement->amount

@@ -459,7 +459,10 @@ class CashRegisterController extends Controller
                             'required|integer',
 
                         'opening_balance' =>
-                            'nullable|numeric|min:0',
+                            ['nullable', 'regex:/^\d{1,7}(?:\.\d{1,2})?$/D'],
+                        'opening_origin' => 'nullable|in:consolidated,external',
+                        'opening_provenance' => 'nullable|string|max:150',
+                        'opening_observation' => 'nullable|string|max:500',
                     ],
                     [
                         'cash_box_id.required' =>
@@ -743,6 +746,8 @@ class CashRegisterController extends Controller
                     'status' =>
                         1,
                 ]);
+
+            app(\App\Services\CashOpeningFund::class)->record($cashBox, $cashRegister, $data);
 
             DB::commit();
 
@@ -1266,6 +1271,7 @@ class CashRegisterController extends Controller
                 'regularize' =>
                     (int) $movement->regularize,
                 'balance_effect' => $movement->balance_effect !== false,
+                'deferred_cancelled' => $movement->deferred_cancelled_at !== null,
                 'regularization_source_id' => $movement->regularization_source_id,
 
                 'status_label' =>
@@ -2707,6 +2713,7 @@ class CashRegisterController extends Controller
                                         $movement
                                             ->regularize
                                         === 0
+                                        && $movement->deferred_cancelled_at === null
                                         &&
                                         in_array(
                                             $movement->type,
@@ -2978,103 +2985,42 @@ class CashRegisterController extends Controller
 
     public function financialSummary(Request $request)
     {
-        // 1) Usuario "central" (owner=true)
-        $ownerUser = User::where('owner', 1)->firstOrFail();
+        abort_unless($request->user()->can('showFinancialSummary_cashBox'), 403);
+        app(\App\Services\Materials\MaterialParameters::class)->context();
 
-        // 2) CashBoxes activos (pueden ser varios bancos)
-        $cashBoxes = CashBox::where('is_active', 1)
-            ->orderBy('position')
-            ->get(['id', 'name', 'type', 'uses_subtypes']);
+        $branches = \App\Branch::query()->where('company_id', TenantContext::companyId())
+            ->orderBy('name')->get(['id', 'name']);
 
-        // 3) CashRegisters "centrales": últimas sesiones ABIERTAS del owner, 1 por cash_box_id
-        //    (blindaje por si existieran duplicados abiertos por error)
-        $sub = DB::table('cash_registers')
-            ->selectRaw('MAX(id) as id')
-            ->where('user_id', $ownerUser->id)
-            ->where('status', 1) // abierta
-            ->groupBy('cash_box_id');
+        $allHistory = $request->input('period') === 'all';
+        $today = Carbon::today('America/Lima');
+        $request->merge([
+            'from' => $allHistory ? null : $request->input('from', $today->copy()->startOfMonth()->toDateString()),
+            'to' => $allHistory ? null : $request->input('to', $today->toDateString()),
+        ]);
+        $data = $request->validate([
+            'period' => ['nullable', 'in:all,range'],
+            'tab' => ['nullable', 'in:balances,activity'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
+            'from' => [$allHistory ? 'nullable' : 'required', 'date_format:Y-m-d'],
+            'to' => [$allHistory ? 'nullable' : 'required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
 
-        $registers = CashRegister::query()
-            ->joinSub($sub, 'cr2', function ($join) {
-                $join->on('cr2.id', '=', 'cash_registers.id');
-            })
-            ->select('cash_registers.*')
-            ->get()
-            ->keyBy('cash_box_id');
-
-        $registerIds = $registers->pluck('id')->values()->all();
-
-        // 4) Comisiones CONFIRMADAS (regularize=1)
-        $commissionsConfirmed = 0.0;
-        if (!empty($registerIds)) {
-            $commissionsConfirmed = (float) CashMovement::whereIn('cash_register_id', $registerIds)
-                ->affectingBalance()
-                ->whereNotNull('commission')
-                ->where('commission', '>', 0)
-                ->sum('commission');
+        $branchId = isset($data['branch_id']) ? (int) $data['branch_id'] : null;
+        if ($branchId !== null) {
+            abort_unless($branches->contains('id', $branchId), 404);
         }
 
-        // 5) Pendientes por regularizar (solo bancarios, regularize=0)
-        $pendingByRegisterId = [];
-        if (!empty($registerIds)) {
-            $pendingByRegisterId = CashMovement::selectRaw('cash_register_id, COALESCE(SUM(amount),0) as pending')
-                ->whereIn('cash_register_id', $registerIds)
-                ->where('regularize', 0)
-                ->whereIn('type', ['sale', 'income'])
-                ->groupBy('cash_register_id')
-                ->pluck('pending', 'cash_register_id')
-                ->toArray();
-        }
+        $from = $data['from'];
+        $to = $data['to'];
+        $groups = app(\App\Services\FinancialSummary::class)->report(
+            $branchId,
+            $from === null ? null : Carbon::parse($from, 'America/Lima')->startOfDay(),
+            $to === null ? null : Carbon::parse($to, 'America/Lima')->addDay()->startOfDay()
+        );
 
-        $pendingTotal = 0.0;
+        $tab = $data['tab'] ?? 'balances';
 
-        if (!empty($pendingByRegisterId)) {
-            foreach ($pendingByRegisterId as $p) {
-                $pendingTotal += (float)$p;
-            }
-        }
-
-        // 6) Armar filas por cada CashBox
-        $rows = [];
-        $totalBalances = 0.0;
-
-        foreach ($cashBoxes as $box) {
-            $reg = $registers->get($box->id);
-
-            $balance = $reg ? (float) $reg->current_balance : 0.0;
-            $totalBalances += $balance;
-
-            $pending = 0.0;
-            if ($box->type === 'bank' && $reg) {
-                $pending = (float)($pendingByRegisterId[$reg->id] ?? 0.0);
-            }
-
-            $rows[] = [
-                'label'         => $box->name, // ✅ aquí
-                'cash_box_id'   => $box->id,
-                'cash_box_name' => $box->name,
-                'cash_box_type' => $box->type, // cash | bank | other
-                'balance'       => $balance,
-                'pending'       => $pending,
-                'has_register'  => (bool) $reg,
-                'url_admin'     => route('cashRegister.session', $box->id)
-            ];
-        }
-
-        $grandTotal = $totalBalances + $commissionsConfirmed + $pendingTotal;
-
-        // Links (ajústalos a tus rutas reales)
-        $urlDiferidos     = url('/dashboard/cash-movements/deferred');  // ejemplo
-
-        return view('cashRegister.summary', compact(
-            'ownerUser',
-            'rows',
-            'commissionsConfirmed',
-            'totalBalances',
-            'grandTotal',
-            'urlDiferidos',
-            'pendingTotal'
-        ));
+        return view('cashRegister.summary', compact('groups', 'branches', 'branchId', 'tab', 'from', 'to', 'allHistory'));
     }
 
 }

@@ -609,6 +609,15 @@ class CashBoxController extends Controller
         $companyId =
             TenantContext::companyId();
 
+        if ($request->input('type') === 'bank') {
+            // La moneda bancaria procede exclusivamente de la cuenta vinculada.
+            $request->request->remove('currency');
+            $request->query->remove('currency');
+        } elseif (is_string($request->input('currency'))) {
+            $currency = strtoupper(trim($request->input('currency')));
+            $request->merge(['currency' => $currency === '' ? null : $currency]);
+        }
+
         $data =
             $request->validate([
                 'name' =>
@@ -630,7 +639,7 @@ class CashBoxController extends Controller
                     'nullable|integer',
 
                 'currency' =>
-                    'nullable|string|size:3',
+                    'nullable|string|in:PEN,USD',
             ]);
 
         /*
@@ -746,8 +755,13 @@ class CashBoxController extends Controller
              * Pero la fuente de verdad para una caja bancaria
              * será CompanyBankAccount.
              */
-            $data['currency'] =
-                $bankAccount->currency;
+            $accountCurrency = strtoupper(trim((string) $bankAccount->currency));
+            if (!in_array($accountCurrency, ['PEN', 'USD'], true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_bank_account_id' => 'La cuenta bancaria debe tener moneda PEN o USD.',
+                ]);
+            }
+            $data['currency'] = $accountCurrency;
 
         } else {
 
@@ -1286,13 +1300,80 @@ class CashBoxController extends Controller
         );
     }
 
+    public function summaryIndex(Request $request, $cashBox)
+    {
+        [$box, $branchId, $data] = $this->summaryFilters($request, $cashBox);
+        $readOnly = true;
+        $cashBoxes = collect([$box]);
+        $users = collect();
+        $subtypes = collect();
+        $permissions = [];
+        $sessionOptions = \App\CashRegister::query()
+            ->where('tenant_id', TenantContext::tenantId())
+            ->where('company_id', TenantContext::companyId())
+            ->where('cash_box_id', $box->id)->whereNotNull('branch_id')
+            ->when($branchId !== null, function ($query) use ($branchId) {
+                $query->where('branch_id', $branchId);
+            })->with(['user:id,name', 'branch:id,name'])
+            ->orderByDesc('id')->get(['id', 'user_id', 'branch_id', 'status', 'opening_time']);
+        $summaryQuery = array_intersect_key($data, array_flip(['branch_id']));
+        $summaryListUrl = route('financial.summary.movements.list', ['cashBox' => $box->id] + $summaryQuery);
+        $summaryBackUrl = route('financial.summary', [
+            'tab' => !empty($data['period']) || isset($data['date_from'], $data['date_to']) ? 'activity' : 'balances',
+            'period' => $data['period'] ?? null,
+            'branch_id' => $branchId, 'from' => $data['date_from'] ?? null, 'to' => $data['date_to'] ?? null,
+        ]);
+
+        return view('cashBox.admin_index', compact(
+            'box', 'branchId', 'readOnly', 'cashBoxes', 'users', 'subtypes', 'permissions',
+            'sessionOptions', 'summaryListUrl', 'summaryBackUrl', 'data'
+        ));
+    }
+
+    public function summaryList(Request $request, $cashBox)
+    {
+        [$box, $branchId, $data] = $this->summaryFilters($request, $cashBox);
+        $request->query->set('cash_box_id', (string) $box->id);
+
+        return $this->buildListResponse($request, null, true, [
+            'branch_id' => $branchId,
+            'session_id' => $data['session_id'] ?? null,
+        ]);
+    }
+
+    private function summaryFilters(Request $request, $cashBox): array
+    {
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+        $data = $request->validate([
+            'period' => ['nullable', 'in:all'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
+            'session_id' => ['nullable', 'integer', 'min:1'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        $branchId = isset($data['branch_id']) ? (int) $data['branch_id'] : null;
+        $companyId = TenantContext::companyId();
+        if ($branchId !== null) {
+            abort_unless(\App\Branch::query()->where('company_id', $companyId)->whereKey($branchId)->exists(), 404);
+        }
+        $box = CashBox::query()->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)
+            ->when($branchId !== null, function ($query) use ($branchId) {
+                $query->where(function ($scope) use ($branchId) {
+                    $scope->whereNull('branch_id')->orWhere('branch_id', $branchId);
+                });
+            })->findOrFail($cashBox);
+
+        return [$box, $branchId, $data];
+    }
+
     // =========================
     //  Core: query + paginación
     // =========================
     private function buildListResponse(
         Request $request,
         $onlyUserId = null,
-        $isAdmin = false
+        $isAdmin = false,
+        ?array $summary = null
     ) {
         /*
          * =========================================================
@@ -1303,8 +1384,7 @@ class CashBoxController extends Controller
         $companyId =
             TenantContext::companyId();
 
-        $branchId =
-            TenantContext::branchId();
+        $branchId = $summary === null ? TenantContext::branchId() : $summary['branch_id'];
 
         /*
          * =========================================================
@@ -1425,16 +1505,25 @@ class CashBoxController extends Controller
                     'cash_movements.company_id',
                     $companyId
                 )
-                ->where(
-                    'cash_movements.branch_id',
-                    $branchId
-                )
+                ->where('cash_movements.tenant_id', TenantContext::tenantId())
+                ->when($branchId !== null, function ($query) use ($branchId) {
+                    $query->where('cash_movements.branch_id', $branchId);
+                })
+                ->when($summary !== null, function ($query) use ($summary, $companyId) {
+                    $query->where('cash_boxes.tenant_id', TenantContext::tenantId())
+                        ->where('cash_boxes.company_id', $companyId)
+                        ->whereNotNull('cash_movements.branch_id');
+                    if ($summary['session_id'] !== null) {
+                        $query->where('cash_movements.cash_register_id', $summary['session_id']);
+                    }
+                })
                 ->select([
                     /*
                      * Movimiento.
                      */
                     'cash_movements.id',
                     'cash_movements.balance_effect',
+                    'cash_movements.deferred_cancelled_at',
                     'cash_movements.regularization_source_id',
 
                     'cash_movements.type',
@@ -1734,6 +1823,7 @@ class CashBoxController extends Controller
                                 $row
                                     ->regularize,
                             'balance_effect' => $row->balance_effect !== false,
+                            'deferred_cancelled' => $row->deferred_cancelled_at !== null,
                             'regularization_source_id' => $row->regularization_source_id,
 
                             /*
@@ -1892,3 +1982,4 @@ class CashBoxController extends Controller
     }
 
 }
+

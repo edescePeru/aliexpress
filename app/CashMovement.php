@@ -187,6 +187,22 @@ class CashMovement extends Model
     }
 
 
+    public function cancelPendingDeferred(string $reason): void
+    {
+        if ($this->deferred_cancelled_at !== null) {
+            return;
+        }
+        if ($this->regularize || $this->cash_movement_regularize_id || $this->regularization_source_id) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'cash_movement' => 'El cobro ya se regularizó. Registre la devolución.',
+            ]);
+        }
+        $this->deferred_cancelled_at = now();
+        $this->deferred_cancelled_by = auth()->id();
+        $this->deferred_cancellation_reason = $reason;
+        $this->save();
+    }
+
     public function regularizedBy()
     {
         return $this->belongsTo(

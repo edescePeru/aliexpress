@@ -242,7 +242,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        @can('pay_credit')
                         <button type="button" id="btn-pay" class="btn btn-success">Guardar pago</button>
+                        @endcan
                     </div>
                 </form>
             </div>
@@ -353,7 +355,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        @can('edit_credit')
                         <button type="button" id="btn-submit" class="btn btn-success">Guardar cambios</button>
+                        @endcan
                     </div>
                 </form>
             </div>
@@ -472,7 +476,8 @@
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
-    <script src="{{ asset('js/credit/index_creditSupplier.js') }}"></script>
+    <script src="{{ asset('js/credit/permissions.js') }}?v=credit-ui-1"></script>
+    <script src="{{ asset('js/credit/index_creditSupplier.js') }}?v=credit-ui-1"></script>
     <script>
         $('#date_picker_issue .date_picker_issue').datepicker({
             todayBtn: "linked",

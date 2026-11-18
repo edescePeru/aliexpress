@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SupplierCredit extends Model
 {
+    use \App\Traits\ScopedSupplierCreditCompany;
+
     protected $fillable = [
         'supplier_id',
         'invoice',

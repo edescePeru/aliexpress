@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class DeferredSaleRefund
 {
-    public function plan(Sale $sale): array
+    public function plan(Sale $sale, ?int $onlyMovementId = null): array
     {
         if ($sale->internal_reversal_status === 'reversed') {
             return [];
@@ -25,6 +25,9 @@ class DeferredSaleRefund
         $sources = $this->scope(CashMovement::query())
             ->where(function ($query) use ($sale, $active) {
                 $query->where('sale_id', $sale->id)->orWhereIn('id', $active);
+            })
+            ->when($onlyMovementId !== null, function ($query) use ($onlyMovementId) {
+                $query->whereKey($onlyMovementId);
             })
             ->whereNotIn('id', $inactive->filter())
             ->whereIn('type', ['sale', 'income'])

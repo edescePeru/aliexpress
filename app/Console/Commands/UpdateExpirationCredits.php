@@ -42,6 +42,24 @@ class UpdateExpirationCredits extends Command
      */
     public function handle()
     {
+        $previous = session()->get('multitenancy');
+        try {
+            $contexts = \Illuminate\Support\Facades\DB::table('supplier_credits')
+                ->select('tenant_id', 'company_id')->distinct()->get();
+            foreach ($contexts as $context) {
+                $company = \App\Company::where('tenant_id', $context->tenant_id)->findOrFail($context->company_id);
+                session()->put('multitenancy', ['tenant_id' => (int) $company->tenant_id, 'company_id' => (int) $company->id]);
+                $this->updateCompanyCredits();
+            }
+        } finally {
+            if ($previous === null) { session()->forget('multitenancy'); }
+            else { session()->put('multitenancy', $previous); }
+        }
+        return 0;
+    }
+
+    private function updateCompanyCredits()
+    {
         // TODO: Aqui va la logica de la actualización.
         /*
         'date_issue',
@@ -66,39 +84,24 @@ class UpdateExpirationCredits extends Command
          *
         */
 
-        $credits = SupplierCredit::all();
+        $warning = app(\App\Services\SettingService::class)->get('supplier_credit.expiration_warning_days');
+        $ids = SupplierCredit::query()->pluck('id');
         $crear_notif_credits_by_expire = false;
         $crear_notif_credits_expired = false;
-
-        foreach ( $credits as $credit )
-        {
-            if ( isset($credit->date_issue) && $credit->state_credit != 'paid_out' )
-            {
-                $ahora = Carbon::now('America/Lima');
-                $fecha = Carbon::parse($credit->date_expiration, 'America/Lima');
-                $dias_to_expire = $fecha->diffInDays($ahora);
-                if ($fecha->timestamp < $ahora->timestamp) {
-                    $dias_to_expire *= -1; // Aplica el signo negativo si la primera fecha es anterior a la segunda
-                }
-                $credit->days_to_expiration = $dias_to_expire;
-                $credit->save();
-
-                if ( (int)$dias_to_expire < 4 && $dias_to_expire > 0 )
-                {
-                    $crear_notif_credits_by_expire = true;
-                    $credit->state_credit = 'by_expire';
-                    $credit->save();
-                }
-
-                if ( $dias_to_expire == 0 )
-                {
-                    $crear_notif_credits_expired = true;
-                    $credit->state_credit = 'expired';
-                    $credit->save();
-                }
-            }
-
-
+        foreach ($ids as $id) {
+            $transition = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $warning) {
+                $credit = SupplierCredit::lockForUpdate()->find($id);
+                if (!$credit) { return null; }
+                $value = \App\Services\Purchases\SupplierCreditExpiration::evaluate($credit, $warning);
+                if (!$value['eligible']) { return null; }
+                $before = $credit->state_credit;
+                $credit->days_to_expiration = $value['days'];
+                $credit->state_credit = $value['state'];
+                if ($credit->isDirty(['days_to_expiration', 'state_credit'])) { $credit->save(); }
+                return $before === $value['state'] ? null : $value['state'];
+            });
+            if ($transition === 'by_expire') { $crear_notif_credits_by_expire = true; }
+            if ($transition === 'expired') { $crear_notif_credits_expired = true; }
         }
 
         if ( $crear_notif_credits_by_expire == true )
@@ -112,7 +115,11 @@ class UpdateExpirationCredits extends Command
             ]);
 
             // Roles adecuados para recibir esta notificación admin, logistica
-            $users = User::role(['admin', 'principal' , 'finance'])->get();
+            $users = User::role(['admin', 'principal', 'finance'])
+                ->where('tenant_id', \App\Support\TenantContext::tenantId())
+                ->whereHas('companies', function ($query) {
+                    $query->where('companies.id', \App\Support\TenantContext::companyId())->where('company_user.is_active', true);
+                })->get();
             foreach ( $users as $user )
             {
                 foreach ( $user->roles as $role )
@@ -140,7 +147,11 @@ class UpdateExpirationCredits extends Command
             ]);
 
             // Roles adecuados para recibir esta notificación admin, logistica
-            $users = User::role(['admin', 'principal', 'finance'])->get();
+            $users = User::role(['admin', 'principal', 'finance'])
+                ->where('tenant_id', \App\Support\TenantContext::tenantId())
+                ->whereHas('companies', function ($query) {
+                    $query->where('companies.id', \App\Support\TenantContext::companyId())->where('company_user.is_active', true);
+                })->get();
             foreach ( $users as $user )
             {
                 foreach ( $user->roles as $role )

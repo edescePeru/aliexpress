@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreditPay extends Model
 {
+    use \App\Traits\ScopedSupplierCreditPayment;
+
     public $fillable = [
         'supplier_credit_id',
         'amount',
