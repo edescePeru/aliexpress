@@ -182,6 +182,7 @@ return [
         'dashboard.principal',
         'platform.dashboard',
         'platformShippingCatalogs.index',
+        'companyStockItem.index',
         'plan.index',
         'roleTemplate.index',
         'roleTemplate.create',

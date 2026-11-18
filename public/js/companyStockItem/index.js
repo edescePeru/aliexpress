@@ -13,13 +13,24 @@ $(document).ready(function () {
     let currentPage = 1;
 
     let searchTimer = null;
+    let pendingRead = null;
+    let readVersion = 0;
 
 
     function loadData(page = 1) {
 
         currentPage = page;
+        const version = ++readVersion;
+        if (pendingRead) pendingRead.abort();
+        $('#stock-items-body').empty();
+        $('#pagination-container').empty();
+        if (!$('#company_id').val()) {
+            $('#catalog-summary').text('Sin empresas autorizadas.');
+            return;
+        }
+        $('#catalog-summary').text('Cargando catálogo…');
 
-        $.ajax({
+        pendingRead = $.ajax({
 
             url: dataUrl,
 
@@ -46,6 +57,8 @@ $(document).ready(function () {
             },
 
             success: function (response) {
+                if (version !== readVersion) return;
+                $('#catalog-summary').text(`${response.total} productos · Mostrando ${response.from || 0} a ${response.to || 0}`);
 
                 renderRows(
                     response.data
@@ -56,7 +69,9 @@ $(document).ready(function () {
                 );
             },
 
-            error: function (xhr) {
+            error: function (xhr, status) {
+                if (status === 'abort' || version !== readVersion) return;
+                $('#catalog-summary').text('No se pudo cargar el catálogo.');
 
                 let message =
                     'No se pudo cargar el catálogo.';
@@ -93,7 +108,7 @@ $(document).ready(function () {
                 <tr>
                     <td
                         colspan="7"
-                        class="text-center text-muted"
+                        class="next-table-empty"
                     >
                         No se encontraron productos.
                     </td>
@@ -130,22 +145,26 @@ $(document).ready(function () {
                         ${escapeHtml(row.variant || '')}
                     </td>
 
-                    <td>
+                    <td class="text-center">
                         ${escapeHtml(row.sku || '')}
                     </td>
 
-                    <td>
+                    <td class="text-center">
                         ${escapeHtml(row.barcode || '')}
                     </td>
 
                     <td class="text-center">
 
+                        <label class="mb-0 position-relative">
                         <input
                             type="checkbox"
                             class="company-stock-toggle"
                             data-stock-item-id="${row.id}"
                             ${checked}
                         >
+                        <span class="company-stock-state">${row.enabled ? 'Habilitado' : 'No habilitado'}</span>
+                        <span class="sr-only">SKU ${escapeHtml(row.sku || '')}</span>
+                        </label>
 
                     </td>
 
@@ -169,7 +188,7 @@ $(document).ready(function () {
 
 
         const $pagination =
-            $('<ul class="pagination"></ul>');
+            $('<ul class="pagination pagination-sm flex-wrap mb-0"></ul>');
 
 
         for (
@@ -302,6 +321,7 @@ $(document).ready(function () {
                     toastr.success(
                         response.message
                     );
+                    $checkbox.closest('label').find('.company-stock-state').text(response.enabled ? 'Habilitado' : 'No habilitado');
 
                     $checkbox.prop(
                         'disabled',
