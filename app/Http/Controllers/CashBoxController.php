@@ -609,6 +609,15 @@ class CashBoxController extends Controller
         $companyId =
             TenantContext::companyId();
 
+        if ($request->input('type') === 'bank') {
+            // La moneda bancaria procede exclusivamente de la cuenta vinculada.
+            $request->request->remove('currency');
+            $request->query->remove('currency');
+        } elseif (is_string($request->input('currency'))) {
+            $currency = strtoupper(trim($request->input('currency')));
+            $request->merge(['currency' => $currency === '' ? null : $currency]);
+        }
+
         $data =
             $request->validate([
                 'name' =>
@@ -630,7 +639,7 @@ class CashBoxController extends Controller
                     'nullable|integer',
 
                 'currency' =>
-                    'nullable|string|size:3',
+                    'nullable|string|in:PEN,USD',
             ]);
 
         /*
@@ -746,8 +755,13 @@ class CashBoxController extends Controller
              * Pero la fuente de verdad para una caja bancaria
              * será CompanyBankAccount.
              */
-            $data['currency'] =
-                $bankAccount->currency;
+            $accountCurrency = strtoupper(trim((string) $bankAccount->currency));
+            if (!in_array($accountCurrency, ['PEN', 'USD'], true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_bank_account_id' => 'La cuenta bancaria debe tener moneda PEN o USD.',
+                ]);
+            }
+            $data['currency'] = $accountCurrency;
 
         } else {
 

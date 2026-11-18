@@ -19,7 +19,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all();
+        $users = $this->tenantDirectory()->get();
         $roles = Role::all();
 
         $user = Auth::user();
@@ -128,18 +128,43 @@ class UserController extends Controller
 
     public function getUsers()
     {
-        $users = User::select('id', 'name', 'email', 'image', 'enable')
+        $users = $this->tenantDirectory()->select('id', 'name', 'email', 'image', 'enable')
             ->where('enable', true)->get();
         return datatables($users)->toJson();
     }
 
     public function getUsers2()
     {
-        $users = User::select('id', 'name')
-            ->where('id', '!=' , Auth::user()->id)
-            ->where('enable', true)
-            ->get();
-        return json_encode($users);
+        app(\App\Services\Materials\MaterialInventoryScope::class)->context();
+        $companyId = \App\Support\TenantContext::companyId();
+        $branchId = \App\Support\TenantContext::branchId();
+
+        $users = $this->tenantDirectory()->select('users.id', 'users.name')
+            ->where('users.id', '<>', Auth::id())
+            ->where('users.enable', true)
+            ->whereExists(function ($query) use ($companyId) {
+                $query->selectRaw('1')->from('company_user')
+                    ->whereColumn('company_user.user_id', 'users.id')
+                    ->where('company_user.company_id', $companyId)
+                    ->where('company_user.is_active', true);
+            })
+            ->whereExists(function ($query) use ($branchId) {
+                $query->selectRaw('1')->from('branch_user')
+                    ->whereColumn('branch_user.user_id', 'users.id')
+                    ->where('branch_user.branch_id', $branchId)
+                    ->where('branch_user.is_active', true);
+            })
+            ->orderBy('users.name')->orderBy('users.id')->get();
+
+        return response()->json($users);
+    }
+
+    private function tenantDirectory()
+    {
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+
+        return User::query()->where('users.tenant_id', \App\Support\TenantContext::tenantId())
+            ->where('users.is_platform_admin', false);
     }
 
     public function profile()
@@ -265,7 +290,7 @@ class UserController extends Controller
 
     public function indexEnable()
     {
-        $users = User::all();
+        $users = $this->tenantDirectory()->get();
         $roles = Role::all();
 
         $user = Auth::user();
@@ -276,7 +301,7 @@ class UserController extends Controller
 
     public function getUsersDelete()
     {
-        $users = User::select('id', 'name', 'email', 'image', 'enable')
+        $users = $this->tenantDirectory()->select('id', 'name', 'email', 'image', 'enable')
             ->where('enable', false)->get();
         return datatables($users)->toJson();
     }

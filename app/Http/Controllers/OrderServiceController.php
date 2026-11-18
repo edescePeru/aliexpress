@@ -60,7 +60,7 @@ class OrderServiceController extends Controller
         $length = 5;
         $codeOrder = 'OS-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         return view('orderService.createOrderService', compact('users', 'codeOrder', 'suppliers', 'unitMeasures', 'payment_deadlines'));
 
@@ -206,7 +206,7 @@ class OrderServiceController extends Controller
         $order = OrderService::with(['supplier', 'approved_user'])->find($id);
         $details = OrderServiceDetail::where('order_service_id', $order->id)->get();
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable(OrderService::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
 
         $end = microtime(true) - $begin;
 
@@ -633,7 +633,7 @@ class OrderServiceController extends Controller
         $length = 5;
         $codeOrder = 'OS-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         $details = DetailEntry::where('entry_id', $entry_id)->get();
         //dd($entry);

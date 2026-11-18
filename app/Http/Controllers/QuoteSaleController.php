@@ -104,14 +104,20 @@ class QuoteSaleController extends Controller
             ->pluck('name')
             ->toArray();
 
-        $companyId = TenantContext::companyId();
+        $quotes = $branchScope->local(Quote::query());
+        $activeSale = function ($query) {
+            $query->where('state_annulled', false);
+        };
+        $quotes->whereDoesntHave('sales', $activeSale)
+            ->where('state', '<>', 'expired')
+            ->whereIn('state_active', ['open', 'close'])
+            ->where(function ($query) {
+                $query->where('state', '<>', 'requote')->orWhere(function ($requote) {
+                    $requote->where('state', 'requote')->whereDoesntHave('renewedQuote');
+                });
+            });
 
-        $registros = $branchScope->local(Quote::query())
-            ->where('company_id', $companyId)
-            ->get();
-
-        $arrayYears = $registros
-            ->pluck('date_quote')
+        $arrayYears = (clone $quotes)->pluck('quotes.date_quote')
             ->filter()
             ->map(function ($date) {
                 return Carbon::parse($date)->format('Y');
@@ -141,12 +147,7 @@ class QuoteSaleController extends Controller
             [ "value" => "canceled", "display" => "ANULADAS"]
         ];
 
-        $arrayUsers = User::select(
-            'id',
-            'name'
-        )
-            ->get()
-            ->toArray();
+        $arrayUsers = $this->quoteCreatorOptions($quotes);
 
         return view(
             'quoteSale.general',
@@ -170,14 +171,13 @@ class QuoteSaleController extends Controller
             ->pluck('name')
             ->toArray();
 
-        $companyId = TenantContext::companyId();
+        $quotes = $branchScope->local(Quote::query());
+        $activeSale = function ($query) {
+            $query->where('state_annulled', false);
+        };
+        $quotes->whereHas('sales', $activeSale);
 
-        $registros = $branchScope->local(Quote::query())
-            ->where('company_id', $companyId)
-            ->get();
-
-        $arrayYears = $registros
-            ->pluck('date_quote')
+        $arrayYears = (clone $quotes)->pluck('quotes.date_quote')
             ->filter()
             ->map(function ($date) {
                 return Carbon::parse($date)->format('Y');
@@ -202,12 +202,7 @@ class QuoteSaleController extends Controller
             [ "value" => "canceled", "display" => "CANCELADAS"]
         ];
 
-        $arrayUsers = User::select(
-            'id',
-            'name'
-        )
-            ->get()
-            ->toArray();
+        $arrayUsers = $this->quoteCreatorOptions($quotes);
 
         return view(
             'quoteSale.facturadas',
@@ -219,6 +214,15 @@ class QuoteSaleController extends Controller
                 'arrayUsers'
             )
         );
+    }
+
+    private function quoteCreatorOptions($quotes): array
+    {
+        return User::query()->select(['users.id', 'users.name'])
+            ->where('users.tenant_id', TenantContext::tenantId())
+            ->whereIn('users.id', QuoteUser::query()->select('user_id')
+                ->whereIn('quote_id', (clone $quotes)->select('quotes.id')))
+            ->orderBy('users.name')->orderBy('users.id')->get()->toArray();
     }
 
     public function getMaterials(Request $request)
@@ -4370,7 +4374,9 @@ class QuoteSaleController extends Controller
         $query = $branchScope->local(Quote::query())->with([
             'customer',
             'deadline',
-            'users',
+            'users.user' => function ($query) {
+                $query->where('users.tenant_id', TenantContext::tenantId());
+            },
             'equipments.workforces',
         ])
             ->where(
@@ -4506,16 +4512,11 @@ class QuoteSaleController extends Controller
             );
         }
 
-        if ($creator != "") {
-            $query->whereHas(
-                'users',
-                function ($query2) use ($creator) {
-                    $query2->where(
-                        'user_id',
-                        $creator
-                    );
-                }
-            );
+        if ($creator !== null && $creator !== '') {
+            abort_unless((is_string($creator) || is_int($creator)) && ctype_digit((string) $creator), 422);
+            $query->whereHas('users.user', function ($user) use ($creator) {
+                $user->where('users.tenant_id', TenantContext::tenantId())->whereKey($creator);
+            });
         }
 
         /*
@@ -4873,7 +4874,9 @@ class QuoteSaleController extends Controller
         $query = $branchScope->local(Quote::query())->with([
             'customer',
             'deadline',
-            'users',
+            'users.user' => function ($query) {
+                $query->where('users.tenant_id', TenantContext::tenantId());
+            },
         ])
             ->where(
                 'company_id',
@@ -4965,10 +4968,10 @@ class QuoteSaleController extends Controller
 
         }
 
-        if ($creator != "")
-        {
-            $query->whereHas('users', function ($query2) use ($creator) {
-                $query2->where('user_id', $creator);
+        if ($creator !== null && $creator !== '') {
+            abort_unless((is_string($creator) || is_int($creator)) && ctype_digit((string) $creator), 422);
+            $query->whereHas('users.user', function ($user) use ($creator) {
+                $user->where('users.tenant_id', TenantContext::tenantId())->whereKey($creator);
             });
         }
 
@@ -5106,7 +5109,7 @@ class QuoteSaleController extends Controller
                 "state" => $state,
                 "stateText" => $stateText,
                 "created_at" => $quote->created_at->format('d/m/Y'),
-                "creator" => ($quote->users[0] == null) ? "": $quote->users[0]->user->name,
+                "creator" => optional(optional($quote->users->first())->user)->name ?? '',
                 "decimals" => $stateDecimals,
                 "has_active_sale" => true,
                 "send_state" => $quote->send_state
@@ -10907,13 +10910,6 @@ class QuoteSaleController extends Controller
 
     public function printQuoteToCustomer($id)
     {
-        // Eliminamos elos archivos
-        $files = glob(public_path().'/pdfs/*');
-        foreach($files as $file){
-            if(is_file($file))
-                unlink($file);
-        }
-
         $quote = Quote::where('id', $id)
             ->with('customer')
             ->with('deadline')
@@ -10927,7 +10923,7 @@ class QuoteSaleController extends Controller
                     'workforces',
                     'turnstiles'
                 ]);
-            }])->first();
+            }])->firstOrFail();
 
         $quoteItemIdsByConsumable = [];
         $allItemIds = [];
@@ -11058,36 +11054,6 @@ class QuoteSaleController extends Controller
 
         $name = $quote->code . ' '. ltrim(rtrim($description)) . '.pdf';
 
-        $image_path = public_path().'/pdfs/'.$name;
-        //$image_path = 'C:/wamp64/www/construction/public/pdfs/'.$name;
-        if (file_exists($image_path)) {
-            unlink($image_path);
-        }
-
-        // = $pdf->output();
-
-        //file_put_contents(public_path().'/pdfs/'.$name, $output);
-        //file_put_contents('C:/wamp64/www/construction/public/pdfs/'.$name, $output);
-        $pdfPrincipal = public_path().'/pdfs/'.$name;
-        //$pdfPrincipal = 'C:/wamp64/www/construction/public/pdfs/'.$name;
-        //$oMerger = PDFMerger::init();
-
-        //$oMerger->addPDF($pdfPrincipal, 'all');
-
-        /*$pdfs = ImagesQuote::where('quote_id', $quote->id)
-            ->where('type', 'pdf')->get();
-
-        foreach ( $pdfs as $pdf )
-        {
-            $namePdf = public_path().'/images/planos/'.$pdf->image;
-            //$namePdf ='C:/wamp64/www/construction/public/images/planos/'.$pdf->image;
-            $oMerger->addPDF($namePdf, 'all');
-        }*/
-
-        //$oMerger->merge();
-        //$oMerger->setFileName($name);
-        //$oMerger->stream();
-
         return $pdf->stream($name);
     }
 
@@ -11103,7 +11069,7 @@ class QuoteSaleController extends Controller
         $consumables = Material::with('unitMeasure')->where('category_id', 2)->where('description','LIKE',"%".$defaultConsumable."%")->orderBy('full_name', 'asc')->get();
         $electrics = Material::with('unitMeasure')->where('category_id', 2)->whereElectric('description',$defaultElectric)->orderBy('full_name', 'asc')->get();
         $workforces = Workforce::with('unitMeasure')->get();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         $utility = PorcentageQuote::where('name', 'utility')->first();
         $rent = PorcentageQuote::where('name', 'rent')->first();
         $letter = PorcentageQuote::where('name', 'letter')->first();
@@ -11250,3 +11216,4 @@ class QuoteSaleController extends Controller
 
 
 }
+

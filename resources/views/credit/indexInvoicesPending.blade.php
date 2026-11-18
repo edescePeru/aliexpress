@@ -326,7 +326,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        @can('pay_credit')
                         <button type="button" id="btn-pay" class="btn btn-success">Guardar pago</button>
+                        @endcan
                     </div>
                 </form>
             </div>
@@ -437,7 +439,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        @can('edit_credit')
                         <button type="button" id="btn-submit" class="btn btn-success">Guardar cambios</button>
+                        @endcan
                     </div>
                 </form>
             </div>
@@ -602,6 +606,7 @@
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
+                    @can('pay_credit')
                     <div class="row">
                         <input type="hidden" id="credito_id" value="">
                         <div class="col-md-3">
@@ -633,6 +638,7 @@
                             </div>
                         </div>
                     </div>
+                    @endcan
                     <hr>
                     <div class="row">
                         <div class="col-sm-12">
@@ -794,5 +800,6 @@
             defaultViewDate: moment().format('L')
         });
     </script>
-    <script src="{{ asset('js/credit/index_invoicesPending.js') }}"></script>
+    <script src="{{ asset('js/credit/permissions.js') }}?v=credit-ui-1"></script>
+    <script src="{{ asset('js/credit/index_invoicesPending.js') }}?v=credit-balance-1"></script>
 @endsection

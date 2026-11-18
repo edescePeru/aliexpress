@@ -453,13 +453,13 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:update_user');
         Route::post('user/destroy', 'UserController@destroy')->name('user.destroy')
             ->middleware('permission:destroy_user');
-        Route::get('/all/users', 'UserController@getUsers');
+        Route::get('/all/users', 'UserController@getUsers')->middleware('permission:list_user');
         Route::get('/user/roles/{id}', 'UserController@getRoles')->name('user.roles')
             ->middleware('permission:update_user');
 
         Route::get('usuarios/eliminados', 'UserController@indexEnable')->name('user.indexEnable')
             ->middleware('permission:list_user');
-        Route::get('/all/users/delete', 'UserController@getUsersDelete');
+        Route::get('/all/users/delete', 'UserController@getUsersDelete')->middleware('permission:list_user');
         Route::post('user/disable', 'UserController@disable')->name('user.disable')
             ->middleware('permission:destroy_user');
         Route::post('user/enable', 'UserController@enable')->name('user.enable')
@@ -1172,7 +1172,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         Route::get('entradas/compra/reporte', 'EntryController@indexEntryPurchaseReport')->name('entry.purchase.report.index')
             ->middleware('permission:list_entryPurchase');
-        Route::post('/get/json/entries/purchase/report', 'EntryController@getJsonEntriesPurchaseReport');
+        Route::post('/get/json/entries/purchase/report', 'EntryController@getJsonEntriesPurchaseReport')
+            ->middleware('permission:list_entryPurchase');
 
 
         /////////////  ENTRADA POR INVENTARIO    ///////////////
@@ -1248,7 +1249,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         /*Route::post('ouput/store', 'OutputController@storeOutput')
             ->name('output.request.store')
             ->middleware('permission:create_request');*/
-        Route::get('/get/users', 'UserController@getUsers2');
+        Route::get('/get/users', 'UserController@getUsers2')->middleware('permission:create_request|create_requestSimple');
         Route::get('/get/items/output/{id_material}', 'ItemController@getJsonItemsOutput');
         Route::get('/get/items/output/complete/{id_material}', 'ItemController@getJsonItemsOutputComplete');
         Route::get('/get/items/output/scraped/{id_material}', 'ItemController@getJsonItemsOutputScraped');
@@ -1776,37 +1777,56 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         // CREDITS
         Route::get('/control/creditos', 'SupplierCreditController@indexCredits')
-            ->name('index.credit.supplier');
-        Route::get('/get/only/invoices/purchase', 'SupplierCreditController@getOnlyInvoicesPurchase');
-        Route::get('/get/only/credits/supplier', 'SupplierCreditController@getOnlyCreditsSupplier');
-        Route::post('/add/invoice/credit/{idEntry}', 'SupplierCreditController@addInvoiceToCredit');
-        Route::get('/get/credit/by/id/{creditId}', 'SupplierCreditController@getCreditById');
+            ->name('index.credit.supplier')
+            ->middleware('permission:control_credit');
+        Route::get('/get/only/invoices/purchase', 'SupplierCreditController@getOnlyInvoicesPurchase')
+            ->middleware('permission:control_credit');
+        Route::get('/get/only/credits/supplier', 'SupplierCreditController@getOnlyCreditsSupplier')
+            ->middleware('permission:control_credit');
+        Route::post('/add/invoice/credit/{idEntry}', 'SupplierCreditController@addInvoiceToCredit')
+            ->middleware('permission:edit_credit');
+        Route::get('/get/credit/by/id/{creditId}', 'SupplierCreditController@getCreditById')
+            ->middleware('permission:control_credit|edit_credit|pay_credit|nopay_credit');
         Route::post('credit/control/update', 'SupplierCreditController@update')
-            ->name('credit.control.update');
+            ->name('credit.control.update')
+            ->middleware('permission:edit_credit');
         Route::post('credit/control/paid', 'SupplierCreditController@paid')
-            ->name('credit.control.paid');
-        Route::post('/cancel/pay/credit/{idCredit}', 'SupplierCreditController@cancelPayCredit');
+            ->name('credit.control.paid')
+            ->middleware('permission:pay_credit');
+        Route::post('/cancel/pay/credit/{idCredit}', 'SupplierCreditController@cancelPayCredit')
+            ->middleware('permission:nopay_credit');
 
         // Facturas Pendientes
         Route::get('/faturas/proveedores/pendientes', 'SupplierCreditController@indexInvoicesPending')
-            ->name('index.invoices.pending');
-        Route::get('/get/invoices/pending', 'SupplierCreditController@getInvoicesPending');
+            ->name('index.invoices.pending')
+            ->middleware('permission:control_credit');
+        Route::get('/get/invoices/pending', 'SupplierCreditController@getInvoicesPending')
+            ->middleware('permission:control_credit');
         Route::get('/get/summary/deuda/pending', 'SupplierCreditController@getSummaryDeudaPending')
-            ->name('get.summary.deuda.pending');
+            ->name('get.summary.deuda.pending')
+            ->middleware('permission:control_credit');
         Route::get('/get/invoices/for/expire', 'SupplierCreditController@getInvoiceForExpire')
-            ->name('get.invoices.for.expire');
+            ->name('get.invoices.for.expire')
+            ->middleware('permission:control_credit');
         Route::get('/get/amount/invoice/current/month', 'SupplierCreditController@getAmountInvoiceCurrentMonth')
-            ->name('get.amount.invoice.current.month');
+            ->name('get.amount.invoice.current.month')
+            ->middleware('permission:control_credit');
         Route::get('/get/amount/invoice/general', 'SupplierCreditController@getAmountInvoiceGeneral')
-            ->name('get.amount.invoice.general');
-        Route::get('exportar/reporte/creditos/', 'SupplierCreditController@exportCreditsExcel');
-            //->middleware('permission:quoteTotal_report');
+            ->name('get.amount.invoice.general')
+            ->middleware('permission:control_credit');
+        Route::get('exportar/reporte/creditos/', 'SupplierCreditController@exportCreditsExcel')
+            ->middleware('permission:control_credit');
         Route::get('/get/pays/credit/{credit_id}', 'SupplierCreditController@getPaysCredit')
-            ->name('get.pays.credit');
-        Route::post('/save/pay/credit/{credit_id}', 'SupplierCreditController@savePaysCredit');
-        Route::post('/delete/pay/credit/{credit_pay_id}', 'SupplierCreditController@deletePayCredit');
-        Route::post('/add/days/credit/{credit_id}', 'SupplierCreditController@addDaysCredit');
-        Route::post('/change/status/credit/{credit_id}/{status}', 'SupplierCreditController@changeStatusCredit');
+            ->name('get.pays.credit')
+            ->middleware('permission:control_credit|pay_credit|nopay_credit');
+        Route::post('/save/pay/credit/{credit_id}', 'SupplierCreditController@savePaysCredit')
+            ->middleware('permission:pay_credit');
+        Route::post('/delete/pay/credit/{credit_pay_id}', 'SupplierCreditController@deletePayCredit')
+            ->middleware('permission:nopay_credit');
+        Route::post('/add/days/credit/{credit_id}', 'SupplierCreditController@addDaysCredit')
+            ->middleware('permission:edit_credit');
+        Route::post('/change/status/credit/{credit_id}/{status}', 'SupplierCreditController@changeStatusCredit')
+            ->middleware('permission:pay_credit|nopay_credit');
 
         // PAYMENT DEADLINES
         Route::get('/all/paymentDeadlines', 'PaymentDeadlineController@getPaymentDeadlines')
@@ -2771,7 +2791,6 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('solicitudes/server/side', 'OutputController@indexOutputRequestServerside');
 
         Route::get('/test/merge/pdfs', 'PdfsController@mergePdfs')->name('merge.pdfs');
-        Route::get('/test/save/pdfs', 'PdfsController@printQuote')->name('print.pdfs');
 
         // TODO: Rutas para OrderPurchaseInvoices
         Route::get('ordenes/compra/finanzas', 'OrderPurchaseFinanceController@indexOrderPurchaseFinance')
@@ -2783,7 +2802,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('store/order/purchase/finance', 'OrderPurchaseFinanceController@storeOrderPurchaseFinance')
             ->name('order.purchase.finance.store')
             ->middleware('permission:create_orderPurchaseFinance');
-        Route::get('/all/order/finance', 'OrderPurchaseFinanceController@getAllOrderFinance');
+        Route::get('/all/order/finance', 'OrderPurchaseFinanceController@getAllOrderFinance')
+            ->middleware('permission:list_orderPurchaseFinance');
         Route::get('editar/orden/compra/finanza/{id}', 'OrderPurchaseFinanceController@editOrderPurchaseFinance')
             ->middleware('permission:update_orderPurchaseFinance');
         Route::post('update/order/purchase/finance', 'OrderPurchaseFinanceController@updateOrderPurchaseFinance')
@@ -2805,11 +2825,12 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('ordenes/compra/finanzas/eliminadas', 'OrderPurchaseFinanceController@indexOrderPurchaseFinanceDelete')
             ->name('order.purchase.finance.delete')
             ->middleware('permission:destroy_orderPurchaseFinance');
-        Route::get('/all/order/finance/delete', 'OrderPurchaseFinanceController@getOrderDeleteFinance');
+        Route::get('/all/order/finance/delete', 'OrderPurchaseFinanceController@getOrderDeleteFinance')
+            ->middleware('permission:destroy_orderPurchaseFinance');
         Route::get('ver/orden/compra/finanzas/eliminada/{id}', 'OrderPurchaseFinanceController@showOrderPurchaseFinanceDelete')
             ->middleware('permission:list_orderPurchaseFinance');
         Route::get('imprimir/orden/compra/finanza/{id}', 'OrderPurchaseFinanceController@printOrderPurchaseFinance')
-            ->middleware('permission:list_orderPurchaseNormal');
+            ->middleware('permission:list_orderPurchaseFinance');
         Route::get('imprimir/orden/compra/finanza/eliminada/{id}', 'OrderPurchaseFinanceController@printOrderPurchaseFinanceDelete')
             ->middleware('permission:list_orderPurchaseFinance');
         Route::post('/restore/order/purchase/finance/delete/{id}', 'OrderPurchaseFinanceController@restoreOrderPurchaseFinanceDelete')
@@ -2818,12 +2839,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('ordenes/compra/finanzas/regularizadas', 'OrderPurchaseFinanceController@indexOrderPurchaseFinanceRegularize')
             ->name('order.purchase.finance.list.regularize')
             ->middleware('permission:list_orderPurchaseFinance');
-        Route::get('/all/order/purchase/finance/regularize', 'OrderPurchaseFinanceController@getAllOrderRegularizeFinance');
+        Route::get('/all/order/purchase/finance/regularize', 'OrderPurchaseFinanceController@getAllOrderRegularizeFinance')
+            ->middleware('permission:list_orderPurchaseFinance');
 
         Route::get('ordenes/compra/finanzas/perdidas', 'OrderPurchaseFinanceController@indexOrderPurchaseFinanceLost')
             ->name('order.purchase.finance.list.lost')
             ->middleware('permission:list_orderPurchaseFinance');
-        Route::get('/all/order/purchase/finance/lost', 'OrderPurchaseFinanceController@getAllOrderPurchaseFinanceLost');
+        Route::get('/all/order/purchase/finance/lost', 'OrderPurchaseFinanceController@getAllOrderPurchaseFinanceLost')
+            ->middleware('permission:list_orderPurchaseFinance');
 
         Route::get('/regularizar/automaticamente/entrada/compra/finanzas/{entry_id}', 'OrderPurchaseFinanceController@regularizeAutoOrderEntryPurchaseFinance')
             ->middleware('permission:create_orderPurchaseFinance');
@@ -3126,7 +3149,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('inventory.save')
             ->middleware('permission:save_inventory');
 
-        Route::get('/exportar/entradas/almacen/v2/', 'EntryController@exportEntriesAlmacen');
+        Route::get('/exportar/entradas/almacen/v2/', 'EntryController@exportEntriesAlmacen')
+            ->middleware('permission:list_entryPurchase|list_entryInventory');
 
         // TODO: Rutas Rotacion de materiales
         Route::get('/store/rotation/material/', 'RotationMaterialController@storeRotationMaterial');
@@ -3373,9 +3397,6 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('/get/data/quotes/sale/facturadas/index/v2/{numberPage}', 'QuoteSaleController@getDataQuotesSalesIndex')
             ->middleware('permission:list_quoteSale');
 
-        Route::get('cotizaciones/venta/totales', 'QuoteSaleController@indexGeneral')
-            ->name('quoteSale.list.general')
-            ->middleware('permission:list_quoteSale');
         Route::get('crear/cotizacion/venta', 'QuoteSaleController@create')
             ->name('quoteSale.create')
             ->middleware('permission:create_quoteSale');
@@ -3697,8 +3718,10 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('get.stock-items.by.material')->middleware(\App\Http\Middleware\PosCatalogGuard::class.':v2');
 
         Route::get('/customer/search-or-create/{documento}', 'CustomerController@searchOrCreateByDocument')
+            ->middleware('permission:list_customer|create_customer|create_quoteSale|edit_quoteSale|create_puntoVenta|createV2_puntoVenta')
             ->name('customer.searchOrCreateByDocument');
-
+        Route::post('/customer/by-document/{documento}', 'CustomerController@createByDocument')
+            ->middleware('permission:create_customer')->name('customer.createByDocument');
         Route::get('/customer/decolecta/{documento}', 'CustomerController@consultarDocumentoDecolecta')
             ->name('customer.consultarDocumentoDecolecta');
 
@@ -3897,9 +3920,6 @@ Route::prefix('store-web/')->group(function () {
 
 
 });
-
-Route::get('/test-ruc/{ruc}', 'CustomerController@testRuc');
-Route::get('/test-dni/{dni}', 'CustomerController@testDni');
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/get/type/exchange', 'FinanceWorkController@getTypeExchange');

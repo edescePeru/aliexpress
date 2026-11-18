@@ -837,6 +837,7 @@ let $longitud = 20;
 var $permissions;
 
 function cancelPayCredit() {
+    if (!SupplierCreditUi.allow('nopay_credit', $permissions)) return;
     var id_credit = $(this).attr('data-nopay');
     $.confirm({
         icon: 'fas fa-window-close',
@@ -882,6 +883,7 @@ function cancelPayCredit() {
 }
 
 function paidCredit() {
+    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
     event.preventDefault();
     $("#btn-pay").attr("disabled", true);
     // Obtener la URL
@@ -969,6 +971,7 @@ function paidCredit() {
 }
 
 function payCredit() {
+    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
     var credit_id = $(this).data('pay');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,
@@ -1056,6 +1059,7 @@ function modifyDateIsuue() {
 }
 
 function updateCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     event.preventDefault();
     $("#btn-submit").attr("disabled", true);
     // Obtener la URL
@@ -1143,6 +1147,7 @@ function updateCredit() {
 }
 
 function addCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     var id_entry = $(this).attr('data-add');
     $.confirm({
         icon: 'fas fa-check-double',
@@ -1188,6 +1193,7 @@ function addCredit() {
 }
 
 function editCredit() {
+    if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
     var credit_id = $(this).data('edit');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,

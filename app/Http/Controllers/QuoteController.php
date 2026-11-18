@@ -615,7 +615,7 @@ class QuoteController extends Controller
         $maxId = Quote::max('id')+1;
         $length = 5;
         $codeQuote = 'COT-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable()->get();
         $utility = PorcentageQuote::where('name', 'utility')->first();
         $rent = PorcentageQuote::where('name', 'rent')->first();
         $letter = PorcentageQuote::where('name', 'letter')->first();
@@ -952,7 +952,7 @@ class QuoteController extends Controller
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'electrics', 'workforces', 'turnstiles', 'workdays']);
             }])->first();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         //dump($quote);
         $end = microtime(true) - $begin;
 
@@ -976,7 +976,7 @@ class QuoteController extends Controller
         $consumables = Material::with('unitMeasure')->where('category_id', 2)->where('description','LIKE',"%".$defaultConsumable."%")->orderBy('full_name', 'asc')->get();
         $electrics = Material::with('unitMeasure')->where('category_id', 2)->whereElectric('description',$defaultElectric)->orderBy('full_name', 'asc')->get();
         $workforces = Workforce::with('unitMeasure')->get();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         $utility = PorcentageQuote::where('name', 'utility')->first();
         $rent = PorcentageQuote::where('name', 'rent')->first();
         $letter = PorcentageQuote::where('name', 'letter')->first();
@@ -1105,7 +1105,7 @@ class QuoteController extends Controller
         $materials = Material::with('unitMeasure','typeScrap')
             /*->where('enable_status', 1)*/->get();
 
-            //dd($array);
+        //dd($array);
 
         $array = [];
         foreach ( $materials as $material )
@@ -1314,7 +1314,7 @@ class QuoteController extends Controller
         $consumables = Material::with('unitMeasure')->where('category_id', 2)->whereConsumable('description',$defaultConsumable)->orderBy('full_name', 'asc')->get();
         $electrics = Material::with('unitMeasure')->where('category_id', 2)->whereElectric('description',$defaultElectric)->orderBy('full_name', 'asc')->get();
         $workforces = Workforce::with('unitMeasure')->get();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         $quote = Quote::where('id', $id)
             ->with('customer')
             ->with('deadline')
@@ -2429,12 +2429,7 @@ class QuoteController extends Controller
 
     public function printQuoteToCustomer($id)
     {
-        // Eliminamos elos archivos
-        $files = glob(public_path().'/pdfs/*');
-        foreach($files as $file){
-            if(is_file($file))
-                unlink($file);
-        }
+        app(\App\Services\Quotes\QuoteBranchContext::class)->assertQuote($id, true);
 
         $quote = Quote::where('id', $id)
             ->with('customer')
@@ -2442,7 +2437,7 @@ class QuoteController extends Controller
             ->with('users')
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'workforces', 'turnstiles']);
-            }])->first();
+            }])->firstOrFail();
 
         $images = ImagesQuote::where('quote_id', $quote->id)
             ->where('type', 'img')
@@ -2456,47 +2451,12 @@ class QuoteController extends Controller
 
         $name = $quote->code . ' '. ltrim(rtrim($description)) . '.pdf';
 
-        $image_path = public_path().'/pdfs/'.$name;
-        //$image_path = 'C:/wamp64/www/construction/public/pdfs/'.$name;
-        if (file_exists($image_path)) {
-            unlink($image_path);
-        }
-
-        $output = $pdf->output();
-
-        file_put_contents(public_path().'/pdfs/'.$name, $output);
-        //file_put_contents('C:/wamp64/www/construction/public/pdfs/'.$name, $output);
-        $pdfPrincipal = public_path().'/pdfs/'.$name;
-        //$pdfPrincipal = 'C:/wamp64/www/construction/public/pdfs/'.$name;
-        $oMerger = PDFMerger::init();
-
-        $oMerger->addPDF($pdfPrincipal, 'all');
-
-        $pdfs = ImagesQuote::where('quote_id', $quote->id)
-            ->where('type', 'pdf')->get();
-
-        foreach ( $pdfs as $pdf )
-        {
-            $namePdf = public_path().'/images/planos/'.$pdf->image;
-            //$namePdf ='C:/wamp64/www/construction/public/images/planos/'.$pdf->image;
-            $oMerger->addPDF($namePdf, 'all');
-        }
-
-        $oMerger->merge();
-        $oMerger->setFileName($name);
-        $oMerger->stream();
-
-        //return $pdf->stream($name);
+        return $this->streamQuoteWithAttachments($quote, $pdf, $name);
     }
 
     public function printQuoteToInternal($id)
     {
-        // Eliminamos elos archivos
-        $files = glob(public_path().'/pdfs/*');
-        foreach($files as $file){
-            if(is_file($file))
-                unlink($file);
-        }
+        app(\App\Services\Quotes\QuoteBranchContext::class)->assertQuote($id, true);
 
         $quote = Quote::where('id', $id)
             ->with('customer')
@@ -2504,7 +2464,7 @@ class QuoteController extends Controller
             ->with('users')
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'workforces', 'turnstiles']);
-            }])->first();
+            }])->firstOrFail();
 
         $images = ImagesQuote::where('quote_id', $quote->id)
             ->where('type', 'img')
@@ -2518,34 +2478,44 @@ class QuoteController extends Controller
 
         $name = $quote->code . ' '. ltrim(rtrim($description)) . '.pdf';
 
-        $image_path = public_path().'/pdfs/'.$name;
-        if (file_exists($image_path)) {
-            unlink($image_path);
+        return $this->streamQuoteWithAttachments($quote, $pdf, $name);
+    }
+
+    private function streamQuoteWithAttachments(Quote $quote, $pdf, string $name)
+    {
+        $attachments = ImagesQuote::where('quote_id', $quote->id)->where('type', 'pdf')->get();
+        if ($attachments->isEmpty()) {
+            return $pdf->stream($name);
         }
 
-        $output = $pdf->output();
-        file_put_contents(public_path().'/pdfs/'.$name, $output);
-
-        $pdfPrincipal = public_path().'/pdfs/'.$name;
-
-        $oMerger = PDFMerger::init();
-
-        $oMerger->addPDF($pdfPrincipal, 'all');
-
-        $pdfs = ImagesQuote::where('quote_id', $quote->id)
-            ->where('type', 'pdf')->get();
-
-        foreach ( $pdfs as $pdf )
-        {
-            $namePdf = public_path().'/images/planos/'.$pdf->image;
-            $oMerger->addPDF($namePdf, 'all');
+        $temporary = tempnam(sys_get_temp_dir(), 'venti-quote-');
+        if ($temporary === false) {
+            throw new \RuntimeException('No se pudo preparar el PDF de la cotización.');
         }
 
-        $oMerger->merge();
-        $oMerger->setFileName($name);
-        $oMerger->stream();
+        try {
+            $content = $pdf->output();
+            if (file_put_contents($temporary, $content) !== strlen($content)) {
+                throw new \RuntimeException('No se pudo guardar el PDF temporal de la cotización.');
+            }
 
-        //return $pdf->stream($name);
+            $merger = PDFMerger::init();
+            $merger->addPDF($temporary, 'all');
+
+            foreach ($attachments as $attachment) {
+                $merger->addPDF(public_path('images/planos/'.$attachment->image), 'all');
+            }
+
+            $merger->merge();
+
+            return response($merger->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => (new \Symfony\Component\HttpFoundation\ResponseHeaderBag())
+                    ->makeDisposition('inline', $name, 'cotizacion.pdf'),
+            ]);
+        } finally {
+            unlink($temporary);
+        }
     }
 
     public function destroyEquipmentOfQuote($id_equipment, $id_quote)
@@ -3274,7 +3244,7 @@ class QuoteController extends Controller
         $consumables = Material::with('unitMeasure')->where('category_id', 2)->whereConsumable('description',$defaultConsumable)->orderBy('full_name', 'asc')->get();
         $electrics = Material::with('unitMeasure')->where('category_id', 2)->whereElectric('description',$defaultElectric)->orderBy('full_name', 'asc')->get();
         $workforces = Workforce::with('unitMeasure')->get();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         $quote = Quote::where('id', $id)
             ->with('customer')
             ->with('deadline')
@@ -3667,7 +3637,7 @@ class QuoteController extends Controller
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'electrics', 'workforces', 'turnstiles', 'workdays']);
             }])->first();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         //dump($quote);
         return view('quote.replacement', compact('quote', 'unitMeasures', 'customers', 'consumables', 'electrics', 'workforces', 'paymentDeadlines', 'permissions'));
 
@@ -3790,7 +3760,7 @@ class QuoteController extends Controller
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'electrics', 'workforces', 'turnstiles', 'workdays']);
             }])->first();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
         //dump($quote);
         return view('quote.finish_equipment', compact('quote', 'unitMeasures', 'customers', 'consumables', 'electrics', 'workforces', 'paymentDeadlines', 'permissions'));
 
@@ -4174,7 +4144,7 @@ class QuoteController extends Controller
             ->with(['equipments' => function ($query) {
                 $query->with(['materials', 'consumables', 'electrics', 'workforces', 'turnstiles', 'workdays']);
             }])->first();
-        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->get();
+        $paymentDeadlines = PaymentDeadline::where('type', 'quotes')->selectable(Quote::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($quote_id)->value('payment_deadline_id'))->get();
         $materials = Material::with('unitMeasure','typeScrap')
             /*->where('enable_status', 1)*/->get();
 

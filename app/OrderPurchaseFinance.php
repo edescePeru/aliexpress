@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class OrderPurchaseFinance extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, \App\Traits\ScopedFinancePurchaseCompany;
 
     public $fillable = [
         'code',

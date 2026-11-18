@@ -520,10 +520,14 @@ class CashBoxSubtypeController extends Controller
         $companyId =
             TenantContext::companyId();
 
+        if (is_int($request->input('cash_box_id'))) {
+            $request->merge(['cash_box_id' => (string) $request->input('cash_box_id')]);
+        }
+
         $data =
             $request->validate([
                 'cash_box_id' =>
-                    'nullable',
+                    ['nullable', 'string', 'regex:/\A(?:global|[1-9][0-9]*)?\z/'],
 
                 'code' =>
                     'required|string|max:50',
@@ -540,6 +544,8 @@ class CashBoxSubtypeController extends Controller
                 'requires_commission' =>
                     'nullable',
             ]);
+
+        $data['cash_box_id'] = $data['cash_box_id'] ?? null;
 
         /*
          * ============================================================

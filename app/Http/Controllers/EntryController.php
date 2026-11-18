@@ -2371,9 +2371,20 @@ class EntryController extends Controller
         );
     }
 
-    public function showEntryPurchase(Entry $entry)
+    public function showEntryPurchase($entry)
     {
+        $tenantId = TenantContext::tenantIdOrNull();
+        $companyId = TenantContext::companyIdOrNull();
+
+        abort_unless($tenantId && $companyId, 404);
+
+        $entry = Entry::query()
+            ->where('tenant_id', $tenantId)
+            ->where('company_id', $companyId)
+            ->findOrFail($entry);
+
         $suppliers = Supplier::all();
+
         return view('entry.show_entry_purchase', compact('entry', 'suppliers'));
     }
 
@@ -4254,7 +4265,7 @@ class EntryController extends Controller
         $length = 5;
         $codeOrder = 'OC-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         $end = microtime(true) - $begin;
 
@@ -4701,52 +4712,72 @@ class EntryController extends Controller
         return true; // La cadena está formada solo por ceros
     }
 
-    public function indexEntryPurchaseReport(){
+    public function indexEntryPurchaseReport()
+    {
+        abort_unless(Auth::user()->can('list_entryPurchase'), 403);
+        abort_unless(TenantContext::tenantIdOrNull() && TenantContext::companyIdOrNull(), 403, 'Selecciona una empresa para consultar el reporte.');
+
         $user = Auth::user();
         $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
 
         return view('entry.index_entry_purchase_report', compact('permissions'));
     }
 
-    public function getJsonEntriesPurchaseReport(Request $request){
+    public function getJsonEntriesPurchaseReport(Request $request)
+    {
+        abort_unless(Auth::user()->can('list_entryPurchase'), 403);
+        $tenantId = TenantContext::tenantIdOrNull();
+        $companyId = TenantContext::companyIdOrNull();
+        abort_unless($tenantId && $companyId, 403, 'Selecciona una empresa para consultar el reporte.');
+
+        $dates = $request->validate([
+            'start' => ['required', 'date_format:d/m/Y'],
+            'end' => ['required', 'date_format:d/m/Y', 'after_or_equal:start'],
+        ]);
+
         $begin = microtime(true);
-    
-        $startMonthsAgo = $request->get('start');
-        $endMonthsAgo = $request->get('end');
-    
-        // Verificar si startMonthsAgo o endMonthsAgo son nulos
-        if (is_null($startMonthsAgo) || is_null($endMonthsAgo)) {
-            return response()->json(['error' => 'Ambos campos de fechas son obligatorios.'], 400);
-        }
-        
-        $startDate = Carbon::createFromFormat('d/m/Y', $startMonthsAgo)->format('Y-m-d');
-        $endDate = Carbon::createFromFormat('d/m/Y', $endMonthsAgo)->format('Y-m-d');
-    
+        $startDate = Carbon::createFromFormat('d/m/Y', $dates['start'])->startOfDay();
+        $endDate = Carbon::createFromFormat('d/m/Y', $dates['end'])->endOfDay();
+
         $entries = Entry::with('supplier')
+            ->where('tenant_id', $tenantId)
+            ->where('company_id', $companyId)
             ->where('entry_type', 'Por compra')
             ->where('finance', false)
-            ->whereBetween('created_at', [$startDate.' 00:00:00', $endDate.' 23:59:59'])
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
             ->get();
-    
-        $end = microtime(true) - $begin;
-    
+
         Audit::create([
             'user_id' => Auth::user()->id,
             'action' => 'Obtener ingresos por compra en un rango de fechas personalizado',
-            'time' => $end
+            'time' => microtime(true) - $begin,
         ]);
-    
+
         return datatables($entries)->toJson();
-        
     }
 
     public function exportEntriesAlmacen()
     {
-        //dd($request);
-        $start = $_GET['start'];
-        $end = $_GET['end'];
-        $type = $_GET['typeEntry'];
+        $tenantId = TenantContext::tenantIdOrNull();
+        $companyId = TenantContext::companyIdOrNull();
+        abort_unless($tenantId && $companyId, 403, 'Selecciona una empresa para exportar.');
+
+        $validated = request()->validate([
+            'typeEntry' => ['required', 'integer', 'in:1,2,3'],
+            'start' => ['nullable', 'required_with:end', 'date_format:d/m/Y'],
+            'end' => ['nullable', 'required_with:start', 'date_format:d/m/Y', 'after_or_equal:start'],
+        ]);
+        $type = (int) $validated['typeEntry'];
+        $user = Auth::user();
+        if ($type === 1 || $type === 2) {
+            abort_unless($user->can('list_entryPurchase'), 403);
+        }
+        if ($type === 1 || $type === 3) {
+            abort_unless($user->can('list_entryInventory'), 403);
+        }
+        $start = isset($validated['start']) ? $validated['start'] : '';
+        $end = isset($validated['end']) ? $validated['end'] : '';
         //dump($start);
         //dump($end);
         $array = [];
@@ -4761,6 +4792,8 @@ class EntryController extends Controller
                 case 1: //Todas
                     $dates = $dates . " POR COMPRA E INVENTARIO ";
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->whereIn('entry_type', ['Por compra','Inventario'])
                         ->where('finance', false)
                         ->orderBy('created_at', 'desc')
@@ -4769,6 +4802,8 @@ class EntryController extends Controller
                 case 2: // Por Compra
                     $dates = $dates . " POR COMPRA";
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->where('entry_type', 'Por compra')
                         ->where('finance', false)
                         ->orderBy('created_at', 'desc')
@@ -4777,6 +4812,8 @@ class EntryController extends Controller
                 case 3: // Por Inventario
                     $dates = $dates . " POR INVENTARIO ";
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->where('entry_type', 'Inventario')
                         ->where('finance', false)
                         ->orderBy('created_at', 'desc')
@@ -4817,6 +4854,8 @@ class EntryController extends Controller
                 case 1: //Todas
                     $dates = $dates . " POR COMPRA E INVENTARIO DEL ".$start." AL ".$end;
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->whereIn('entry_type', ['Por compra','Inventario'])
                         ->whereDate('date_entry', '>=', $date_start)
                         ->whereDate('date_entry', '<=', $end_start)
@@ -4827,6 +4866,8 @@ class EntryController extends Controller
                 case 2: // Por Compra
                     $dates = $dates . " POR COMPRA DEL ".$start." AL ".$end;
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->where('entry_type', 'Por compra')
                         ->where('finance', false)
                         ->whereDate('date_entry', '>=', $date_start)
@@ -4837,6 +4878,8 @@ class EntryController extends Controller
                 case 3: // Por Inventario
                     $dates = $dates . " POR INVENTARIO DEL ".$start." AL ".$end;
                     $entries = Entry::with('supplier', 'details')
+                        ->where('tenant_id', $tenantId)
+                        ->where('company_id', $companyId)
                         ->where('entry_type', 'Inventario')
                         ->where('finance', false)
                         ->whereDate('date_entry', '>=', $date_start)

@@ -30,6 +30,14 @@ class OrderPurchaseFinanceController extends Controller
     public function __construct(TipoCambioService $tipoCambioService)
     {
         $this->tipoCambioService = $tipoCambioService;
+        $this->middleware(function ($request, $next) {
+            $tenant = \App\Support\TenantContext::tenantIdOrNull();
+            $company = \App\Support\TenantContext::companyIdOrNull();
+            abort_unless($tenant && $company && \App\Company::query()
+                ->where('tenant_id', $tenant)->whereKey($company)->exists(),
+                403, 'Selecciona una empresa válida para operar órdenes financieras.');
+            return $next($request);
+        });
     }
 
     public function indexOrderPurchaseFinance()
@@ -43,10 +51,17 @@ class OrderPurchaseFinanceController extends Controller
     public function createOrderPurchaseFinance()
     {
         $begin = microtime(true);
-        $suppliers = Supplier::all();
-        $quotesRaised = Quote::where('raise_status', 1)
+        $suppliers = Supplier::where('tenant_id', \App\Support\TenantContext::tenantId())->get();
+        $quotesRaised = Quote::where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->where('company_id', \App\Support\TenantContext::companyId())
+            ->where('raise_status', 1)
             ->where('state_active', 'open')->get();
-        $users = User::all();
+        $users = User::query()
+            ->where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->whereHas('companies', function ($query) {
+                $query->where('companies.id', \App\Support\TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            })->get();
 
         // TODO: WITH TRASHED
         $maxCode = OrderPurchaseFinance::withTrashed()->max('id');
@@ -56,9 +71,9 @@ class OrderPurchaseFinanceController extends Controller
         $length = 5;
         $codeOrder = 'OCF-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
-        $unitMeasures = UnitMeasure::select(['id', 'description'])->get();
+        $unitMeasures = UnitMeasure::where('tenant_id', \App\Support\TenantContext::tenantId())->select(['id', 'description'])->get();
 
         $end = microtime(true) - $begin;
 
@@ -73,10 +88,11 @@ class OrderPurchaseFinanceController extends Controller
 
     public function storeOrderPurchaseFinance(StoreOrderPurchaseFinanceRequest $request)
     {
+        \App\Services\Purchases\FinancePurchaseInput::validate($request);
         $begin = microtime(true);
         $validated = $request->validated();
 
-        $fecha = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
+        $fecha = ($request->filled('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
         $fechaFormato = $fecha->format('Y-m-d');
         //$response = $this->getTipoDeCambio($fechaFormato);
 
@@ -90,8 +106,8 @@ class OrderPurchaseFinanceController extends Controller
             $orderPurchaseFinance = OrderPurchaseFinance::create([
                 'code' => '',
                 'supplier_id' => ($request->has('supplier_id')) ? $request->get('supplier_id') : null,
-                'date_delivery' => ($request->has('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now(),
-                'date_order' => ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
+                'date_delivery' => ($request->filled('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now(),
+                'date_order' => ($request->filled('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
                 'approved_by' => ($request->has('approved_by')) ? $request->get('approved_by') : null,
                 'payment_condition' => ($request->has('service_condition')) ? $request->get('service_condition') : '',
                 'currency_order' => ($request->get('currency') === 'true') ? 'PEN': 'USD',
@@ -107,16 +123,9 @@ class OrderPurchaseFinanceController extends Controller
 
             ]);
 
-            $codeOrder = '';
-            if ( $maxId < $orderPurchaseFinance->id ){
-                $codeOrder = 'OCF-'.str_pad($orderPurchaseFinance->id,$length,"0", STR_PAD_LEFT);
-                $orderPurchaseFinance->code = $codeOrder;
-                $orderPurchaseFinance->save();
-            } else {
-                $codeOrder = 'OCF-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-                $orderPurchaseFinance->code = $codeOrder;
-                $orderPurchaseFinance->save();
-            }
+            $codeOrder = 'OCF-'.str_pad($orderPurchaseFinance->id, 5, '0', STR_PAD_LEFT);
+            $orderPurchaseFinance->code = $codeOrder;
+            $orderPurchaseFinance->save();
 
             $items = json_decode($request->get('items'));
 
@@ -195,16 +204,23 @@ class OrderPurchaseFinanceController extends Controller
     public function editOrderPurchaseFinance($id)
     {
         $begin = microtime(true);
-        $suppliers = Supplier::all();
-        $quotesRaised = Quote::where('raise_status', 1)
+        $suppliers = Supplier::where('tenant_id', \App\Support\TenantContext::tenantId())->get();
+        $quotesRaised = Quote::where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->where('company_id', \App\Support\TenantContext::companyId())
+            ->where('raise_status', 1)
             ->where('state_active', 'open')->get();
-        $users = User::all();
-        $unitMeasures = UnitMeasure::select(['id', 'description'])->get();
+        $users = User::query()
+            ->where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->whereHas('companies', function ($query) {
+                $query->where('companies.id', \App\Support\TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            })->get();
+        $unitMeasures = UnitMeasure::where('tenant_id', \App\Support\TenantContext::tenantId())->select(['id', 'description'])->get();
 
-        $order = OrderPurchaseFinance::with(['supplier', 'approved_user'])->find($id);
+        $order = OrderPurchaseFinance::with(['supplier', 'approved_user'])->findOrFail($id);
         $details = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $order->id)->get();
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable(OrderPurchaseFinance::query()->where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->whereKey($id)->value('payment_deadline_id'))->get();
 
         $end = microtime(true) - $begin;
 
@@ -219,15 +235,19 @@ class OrderPurchaseFinanceController extends Controller
 
     public function updateOrderPurchaseFinance(StoreOrderPurchaseFinanceRequest $request)
     {
+        $request->validate(['order_id' => 'required|integer|min:1']);
+        $currentOrder = OrderPurchaseFinance::findOrFail($request->input('order_id'));
+        \App\Services\Purchases\FinancePurchaseInput::validate($request, $currentOrder);
         $begin = microtime(true);
         $validated = $request->validated();
 
         DB::beginTransaction();
         try {
-            $orderFinance = OrderPurchaseFinance::find($request->get('order_id'));
+            $orderFinance = OrderPurchaseFinance::lockForUpdate()->findOrFail($request->get('order_id'));
+            \App\Services\Purchases\FinancePurchaseInput::validate($request, $orderFinance);
             $orderFinance->supplier_id = ($request->has('supplier_id')) ? $request->get('supplier_id') : null;
-            $orderFinance->date_delivery = ($request->has('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now();
-            $orderFinance->date_order = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
+            $orderFinance->date_delivery = ($request->filled('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now();
+            $orderFinance->date_order = ($request->filled('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
             $orderFinance->approved_by = ($request->has('approved_by')) ? $request->get('approved_by') : null;
             $orderFinance->payment_condition = ($request->has('service_condition')) ? $request->get('service_condition') : '';
             $orderFinance->currency_order = ($request->get('state') === 'true') ? 'PEN': 'USD';
@@ -302,118 +322,71 @@ class OrderPurchaseFinanceController extends Controller
 
     public function destroyFinanceDetail($idDetail)
     {
-        $begin = microtime(true);
-        DB::beginTransaction();
-        try {
-            $detail = OrderPurchaseFinanceDetail::find($idDetail);
-            $orderPurchaseFinance = OrderPurchaseFinance::find($detail->order_purchase_finance_id);
-            $orderPurchaseFinance->igv = $orderPurchaseFinance->igv - $detail->igv;
-            $orderPurchaseFinance->total = $orderPurchaseFinance->total - ($detail->total_detail);
-            $orderPurchaseFinance->save();
-
-            // Si la orden de compra express se modifica, el credito tambien se modificara
-            /*$credit = SupplierCredit::where('order_service_id', $orderService->id)
-                ->where('state_credit', 'outstanding')->first();
-            if ( isset($credit) )
-            {
-                $credit->total_soles = ($orderService->currency_order == 'PEN') ? $orderService->total:null;
-                $credit->total_dollars = ($orderService->currency_order == 'USD') ? $orderService->total:null;
-                $credit->save();
-            }*/
-
+        DB::transaction(function () use ($idDetail) {
+            $parentId = OrderPurchaseFinanceDetail::whereKey($idDetail)->value('order_purchase_finance_id');
+            abort_unless($parentId, 404);
+            $order = OrderPurchaseFinance::lockForUpdate()->findOrFail($parentId);
+            $detail = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $order->id)
+                ->lockForUpdate()->findOrFail($idDetail);
+            $order->igv = round((float) $order->igv - (float) $detail->igv, 2);
+            $order->total = round((float) $order->total - (float) $detail->total_detail, 2);
+            $detail->deletion_batch = null;
+            $detail->save();
             $detail->delete();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Eliminar Orden de COmpra Finanzas Detalle',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
+            $order->save();
+            Audit::create(['user_id' => Auth::user()->id, 'action' => 'Eliminar detalle de orden financiera', 'time' => 0]);
+        });
         return response()->json(['message' => 'Detalle de orden eliminado con éxito.'], 200);
-
     }
 
     public function updateFinanceDetail(Request $request, $detail_id)
     {
-        $begin = microtime(true);
-        DB::beginTransaction();
-        try {
-            $detail = OrderPurchaseFinanceDetail::find($detail_id);
-            $orderPurchase = OrderPurchaseFinance::find($detail->order_purchase_finance_id);
-
-            $items = json_decode($request->get('items'));
-
-            for ( $i=0; $i<sizeof($items); $i++ )
-            {
-
-                $total_last = $detail->total_detail;
-                $igv_last = $detail->igv;
-
-                $quantity = (float) $items[$i]->quantity;
-                $price = (float) $items[$i]->price;
-                $totalD = (float) $items[$i]->total;
-
-                $total = round($totalD, 2);
-                $subtotal = round($total / 1.18, 2);
-                $igv = $total - $subtotal;
-
-                $detail->quantity = round($quantity, 2);
-                $detail->price = round($price, 2);
-                $detail->igv = round($igv,2);
-                $detail->total_detail = round($totalD,2);
-                $detail->save();
-
-                $orderPurchase->igv = round(($orderPurchase->igv - $igv_last),2);
-                $orderPurchase->total = round(($orderPurchase->total - $total_last),2);
-                $orderPurchase->save();
-
-                $orderPurchase->igv = round(($orderPurchase->igv + $igv),2);
-                $orderPurchase->total = round(($orderPurchase->total + $total),2);
-
-                $orderPurchase->save();
-
-                // Si la orden de compra express se modifica, el credito tambien se modificara
-                /*$credit = SupplierCredit::where('order_service_id', $orderService->id)
-                    ->where('state_credit', 'outstanding')->first();
-                if ( isset($credit) )
-                {
-                    $credit->total_soles = ($orderService->currency_order == 'PEN') ? $orderService->total:null;
-                    $credit->total_dollars = ($orderService->currency_order == 'USD') ? $orderService->total:null;
-                    $credit->save();
-                }*/
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Modificar Orden de compra finanza Detalle',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+        \Illuminate\Support\Facades\Validator::make($request->all(), ['items' => 'required|string|json'])->validate();
+        $rows = json_decode($request->input('items'), true);
+        \Illuminate\Support\Facades\Validator::make(['rows' => $rows], [
+            'rows' => 'required|array|size:1', 'rows.0' => 'required|array',
+            'rows.0.quantity' => 'required|numeric|min:0.01',
+            'rows.0.price' => 'required|numeric|min:0',
+            'rows.0.total' => 'required|numeric|min:0',
+            'rows.0.detail_id' => 'nullable|integer|min:1',
+        ])->validate();
+        $row = $rows[0];
+        if (!empty($row['detail_id']) && (string) $row['detail_id'] !== (string) $detail_id) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'El detalle enviado no coincide con la ruta.']);
         }
-
+        DB::transaction(function () use ($detail_id, $row) {
+            $parentId = OrderPurchaseFinanceDetail::whereKey($detail_id)->value('order_purchase_finance_id');
+            abort_unless($parentId, 404);
+            $order = OrderPurchaseFinance::lockForUpdate()->findOrFail($parentId);
+            $detail = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $order->id)
+                ->lockForUpdate()->findOrFail($detail_id);
+            $oldTotal = (float) $detail->total_detail;
+            $oldIgv = (float) $detail->igv;
+            $detail->quantity = round((float) $row['quantity'], 2);
+            $detail->price = round((float) $row['price'], 2);
+            $detail->total_detail = round((float) $row['total'], 2);
+            $detail->igv = round($detail->total_detail - round($detail->total_detail / 1.18, 2), 2);
+            $detail->save();
+            $order->igv = round((float) $order->igv - $oldIgv + $detail->igv, 2);
+            $order->total = round((float) $order->total - $oldTotal + $detail->total_detail, 2);
+            $order->save();
+            Audit::create(['user_id' => Auth::user()->id, 'action' => 'Modificar detalle de orden financiera', 'time' => 0]);
+        });
         return response()->json(['message' => 'Detalle de orden modificado con éxito.'], 200);
-
     }
 
     public function showOrderPurchaseFinance($id)
     {
         $begin = microtime(true);
-        $suppliers = Supplier::all();
-        $users = User::all();
+        $suppliers = Supplier::where('tenant_id', \App\Support\TenantContext::tenantId())->get();
+        $users = User::query()
+            ->where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->whereHas('companies', function ($query) {
+                $query->where('companies.id', \App\Support\TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            })->get();
 
-        $order = OrderPurchaseFinance::with(['supplier', 'approved_user', 'deadline'])->find($id);
+        $order = OrderPurchaseFinance::with(['supplier', 'approved_user', 'deadline'])->findOrFail($id);
         $details = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $order->id)->get();
 
         $end = microtime(true) - $begin;
@@ -429,32 +402,23 @@ class OrderPurchaseFinanceController extends Controller
 
     public function destroyOrderPurchaseFinance($order_id)
     {
-        $begin = microtime(true);
-        $orderPurchaseFinance = OrderPurchaseFinance::find($order_id);
-        $details = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $orderPurchaseFinance->id)->get();
-        foreach ( $details as $detail )
-        {
-            $detail->delete();
-        }
-
-        // Si la orden de servicio se elimina, y el credito es pendiente se debe eliminar
-        /*$credit = SupplierCredit::where('order_service_id', $orderService->id)
-            ->where('state_credit', 'outstanding')->first();
-        if ( isset($credit) )
-        {
-            $credit->delete();
-        }*/
-
-        $orderPurchaseFinance->delete();
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Eliminar Orden de compra finanza',
-            'time' => $end
-        ]);
-        return response()->json(['message' => 'Orden de compra de finanzas eliminada con éxito.'], 200);
-
+        return DB::transaction(function () use ($order_id) {
+            $begin = microtime(true);
+            $order = OrderPurchaseFinance::lockForUpdate()->findOrFail($order_id);
+            $batch = (string) \Illuminate\Support\Str::uuid();
+            $details = OrderPurchaseFinanceDetail::where('order_purchase_finance_id', $order->id)
+                ->lockForUpdate()->get();
+            foreach ($details as $detail) {
+                $detail->deletion_batch = $batch;
+                $detail->save();
+                $detail->delete();
+            }
+            $order->deletion_batch = $batch;
+            $order->save();
+            $order->delete();
+            Audit::create(['user_id' => Auth::user()->id, 'action' => 'Eliminar orden financiera', 'time' => microtime(true) - $begin]);
+            return response()->json(['message' => 'Orden de compra de finanzas eliminada con éxito.'], 200);
+        });
     }
 
     public function changeStatusOrderPurchaseFinance($order_id, $status)
@@ -462,7 +426,7 @@ class OrderPurchaseFinanceController extends Controller
         DB::beginTransaction();
         try {
 
-            $orderPurchase = OrderPurchaseFinance::find($order_id);
+            $orderPurchase = OrderPurchaseFinance::lockForUpdate()->findOrFail($order_id);
             $orderPurchase->status_order = $status;
             $orderPurchase->save();
 
@@ -495,11 +459,16 @@ class OrderPurchaseFinanceController extends Controller
 
     public function showOrderPurchaseFinanceDelete($id)
     {
-        $suppliers = Supplier::all();
-        $users = User::all();
+        $suppliers = Supplier::where('tenant_id', \App\Support\TenantContext::tenantId())->get();
+        $users = User::query()
+            ->where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->whereHas('companies', function ($query) {
+                $query->where('companies.id', \App\Support\TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            })->get();
 
         $order = OrderPurchaseFinance::withTrashed()
-            ->with(['supplier', 'approved_user', 'deadline'])->find($id);
+            ->with(['supplier', 'approved_user', 'deadline'])->findOrFail($id);
         $details = OrderPurchaseFinanceDetail::withTrashed()
             ->where('order_purchase_finance_id', $order->id)
             ->get();
@@ -515,7 +484,7 @@ class OrderPurchaseFinanceController extends Controller
             ->with('approved_user')
             ->with('deadline')
             ->with(['details'])
-            ->where('id', $id)->first();
+            ->where('id', $id)->firstOrFail();
 
         $length = 5;
         $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);
@@ -538,7 +507,7 @@ class OrderPurchaseFinanceController extends Controller
         $service_order = OrderPurchaseFinance::with('approved_user')
             ->with('deadline')
             ->with(['details'])
-            ->where('id', $id)->first();
+            ->where('id', $id)->firstOrFail();
 
         $length = 5;
         $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);
@@ -557,25 +526,29 @@ class OrderPurchaseFinanceController extends Controller
 
     public function restoreOrderPurchaseFinanceDelete($id)
     {
-        $begin = microtime(true);
-        $orderPurchase = OrderPurchaseFinance::onlyTrashed()->find($id);
-
-        $details = OrderPurchaseFinanceDetail::onlyTrashed()
-            ->where('order_purchase_finance_id', $id)->get();
-        foreach ( $details as $detail )
-        {
-            $detail->restore();
-        }
-
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Restaurar orden de compra',
-            'time' => $end
-        ]);
-        $orderPurchase->restore();
-
+        return DB::transaction(function () use ($id) {
+            $begin = microtime(true);
+            $order = OrderPurchaseFinance::onlyTrashed()->lockForUpdate()->findOrFail($id);
+            if (!$order->deletion_batch) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'order' => 'Esta eliminación es anterior al control de restauración. Requiere revisar sus detalles antes de restaurar.',
+                ]);
+            }
+            $batch = $order->deletion_batch;
+            $details = OrderPurchaseFinanceDetail::onlyTrashed()
+                ->where('order_purchase_finance_id', $order->id)
+                ->where('deletion_batch', $batch)->lockForUpdate()->get();
+            $order->restore();
+            foreach ($details as $detail) {
+                $detail->restore();
+                $detail->deletion_batch = null;
+                $detail->save();
+            }
+            $order->deletion_batch = null;
+            $order->save();
+            Audit::create(['user_id' => Auth::user()->id, 'action' => 'Restaurar orden financiera con sus detalles asociados', 'time' => microtime(true) - $begin]);
+            return response()->json(['message' => 'Orden financiera restaurada con sus detalles asociados.'], 200);
+        });
     }
 
     public function indexOrderPurchaseFinanceRegularize()
@@ -645,19 +618,26 @@ class OrderPurchaseFinanceController extends Controller
     public function regularizeAutoOrderEntryPurchaseFinance( $entry_id )
     {
         $begin = microtime(true);
-        $entry = Entry::find($entry_id);
-        $suppliers = Supplier::all();
-        $quotesRaised = Quote::where('raise_status', 1)
+        $entry = Entry::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->where('finance', true)->findOrFail($entry_id);
+        $suppliers = Supplier::where('tenant_id', \App\Support\TenantContext::tenantId())->get();
+        $quotesRaised = Quote::where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->where('company_id', \App\Support\TenantContext::companyId())
+            ->where('raise_status', 1)
             ->where('state_active', 'open')->get();
-        $users = User::all();
+        $users = User::query()
+            ->where('tenant_id', \App\Support\TenantContext::tenantId())
+            ->whereHas('companies', function ($query) {
+                $query->where('companies.id', \App\Support\TenantContext::companyId())
+                    ->where('company_user.is_active', true);
+            })->get();
 
-        $unitMeasures = UnitMeasure::select(['id', 'description'])->get();
+        $unitMeasures = UnitMeasure::where('tenant_id', \App\Support\TenantContext::tenantId())->select(['id', 'description'])->get();
 
         $maxId = OrderPurchaseFinance::withTrashed()->max('id')+1;
         $length = 5;
         $codeOrder = 'OCF-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
 
-        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->get();
+        $payment_deadlines = PaymentDeadline::where('type', 'purchases')->selectable()->get();
 
         $details = DetailEntry::where('entry_id', $entry_id)->get();
         //dd($entry);
@@ -674,8 +654,9 @@ class OrderPurchaseFinanceController extends Controller
 
     public function regularizeEntryToOrderPurchaseFinance(Request $request)
     {
+        \App\Services\Purchases\FinancePurchaseInput::validate($request, null, true);
         $begin = microtime(true);
-        $fecha = ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
+        $fecha = ($request->filled('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now();
         $fechaFormato = $fecha->format('Y-m-d');
         //$response = $this->getTipoDeCambio($fechaFormato);
 
@@ -683,6 +664,10 @@ class OrderPurchaseFinanceController extends Controller
 
         DB::beginTransaction();
         try {
+            $entry = Entry::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())->where('finance', true)->lockForUpdate()->findOrFail($request->get('entry_id'));
+            if (trim((string) $entry->purchase_order) !== '') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['entry_id' => 'Esta entrada ya tiene una orden de compra asociada.']);
+            }
             $maxId = OrderPurchaseFinance::withTrashed()->max('id')+1;
             $length = 5;
             //$codeOrder = 'OS-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
@@ -692,8 +677,8 @@ class OrderPurchaseFinanceController extends Controller
                 'quote_supplier' => $request->get('quote_supplier'),
                 'payment_deadline_id' => ($request->has('payment_deadline_id')) ? $request->get('payment_deadline_id') : null,
                 'supplier_id' => ($request->has('supplier_id')) ? $request->get('supplier_id') : null,
-                'date_delivery' => ($request->has('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now(),
-                'date_order' => ($request->has('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
+                'date_delivery' => ($request->filled('date_delivery')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_delivery')) : Carbon::now(),
+                'date_order' => ($request->filled('date_order')) ? Carbon::createFromFormat('d/m/Y', $request->get('date_order')) : Carbon::now(),
                 'approved_by' => ($request->has('approved_by')) ? $request->get('approved_by') : null,
                 'payment_condition' => ($request->has('service_condition')) ? $request->get('service_condition') : '',
                 'currency_order' => ($request->get('state') === 'true') ? 'PEN': 'USD',
@@ -707,15 +692,9 @@ class OrderPurchaseFinanceController extends Controller
 
             ]);
 
-            if ( $maxId < $orderPurchaseFinance->id ){
-                $codeOrder = 'OCF-'.str_pad($orderPurchaseFinance->id,$length,"0", STR_PAD_LEFT);
-                $orderPurchaseFinance->code = $codeOrder;
-                $orderPurchaseFinance->save();
-            } else {
-                $codeOrder2 = 'OCF-'.str_pad($maxId,$length,"0", STR_PAD_LEFT);
-                $orderPurchaseFinance->code = $codeOrder2;
-                $orderPurchaseFinance->save();
-            }
+            $codeOrder = 'OCF-'.str_pad($orderPurchaseFinance->id, 5, '0', STR_PAD_LEFT);
+            $orderPurchaseFinance->code = $codeOrder;
+            $orderPurchaseFinance->save();
 
             $items = json_decode($request->get('items'));
 
@@ -739,7 +718,6 @@ class OrderPurchaseFinanceController extends Controller
             }
 
             // TODO: Modificamos la orden de servicio
-            $entry = Entry::find($request->get('entry_id'));
 
             $orderPurchaseFinance->invoice = $entry->invoice;
             $orderPurchaseFinance->referral_guide = $entry->referral_guide;

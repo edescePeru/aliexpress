@@ -133,148 +133,50 @@ class DecolectaService
 
     public function buscarOCrearClientePorDocumento($numeroDocumento)
     {
-        $numeroDocumento = preg_replace(
-            '/\D/',
-            '',
-            $numeroDocumento
-        );
-
-        if (!preg_match(
-            '/^\d{8}$|^\d{11}$/',
-            $numeroDocumento
-        )) {
-            throw new \Exception(
-                'El documento debe ser un DNI de 8 dígitos o un RUC de 11 dígitos.'
-            );
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+        $numeroDocumento = (string) $numeroDocumento;
+        if (!preg_match('/\A(?:[0-9]{8}|[0-9]{11})\z/', $numeroDocumento)) {
+            throw new \InvalidArgumentException('El documento debe ser un DNI de 8 dígitos o un RUC de 11 dígitos.');
         }
 
-
-        /*
-         * ============================================================
-         * BUSCAR EN EL TENANT ACTUAL
-         * ============================================================
-         *
-         * Customer tiene BelongsToTenant/TenantScope.
-         *
-         * Por tanto, nunca encontrará un Customer perteneciente
-         * a otro Tenant aunque tenga el mismo documento.
-         */
-        $customer = Customer::query()
-            ->where(
-                'RUC',
-                $numeroDocumento
-            )
-            ->first();
-
-
+        $customer = Customer::where('RUC', $numeroDocumento)->first();
         if ($customer) {
-            return [
-                'customer' =>
-                    $customer,
-
-                'source' =>
-                    'database',
-
-                'created' =>
-                    false,
-            ];
+            return ['customer' => $customer, 'source' => 'database', 'created' => false];
         }
 
+        $data = strlen($numeroDocumento) === 8
+            ? $this->consultarDni($numeroDocumento)
+            : $this->consultarRuc($numeroDocumento);
 
-        /*
-         * ============================================================
-         * CONSULTAR DOCUMENTO
-         * ============================================================
-         */
-
-        if (strlen($numeroDocumento) === 8) {
-
-            $data =
-                $this->consultarDni(
-                    $numeroDocumento
-                );
-
-            $customer = Customer::create([
-                /*
-                 * tenant_id será asignado automáticamente
-                 * por BelongsToTenant.
-                 */
-                'business_name' =>
-                    $data['nombre'],
-
-                'RUC' =>
-                    $data['numero_documento'],
-
-                'address' =>
-                    null,
-
-                'location' =>
-                    null,
-
-                /*
-                 * DNI/RUC consultado en RENIEC/SUNAT:
-                 * cliente nacional.
-                 */
-                'special' =>
-                    false,
-            ]);
-
-        } else {
-
-            $data =
-                $this->consultarRuc(
-                    $numeroDocumento
-                );
-
-            $customer = Customer::create([
-                'business_name' =>
-                    $data['nombre'],
-
-                'RUC' =>
-                    $data['numero_documento'],
-
-                'address' =>
-                    $data['direccion'],
-
-                'location' =>
-                    $data['location'],
-
-                'special' =>
-                    false,
-            ]);
+        if (!is_string($data['nombre'] ?? null) || trim($data['nombre']) === '') {
+            throw new \RuntimeException('La consulta no devolvió un nombre válido para registrar el cliente.');
         }
 
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($numeroDocumento, $data) {
+            $tenantId = \App\Support\TenantContext::tenantId();
+            \App\Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
+            $customer = Customer::withTrashed()->where('RUC', $numeroDocumento)->first();
 
-        /*
-         * ============================================================
-         * GENERAR CÓDIGO CON EL ID REAL
-         * ============================================================
-         *
-         * Evitamos calcularlo utilizando "último Customer + 1".
-         */
+            if ($customer) {
+                if ($customer->trashed()) {
+                    throw new \RuntimeException('El cliente está eliminado. Restáurelo desde su mantenedor.');
+                }
 
-        $customer->code =
-            'C-' .
-            str_pad(
-                $customer->id,
-                5,
-                '0',
-                STR_PAD_LEFT
-            );
+                return ['customer' => $customer, 'source' => 'database', 'created' => false];
+            }
 
-        $customer->save();
+            $customer = Customer::create([
+                'business_name' => trim($data['nombre']),
+                'RUC' => $numeroDocumento,
+                'address' => $data['direccion'] ?? null,
+                'location' => $data['location'] ?? null,
+                'special' => false,
+            ]);
+            $customer->code = 'C-'.str_pad((string) $customer->id, 5, '0', STR_PAD_LEFT);
+            $customer->save();
 
-
-        return [
-            'customer' =>
-                $customer->fresh(),
-
-            'source' =>
-                'api',
-
-            'created' =>
-                true,
-        ];
+            return ['customer' => $customer->fresh(), 'source' => 'api', 'created' => true];
+        });
     }
 
     public function consultarDocumentoEnDecolecta($numeroDocumento)
