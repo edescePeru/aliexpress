@@ -7,6 +7,7 @@
         dispatch_status: 'filter_dispatch_status', cash_box_id: 'filter_cash_box_id',
         cash_box_subtype_id: 'filter_cash_box_subtype_id', invoice_status: 'filter_invoice_status',
         sale_status: 'filter_sale_status', created_by_id: 'filter_created_by_id'};
+    const errorsMode = document.getElementById('sale-list-context').dataset.listMode === 'errors';
     function escape(value) { return $('<span>').text(value == null ? '—' : String(value)).html(); }
     function badge(text, color) { return '<span class="badge badge-' + color + '">' + escape(text) + '</span>'; }
     function headers() {
@@ -31,8 +32,8 @@
         $('#sales-feedback').addClass('d-none').text('');
         $('#numberItems').text('—'); $('#textPagination').text('Cargando ventas…');
         const filters = {};
-        Object.keys(filterIds).forEach(key => { filters[key] = $('#' + filterIds[key]).val() || ''; });
-        request = $.ajax({url: '/dashboard/get/data/sales/' + page, method: 'GET', data: filters, headers: headers(), dataType: 'json'})
+        Object.keys(filterIds).forEach(key => { if (errorsMode && !document.getElementById(filterIds[key])) return; filters[key] = $('#' + filterIds[key]).val() || ''; });
+        request = $.ajax({url: '/dashboard/get/data/sales/' + (errorsMode ? 'error/' : '') + page, method: 'GET', data: filters, headers: headers(), dataType: 'json'})
             .done(function (response) { if (token === sequence) render(response); })
             .fail(function (xhr, status) {
                 if (status === 'abort' || token !== sequence) return;
@@ -68,7 +69,7 @@
         const id = String(row.id), trigger = 'sales-actions-' + id;
         let links = '<button type="button" class="dropdown-item" role="menuitem" data-ver_detalles data-id="' + escape(id) + '"><i class="fas fa-eye next-row-action-item-icon" aria-hidden="true"></i>Ver detalle</button>';
         const permissions = JSON.parse(document.getElementById('sale-list-context').dataset.permissions || '{}');
-        if (permissions.print) {
+        if (!errorsMode && permissions.print) {
             const docs = [['print_url', row.print_label || 'Ver comprobante'], ['annulment_pdf_url_local', 'PDF anulación'],
                 ['annulment_xml_url_local', 'XML anulación'], ['annulment_cdr_url_local', 'CDR anulación'],
                 ['credit_note_pdf_url_local', 'PDF nota de crédito'], ['credit_note_xml_url_local', 'XML nota de crédito'],
@@ -89,6 +90,20 @@
         response.data.forEach(function (row) {
             rows.set(String(row.id), row);
             const tr = $('<tr>');
+            if (errorsMode) {
+                [['code', 'center'], ['created_by_name', 'left'], ['date', 'center'], ['nombre_cliente', 'left']].forEach(function (col) {
+                    $('<td>').addClass('text-' + col[1]).text(row[col[0]] || 'No registrado').appendTo(tr);
+                });
+                $('<td class="text-center">').text([row.tipo_comprobante_label, row.serie_sunat, row.numero].filter(value => value != null && value !== '').join(' · ')).appendTo(tr);
+                [['currency', 'center'], ['total', 'right'], ['tipo_pago', 'left']].forEach(function (col) {
+                    $('<td>').addClass('text-' + col[1]).text(row[col[0]] || 'No registrado').appendTo(tr);
+                });
+                $('<td class="text-center">').html(badge(row.sunat_status, 'danger')).appendTo(tr);
+                $('<td class="text-left text-break">').text(row.sunat_message_short || row.sunat_message).appendTo(tr);
+                $('<td class="text-center" data-buttons>').html(actions(row)).appendTo(tr);
+                $('#body-table').append(tr);
+                return;
+            }
             [['code', 'center'], ['date', 'center'], ['nombre_cliente', 'left'], ['created_by_name', 'left'], ['currency', 'center'], ['total', 'right'], ['tipo_pago', 'left']].forEach(function (col) {
                 $('<td>').addClass('text-' + col[1]).text(row[col[0]] == null || row[col[0]] === '' ? 'No registrado' : row[col[0]]).appendTo(tr);
             });
@@ -136,12 +151,19 @@
                 if (token !== detailSequence) return;
                 // Metadata came from the same guarded list, not a second unscoped lookup.
                 [['Cliente', row.nombre_cliente], ['Usuario registrador', row.created_by_name], ['Fecha', row.date], ['Moneda', row.currency],
-                    ['Importe' + (row.pagos_parciales_venta === 's' ? ' (abonado / total)' : ''), row.total], ['Método de pago', row.tipo_pago], ['Comprobante / emisión', row.estado_comprobante],
+                    ['Importe' + (row.pagos_parciales_venta === 's' ? ' (abonado / total)' : ''), row.total], ['Método de pago', row.tipo_pago], ['Comprobante / emisión', errorsMode ? row.tipo_comprobante_label : row.estado_comprobante],
                     ['Despacho', row.dispatch_status], ['Anulación', row.estado_anulacion]].forEach(function (field) {
+                    if (errorsMode && field[0] === 'Anulación') return;
                     const col = $('<div class="col-md-6 col-lg-4 mb-3 text-break">');
                     $('<strong class="d-block">').text(field[0]).appendTo(col);
                     $('<span>').text(field[1] || 'No registrado').appendTo(col); $('#sales-detail-summary').append(col);
                 });
+                if (errorsMode) {
+                    const error = $('<div class="col-12 mb-3 text-break">');
+                    $('<strong class="d-block">').text('Mensaje SUNAT').appendTo(error);
+                    $('<span>').text(row.sunat_message || 'No registrado').appendTo(error);
+                    $('#sales-detail-summary').append(error);
+                }
                 const content = $('<div class="table-responsive" tabindex="0" aria-label="Productos de la venta">');
                 const table = $('<table class="table table-sm table-bordered next-data-table">').append('<thead><tr><th class="text-center">Código</th><th class="text-left">Producto</th><th class="text-center">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Total</th></tr></thead>');
                 const body = $('<tbody>');

@@ -136,6 +136,7 @@ return [
         'cashBox.index',
         'cashBoxSubtype.index',
         'puntoVenta.list',
+        'puntoVenta.listError',
         'quoteSale.index',
         'quoteSale.index.facturadas',
         'quoteSale.show',
