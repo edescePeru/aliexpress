@@ -8,7 +8,6 @@
     active
 @endsection
 
-{{-- si tienes un menú específico para kardex puedes usar otra sección, de momento reutilizo --}}
 @section('activeListInventoryKardex')
     active
 @endsection
@@ -24,7 +23,11 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Kardex de Materiales</h1>
+    <div class="next-page-heading">
+        <span class="next-page-eyebrow">Inventario · Consulta</span>
+        <h1 class="page-title">Kardex de Materiales</h1>
+        <p class="next-page-description">Movimientos por producto o variante de la empresa y local activos.</p>
+    </div>
 @endsection
 
 @section('page-breadcrumb')
@@ -37,16 +40,18 @@
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Consulta de Kardex por Material</h5>
+    <div class="next-list-surface-heading">
+        <strong>Consulta de movimientos</strong>
+        <span>Selecciona un producto o variante y, opcionalmente, un almacén.</span>
+    </div>
 @endsection
 
 @section('content')
 
-    <div class="card">
-        <div class="card-body">
-            {{-- Filtros --}}
+    <section class="next-operational-list" aria-label="Kardex">
+        <div class="next-form-section">
             <form id="form-kardex" autocomplete="off">
-                <div class="row">
+                <div class="row align-items-end">
                     <div class="col-md-5">
                         <div class="form-group">
                             <label for="stock_item_id">Producto o variante</label>
@@ -66,41 +71,40 @@
                     </div>
 
                     {{-- Botón buscar --}}
-                    <div class="col-md-2 align-items-end">
-                        <label for="btn-search-kardex">&nbsp;</label>
-                        <br>
+                    <div class="col-md-2 form-group">
                         <button type="button" id="btn-search-kardex" class="btn btn-primary btn-block">
-                            <i class="fa fa-search"></i> Buscar Kardex
+                            <i class="fa fa-search" aria-hidden="true"></i> Buscar
                         </button>
                     </div>
                 </div>
             </form>
-
-            <hr>
-
-            {{-- Info del material --}}
-            <div id="kardex-header" class="mb-3" style="display:none;">
-                <h5>
-                    Material: <span id="kardex-material-name"></span><br>
-                    <small>Almacén: <span id="kardex-range"></span></small>
-                </h5>
+            <p class="text-muted small mb-0">Sin seleccionar almacén se consultan los generales y los del local actual.</p>
+        </div>
+        <div class="next-list-summary" aria-live="polite">
+            <div class="next-list-summary-copy">
+                <strong id="kardex-count">Selecciona un producto o variante</strong>
+                <div id="kardex-header" hidden>
+                    <span id="kardex-material-name"></span>
+                    <span class="d-block text-muted" id="kardex-range"></span>
+                </div>
             </div>
-
-            {{-- Tabla Kardex --}}
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover table-sm" id="kardex-table">
-                    <thead class="thead-light">
+            <span class="next-list-sort-context">Fecha de movimiento · más antiguos primero</span>
+        </div>
+        <div class="next-list-content">
+            <div class="table-responsive" tabindex="0" aria-label="Movimientos de Kardex; desplazamiento horizontal disponible">
+                <table class="table table-bordered table-hover table-sm next-data-table" id="kardex-table" aria-busy="false">
+                    <thead>
                     <tr>
-                        <th>Fecha</th>
-                        <th>Tipo</th>
-                        <th>Origen</th>
-                        <th>Cant. Entrada</th>
-                        <th>Cant. Salida</th>
-                        <th>Costo Unit. In</th>
-                        <th>Costo Unit. Out</th>
-                        <th>Saldo Cant.</th>
-                        <th>Costo Promedio</th>
-                        <th>Saldo Total</th>
+                        <th scope="col" class="text-center text-nowrap">Fecha</th>
+                        <th scope="col" class="text-center">Tipo</th>
+                        <th scope="col">Origen</th>
+                        <th scope="col" class="text-center text-nowrap">Cant. Entrada</th>
+                        <th scope="col" class="text-center text-nowrap">Cant. Salida</th>
+                        <th scope="col" class="text-right text-nowrap">Costo Unit. In</th>
+                        <th scope="col" class="text-right text-nowrap">Costo Unit. Out</th>
+                        <th scope="col" class="text-center text-nowrap">Saldo Cant.</th>
+                        <th scope="col" class="text-right text-nowrap">Costo Promedio</th>
+                        <th scope="col" class="text-right text-nowrap">Saldo Total</th>
                     </tr>
                     </thead>
                     <tbody id="kardex-body">
@@ -112,7 +116,7 @@
             </div>
 
         </div>
-    </div>
+    </section>
 
 @endsection
 
