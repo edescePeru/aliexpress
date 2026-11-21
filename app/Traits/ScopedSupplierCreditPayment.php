@@ -13,9 +13,12 @@ trait ScopedSupplierCreditPayment
         });
         static::saving(function ($model) {
             $model->assertSupplierCreditPayment();
-            if (!is_numeric($model->amount) || !is_finite((float) $model->amount) || (float) $model->amount <= 0) {
-                throw ValidationException::withMessages(['amount' => 'El importe del pago debe ser positivo.']);
+            $raw = $model->getAttributes()['amount'] ?? null;
+            $cents = \App\Services\Purchases\SupplierCreditMoney::cents($raw);
+            if ($cents <= 0 || $cents > 999999999999) {
+                throw ValidationException::withMessages(['amount' => 'El pago debe estar entre 0.01 y 9999999999.99.']);
             }
+            $model->amount = \App\Services\Purchases\SupplierCreditMoney::decimal($cents);
         });
         static::deleting(function ($model) { $model->assertSupplierCreditPayment(); });
     }

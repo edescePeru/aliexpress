@@ -43,238 +43,74 @@ class ItemController extends Controller
         //
     }
 
-    public function getJsonItems($id_material)
+    private function legacyRows($action, $materialId, array $states, $length = 30)
     {
-        $array = [];
-        $items = Item::with(['location', 'typescrap', 'material', 'detailEntry'])
-            ->where('material_id', $id_material)->where('state_item','exited')
-            ->get();
-        foreach ( $items as $item )
-        {
-            $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name;
-            array_push($array,
-                [
-                    'id'=> $item->id,
-                    'location' => $l,
-                    'location_id' => $item->location->id,
-                    'typescrap' => (isset($item->typescrap)) ? $item->typescrap->id : '',
-                    'material' => $item->material->full_description,
-                    'material_id' => $item->material->id,
-                    'price' => $item->material->unit_price,
-                    'state' => $item->state,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'weight' => $item->weight,
-                    'detailEntry' => $item->detailEntry->id,
-                ]);
+        app(\App\Services\Materials\LegacyItemReadAccess::class)->authorize($action);
+        $read = app(\App\Services\Materials\LegacyItemReadQuery::class);
+        $read->material($materialId);
+        $query = $read->items()->where('i.material_id', $materialId);
+        if ($action === 'getJsonItemsTransfer') { $query->where('i.state_item', '<>', 'exited'); }
+        else { $query->whereIn('i.state_item', $states); }
+        $result = [];
+        foreach ($query->get() as $item) {
+            $label = $read->location($item, $action === 'getJsonItemsTransfer');
+            if ($action === 'getJsonItemsTransfer') {
+                $result[] = ['id'=>$item->id, 'location'=>substr($label, 0, 30).'...', 'material_id'=>$item->material_id,
+                    'code'=>$item->code, 'length'=>$item->length, 'width'=>$item->width,
+                    'state_item'=>$item->state_item, 'percentage'=>$item->percentage];
+                continue;
+            }
+            $row = ['id'=>$item->id, 'location'=>$length === null ? $label : substr($label, 0, $length).'...',
+                'location_id'=>$item->location_id, 'typescrap'=>$item->safe_typescrap_id ?? '',
+                'material'=>$item->material_name, 'material_id'=>$item->material_id, 'price'=>$item->material_price,
+                'state'=>$item->state, 'code'=>$item->code, 'length'=>$item->length, 'width'=>$item->width,
+                'weight'=>$item->weight, 'detailEntry'=>$item->safe_detail_id];
+            if ($action !== 'getJsonItems') { $row['percentage'] = $item->percentage; }
+            $result[] = $row;
         }
-        //dd($array);
-        return $array;
+        return $result;
     }
 
-    public function getJsonItemsEntry($entry)
+    public function getJsonItems($id_material)
     {
-        $arrayItems = [];
-        $arrayDetails = [];
-
-        $entry = Entry::with([
-            'details.material',
-            'details.stockItem',
-            'details.items.stockItem',
-            'details.items.material',
-            'details.items.location.area',
-            'details.items.location.warehouse',
-            'details.items.location.shelf',
-            'details.items.location.level',
-            'details.items.location.container',
-        ])->find($entry);
-
-        foreach ($entry->details as $detail) {
-
-            array_push($arrayDetails,
-                [
-                    'id'=> $detail->id,
-                    'material' => optional($detail->stockItem)->display_name
-                        ?? optional($detail->material)->full_name,
-
-                    'code' => optional($detail->stockItem)->sku
-                        ?? optional($detail->material)->code,
-                    'ordered_quantity' => $detail->entered_quantity,
-                    'unit_price' => $detail->unit_price
-                ]);
-
-            $items = Item::with([
-                'location.area',
-                'location.warehouse',
-                'location.shelf',
-                'location.level',
-                'location.container',
-                'typescrap',
-                'material',
-                'stockItem'
-            ])
-                ->where('detail_entry_id', $detail->id)
-                ->get();
-            foreach ($items as $key => $item) {
-
-                $l = 'AR:' . optional($item->location->area)->name .
-                    '|AL:' . optional($item->location->warehouse)->name .
-                    '|AN:' . optional($item->location->shelf)->name .
-                    '|NIV:' . optional($item->location->level)->name .
-                    '|CON:' . optional($item->location->container)->name;
-
-                $arrayItems[] = [
-                    'id' => $key + 1,
-                    'material' => optional($item->stockItem)->display_name
-                        ?? optional($item->material)->full_name,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'weight' => $item->weight,
-                    'price' => $item->unit_cost
-                        ?? optional($item->material)->unit_price,
-                    'location' => substr($l, 0, 30) . '...',
-                    'state' => $item->state,
-                ];
-            }
-        }
-
-        //dd($array);
-        return response()->json(['details' => $arrayDetails, 'items' => $arrayItems], 200);
-
+        return $this->legacyRows(__FUNCTION__, $id_material, ['exited'], null);
     }
 
     public function getJsonItemsTransfer($id_material)
     {
-        $array = [];
-        $items = Item::select([
-            'id',
-            'material_id',
-            'code',
-            'length',
-            'width',
-            'percentage',
-            'state_item',
-            'location_id'
-        ])
-            ->with('location')
-            ->where('material_id', $id_material)
-            ->where('state_item', '<>', 'exited')->get();
-
-        foreach ( $items as $item )
-        {
-            $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name.'|POS:'.$item->location->position->name;
-            array_push($array,
-                [
-                    'id'=> $item->id,
-                    'location' => substr($l,0,30).'...',
-                    'material_id' => $id_material,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'state_item' => $item->state_item,
-                    'percentage' => $item->percentage,
-                ]);
-        }
-
-        //dump($array[0]);
-        return json_encode($array);
-
+        return json_encode($this->legacyRows(__FUNCTION__, $id_material, []));
     }
 
     public function getJsonItemsOutput($id_material)
     {
-        $array = [];
-        $items = Item::with(['location', 'typescrap', 'material', 'detailEntry'])
-            ->where('material_id', $id_material)->whereIn('state_item',['entered', 'scraped'])
-            ->get();
-        foreach ( $items as $item )
-        {
-            $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name;
-            array_push($array,
-                [
-                    'id'=> $item->id,
-                    'location' => substr($l,0,30).'...',
-                    'location_id' => $item->location->id,
-                    'typescrap' => (isset($item->typescrap)) ? $item->typescrap->id : '',
-                    'material' => $item->material->full_description,
-                    'material_id' => $item->material->id,
-                    'price' => $item->material->unit_price,
-                    'state' => $item->state,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'weight' => $item->weight,
-                    'detailEntry' => $item->detailEntry->id,
-                    'percentage' => $item->percentage,
-                ]);
-        }
-        //dd($array);
-        return json_encode($array);
+        return json_encode($this->legacyRows(__FUNCTION__, $id_material, ['entered', 'scraped']));
     }
 
     public function getJsonItemsOutputComplete($id_material)
     {
-        $array = [];
-        $items = Item::with(['location', 'typescrap', 'material', 'detailEntry'])
-            //->where('material_id', $id_material)->whereIn('state_item',['entered', 'scraped'])
-            ->where('material_id', $id_material)->whereIn('state_item',['entered'])
-            ->get();
-        foreach ( $items as $item )
-        {
-            $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name;
-            array_push($array,
-                [
-                    'id'=> $item->id,
-                    'location' => substr($l,0,20).'...',
-                    'location_id' => $item->location->id,
-                    'typescrap' => (isset($item->typescrap)) ? $item->typescrap->id : '',
-                    'material' => $item->material->full_description,
-                    'material_id' => $item->material->id,
-                    'price' => $item->material->unit_price,
-                    'state' => $item->state,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'weight' => $item->weight,
-                    'detailEntry' => $item->detailEntry->id,
-                    'percentage' => $item->percentage,
-                ]);
-        }
-        //dd($array);
-        return json_encode($array);
+        return json_encode($this->legacyRows(__FUNCTION__, $id_material, ['entered'], 20));
     }
 
     public function getJsonItemsOutputScraped($id_material)
     {
-        $array = [];
-        $items = Item::with(['location', 'typescrap', 'material', 'detailEntry'])
-            //->where('material_id', $id_material)->whereIn('state_item',['entered', 'scraped'])
-            ->where('material_id', $id_material)->whereIn('state_item',['scraped'])
-            ->get();
-        foreach ( $items as $item )
-        {
-            $l = 'AR:'.$item->location->area->name.'|AL:'.$item->location->warehouse->name.'|AN:'.$item->location->shelf->name.'|NIV:'.$item->location->level->name.'|CON:'.$item->location->container->name;
-            array_push($array,
-                [
-                    'id'=> $item->id,
-                    'location' => substr($l,0,20).'...',
-                    'location_id' => $item->location->id,
-                    'typescrap' => (isset($item->typescrap)) ? $item->typescrap->id : '',
-                    'material' => $item->material->full_description,
-                    'material_id' => $item->material->id,
-                    'price' => $item->material->unit_price,
-                    'state' => $item->state,
-                    'code' => $item->code,
-                    'length' => $item->length,
-                    'width' => $item->width,
-                    'weight' => $item->weight,
-                    'detailEntry' => $item->detailEntry->id,
-                    'percentage' => $item->percentage,
-                ]);
+        return json_encode($this->legacyRows(__FUNCTION__, $id_material, ['scraped'], 20));
+    }
+
+    public function getJsonItemsEntry($entry)
+    {
+        $read = app(\App\Services\Materials\LegacyItemReadQuery::class);
+        $details = $read->details($entry);
+        $items = $read->items(true)->whereIn('i.detail_entry_id', $details->pluck('id'))->get()->groupBy('detail_entry_id');
+        $arrayDetails = []; $arrayItems = [];
+        foreach ($details as $detail) {
+            $arrayDetails[] = ['id'=>$detail->id, 'material'=>$detail->safe_stock_name ?? $detail->safe_material_name ?? $detail->material_name,
+                'code'=>$detail->safe_sku ?? $detail->safe_material_code, 'ordered_quantity'=>$detail->entered_quantity, 'unit_price'=>$detail->unit_price];
+            foreach ($items->get($detail->id, collect()) as $key=>$item) {
+                $arrayItems[] = ['id'=>$key+1, 'material'=>$item->stock_name ?? $item->material_name, 'code'=>$item->code,
+                    'length'=>$item->length, 'width'=>$item->width, 'weight'=>$item->weight,
+                    'price'=>$item->unit_cost ?? $item->material_price, 'location'=>substr($read->location($item), 0, 30).'...', 'state'=>$item->state];
+            }
         }
-        //dd($array);
-        return json_encode($array);
+        return response()->json(['details'=>$arrayDetails, 'items'=>$arrayItems]);
     }
 }

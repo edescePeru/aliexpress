@@ -92,6 +92,7 @@ class QuoteSaleController extends Controller
     {
         $this->inventoryCostService = $inventoryCostService;
         $this->middleware(QuoteSaleBranchContext::class);
+        $this->middleware(\App\Http\Middleware\RetiredPromotionInput::class);
     }
 
     public function index()

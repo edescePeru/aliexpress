@@ -20,7 +20,7 @@ class SupplierAccountController extends Controller
          *
          * Supplier ya tiene TenantScope.
          */
-        $supplier = Supplier::findOrFail($worker_id);
+        $supplier = app(\App\Services\Suppliers\SupplierAccountRead::class)->supplier($worker_id);
 
         $banks = Bank::all();
 
@@ -29,13 +29,10 @@ class SupplierAccountController extends Controller
         /*
          * SupplierAccount también tiene TenantScope.
          */
-        $accounts = SupplierAccount::query()
-            ->where('supplier_id', $supplier->id)
-            ->with('bank')
-            ->get();
+        $accounts = app(\App\Services\Suppliers\SupplierAccountRead::class)->accounts($supplier->id);
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -128,7 +125,7 @@ class SupplierAccountController extends Controller
                 'Cuenta Bancaria generada con éxito.',
 
             'account' =>
-                $supplierAccount,
+                Auth::user()->can('list_supplierAccount') ? $supplierAccount : null,
         ], 200);
     }
 
@@ -249,4 +246,10 @@ class SupplierAccountController extends Controller
                 'Cuenta Bancaria eliminada con éxito.',
         ], 200);
     }
+    // La ruta existente usa worker_id, pero el identificador es de proveedor.
+    public function getWorkerAccounts($worker_id)
+    {
+        return response()->json(app(\App\Services\Suppliers\SupplierAccountRead::class)->accounts($worker_id));
+    }
+
 }

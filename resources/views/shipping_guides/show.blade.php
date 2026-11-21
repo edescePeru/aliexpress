@@ -20,47 +20,37 @@
                     <i class="fa fa-arrow-left"></i> Volver
                 </a>
 
-                @if($guide->status != "ACCEPTED")
+                @if(!$guide->identity_conflict && $guide->status != "ACCEPTED" && auth()->user()->can('edit_referralGuide'))
                 <button type="button" class="btn btn-primary btn-sm" id="btnConsult" data-id="{{ $guide->id }}">
                     <i class="fa fa-sync"></i> Consultar SUNAT
                 </button>
                 @endif
 
-                @if($guide->pdf_link)
-                    <a class="btn btn-outline-danger btn-sm" target="_blank" href="{{ $guide->pdf_link }}">
-                        <i class="fa fa-file-pdf"></i> PDF
-                    </a>
-                @elseif(!empty($guide->pdf_zip_base64))
-                    <a class="btn btn-outline-danger btn-sm" href="{{ route('shipping_guides.download', [$guide->id, 'pdf']) }}">
-                        <i class="fa fa-file-pdf"></i> PDF (zip)
-                    </a>
-                @endif
-
-                {{--@if($guide->xml_link)
-                    <a class="btn btn-outline-secondary btn-sm" target="_blank" href="{{ $guide->xml_link }}">
-                        XML
-                    </a>
-                @elseif(!empty($guide->xml_zip_base64))
-                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('shipping_guides.download', [$guide->id, 'xml']) }}">
-                        XML (zip)
-                    </a>
-                @endif
-
-                @if($guide->cdr_link)
-                    <a class="btn btn-outline-success btn-sm" target="_blank" href="{{ $guide->cdr_link }}">
-                        CDR
-                    </a>
-                @elseif(!empty($guide->cdr_zip_base64))
-                    <a class="btn btn-outline-success btn-sm" href="{{ route('shipping_guides.download', [$guide->id, 'cdr']) }}">
-                        CDR (zip)
-                    </a>
-                @endif--}}
+                @foreach(['pdf' => 'PDF', 'xml' => 'XML', 'cdr' => 'CDR'] as $type => $label)
+                    @if(\App\Services\ShippingGuideDocument::available($guide, $type)
+                        && (auth()->user()->can('download_referralGuide') || ($type === 'pdf' && auth()->user()->can('print_referralGuide'))))
+                        <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener noreferrer"
+                           href="{{ route('shipping_guides.download', [$guide->id, $type]) }}">{{ $label }}</a>
+                    @endif
+                @endforeach
             </div>
         </div>
 
+        @if($guide->identity_conflict)
+            <div class="alert alert-danger" role="alert">
+                <strong>CONFLICTO DE NUMERACIÓN — GUÍA LOCAL BLOQUEADA</strong>
+                <p class="mb-0">El mismo número fue usado en Nubefact para otra operación.
+                    La aceptación consultada no corresponde a los datos de esta guía local.
+                    Sus documentos y consultas están bloqueados. Se conserva la evidencia para revisión.
+                    Esto no anula ni modifica la guía remota.</p>
+            </div>
+        @endif
+
+        @include('shipping_guides._recovery')
+
         {{-- Estado --}}
         <div class="alert alert-info">
-            <b>Estado:</b> {{ $guide->status }}
+            <b>Estado:</b> {{ $guide->identity_conflict ? 'CONFLICTO DE NUMERACIÓN' : $guide->status }}
             @if($guide->sunat_responsecode)
                 | <b>Code:</b> {{ $guide->sunat_responsecode }}
             @endif
@@ -207,22 +197,6 @@
             </div>
         </div>
 
-        {{-- Payload/Response --}}
-        <div class="card mb-5">
-            <div class="card-header"><b>Nubefact</b></div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <label><b>Último Payload</b></label>
-                        <pre style="max-height:300px; overflow:auto;">{{ json_encode($guide->last_nubefact_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
-                    </div>
-                    <div class="col-md-6">
-                        <label><b>Última Respuesta</b></label>
-                        <pre style="max-height:300px; overflow:auto;">{{ json_encode($guide->last_nubefact_response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
-                    </div>
-                </div>
-            </div>
-        </div>
 
     </div>
 @endsection
@@ -236,6 +210,33 @@
 
     <script>
         $(function(){
+            let recoveryStarted = false;
+            $('#frmGreRecovery').on('submit', function(event){
+                event.preventDefault();
+                if (recoveryStarted || !this.checkValidity()) { return; }
+                const authorizeSend = $('#greRecoverySend').is(':checked');
+                if (!window.confirm(authorizeSend
+                    ? 'Se consultará a Nubefact y, solo si responde que no existe, se enviará una vez esta misma guía. ¿Confirma la recuperación?'
+                    : 'Solo se comprobará el número. No se enviará ni se importarán documentos. ¿Confirma?')) { return; }
+                recoveryStarted = true;
+                $('#btnGreRecovery, #btnConsult').prop('disabled', true);
+                $('#greRecoveryResult').text('Comprobando la guía. Espere; no cierre ni repita la operación.');
+                $.ajax({url: this.action, method: 'POST', data: $(this).serialize()})
+                    .done(function(res){
+                        $('#greRecoveryResult').text(res.message || 'Revise el estado de la guía.');
+                    })
+                    .fail(function(xhr){
+                        $('#greRecoveryResult').text((xhr.responseJSON && xhr.responseJSON.message)
+                            ? xhr.responseJSON.message
+                            : 'No se pudo confirmar el resultado. Consulte el estado; no repita el envío.');
+                    })
+                    .always(function(){
+                        $('#btnConsult').prop('disabled', false);
+                        // No habilitar recuperación tras timeout, error ni doble clic.
+                        $('<button type="button" class="btn btn-outline-secondary btn-sm mt-2">Actualizar detalle</button>')
+                            .on('click', function(){ location.reload(); }).appendTo('#greRecoveryResult');
+                    });
+            });
             $('#btnConsult').on('click', function(){
                 let $btn = $(this);
                 $btn.prop('disabled', true);

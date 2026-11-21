@@ -503,17 +503,17 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     if (item.code == null){
-                        if ( item.image_paid != null )
+                        if (item.image_paid && item.image_paid !== 'no_image.png' && item.image_paid !== 'no_image.jpg')
                         {
                             var id = item.image_paid;
                             var string = id.substr(id.length - 3);
                             if( string == 'pdf' )
                             {
-                                return ' <a target="_blank" href="'+document.location.origin+ '/images/credits/'+item.image_paid+'" '+
+                                return ' <a target="_blank" href="'+document.location.origin+ '/dashboard/creditos/'+item.id+'/comprobante'+'" '+
                                     ' class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver PDF"><i class="fa fa-file-pdf"></i></a>';
 
                             } else {
-                                return ' <button data-src="'+document.location.origin+ '/images/credits/'+item.image_paid+'" data-image="'+item.id+'" '+
+                                return ' <button data-src="'+document.location.origin+ '/dashboard/creditos/'+item.id+'/comprobante'+'" data-image="'+item.id+'" '+
                                     ' class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>';
 
                             }

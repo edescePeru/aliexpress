@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PromotionLimit extends Model
 {
+    use \App\Traits\RetiredLegacyPromotion;
+
     protected $fillable = [
         'material_id',
         'limit_quantity',

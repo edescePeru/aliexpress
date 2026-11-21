@@ -1353,26 +1353,8 @@ function addConsumable() {
 }
 
 function checkMaterialPromotions(materialId, cantidad, consumable, cantidadOriginal, render) {
-    $.ajax({
-        url: '/dashboard/check-promotions',
-        method: 'POST',
-        data: {
-            material_id: materialId,
-            quantity: cantidad,
-            _token: $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function (response) {
-            if (response.success && response.promotions.length > 0) {
-                showPromotionModal(response.promotions, consumable, cantidadOriginal, render);
-            } else {
-                toastr.info("No hay promociones aplicables.");
-                renderTemplateConsumable(render, consumable, cantidadOriginal, 0, "ninguno")
-            }
-        },
-        error: function () {
-            toastr.error("Error al verificar promociones.");
-        }
-    });
+    // PROMO-01: conservar la selección normal del editor sin consultar promociones legacy.
+    renderTemplateConsumable(render, consumable, cantidadOriginal, 0, "ninguno");
 }
 
 function showPromotionModal(promotions, consumable, cantidad, render) {

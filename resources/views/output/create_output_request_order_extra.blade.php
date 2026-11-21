@@ -195,7 +195,7 @@
                                                         <td>{{ (float)$material->quantity*(float)$equipment->quantity }}</td>
                                                         <td>
                                                             <button type="button" data-toggle="tooltip" data-placement="top" title="Detalle de cantidades" class="btn btn-success" data-show data-name="{{ $material->material->full_description }}" data-quote="{{ $quote->id }}" data-material="{{ $material->material_id }}"><i class="fas fa-search-plus"></i></button>
-                                                            <button type="button" data-toggle="tooltip" data-placement="top" title="Seguimiento de material" class="btn btn-primary" data-follow data-name="{{ $material->material->full_description }}" data-quote="{{ $quote->id }}" data-material="{{ $material->material_id }}"><i class="far fa-thumbs-up"></i></button>
+                                                            
 
                                                         </td>
                                                     </tr>
@@ -209,7 +209,7 @@
                                                             <td>{{ (float)$consumable->quantity*(float)$equipment->quantity }}</td>
                                                             <td>
                                                                 <button type="button" data-toggle="tooltip" data-placement="top" title="Detalle de cantidades" class="btn btn-success" data-show data-name="{{ $consumable->material->full_description }}" data-quote="{{ $quote->id }}" data-material="{{ $consumable->material_id }}"><i class="fas fa-search-plus"></i></button>
-                                                                <button type="button" data-toggle="tooltip" data-placement="top" title="Seguimiento de material" class="btn btn-primary" data-follow data-name="{{ $consumable->material->full_description }}" data-quote="{{ $quote->id }}" data-material="{{ $consumable->material_id }}"><i class="far fa-thumbs-up"></i></button>
+                                                                
 
                                                             </td>
                                                         </tr>
@@ -358,7 +358,7 @@
                                                     <td>{{ $turnstile['quantity'] }}</td>
                                                     {{--<td>
                                                         <button type="button" data-toggle="tooltip" data-placement="top" title="Detalle de cantidades" class="btn btn-success" data-show data-name="{{ $turnstile['material'] }}" data-quote="{{ $quote->id }}" data-material="{{ $turnstile['material_id'] }}"><i class="fas fa-search-plus"></i></button>
-                                                        <button type="button" data-toggle="tooltip" data-placement="top" title="Seguimiento de material" class="btn btn-primary" data-follow data-name="{{ $turnstile['material'] }}" data-quote="{{ $quote->id }}" data-material="{{ $turnstile['material_id'] }}"><i class="far fa-thumbs-up"></i></button>
+                                                        
 
                                                     </td>--}}
                                                 </tr>
@@ -521,12 +521,12 @@
                     <br>
                     <div class="row" id="show-btn-follow">
                         <div class="col-md-4 offset-4" id="show_btn_follow_material">
-                            <button type="button" data-follow id="btn-follow" class="btn btn-block btn-outline-success">Dar seguimiento al material <i class="far fa-thumbs-up"></i></button>
+                            
                         </div>
                     </div>
                     <div class="row" id="show-btn-unfollow">
                         <div class="col-md-4 offset-4" id="show_btn_follow_material">
-                            <button type="button" data-unfollow id="btn-unfollow" class="btn btn-block btn-outline-danger">Dejar de seguir al material <i class="far fa-thumbs-down"></i></button>
+                            
                         </div>
                     </div>
                     <hr>
@@ -606,12 +606,12 @@
                     <br>
                     <div class="row" id="show-btn-follow2">
                         <div class="col-md-4 offset-4" id="show_btn_follow_material2">
-                            <button type="button" data-follow id="btn-follow2" class="btn btn-block btn-outline-success">Dar seguimiento al material <i class="far fa-thumbs-up"></i></button>
+                            
                         </div>
                     </div>
                     <div class="row" id="show-btn-unfollow2">
                         <div class="col-md-4 offset-4" id="show_btn_unfollow_material2">
-                            <button type="button" data-unfollow id="btn-unfollow2" class="btn btn-block btn-outline-danger">Dejar de seguir al material <i class="far fa-thumbs-down"></i></button>
+                            
                         </div>
                     </div>
                     <hr>

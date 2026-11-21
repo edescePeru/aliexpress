@@ -635,6 +635,7 @@
 
                             <div class="col-sm-12">
                                 <button type="button" id="btn-save-pay" class="btn btn-outline-primary">Guardar <i class="fas fa-arrow-circle-right"></i></button>
+                                <button type="button" id="btn-new-payment-draft" class="btn btn-link btn-sm">Iniciar otro abono</button>
                             </div>
                         </div>
                     </div>
@@ -801,5 +802,5 @@
         });
     </script>
     <script src="{{ asset('js/credit/permissions.js') }}?v=credit-ui-1"></script>
-    <script src="{{ asset('js/credit/index_invoicesPending.js') }}?v=credit-balance-1"></script>
+    <script src="{{ asset('js/credit/index_invoicesPending.js') }}?v=credit-attachment-1"></script>
 @endsection

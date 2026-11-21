@@ -55,6 +55,14 @@ class CompanyNubefactConfig extends Model
         return Crypt::decryptString($encrypted);
     }
 
+    public function configurationVersion(): string
+    {
+        // Incluye ciphertext para detectar rotación de token sin exponerlo al formulario.
+        $attributes = $this->getRawOriginal();
+        ksort($attributes);
+        return hash('sha256', json_encode($attributes, JSON_THROW_ON_ERROR));
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);

@@ -660,26 +660,7 @@ function addItemsScrap() {
     $('#show-btn-follow').hide();
     $('#show-btn-unfollow').hide();
     // TODO: Agregamos la logica de preguntar si lo esta siguiendo al material o no
-    $.ajax({
-        url: "/dashboard/get/follow/material/"+result.id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            if ( json != null )
-            {
-                // Si es diferente a null se mostrará el dejar de seguir
-                $('#show-btn-follow').hide();
-                $('#show-btn-unfollow').show();
-                $('#btn-unfollow').attr('data-unfollow', result.id);
-            } else {
-                // Se mostrara el seguir
-                $('#show-btn-follow').show();
-                $('#btn-follow').attr('data-follow', result.id);
-                $('#show-btn-unfollow').hide();
-            }
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 
     $.ajax({
         url: "/dashboard/get/items/output/scraped/"+result.id,
@@ -848,26 +829,7 @@ function addItemsCustom() {
     $('#show-btn-follow').hide();
     $('#show-btn-unfollow').hide();
     // TODO: Agregamos la logica de preguntar si lo esta siguiendo al material o no
-    $.ajax({
-        url: "/dashboard/get/follow/material/"+result.id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            if ( json != null )
-            {
-                // Si es diferente a null se mostrará el dejar de seguir
-                $('#show-btn-follow').hide();
-                $('#show-btn-unfollow').show();
-                $('#btn-unfollow').attr('data-unfollow', result.id);
-            } else {
-                // Se mostrara el seguir
-                $('#show-btn-follow').show();
-                $('#btn-follow').attr('data-follow', result.id);
-                $('#show-btn-unfollow').hide();
-            }
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 
     $modalAddItemsCustom.modal('show');
 }

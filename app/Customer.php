@@ -11,6 +11,8 @@ class Customer extends Model
 {
     use SoftDeletes, CascadeSoftDeletes, BelongsToTenant;
 
+    protected $hidden = ['customer_deletion_batch'];
+
     protected $fillable = [
         'tenant_id',
         'business_name',

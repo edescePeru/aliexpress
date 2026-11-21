@@ -163,8 +163,9 @@ class ShippingGuidesExport implements FromCollection, WithHeadings, WithMapping
         $destName    = $g->customer_name ?? '';
 
         // Estado SUNAT
-        $accepted = (bool)($g->nubefact_accepted ?? false);
-        $acceptedText = $accepted ? 'SI' : 'NO';
+        $conflict = \App\Services\ShippingGuideIdentityConflict::blocked($g);
+        $accepted = !$conflict && (bool)($g->nubefact_accepted ?? false);
+        $acceptedText = $conflict ? 'CONFLICTO DE NUMERACION' : ($accepted ? 'SI' : 'NO');
 
         $sunatDesc = $g->sunat_description ?? $g->sunat_soap_error ?? '';
 

@@ -1104,67 +1104,9 @@
                     </li>
                     @endcan
 
-                    @can('enable_followMaterials')
-                        <li class="nav-header">ALERTA MATERIALES</li>
-                        <li class="nav-item has-treeview @yield('openFollow')">
-                            <a href="#" class="nav-link @yield('activeFollow')">
-                                <i class="nav-icon fas fa-exclamation-triangle"></i>
-                                <p>
-                                    Seguimiento materiales
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                @can('list_followMaterials')
-                                <li class="nav-item">
-                                    <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListFollow')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Listar materiales</p>
-                                    </a>
-                                </li>
-                                @endcan
-                                @can('stock_followMaterials')
-                                    <li class="nav-item">
-                                        <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Stock materiales</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                            </ul>
-                        </li>
-                    @endcan
+                    
 
-                    @can('list_requestPurchaseOperator')
-                        <li class="nav-header">SOLICITUDES DE COMPRA</li>
-                        <li class="nav-item has-treeview @yield('openRequestPurchase')">
-                            <a href="#" class="nav-link @yield('activeRequestPurchase')">
-                                <i class="nav-icon fas fa-paste"></i>
-                                <p>
-                                    Solicitudes de compra
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                @can('list_requestPurchaseOperator')
-                                    <li class="nav-item">
-                                        <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListRequestPurchase')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Listar solicitudes</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                                @can('delete_requestPurchaseOperator')
-                                    <li class="nav-item">
-                                        <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListRequestPurchase')">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Solicitudes anuladas</p>
-                                        </a>
-                                    </li>
-                                @endcan
-                            </ul>
-                        </li>
-                    @endcan
+                    
 
 
                     @canany('list_orderPurchaseExpress', 'list_orderPurchaseNormal')
@@ -2341,12 +2283,7 @@
                                                 </li>
                                             @endcan
                                             @can('stock_followMaterials')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Seguimiento Stock</p>
-                                                    </a>
-                                                </li>
+                                                
                                             @endcan
                                         </ul>
                                     </li>
@@ -2808,12 +2745,7 @@
                                                 </li>
                                             @endcan
                                             @can('stock_followMaterials')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Seguimiento Stock</p>
-                                                    </a>
-                                                </li>
+                                                
                                             @endcan
                                         </ul>
                                     </li>
@@ -3397,12 +3329,7 @@
                                                 </li>
                                             @endcan
                                             @can('stock_followMaterials')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Seguimiento Stock</p>
-                                                    </a>
-                                                </li>
+                                                
                                             @endcan
                                         </ul>
                                     </li>
@@ -4494,12 +4421,7 @@
                                                 </li>
                                             @endcan
                                             @can('stock_followMaterials')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Seguimiento Stock</p>
-                                                    </a>
-                                                </li>
+                                                
                                             @endcan
                                         </ul>
                                     </li>
@@ -5377,12 +5299,7 @@
                                                     </li>
                                                 @endcan
                                                 @can('stock_followMaterials')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Seguimiento Stock</p>
-                                                        </a>
-                                                    </li>
+                                                    
                                                 @endcan
                                             </ul>
                                         </li>
@@ -5845,12 +5762,7 @@
                                                     </li>
                                                 @endcan
                                                 @can('stock_followMaterials')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Seguimiento Stock</p>
-                                                        </a>
-                                                    </li>
+                                                    
                                                 @endcan
                                             </ul>
                                         </li>
@@ -6435,12 +6347,7 @@
                                                     </li>
                                                 @endcan
                                                 @can('stock_followMaterials')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Seguimiento Stock</p>
-                                                        </a>
-                                                    </li>
+                                                    
                                                 @endcan
                                             </ul>
                                         </li>
@@ -7909,67 +7816,9 @@
                             </li>
                         @endcan
 
-                        @can('enable_followMaterials')
-                            <li class="nav-header">ALERTA MATERIALES</li>
-                            <li class="nav-item has-treeview @yield('openFollow')">
-                                <a href="#" class="nav-link @yield('activeFollow')">
-                                    <i class="nav-icon fas fa-exclamation-triangle"></i>
-                                    <p>
-                                        Seguimiento materiales
-                                        <i class="right fas fa-angle-left"></i>
-                                    </p>
-                                </a>
-                                <ul class="nav nav-treeview">
-                                    @can('list_followMaterials')
-                                        <li class="nav-item">
-                                            <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListFollow')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Listar materiales</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                    @can('stock_followMaterials')
-                                        <li class="nav-item">
-                                            <a href="{{ route('stock.index') }}" class="nav-link @yield('activeStockMaterials')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Stock materiales</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                </ul>
-                            </li>
-                        @endcan
+                        
 
-                        @can('list_requestPurchaseOperator')
-                            <li class="nav-header">SOLICITUDES DE COMPRA</li>
-                            <li class="nav-item has-treeview @yield('openRequestPurchase')">
-                                <a href="#" class="nav-link @yield('activeRequestPurchase')">
-                                    <i class="nav-icon fas fa-paste"></i>
-                                    <p>
-                                        Solicitudes de compra
-                                        <i class="right fas fa-angle-left"></i>
-                                    </p>
-                                </a>
-                                <ul class="nav nav-treeview">
-                                    @can('list_requestPurchaseOperator')
-                                        <li class="nav-item">
-                                            <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListRequestPurchase')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Listar solicitudes</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                    @can('delete_requestPurchaseOperator')
-                                        <li class="nav-item">
-                                            <a href="{{ route('follow.index') }}" class="nav-link @yield('activeListRequestPurchase')">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p>Solicitudes anuladas</p>
-                                            </a>
-                                        </li>
-                                    @endcan
-                                </ul>
-                            </li>
-                        @endcan
+                        
 
 
                         @canany('list_orderPurchaseExpress', 'list_orderPurchaseNormal')

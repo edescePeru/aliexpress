@@ -561,90 +561,19 @@ class InvoiceController extends Controller
         return datatables($entries)->toJson();
     }
 
-    public function exportInvoices()
+    public function exportInvoices(Request $request)
     {
         $begin = microtime(true);
-        //dd($request);
-        $start = $_GET['start'];
-        $end = $_GET['end'];;
-        //dump($start);
-        //dump($end);
-        $invoices_array = [];
-        $dates = '';
-
-        if ( $start == '' || $end == '' )
-        {
-            //dump('Descargar todos');
-            $dates = 'TOTALES';
-            $invoices = $this->financeEntries()->with(['supplier', 'details'])
-                ->with('category_invoice')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            foreach ( $invoices as $invoice )
-            {
-                $date_entry = Carbon::createFromFormat('Y-m-d H:i:s', $invoice->date_entry)->format('d-m-Y');
-                array_push($invoices_array, [
-                    'date' => $date_entry,
-                    'order' => ($invoice->purchase_order != null) ? $invoice->purchase_order:'No tiene',
-                    'invoice' => $invoice->invoice,
-                    'type_order' => ($invoice->type_order == 'purchase' || $invoice->type_order == null) ? 'Por compra':'Por servicio',
-                    'supplier' => ($invoice->supplier_id != null) ? $invoice->supplier->business_name:'No tiene',
-                    'category' => optional($invoice->category_invoice)->name ?? 'No tiene',
-                    'currency' => $invoice->currency_invoice,
-                    'subtotal' => $invoice->sub_total,
-                    'taxes' => $invoice->taxes,
-                    'total' => $invoice->total,
-                ]);
-            }
-
-
-        } else {
-            $date_start = Carbon::createFromFormat('d/m/Y', $start);
-            $end_start = Carbon::createFromFormat('d/m/Y', $end);
-
-            $dates = 'DEL '. $start .' AL '. $end;
-            $invoices = $this->financeEntries()->with(['supplier', 'details'])
-                ->with('category_invoice')
-                ->whereDate('date_entry', '>=',$date_start)
-                ->whereDate('date_entry', '<=',$end_start)
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            foreach ( $invoices as $invoice )
-            {
-                $date_entry = Carbon::createFromFormat('Y-m-d H:i:s', $invoice->date_entry)->format('d-m-Y');
-                array_push($invoices_array, [
-                    'date' => $date_entry,
-                    'order' => ($invoice->purchase_order != null) ? $invoice->purchase_order:'No tiene',
-                    'invoice' => $invoice->invoice,
-                    'type_order' => ($invoice->type_order == 'purchase' || $invoice->type_order == null) ? 'Por compra':'Por servicio',
-                    'supplier' => ($invoice->supplier_id != null) ? $invoice->supplier->business_name:'No tiene',
-                    'category' => optional($invoice->category_invoice)->name ?? 'No tiene',
-                    'currency' => $invoice->currency_invoice,
-                    'subtotal' => $invoice->sub_total,
-                    'taxes' => $invoice->taxes,
-                    'total' => $invoice->total,
-                ]);
-            }
-
-            //dump($date_start);
-            //dump($end_start);
-        }
-        //dump($invoices_array);
-        //dd('Fechas');
-        //return response()->json(['message' => 'Reporte descargado correctamente.'], 200);
-        //(new UsersExport)->download('users.xlsx');
-        $end = microtime(true) - $begin;
-
+        $data = app(\App\Services\FinanceInvoiceExportRead::class)->data($request->query());
         Audit::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::id(),
             'action' => 'Reporte Excel facturas finanzas',
-            'time' => $end
+            'time' => microtime(true) - $begin,
         ]);
-        return (new InvoicesFinanceExport($invoices_array, $dates))->download('facturasFinanzas.xlsx');
-
+        return (new InvoicesFinanceExport($data['invoices'], $data['dates']))
+            ->download('facturasFinanzas.xlsx');
     }
+
 
     public function getTipoDeCambio($fechaFormato)
     {

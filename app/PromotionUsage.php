@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PromotionUsage extends Model
 {
+    use \App\Traits\RetiredLegacyPromotion;
+
     protected $fillable = [
         'promotion_limit_id',
         'user_id',

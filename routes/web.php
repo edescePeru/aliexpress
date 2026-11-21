@@ -1795,6 +1795,12 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:pay_credit');
         Route::post('/cancel/pay/credit/{idCredit}', 'SupplierCreditController@cancelPayCredit')
             ->middleware('permission:nopay_credit');
+        Route::get('/creditos/{credit}/comprobante', 'SupplierCreditAttachmentController@paid')
+            ->where('credit', '[0-9]+')->name('supplier.credit.paid.attachment')
+            ->middleware('permission:control_credit|edit_credit|pay_credit|nopay_credit');
+        Route::get('/creditos/abonos/{payment}/comprobante', 'SupplierCreditAttachmentController@payment')
+            ->where('payment', '[0-9]+')->name('supplier.credit.payment.attachment')
+            ->middleware('permission:control_credit|edit_credit|pay_credit|nopay_credit');
 
         // Facturas Pendientes
         Route::get('/faturas/proveedores/pendientes', 'SupplierCreditController@indexInvoicesPending')
@@ -1851,24 +1857,24 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:destroy_paymentDeadline');
 
         // FOLLOW MATERIALS
-        Route::get('/get/follow/material/{material_id}', 'FollowMaterialController@getFollowMaterial');
-        Route::get('/follow/material/{material_id}', 'FollowMaterialController@followMaterial');
-        Route::get('/unfollow/material/{material_id}', 'FollowMaterialController@unfollowMaterial');
-        Route::get('/seguimiento/materiales', 'FollowMaterialController@index')
+        Route::get('/get/follow/material/{material_id}', 'RetiredFollowMaterialController@unavailable');
+        Route::get('/follow/material/{material_id}', 'RetiredFollowMaterialController@unavailable');
+        Route::get('/unfollow/material/{material_id}', 'RetiredFollowMaterialController@unavailable');
+        Route::get('/seguimiento/materiales', 'RetiredFollowMaterialController@unavailable')
             ->name('follow.index')
             ->middleware('permission:list_followMaterials');
-        Route::get('/get/json/follow/material', 'FollowMaterialController@getJsonFollowMaterials');
-        Route::post('/dejar/seguir/{follow_id}', 'FollowMaterialController@unFollowMaterialUser');
+        Route::get('/get/json/follow/material', 'RetiredFollowMaterialController@unavailable');
+        Route::post('/dejar/seguir/{follow_id}', 'RetiredFollowMaterialController@unavailable');
 
-        Route::get('/get/json/follow/output/material/{id}', 'FollowMaterialController@getJsonDetailFollowMaterial');
+        Route::get('/get/json/follow/output/material/{id}', 'RetiredFollowMaterialController@unavailable');
         Route::get('/visualizar/orden/compra/{code}', 'OrderPurchaseController@showOrderOperator');
 
-        Route::get('/get/json/stock/all/materials', 'FollowMaterialController@getJsonStockAllMaterials');
-        Route::get('/alerta/stock/materiales', 'FollowMaterialController@indexStock')
+        Route::get('/get/json/stock/all/materials', 'RetiredFollowMaterialController@unavailable');
+        Route::get('/alerta/stock/materiales', 'RetiredFollowMaterialController@unavailable')
             ->name('stock.index')
             ->middleware('permission:stock_followMaterials');
 
-        Route::get('/send/email/with/excel', 'FollowMaterialController@sendEmailWithExcel');
+        Route::get('/send/email/with/excel', 'RetiredFollowMaterialController@unavailable');
 
 
         // REGULARIZAR AUTOMATICAMENTE ENTRADAS DE COMPRA
@@ -3174,32 +3180,33 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:stock_files');
         Route::get('/download/example/stock/file', 'UploadFilesController@downloadExampleStockFile');
 
-        // TODO: Rutas de Guias de Remision
-        Route::get('/guias/de/remision/', 'ReferralGuideController@index')
+        // GUIDE-01: URLs retiradas del módulo antiguo; no ejecutan operaciones
+        Route::get('/guias/de/remision/', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.index')
             ->middleware('permission:list_referralGuide');
-        Route::get('/get/data/referral/guides/{numberPage}', 'ReferralGuideController@getDataGuides');
-        Route::get('/crear/guia/de/remision/', 'ReferralGuideController@create')
+        Route::get('/get/data/referral/guides/{numberPage}', 'RetiredReferralGuideController@unavailable')
+            ->middleware('permission:list_referralGuide');
+        Route::get('/crear/guia/de/remision/', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.create')
             ->middleware('permission:create_referralGuide');
-        Route::post('store/guide/referral', 'ReferralGuideController@store')
+        Route::post('store/guide/referral', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.store')
             ->middleware('permission:create_referralGuide');
-        Route::post('/destroy/guide/referral/{guide_id}', 'ReferralGuideController@destroy')
+        Route::post('/destroy/guide/referral/{guide_id}', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.destroy')
             ->middleware('permission:destroy_referralGuide');
-        Route::get('ver/guia/remision/{guide_id}', 'ReferralGuideController@show')
+        Route::get('ver/guia/remision/{guide_id}', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.show')
             ->middleware('permission:list_referralGuide');
-        Route::get('imprimir/guia/remision/{guide_id}', 'ReferralGuideController@printReferralGuide')
+        Route::get('imprimir/guia/remision/{guide_id}', 'RetiredReferralGuideController@unavailable')
             ->middleware('permission:print_referralGuide');
-        Route::get('editar/guia/de/remision/{guide_id}', 'ReferralGuideController@edit')
+        Route::get('editar/guia/de/remision/{guide_id}', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.edit')
             ->middleware('permission:edit_referralGuide');
-        Route::post('update/guide/referral/{id}', 'ReferralGuideController@update')
+        Route::post('update/guide/referral/{id}', 'RetiredReferralGuideController@unavailable')
             ->name('referral.guide.update')
             ->middleware('permission:edit_referralGuide');
-        Route::get('/exportar/guias/remision/v2/', 'ReferralGuideController@exportReferralGuides')
+        Route::get('/exportar/guias/remision/v2/', 'RetiredReferralGuideController@unavailable')
             ->middleware('permission:download_referralGuide');
 
         // TODO: Rutas Punto de Venta
@@ -3281,14 +3288,14 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('regularize.cashRegister')->middleware('permission:regularize_caja');
 
         // TODO: Promotions Seasonal
-        Route::get('/get/data/promotions/seasonal/V2/{numberPage}', 'SeasonalPromotionController@getDataPromotions');
-        Route::get('/listado/promocion/temporada', 'SeasonalPromotionController@index')
+        Route::get('/get/data/promotions/seasonal/V2/{numberPage}', 'RetiredPromotionController@unavailable');
+        Route::get('/listado/promocion/temporada', 'RetiredPromotionController@unavailable')
             ->name('promotion.seasonal.index');
-        Route::get('/crear/promocion/temporada', 'SeasonalPromotionController@create')
+        Route::get('/crear/promocion/temporada', 'RetiredPromotionController@unavailable')
             ->name('promotion.seasonal.create');
-        Route::post('/store/promotion/seasonal/', 'SeasonalPromotionController@store')
+        Route::post('/store/promotion/seasonal/', 'RetiredPromotionController@unavailable')
             ->name('promotion.seasonal.store');
-        Route::post('/destroy/promotion/seasonal/', 'SeasonalPromotionController@destroy')
+        Route::post('/destroy/promotion/seasonal/', 'RetiredPromotionController@unavailable')
             ->name('promotion.seasonal.destroy');
 
         Route::get('/get/price/list/material/{material_id}', 'MaterialController@getPriceListMaterial');
@@ -3478,39 +3485,39 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
 
         // TODO: PromotionLimits
-        Route::get('promociones/por/limite', 'PromotionLimitController@index')
+        Route::get('promociones/por/limite', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.index')
             ->middleware('permission:list_promotionLimit');
-        Route::get('crear/promocion/por/limite', 'PromotionLimitController@create')
+        Route::get('crear/promocion/por/limite', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.create')
             ->middleware('permission:create_promotionLimit');
-        Route::get('/get/promotion/limits/materials/totals', 'PromotionLimitController@getMaterialTotals')
+        Route::get('/get/promotion/limits/materials/totals', 'RetiredPromotionController@unavailable')
             ->middleware('permission:create_promotionLimit');
-        Route::get('/get/promotion/limit/materials', 'PromotionLimitController@getMaterials')
+        Route::get('/get/promotion/limit/materials', 'RetiredPromotionController@unavailable')
             ->middleware('permission:create_promotionLimit');
-        Route::post('store/promotion/limit', 'PromotionLimitController@store')
+        Route::post('store/promotion/limit', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.store')
             ->middleware('permission:create_promotionLimit');
-        Route::get('/get/data/promotion/limits/{numberPage}', 'PromotionLimitController@getDataPromotions');
+        Route::get('/get/data/promotion/limits/{numberPage}', 'RetiredPromotionController@unavailable');
 
-        Route::post('/destroy/promotion/limits/{promotion_id}', 'PromotionLimitController@destroy')
+        Route::post('/destroy/promotion/limits/{promotion_id}', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.destroy')
             ->middleware('permission:destroy_promotionLimit');
 
-        Route::get('editar/promocion/limite/{promotion}', 'PromotionLimitController@edit')
+        Route::get('editar/promocion/limite/{promotion}', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.edit')
             ->middleware('permission:edit_promotionLimit');
-        Route::post('update/promotion/limit', 'PromotionLimitController@update')
+        Route::post('update/promotion/limit', 'RetiredPromotionController@unavailable')
             ->name('promotionLimit.update')
             ->middleware('permission:edit_promotionLimit');
 
-        Route::get('orden/de/promociones/', 'PromotionOrderController@index')
+        Route::get('orden/de/promociones/', 'RetiredPromotionController@unavailable')
             ->name('promotionOrder.index')
             ->middleware('permission:list_promotionLimit');
-        Route::post('/promotion-orders/update-order', 'PromotionOrderController@updateOrder');
-        Route::get('/get/data/promotion/orders/{numberPage}', 'PromotionOrderController@getDataPromotions');
+        Route::post('/promotion-orders/update-order', 'RetiredPromotionController@unavailable');
+        Route::get('/get/data/promotion/orders/{numberPage}', 'RetiredPromotionController@unavailable');
 
-        Route::post('/check-promotions', 'PromotionOrderController@checkPromotions');
+        Route::post('/check-promotions', 'RetiredPromotionController@unavailable');
 
         // TODO: KARDEX
         Route::middleware('permission:list_kardex')->group(function () {
@@ -3611,27 +3618,48 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
 
         Route::prefix('shipping-guides')->group(function () {
             // Vistas
-            Route::get('/listado', 'ShippingGuideController@viewIndex')->name('shipping_guides.view');
-            Route::get('/create', 'ShippingGuideController@create')->name('shipping_guides.create');
+            Route::get('/listado', 'ShippingGuideController@viewIndex')->name('shipping_guides.view')
+                ->middleware('permission:list_referralGuide');
+            Route::get('/create', 'ShippingGuideController@create')->name('shipping_guides.create')
+                ->middleware('permission:create_referralGuide');
 
             // Ajax / API internas
-            Route::get('/list', 'ShippingGuideController@index')->name('shipping_guides.list');
-            Route::post('/', 'ShippingGuideController@store')->name('shipping_guides.store');
+            Route::get('/list', 'ShippingGuideController@index')->name('shipping_guides.list')
+                ->middleware('permission:list_referralGuide');
+            Route::post('/', 'ShippingGuideController@store')->name('shipping_guides.store')
+                ->middleware('permission:create_referralGuide');
 
-            Route::get('/detalles/{guide}', 'ShippingGuideController@show')->name('shipping_guides.show');
-            Route::post('/{guide}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
-            Route::post('/export', 'ShippingGuideController@exportExcel')->name('shipping_guides.export');
+            Route::get('/detalles/{guide}', 'ShippingGuideController@show')->name('shipping_guides.show')
+                ->middleware('permission:list_referralGuide');
+            Route::post('/{guide}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult')
+                ->middleware('permission:edit_referralGuide');
+            Route::post('/export', 'ShippingGuideController@exportExcel')->name('shipping_guides.export')
+                ->middleware('permission:download_referralGuide');
             //Route::post('/{id}/consult', 'ShippingGuideController@consultNubefact')->name('shipping_guides.consult');
             Route::get('/customer/{id}/payload', 'ShippingGuideController@customerPayload')
-                ->where('id', '[0-9]+')->name('shipping_guides.customer_payload');
-            Route::get('/products/select2', 'ShippingGuideController@products')->name('shipping_guides.products');
+                ->where('id', '[0-9]+')->name('shipping_guides.customer_payload')
+                ->middleware('permission:create_referralGuide');
+            Route::get('/products/select2', 'ShippingGuideController@products')->name('shipping_guides.products')
+                ->middleware('permission:create_referralGuide');
+
+            Route::get('/{guide}/documents/{type}', 'ShippingGuideDocumentController@download')
+                ->where('guide', '[0-9]+')->where('type', 'pdf|xml|cdr')
+                ->name('shipping_guides.download')
+                ->middleware('permission:print_referralGuide|download_referralGuide');
+
+            Route::post('/{guide}/recover', 'ShippingGuideRecoveryController@recover')
+                ->where('guide', '[0-9]+')->name('shipping_guides.recover')
+                ->middleware(['permission:list_referralGuide', 'permission:create_referralGuide', 'permission:edit_referralGuide']);
         });
 
         Route::get('/customers/{customer}/payload', 'CustomerController@payload')->name('customers.payload');
         Route::get('shipping-guides/sale-items', 'ShippingGuideController@saleItems')
-            ->name('shipping_guides.sale_items');
-        Route::get('/listado/sales/select2/', 'ShippingGuideController@select2')->name('sales.select2');
-        Route::get('/sales/{sale}/items', 'ShippingGuideController@items')->name('sales.items');
+            ->name('shipping_guides.sale_items')
+            ->middleware('permission:create_referralGuide');
+        Route::get('/listado/sales/select2/', 'ShippingGuideController@select2')->name('sales.select2')
+            ->middleware('permission:create_referralGuide');
+        Route::get('/sales/{sale}/items', 'ShippingGuideController@items')->name('sales.items')
+            ->middleware('permission:create_referralGuide');
 
         Route::get('ubigeo/departments/select2', 'UbigeoController@departmentsSelect2')->name('ubigeo.departments.select2');
         Route::get('ubigeo/provinces/select2', 'UbigeoController@provincesSelect2')->name('ubigeo.provinces.select2');

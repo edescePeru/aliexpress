@@ -8,8 +8,26 @@ use App\Support\TenantContext;
 class ShippingGuide extends Model
 {
     protected $table = 'shipping_guides';
+    protected $hidden = ['emission_key', 'last_nubefact_payload', 'last_nubefact_response', 'nubefact_enlace', 'pdf_link', 'xml_link', 'cdr_link', 'pdf_zip_base64', 'xml_zip_base64', 'cdr_zip_base64'];
+    protected $appends = ['documents_available', 'identity_conflict'];
+
+    public function getIdentityConflictAttribute()
+    {
+        return \App\Services\ShippingGuideIdentityConflict::blocked($this);
+    }
+
+    public function getDocumentsAvailableAttribute()
+    {
+        $result = [];
+        foreach (\App\Services\ShippingGuideDocument::TYPES as $type) {
+            $result[$type] = \App\Services\ShippingGuideDocument::available($this, $type);
+        }
+        return $result;
+    }
+
 
     protected $fillable = [
+        'emission_key',
         'tenant_id', 'company_id', 'branch_id',
         'guide_type',
         'tipo_de_comprobante',

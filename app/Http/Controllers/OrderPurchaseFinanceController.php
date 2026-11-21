@@ -184,6 +184,9 @@ class OrderPurchaseFinanceController extends Controller
                 'time' => $end
             ]);
             DB::commit();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch ( \Throwable $e ) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -312,6 +315,9 @@ class OrderPurchaseFinanceController extends Controller
                 'time' => $end
             ]);
             DB::commit();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch ( \Throwable $e ) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -431,6 +437,9 @@ class OrderPurchaseFinanceController extends Controller
             $orderPurchase->save();
 
             DB::commit();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch ( \Throwable $e ) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -830,6 +839,9 @@ class OrderPurchaseFinanceController extends Controller
                 'time' => $end
             ]);
             DB::commit();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch ( \Throwable $e ) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);

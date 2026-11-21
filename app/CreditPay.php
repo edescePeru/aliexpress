@@ -16,6 +16,7 @@ class CreditPay extends Model
     ];
 
     protected $dates = ['date_pay'];
+    protected $casts = ['amount' => 'decimal:2'];
 
     public function supplier_credit()
     {

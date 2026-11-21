@@ -36,9 +36,7 @@ class Kernel extends ConsoleKernel
     {
         // Solo de prueba, cambiar a ->daily()
         //$schedule->command('credits:update')->daily();
-        $schedule->command('stocks:send')->sundays()
-            ->timezone('America/Lima')
-            ->at('12:22');
+        // FOLLOW-01: alertas legacy retiradas; no programar stocks:send.
     }
 
     /**

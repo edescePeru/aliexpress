@@ -1,0 +1,9 @@
+# QA-01 — Exportaciones: primera corrección
+
+19/11/2026. Se revisaron GananciasTrabajadorExport, sus dos hojas, GananciaVentasDetalladoExport y el adaptador InvoicesFinanceExport. Se detectó desfase de formato en el Excel detallado: columnas J:N frente a encabezados monetarios K:O. Se entrega reemplazo de un solo método y prueba de alineación con encabezados reales. No se modifica la lógica monetaria.
+
+Estado: corrección preparada, pendiente de instalación y descarga real. QA-01 continúa parcialmente atendido. La prueba aislada certifica únicamente la correspondencia entre encabezados y estilos declarados.
+
+Siguientes partes: validar permisos por ruta y contexto; comparar el conjunto completo exportado con el listado filtrado (no solo su primera página); cubrir fechas límites, usuarios, otras empresas y locales, PEN/USD, anulaciones, costo nulo y costo cero. Revisar GananciasTrabajadorExport y exportación financiera de forma independiente, incluyendo apertura del archivo real y totales. No asumir que usar un servicio compartido certifica todas las exportaciones.
+
+DATA-01: capturas recibidas del usuario confirman empresa 1 / tenant 1. Inventario global: ventas sin contexto 0; sesiones sin sucursal 23; movimientos sin sucursal 243, de los cuales 2 sin empresa. En la empresa seleccionada no aparecen referencias incompatibles en las consultas 03. En el tenant revisado no aparecen cuentas sin número ni con proveedor incompatible; materiales con imagen vacía 0/15 y variantes 18/38. Los NULL de SUM cuando COUNT=0 en ventas no representan registros adicionales. La advertencia de phpMyAdmin sobre ausencia de clave única en un resultado agregado es normal y no indica error de ejecución. DATA-01 permanece parcialmente atendido: pendientes origen de históricos y revisión de herencia/archivos de imágenes, sin asignaciones automáticas. Estas consultas no comprueban todas las relaciones ni la integridad monetaria.

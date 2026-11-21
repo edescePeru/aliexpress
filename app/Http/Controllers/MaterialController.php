@@ -4614,79 +4614,12 @@ class MaterialController extends Controller
 
     public function selectStockItemsAjax(Request $request)
     {
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
-        $term = trim($data['q'] ?? '');
-
-        app(MaterialInventoryScope::class)->context();
-        $query = StockItem::query()
-            ->where('stock_items.tenant_id', TenantContext::tenantId())
-            ->whereExists(function ($query) {
-                $query->selectRaw('1')->from('company_stock_items')
-                    ->whereColumn('company_stock_items.stock_item_id', 'stock_items.id')
-                    ->where('company_stock_items.tenant_id', TenantContext::tenantId())
-                    ->where('company_stock_items.company_id', TenantContext::companyId())
-                    ->where('company_stock_items.is_active', true);
-            })
-            ->with('material:id,full_name,code')
-            ->select('id', 'material_id', 'sku', 'barcode', 'display_name')
-            ->where('is_active', 1);
-
-        if ($term !== '') {
-            $query->where(function ($q) use ($term) {
-                $q->where('sku', 'like', "%{$term}%")
-                    ->orWhere('barcode', 'like', "%{$term}%")
-                    ->orWhere('display_name', 'like', "%{$term}%")
-                    ->orWhereHas('material', function ($mq) use ($term) {
-                        $mq->where('code', 'like', "%{$term}%")
-                            ->orWhere('full_name', 'like', "%{$term}%");
-                    });
-            });
-        }
-
-        $stockItems = $query
-            ->orderBy('display_name')
-            ->limit(20)
-            ->get();
-
-        $results = $stockItems->map(function ($item) {
-            $code = $item->sku ?: optional($item->material)->code;
-            $name = $item->display_name ?: optional($item->material)->full_name;
-
-            return [
-                'id'   => $item->id,
-                'text' => trim(($code ? $code . ' - ' : '') . $name),
-            ];
-        });
-
-        return response()->json($results);
+        return response()->json(app(\App\Services\Inventory\KardexLookup::class)->stockItems($request));
     }
 
     public function selectWarehousesAjax(Request $request)
     {
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
-        $term = trim($data['q'] ?? '');
-
-        $query = app(MaterialInventoryScope::class)->warehouses(Warehouse::query())
-            ->select('warehouses.id', 'warehouses.name', 'warehouses.branch_id')
-            ->orderByRaw('warehouses.branch_id IS NOT NULL')
-            ->orderBy('warehouses.name');
-
-        if ($term !== '') {
-            $query->where('name', 'like', "%{$term}%");
-        }
-
-        $warehouses = $query
-            ->limit(20)
-            ->get();
-
-        $results = $warehouses->map(function ($warehouse) {
-            return [
-                'id' => $warehouse->id,
-                'text' => $warehouse->name . ($warehouse->branch_id === null ? ' (General)' : ' (Local actual)'),
-            ];
-        });
-
-        return response()->json($results);
+        return response()->json(app(\App\Services\Inventory\KardexLookup::class)->warehouses($request));
     }
 
 

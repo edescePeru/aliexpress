@@ -20,8 +20,13 @@ class NubefactGreService
      */
     public function send(ShippingGuide $guide, NubefactCompanyConnection $connection): array
     {
-        $payload = $this->buildPayload($guide);
+        ShippingGuideIdentityConflict::assertUsable($guide);
+        return $this->sendStoredPayload($this->buildPayload($guide), $connection);
+    }
 
+    /** Payload histórico revisado por recuperación; no es un endpoint público. */
+    public function sendStoredPayload(array $payload, NubefactCompanyConnection $connection): array
+    {
         $response = Http::withHeaders([
             'Authorization' => 'Token token=' . $connection->token(),
             'Content-Type'  => 'application/json',
@@ -29,7 +34,9 @@ class NubefactGreService
         ])->timeout(30)->post($connection->url(), $payload);
 
         if (!$response->ok()) {
-            throw new \RuntimeException('Error HTTP Nubefact: ' . $response->status() . ' - ' . $response->body());
+            // No incluir el cuerpo del proveedor en la excepción ni en los logs.
+            $body = $response->json();
+            throw NubefactGreHttpException::fromResponse($response->status(), $body, $connection);
         }
 
         return $response->json();
@@ -58,7 +65,9 @@ class NubefactGreService
         ])->timeout(30)->post($connection->url(), $payload);
 
         if (!$response->ok()) {
-            throw new \RuntimeException('Error HTTP Nubefact (consultar): ' . $response->status() . ' - ' . $response->body());
+            // No incluir el cuerpo del proveedor en la excepción ni en los logs.
+            $body = $response->json();
+            throw NubefactGreHttpException::fromResponse($response->status(), $body, $connection);
         }
 
         return $response->json();
@@ -70,6 +79,7 @@ class NubefactGreService
      */
     public function buildPayload(ShippingGuide $guide): array
     {
+        ShippingGuideIdentityConflict::assertUsable($guide);
         // Solo MVP: remitente (7) / transportista (8)
         $tipo = (int)$guide->tipo_de_comprobante;
 

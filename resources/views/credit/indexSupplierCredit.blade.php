@@ -477,7 +477,7 @@
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
     <script src="{{ asset('js/credit/permissions.js') }}?v=credit-ui-1"></script>
-    <script src="{{ asset('js/credit/index_creditSupplier.js') }}?v=credit-ui-1"></script>
+    <script src="{{ asset('js/credit/index_creditSupplier.js') }}?v=credit-attachment-1"></script>
     <script>
         $('#date_picker_issue .date_picker_issue').datepicker({
             todayBtn: "linked",

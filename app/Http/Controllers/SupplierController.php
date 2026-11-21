@@ -21,7 +21,7 @@ class SupplierController extends Controller
         $user = Auth::user();
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -246,25 +246,8 @@ class SupplierController extends Controller
 
     public function getSuppliers()
     {
-        /*
-         * TenantScope se aplica automáticamente.
-         */
-        $suppliers = Supplier::query()
-            ->select(
-                'id',
-                'code',
-                'business_name',
-                'RUC',
-                'address',
-                'phone',
-                'email'
-            )
-            ->with('accounts')
-            ->get();
-
-        return datatables($suppliers)->toJson();
+        return datatables(app(\App\Services\Suppliers\SupplierAccountRead::class)->listing())->toJson();
     }
-
 
     public function indexrestore()
     {
@@ -326,129 +309,7 @@ class SupplierController extends Controller
 
     public function generateReport()
     {
-        /*
-         * IMPORTANTE:
-         *
-         * DB::table() NO recibe TenantScope.
-         */
-        $tenantId =
-            TenantContext::tenantId();
-
-
-        $suppliers = DB::table('suppliers')
-            ->where(
-                'tenant_id',
-                $tenantId
-            )
-            ->whereNull('deleted_at')
-            ->get();
-
-
-        $deletedSuppliers = DB::table('suppliers')
-            ->where(
-                'tenant_id',
-                $tenantId
-            )
-            ->whereNotNull('deleted_at')
-            ->get();
-
-
-        $data = [];
-        $deletedData = [];
-
-
-        foreach ($suppliers as $supplier) {
-
-            /*
-             * supplier_accounts todavía no necesita conocerse
-             * como Tenant aquí porque supplier_id ya salió de
-             * un Supplier perteneciente al Tenant actual.
-             */
-            $accounts = DB::table('supplier_accounts')
-                ->where(
-                    'supplier_id',
-                    $supplier->id
-                )
-                ->pluck('number_account')
-                ->toArray();
-
-
-            $labeledAccounts = [];
-
-            foreach ($accounts as $index => $account) {
-
-                $label =
-                    'Cuenta ' .
-                    ($index + 1);
-
-                $labeledAccounts[] =
-                    $label .
-                    ': ' .
-                    $account;
-            }
-
-
-            $data[] = [
-                'id' =>
-                    $supplier->id,
-
-                'code' =>
-                    $supplier->code,
-
-                'business_name' =>
-                    $supplier->business_name,
-
-                'RUC' =>
-                    $supplier->RUC,
-
-                'address' =>
-                    $supplier->address,
-
-                'phone' =>
-                    $supplier->phone,
-
-                'email' =>
-                    $supplier->email,
-
-                'accounts' =>
-                    $labeledAccounts,
-            ];
-        }
-
-
-        foreach ($deletedSuppliers as $deletedSupplier) {
-
-            $deletedData[] = [
-                'id' =>
-                    $deletedSupplier->id,
-
-                'code' =>
-                    $deletedSupplier->code,
-
-                'business_name' =>
-                    $deletedSupplier->business_name,
-
-                'RUC' =>
-                    $deletedSupplier->RUC,
-
-                'address' =>
-                    $deletedSupplier->address,
-
-                'phone' =>
-                    $deletedSupplier->phone,
-
-                'email' =>
-                    $deletedSupplier->email,
-            ];
-        }
-
-
-        return Excel::download(
-            new SuppliersExport(
-                $data,
-                $deletedData
-            ),
-            'report.xlsx'
-        );
+        $rows=app(\App\Services\Suppliers\SupplierAccountRead::class)->exportData();
+        return Excel::download(new SuppliersExport($rows['data'],$rows['deletedData']),'report.xlsx');
     }
 }

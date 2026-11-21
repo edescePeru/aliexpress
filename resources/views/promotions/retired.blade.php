@@ -1,0 +1,1 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Promociones retiradas</title></head><body><main><h1>Promociones legacy retiradas</h1><p>{{ $message }}</p><p>Vuelve al menú para acceder a las funciones disponibles.</p></main></body></html>

@@ -19,15 +19,16 @@ class SupplierCreditBalance
         if ($pen === $usd) {
             throw ValidationException::withMessages(['credit' => 'El crédito '.$credit->id.' requiere un importe en una única moneda antes de calcular su saldo.']);
         }
-        $total = round((float) ($pen ? $credit->total_soles : $credit->total_dollars), 2);
-        $paid = round((float) CreditPay::where('supplier_credit_id', $credit->id)->sum('amount'), 2);
-        if (!is_finite($total) || !is_finite($paid)) {
-            throw ValidationException::withMessages(['credit' => 'El crédito contiene importes que requieren revisión.']);
-        }
+        $totalCents = SupplierCreditMoney::cents($pen ? $credit->total_soles : $credit->total_dollars);
+        $paidCents = SupplierCreditMoney::cents(CreditPay::where('supplier_credit_id', $credit->id)->sum('amount'));
+        $balanceCents = SupplierCreditMoney::add($totalCents, -$paidCents);
         return [
             'currency' => $pen ? 'PEN' : 'USD',
-            'total' => $total, 'paid' => $paid, 'balance' => round($total - $paid, 2),
-            'legacy_review' => (float) $credit->advance !== 0.0,
+            'total' => (float) SupplierCreditMoney::decimal($totalCents),
+            'paid' => (float) SupplierCreditMoney::decimal($paidCents),
+            'balance' => (float) SupplierCreditMoney::decimal($balanceCents),
+            'total_cents' => $totalCents, 'paid_cents' => $paidCents, 'balance_cents' => $balanceCents,
+            'legacy_review' => SupplierCreditMoney::cents($credit->advance ?? '0') !== 0,
         ];
     }
 }

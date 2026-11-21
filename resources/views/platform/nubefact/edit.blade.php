@@ -24,7 +24,7 @@
         @endif
         <form id="formNubefactConfig" method="POST" action="{{ route('platformNubefact.update', [$company->tenant_id, $company->id]) }}" autocomplete="off">
             @csrf
-            <input type="hidden" name="version" value="{{ old('version', $config ? (string) $config->updated_at : '') }}">
+            <input type="hidden" name="version" value="{{ old('version', $config ? $config->configurationVersion() : '') }}">
             <section class="next-form-section" aria-labelledby="nubefact-connection-title">
                 <div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 class="next-section-title" id="nubefact-connection-title">Conexión del proveedor</h2><p class="next-section-description">Datos de integración exclusivos de esta empresa.</p></div></div>
                 <div>

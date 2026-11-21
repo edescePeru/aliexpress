@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class EquipmentConsumable extends Model
 {
+    use \App\Traits\PreventsLegacyPromotionApplication;
+
     protected $fillable = [
         'equipment_id',
         'material_id',

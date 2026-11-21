@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SeasonalPromotion extends Model
 {
+    use \App\Traits\RetiredLegacyPromotion;
+
     protected $fillable = [
         'description',
         'category_id',

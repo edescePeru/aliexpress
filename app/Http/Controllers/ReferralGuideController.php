@@ -19,6 +19,13 @@ use Barryvdh\DomPDF\Facade as PDF;
 
 class ReferralGuideController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            return app(RetiredReferralGuideController::class)->unavailable($request);
+        });
+    }
+
     public function index()
     {
         $user = Auth::user();

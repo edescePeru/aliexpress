@@ -23,9 +23,16 @@ trait ScopedFinancePurchaseCompany
 
         static::saving(function ($model) {
             $model->assertFinancePurchaseContext();
+            if ($model instanceof \App\OrderPurchaseFinance && $model->exists
+                && \App\Services\Purchases\FinancePurchaseCreditGuard::financialChanges($model)) {
+                \App\Services\Purchases\FinancePurchaseCreditGuard::assertMutable($model->id);
+            }
             if ($model instanceof \App\OrderPurchaseFinanceDetail) {
                 if ($model->exists && (string) $model->getOriginal('order_purchase_finance_id') !== (string) $model->order_purchase_finance_id) {
                     throw ValidationException::withMessages(['order' => 'No se puede cambiar la orden de un detalle existente.']);
+                }
+                if (!$model->exists || $model->isDirty(['material', 'unit', 'quantity', 'price', 'igv', 'total_detail'])) {
+                    \App\Services\Purchases\FinancePurchaseCreditGuard::assertMutable($model->order_purchase_finance_id);
                 }
                 // Incluye eliminadas porque el flujo legacy restaura detalles antes que la orden.
                 \App\OrderPurchaseFinance::withTrashed()->findOrFail($model->order_purchase_finance_id);
@@ -33,8 +40,16 @@ trait ScopedFinancePurchaseCompany
             $model->tenant_id = TenantContext::tenantId();
             $model->company_id = TenantContext::companyId();
         });
-        static::deleting(function ($model) { $model->assertFinancePurchaseContext(); });
-        static::restoring(function ($model) { $model->assertFinancePurchaseContext(); });
+        static::deleting(function ($model) {
+            $model->assertFinancePurchaseContext();
+            $id = $model instanceof \App\OrderPurchaseFinanceDetail ? $model->order_purchase_finance_id : $model->id;
+            \App\Services\Purchases\FinancePurchaseCreditGuard::assertMutable($id);
+        });
+        static::restoring(function ($model) {
+            $model->assertFinancePurchaseContext();
+            $id = $model instanceof \App\OrderPurchaseFinanceDetail ? $model->order_purchase_finance_id : $model->id;
+            \App\Services\Purchases\FinancePurchaseCreditGuard::assertMutable($id);
+        });
     }
 
     protected function assertFinancePurchaseContext()

@@ -167,166 +167,14 @@ let $longitud = 20;
 function followMaterial() {
     var material_id = $(this).data('follow');
     $('#btn-follow').attr("disabled", true);
-    $.ajax({
-        url: "/dashboard/follow/material/"+material_id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            toastr.success(json.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            $('#btn-follow').attr("disabled", false);
-            $('#show-btn-follow').hide();
-            $('#show-btn-unfollow').show();
-            $('#btn-unfollow').attr('data-unfollow', material_id);
-
-        },
-        error: function (data) {
-            console.log(data);
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $('#btn-follow').attr("disabled", false);
-
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 }
 
 function unfollowMaterial() {
     var material_id = $(this).data('unfollow');
     $('#btn-unfollow').attr("disabled", true);
 
-    $.ajax({
-        url: "/dashboard/unfollow/material/"+material_id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            toastr.success(json.message, 'Éxito',
-                {
-                    "closeButton": true,
-                    "debug": false,
-                    "newestOnTop": false,
-                    "progressBar": true,
-                    "positionClass": "toast-top-right",
-                    "preventDuplicates": false,
-                    "onclick": null,
-                    "showDuration": "300",
-                    "hideDuration": "1000",
-                    "timeOut": "2000",
-                    "extendedTimeOut": "1000",
-                    "showEasing": "swing",
-                    "hideEasing": "linear",
-                    "showMethod": "fadeIn",
-                    "hideMethod": "fadeOut"
-                });
-            $('#btn-unfollow').attr("disabled", false);
-            $('#show-btn-follow').show();
-            $('#show-btn-unfollow').hide();
-            $('#btn-follow').attr('data-follow', material_id);
-
-        },
-        error: function (data) {
-            console.log(data);
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $('#btn-unfollow').attr("disabled", false);
-
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 }
 
 function saveTableItems() {
@@ -493,26 +341,7 @@ function addItems() {
     $('#show-btn-unfollow').hide();
 
     // TODO: Agregamos la logica de preguntar si lo esta siguiendo al material o no
-    $.ajax({
-        url: "/dashboard/get/follow/material/"+result.id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            if ( json != null )
-            {
-                // Si es diferente a null se mostrará el dejar de seguir
-                $('#show-btn-follow').hide();
-                $('#show-btn-unfollow').show();
-                $('#btn-unfollow').attr('data-unfollow', result.id);
-            } else {
-                // Se mostrara el seguir
-                $('#show-btn-follow').show();
-                $('#btn-follow').attr('data-follow', result.id);
-                $('#show-btn-unfollow').hide();
-            }
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 
     $.ajax({
         url: "/dashboard/get/items/output/complete/"+result.id,
@@ -821,26 +650,7 @@ function addItemsScrap() {
     $('#show-btn-follow').hide();
     $('#show-btn-unfollow').hide();
     // TODO: Agregamos la logica de preguntar si lo esta siguiendo al material o no
-    $.ajax({
-        url: "/dashboard/get/follow/material/"+result.id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            if ( json != null )
-            {
-                // Si es diferente a null se mostrará el dejar de seguir
-                $('#show-btn-follow').hide();
-                $('#show-btn-unfollow').show();
-                $('#btn-unfollow').attr('data-unfollow', result.id);
-            } else {
-                // Se mostrara el seguir
-                $('#show-btn-follow').show();
-                $('#btn-follow').attr('data-follow', result.id);
-                $('#show-btn-unfollow').hide();
-            }
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 
     $.ajax({
         url: "/dashboard/get/items/output/scraped/"+result.id,
@@ -1012,26 +822,7 @@ function addItemsCustom() {
     $('#show-btn-follow').hide();
     $('#show-btn-unfollow').hide();
     // TODO: Agregamos la logica de preguntar si lo esta siguiendo al material o no
-    $.ajax({
-        url: "/dashboard/get/follow/material/"+result.id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            console.log(json);
-            if ( json != null )
-            {
-                // Si es diferente a null se mostrará el dejar de seguir
-                $('#show-btn-follow').hide();
-                $('#show-btn-unfollow').show();
-                $('#btn-unfollow').attr('data-unfollow', result.id);
-            } else {
-                // Se mostrara el seguir
-                $('#show-btn-follow').show();
-                $('#btn-follow').attr('data-follow', result.id);
-                $('#show-btn-unfollow').hide();
-            }
-        }
-    });
+    /* FOLLOW-01: consulta/acción legacy de seguimiento retirada. */
 
     $modalAddItemsCustom.modal('show');
 }

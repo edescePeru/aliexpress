@@ -10,6 +10,8 @@ class ContactName extends Model
 {
     use SoftDeletes, BelongsToTenant;
 
+    protected $hidden = ['customer_deletion_batch'];
+
     protected $fillable = [
         'tenant_id',
         'code',

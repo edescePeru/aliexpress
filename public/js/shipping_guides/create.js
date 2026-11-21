@@ -308,45 +308,76 @@
     // =========================
     // Submit
     // =========================
-    function submitGuide() {
+    let guideSubmissionLocked = false;
+
+    function guideResultRedirect(code, reference) {
+        const url = new URL(window.routes.index, window.location.href);
+        url.searchParams.set('gre_result', code);
+        if (typeof reference === 'string' && /^[a-f0-9]{24}$/.test(reference)) {
+            url.searchParams.set('gre_ref', reference);
+        }
+        window.location.href = url.toString();
+    }
+
+    function submitGuide(event) {
+        if (event) event.preventDefault();
+        if (guideSubmissionLocked) return;
+        guideSubmissionLocked = true;
+        const $btn = $('#btnSubmitGuide');
+        const originalHtml = $btn.html();
+        let requestStarted = false;
+        let navigating = false;
+        function restoreButton() {
+            guideSubmissionLocked = false;
+            $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
+        }
         $.confirm({
             title: 'Confirmación',
             content: '¿Crear y enviar la guía a Nubefact/SUNAT?',
+            onClose: function () {
+                if (!requestStarted) restoreButton();
+            },
             buttons: {
                 Si: {
                     btnClass: 'btn-success',
                     action: function () {
-                        var $btn = $('#btnSubmitGuide');
-                        $btn.prop('disabled', true);
-
+                        if (requestStarted) return;
+                        requestStarted = true;
+                        $btn.prop('disabled', true).attr('aria-busy', 'true')
+                            .html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Enviando…');
                         $.ajax({
                             url: window.routes.store,
                             method: 'POST',
                             data: $('#frmGuide').serialize()
                         }).done(function (res) {
-                            toastr.success(res.message || 'Guía creada');
-                            window.location.href = window.routes.index;
+                            navigating = true;
+                            let result = 'uncertain';
+                            if (res.replayed) result = 'existing';
+                            else if (res.status === 'ACCEPTED') result = 'accepted';
+                            else if (res.status === 'PENDING_SUNAT') result = 'pending';
+                            else if (res.status === 'REJECTED') result = 'rejected';
+                            $btn.html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Abriendo listado…');
+                            guideResultRedirect(result, res.diagnostic_reference);
                         }).fail(function (xhr) {
                             const response = xhr.responseJSON || {};
-                            if (response.status === 'SENT' && response.data && response.data.id) {
-                                window.location.href = window.routes.index;
+                            if (response.persisted === true || response.status === 'SENT') {
+                                navigating = true;
+                                guideResultRedirect('uncertain', response.diagnostic_reference);
                                 return;
                             }
                             if (xhr.status === 422) {
-                                var errs = (xhr.responseJSON && xhr.responseJSON.errors) ? xhr.responseJSON.errors : {};
-                                var msg = '';
-                                Object.keys(errs).forEach(function (k) {
-                                    msg += (errs[k][0] || '') + '<br>';
-                                });
-                                toastr.error(msg || response.message || 'Validación fallida');
+                                const errors = response.errors || {};
+                                const messages = Object.keys(errors).map(function (key) { return errors[key][0] || ''; });
+                                toastr.error(messages.join(' ') || response.message || 'Revisa los datos de la guía.', null, {escapeHtml: true});
+                            } else if ([401, 403, 419].includes(xhr.status) || response.persisted === false) {
+                                toastr.error(response.message || 'Revisa tu sesión y permisos antes de volver a intentar.', null, {escapeHtml: true});
                             } else {
-                                var res = xhr.responseJSON || {};
-                                var msg2 = res.detail || res.message || 'Error inesperado';
-
-                                toastr.error(msg2);
+                                // Un timeout o error sin confirmación puede haber guardado/enviado la guía.
+                                navigating = true;
+                                guideResultRedirect('uncertain', response.diagnostic_reference);
                             }
                         }).always(function () {
-                            $btn.prop('disabled', false);
+                            if (!navigating) restoreButton();
                         });
                     }
                 },

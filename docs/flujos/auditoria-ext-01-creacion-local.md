@@ -1,0 +1,11 @@
+# EXT-01 — Store local MANUAL/SALE y persistencia
+
+20/11/2026. Transporte HTTP anterior instalado completo: documento idéntico y suite interceptada aprobada otra vez. No había cambios de aplicación que instalar.
+
+Se agrupa prueba del store instalado, llamado directamente con Request y Validator reales. SQLite privado con esquemas reducidos y modelos/relaciones Eloquent reales. Catálogo devuelve una consulta privada de StockItem, conexión devuelve configuración fija de prueba y proveedor simula aceptación/timeout. Ninguna llamada externa, credencial real ni escritura ERP.
+
+Casos aprobados: manual público crea cabecera/línea/vehículo, usa numeración inicial y contexto servidor; privado crea conductor/vehículo secundario; proveedor se llama después de cerrar transacción local; misma clave retorna replay antes de validar nuevo contenido y no renumera/reenvía; contexto/cliente/producto incompatible no guarda ni envía; timeout posterior al commit conserva guía y persisted=true; retry con misma clave tras timeout no reenvía; fallo al crear línea revierte cabecera/línea/vehículo sin llamar proveedor; transacciones cerradas. SALE persiste vínculo y cantidad desde detalle; ventas ajenas/anuladas rechazadas sin guardar/enviar.
+
+Límites: la llamada directa no recorre autenticación, permisos, middleware ni ciclo HTTP completo. Las reglas de Request sí se ejercitan mediante macro privada de validate. Catálogo/conexión están sustituidos; no certifica reglas completas de PosCatalogReadService ni configuración real. Esquemas reducidos no reproducen todas las restricciones MySQL. No se prueba presentación histórica, venta con packs, todos los campos/conductores, rechazo SUNAT real, concurrencia ni duplicidad remota tras timeout. Crear con clave distinta puede producir otra guía; la idempotencia por clave no es deduplicación de contenido.
+
+Estado EXT-01 parcialmente atendido, creación local ampliada en bloque sin corrección nueva para los casos probados. Pendientes formulario/roles/contexto por HTTP, catálogo real, presentaciones y sandbox proveedor con PDF/XML/CDR, más concurrencia MySQL. Mantener el cierre global pendiente hasta esa evidencia. QA-01/02/03/04 y DATA-01 conservan sus propios pendientes.

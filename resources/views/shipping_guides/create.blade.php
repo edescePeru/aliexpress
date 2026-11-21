@@ -74,6 +74,7 @@
                 @endif
                 <form id="frmGuide">
                     @csrf
+                    <input type="hidden" name="emission_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
                 <input type="hidden" name="gre_tenant" value="{{ \App\Support\TenantContext::tenantId() }}">
                 <input type="hidden" name="gre_company" value="{{ \App\Support\TenantContext::companyId() }}">
                 <input type="hidden" name="gre_branch" value="{{ \App\Support\TenantContext::branchId() }}">

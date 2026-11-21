@@ -678,6 +678,9 @@ class ConfigUserWebController extends Controller
             }
         }
 
+        $avatarFiles = app(\App\Services\UserAvatarFiles::class);
+        $oldImage = $user->image;
+        $newImage = null;
         DB::beginTransaction();
 
         try {
@@ -692,68 +695,11 @@ class ConfigUserWebController extends Controller
              * Imagen.
              */
             if ($request->file('image')) {
-
-                $path =
-                    public_path(
-                        'images/users/'
-                    );
-
-                if (!file_exists($path)) {
-                    mkdir(
-                        $path,
-                        0755,
-                        true
-                    );
-                }
-
-                $extension =
-                    $request
-                        ->file('image')
-                        ->getClientOriginalExtension();
-
-                $filename =
-                    $user->id .
-                    '.' .
-                    $extension;
-
-                if (
-                    $user->image &&
-                    $user->image !==
-                    'no_image.png'
-                ) {
-                    $oldImagePath =
-                        $path .
-                        $user->image;
-
-                    if (
-                    file_exists(
-                        $oldImagePath
-                    )
-                    ) {
-                        unlink(
-                            $oldImagePath
-                        );
-                    }
-                }
-
-                $request
-                    ->file('image')
-                    ->move(
-                        $path,
-                        $filename
-                    );
-
-                $user->image =
-                    $filename;
-
-            } elseif (
-            !$user->image
-            ) {
-
-                $user->image =
-                    'no_image.png';
+                $newImage = $avatarFiles->store($user, $request->file('image'));
+                $user->image = $newImage;
+            } elseif (!$user->image) {
+                $user->image = 'no_image.png';
             }
-
             $user->save();
 
             if (!$user->is_tenant_owner) {
@@ -823,6 +769,9 @@ class ConfigUserWebController extends Controller
         } catch (\Throwable $e) {
 
             DB::rollBack();
+            if ($newImage !== null) {
+                try { $avatarFiles->discard($user, $newImage); } catch (\Throwable $cleanup) { report($cleanup); }
+            }
 
             report($e);
 
@@ -830,6 +779,10 @@ class ConfigUserWebController extends Controller
                 'message' =>
                     'No se pudo actualizar el usuario.'
             ], 422);
+        }
+
+        if ($newImage !== null && $oldImage !== $newImage) {
+            try { $avatarFiles->discard($user, $oldImage); } catch (\Throwable $cleanup) { report($cleanup); }
         }
 
         return response()->json([

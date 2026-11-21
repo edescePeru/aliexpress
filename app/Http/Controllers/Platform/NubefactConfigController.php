@@ -65,7 +65,7 @@ class NubefactConfigController extends Controller
             'serie_nc_boleta' => ['nullable', 'regex:/^B[A-Z0-9]{3}$/'],
             'serie_gre_remitente' => ['nullable', 'required_with:gre_remitente_numero_inicial', 'regex:/\AT[A-Z0-9]{3}\z/'],
             'gre_remitente_numero_inicial' => ['nullable', 'required_with:serie_gre_remitente', 'integer', 'between:1,99999999'],
-            'version' => ['nullable', 'string', 'max:40'],
+            'version' => ['nullable', 'string', 'max:64'],
         ]);
         $validator->after(function ($validator) use ($request) {
             if (!is_string($request->input('api_url'))) {
@@ -97,7 +97,7 @@ class NubefactConfigController extends Controller
                 $config = CompanyNubefactConfig::withoutGlobalScope(TenantScope::class)->where('tenant_id', $lockedCompany->tenant_id)
                     ->where('company_id', $lockedCompany->id)->lockForUpdate()->first();
                 $created = $config === null;
-                $actualVersion = $config ? (string) $config->updated_at : '';
+                $actualVersion = $config ? $config->configurationVersion() : '';
                 if ((string) ($data['version'] ?? '') !== $actualVersion) {
                     throw ValidationException::withMessages([
                         'version' => 'La configuración cambió desde que abrió el formulario. Recargue antes de guardar.',

@@ -18,7 +18,9 @@ class InventoryCostService
      */
     public function getAverageCostsUpToDate(array $materialIds, $date): array
     {
-        $materialIds = array_values(array_unique(array_map('intval', $materialIds)));
+        $this->context();
+        $materialIds = $this->ids($materialIds);
+        $this->materials($materialIds);
 
         if (empty($materialIds)) {
             return [];
@@ -28,7 +30,7 @@ class InventoryCostService
         $dateStr = $date->toDateString();
 
         // Movimientos hasta la fecha para todos los materiales
-        $movements = InventoryMovement::whereIn('material_id', $materialIds)
+        $movements = $this->movements()->whereIn('inventory_movements_view.material_id', $materialIds)
             ->whereDate('movement_date', '<=', $dateStr)
             ->orderBy('material_id')
             ->orderBy('movement_date')
@@ -89,7 +91,7 @@ class InventoryCostService
      */
     public function getAverageCostUpToDate($materialId, $date)
     {
-        $result = $this->getAverageCostsUpToDate([(int)$materialId], $date);
+        $result = $this->getAverageCostsUpToDate([$materialId], $date);
         return (float) ($result[$materialId] ?? 0.0);
     }
 
@@ -98,31 +100,17 @@ class InventoryCostService
         $upToDate = null
     ): array
     {
-        $stockItemIds = array_values(
-            array_unique(
-                array_map(
-                    'intval',
-                    $stockItemIds
-                )
-            )
-        );
-
-        if (empty($stockItemIds)) {
-            return [];
+        $this->context();
+        $stockItemIds = $this->ids($stockItemIds);
+        if (empty($stockItemIds)) { return []; }
+        $valid = \Illuminate\Support\Facades\DB::table('stock_items as cost_stock')
+            ->join('materials as cost_material', function ($j) {
+                $j->on('cost_material.id', '=', 'cost_stock.material_id')->where('cost_material.tenant_id', TenantContext::tenantId());
+            })->where('cost_stock.tenant_id', TenantContext::tenantId())->whereIn('cost_stock.id', $stockItemIds)->count();
+        if ($valid !== count($stockItemIds)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['stock_item_id'=>'Hay productos que no pertenecen al tenant actual o tienen un material incompatible.']);
         }
-
-        $companyId =
-            TenantContext::companyId();
-
-        $query = InventoryMovement::query()
-            ->where(
-                'company_id',
-                $companyId
-            )
-            ->whereIn(
-                'stock_item_id',
-                $stockItemIds
-            );
+        $query = $this->movements()->whereIn('inventory_movements_view.stock_item_id', $stockItemIds);
 
         if ($upToDate) {
             $date = $upToDate instanceof Carbon
@@ -203,8 +191,53 @@ class InventoryCostService
 
     public function getAverageCostByStockItem($stockItemId): float
     {
-        $result = $this->getAverageCostsByStockItem([(int) $stockItemId]);
+        $result = $this->getAverageCostsByStockItem([$stockItemId]);
 
         return (float) ($result[$stockItemId] ?? 0.0);
     }
+    private function context(): void
+    {
+        // El promedio de este servicio sigue siendo de empresa, no de una sucursal.
+        app(\App\Services\Materials\MaterialParameters::class)->context();
+    }
+
+    private function ids(array $ids): array
+    {
+        $result = [];
+        foreach ($ids as $id) {
+            if ((!is_int($id) && !is_string($id)) || !preg_match('/^[1-9][0-9]*$/D', (string)$id)
+                || filter_var($id, FILTER_VALIDATE_INT) === false) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['ids'=>'Los identificadores deben ser enteros positivos válidos.']);
+            }
+            $result[(int)$id] = (int)$id;
+        }
+        return array_values($result);
+    }
+
+    private function materials(array $ids): void
+    {
+        if (!$ids) { return; }
+        $count = \Illuminate\Support\Facades\DB::table('materials')->where('tenant_id', TenantContext::tenantId())->whereIn('id',$ids)->count();
+        if ($count !== count($ids)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['material_id'=>'Hay materiales que no pertenecen al tenant actual.']);
+        }
+    }
+
+    private function movements()
+    {
+        return InventoryMovement::query()->where('inventory_movements_view.tenant_id', TenantContext::tenantId())
+            ->where('inventory_movements_view.company_id', TenantContext::companyId())
+            ->whereExists(function ($q) {
+                $q->selectRaw('1')->from('warehouses as cost_warehouse')
+                    ->whereColumn('cost_warehouse.id','inventory_movements_view.warehouse_id')
+                    ->where('cost_warehouse.tenant_id',TenantContext::tenantId())->where('cost_warehouse.company_id',TenantContext::companyId());
+            })
+            ->whereExists(function ($q) {
+                $q->selectRaw('1')->from('locations as cost_location')
+                    ->whereColumn('cost_location.id','inventory_movements_view.location_id')
+                    ->whereColumn('cost_location.warehouse_id','inventory_movements_view.warehouse_id')
+                    ->where('cost_location.tenant_id',TenantContext::tenantId())->where('cost_location.company_id',TenantContext::companyId());
+            });
+    }
+
 }

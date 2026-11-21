@@ -34,7 +34,15 @@ trait ScopedSupplierCreditCompany
                 }
                 if (!$model->$field) { continue; }
                 $hasSource = true;
-                $parent = $class::withTrashed()->where('tenant_id', $tenant)->where('company_id', $company)->find($model->$field);
+                $parentQuery = $class::withTrashed()->where('tenant_id', $tenant)->where('company_id', $company);
+                $newFinanceLink = $field === 'order_purchase_finance_id' && (!$model->exists || !$model->getOriginal($field));
+                if ($newFinanceLink) {
+                    if (\Illuminate\Support\Facades\DB::transactionLevel() < 1) {
+                        $model->invalidCredit('La creación del crédito financiero requiere una operación transaccional.');
+                    }
+                    $parentQuery->lockForUpdate();
+                }
+                $parent = $parentQuery->find($model->$field);
                 if (!$parent || (string) $parent->supplier_id !== (string) $model->supplier_id) {
                     $model->invalidCredit('El origen del crédito no pertenece a esta empresa/proveedor.');
                 }

@@ -156,43 +156,106 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
     private function resolveFormaPago($sale): string
     {
-        // Seleccionar el PRIMER movimiento (por id ascendente)
-        $mv = $sale->cashMovements->sortBy('created_at')->first();
+        $labels = [];
+        $active = [];
+        $inactive = [];
+        $movements = $sale->cashMovements->keyBy('id');
+        foreach ($sale->partialPayments as $payment) {
+            if ((int) $payment->sale_id !== (int) $sale->id
+                || (int) $payment->tenant_id !== (int) $sale->tenant_id
+                || (int) $payment->company_id !== (int) $sale->company_id
+                || (int) $payment->branch_id !== (int) $sale->branch_id
+                || !$payment->cash_movement_id) {
+                continue;
+            }
+            $id = (int) $payment->cash_movement_id;
+            if ((int) $payment->state !== 1) {
+                $inactive[$id] = true;
+                continue;
+            }
+            $active[$id] = true;
+            $movement = $payment->cashMovement;
+            if ($movement && (int) $movement->id === $id) {
+                $movements->put($id, $movement);
+            }
+        }
+        foreach ($movements->sortBy('id') as $movement) {
+            $id = (int) $movement->id;
+            $direct = (int) $movement->sale_id === (int) $sale->id;
+            $partial = $movement->sale_id === null && isset($active[$id]);
+            if ((!$direct && !$partial) || isset($inactive[$id])
+                || (int) $movement->tenant_id !== (int) $sale->tenant_id
+                || (int) $movement->company_id !== (int) $sale->company_id
+                || (int) $movement->branch_id !== (int) $sale->branch_id
+                || !in_array($movement->type, ['sale', 'income'], true)
+                || $movement->cash_movement_origin_id
+                || $movement->regularization_source_id
+                || $movement->deferred_cancelled_at) {
+                continue;
+            }
 
-        if (!$mv) return 'N/D';
-
-        // Si tiene subtipo (yape/plin/transferencia/etc)
-        if (!empty($mv->cash_box_subtype_id)) {
-            return (string)(optional($mv->cashBoxSubtype)->name ?? 'N/D');
+            $label = 'N/D';
+            $box = $movement->cashBox;
+            if (!$box && $movement->cash_register_id) {
+                $register = $movement->cashRegister;
+                if ($register
+                    && (int) $register->tenant_id === (int) $sale->tenant_id
+                    && (int) $register->company_id === (int) $sale->company_id
+                    && (int) $register->branch_id === (int) $sale->branch_id) {
+                    $box = $register->cashBox;
+                }
+            }
+            if ($box
+                && (int) $box->tenant_id === (int) $sale->tenant_id
+                && (int) $box->company_id === (int) $sale->company_id
+                && ($box->branch_id === null || (int) $box->branch_id === (int) $sale->branch_id)) {
+                if ($movement->cash_box_subtype_id) {
+                    $subtype = $movement->cashBoxSubtype;
+                    if ($subtype
+                        && (int) $subtype->tenant_id === (int) $sale->tenant_id
+                        && (int) $subtype->company_id === (int) $sale->company_id
+                        && (int) $subtype->cash_box_id === (int) $box->id) {
+                        $label = trim((string) $subtype->name) ?: 'N/D';
+                    }
+                } else {
+                    $label = trim((string) $box->name) ?: 'N/D';
+                }
+            }
+            $labels[$label] = $label;
         }
 
-        // Si no tiene subtipo => efectivo o bancario por CashBox name
-        $cashBoxName = optional(optional($mv->cashRegister)->cashBox)->name;
-        return $cashBoxName ?: 'Efectivo';
+        if (!$labels) {
+            return 'N/D';
+        }
+        return count($labels) > 1 ? 'Mixto: ' . implode(' / ', $labels) : reset($labels);
     }
 
     private function resolvePresentacion($detail): string
     {
+        $snapshot = trim((string) $detail->presentation_label_snapshot);
+        $units = (int) $detail->units_per_pack;
+
+        // La presentación guardada en la venta tiene prioridad sobre el catálogo actual.
+        if ($detail->packs !== null || $snapshot !== '') {
+            $label = $snapshot !== '' ? $snapshot : 'Paquete';
+            return $units > 0 ? $label . ' (' . $units . ' und)' : $label;
+        }
+
         if (empty($detail->material_presentation_id)) {
             return 'UND';
         }
 
-        $presentation = $detail->materialPresentation ?? null;
-
-        if (!$presentation) {
+        // Compatibilidad con ventas antiguas sin snapshot.
+        $presentation = $detail->materialPresentation;
+        if (!$presentation
+            || (int) $presentation->tenant_id !== (int) $detail->tenant_id
+            || (int) $presentation->material_id !== (int) $detail->material_id) {
             return 'SET';
         }
 
-        // Si algún día usan label, lo toma automáticamente
-        $label = trim($presentation->label ?? '');
-
-        if ($label === '') {
-            $label = 'SET';
-        }
-
-        $qtyUnd = (int)$presentation->quantity;
-
-        return $label . ' (' . $qtyUnd . ' und)';
+        $label = trim((string) $presentation->label);
+        $label = $label !== '' ? $label : 'SET';
+        return $label . ' (' . (int) $presentation->quantity . ' und)';
     }
 
     private function resolveDescripcionO($detail): string
@@ -240,13 +303,7 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
 
     public function columnFormats(): array
     {
-        return [
-            'J' => '#,##0.00', // PUV
-            'K' => '#,##0.00', // PTV
-            'L' => '#,##0.00', // PUC
-            'M' => '#,##0.00', // PUCT
-            'N' => '#,##0.00', // GANANCIA
-        ];
+        return array_fill_keys(['K', 'L', 'M', 'N', 'O'], '#,##0.00########');
     }
 
     public function collection(): Collection
@@ -292,11 +349,11 @@ class GananciaVentasDetalladoExport implements FromCollection, WithHeadings, Sho
                     $qty,
                     $this->resolvePresentacion($detail),
                     $this->resolveDescripcion($detail),
-                    round($puv, 2),
-                    round($ptv, 2),
-                    $unitCost === null ? 'Sin costo registrado' : round($unitCost, 2),
-                    $totalCost === null ? 'Sin costo registrado' : round($totalCost, 2),
-                    $ganancia === null ? 'Sin costo registrado' : round($ganancia, 2),
+                    $puv,
+                    $ptv,
+                    $unitCost === null ? 'Sin costo registrado' : $unitCost,
+                    $totalCost === null ? 'Sin costo registrado' : $totalCost,
+                    $ganancia === null ? 'Sin costo registrado' : $ganancia,
                 ]);
             }
         }

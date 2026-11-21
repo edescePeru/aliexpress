@@ -29,6 +29,17 @@ class ShippingGuideController extends Controller
     public function __construct(NubefactGreService $nubefact)
     {
         $this->nubefact = $nubefact;
+        $this->middleware('permission:list_referralGuide')->only(['viewIndex', 'index', 'show']);
+        $this->middleware('permission:create_referralGuide')->only(['create', 'store', 'customerPayload', 'products', 'saleItems', 'select2', 'items']);
+        $this->middleware('permission:edit_referralGuide')->only(['consultNubefact']);
+        $this->middleware('permission:download_referralGuide')->only(['exportExcel']);
+        $this->middleware(function ($request, $next) {
+            $tenant = TenantContext::tenantIdOrNull(); $company = TenantContext::companyIdOrNull(); $branch = TenantContext::branchIdOrNull();
+            abort_unless($tenant && $company && $branch, 403, 'Selecciona empresa y local para operar guías.');
+            abort_unless(\App\Company::where('tenant_id', $tenant)->whereKey($company)->exists()
+                && \App\Branch::where('company_id', $company)->whereKey($branch)->exists(), 403, 'El contexto de empresa y local no es válido.');
+            return $next($request);
+        });
     }
 
     private function customers()
@@ -86,37 +97,17 @@ class ShippingGuideController extends Controller
 
     public function index(Request $request)
     {
+        $filters = \App\Services\ShippingGuideFilters::listing($request);
         $query = ShippingGuide::forCurrentLocal()
-            ->where('shipping_guides.tipo_de_comprobante', 7) // SOLO REMITENTE
+            ->where('shipping_guides.tipo_de_comprobante', 7)
             ->leftJoin('transfer_reasons', 'transfer_reasons.code', '=', 'shipping_guides.motivo_traslado_code')
             ->orderByDesc('shipping_guides.id')
-            ->select([
-                'shipping_guides.*',
-                DB::raw("COALESCE(transfer_reasons.name, shipping_guides.motivo_traslado_code) as motivo_traslado_name"),
-            ]);
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('shipping_guides.fecha_emision', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('shipping_guides.fecha_emision', '<=', $request->date_to);
-        }
-
-        if ($request->filled('buscar_doc')) {
-            $buscar = trim($request->buscar_doc);
-
-            if (strpos($buscar, '-') !== false) {
-                [$serie, $numero] = array_map('trim', explode('-', $buscar, 2));
-
-                $query->where('shipping_guides.serie', $serie)
-                    ->where('shipping_guides.numero', $numero);
-            }
-        }
-
-        return response()->json([
-            'data' => $query->paginate(20),
-        ]);
+            ->select(['shipping_guides.*', DB::raw("COALESCE(transfer_reasons.name, shipping_guides.motivo_traslado_code) as motivo_traslado_name")]);
+        if ($filters['date_from']) { $query->whereDate('shipping_guides.fecha_emision', '>=', $filters['date_from']); }
+        if ($filters['date_to']) { $query->whereDate('shipping_guides.fecha_emision', '<=', $filters['date_to']); }
+        if ($filters['serie'] !== null) { $query->where('shipping_guides.serie', $filters['serie']); }
+        if ($filters['numero'] !== null) { $query->where('shipping_guides.numero', $filters['numero']); }
+        return response()->json(['data' => $query->paginate(20, ['*'], 'page', $filters['page'])]);
     }
 
     public function viewIndex()
@@ -188,11 +179,31 @@ class ShippingGuideController extends Controller
 
     public function store(Request $request)
     {
+        $normalized = ['vehicle_primary_plate' => \App\Services\GreVehiclePlate::normalize($request->input('vehicle_primary_plate'))];
+        $secondaryVehicles = $request->input('vehicles_secondary');
+        if (is_array($secondaryVehicles)) {
+            foreach ($secondaryVehicles as &$vehicle) {
+                if (is_array($vehicle) && array_key_exists('plate_number', $vehicle)) {
+                    $vehicle['plate_number'] = \App\Services\GreVehiclePlate::normalize($vehicle['plate_number']);
+                }
+            }
+            unset($vehicle);
+            $normalized['vehicles_secondary'] = $secondaryVehicles;
+        }
+        $request->merge($normalized);
+
         foreach (['tenant' => TenantContext::tenantId(), 'company' => TenantContext::companyId(),
             'branch' => TenantContext::branchId()] as $key => $expected) {
             if ((string) $request->input('gre_'.$key, '') !== (string) $expected) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['context' => 'Cambió el contexto. Vuelva a abrir el formulario.']);
             }
+        }
+
+        $operation = $request->validate(['emission_key' => ['required', 'uuid']]);
+        $emissionKey = strtolower($operation['emission_key']);
+        $existing = \App\Services\ShippingGuideEmission::existing($emissionKey);
+        if ($existing) {
+            return \App\Services\ShippingGuideEmission::replay($existing);
         }
 
         $data = $request->validate(
@@ -340,7 +351,7 @@ class ShippingGuideController extends Controller
                     'transportista_doc_type'   => ['required', 'string', Rule::in(['6']), Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                     'transportista_doc_number' => ['required', 'string', 'max:20'],
                     'transportista_name'       => ['required', 'string', 'max:200'],
-                    'vehicle_primary_plate'    => ['required', 'string', 'max:20'],
+                    'vehicle_primary_plate'    => ['required', 'string', 'regex:/^[A-Z0-9]{6,8}$/D'],
                 ],
                 [
                     'transportista_doc_type.required' => 'El tipo de documento del transportista es obligatorio.',
@@ -349,7 +360,7 @@ class ShippingGuideController extends Controller
                     'transportista_name.required' => 'La razón social del transportista es obligatoria.',
                     'transportista_name.max'      => 'La razón social del transportista no debe exceder 200 caracteres.',
                     'vehicle_primary_plate.required' => 'La placa del vehículo principal es obligatoria.',
-                    'vehicle_primary_plate.max'      => 'La placa del vehículo principal no debe exceder 20 caracteres.',
+                    'vehicle_primary_plate.regex'      => 'La placa principal debe tener de 6 a 8 letras mayúsculas o números, sin guiones ni espacios.',
                 ]
             );
 
@@ -357,7 +368,7 @@ class ShippingGuideController extends Controller
 
             $request->validate(
                 [
-                    'vehicle_primary_plate' => ['required', 'string', 'max:20'],
+                    'vehicle_primary_plate' => ['required', 'string', 'regex:/^[A-Z0-9]{6,8}$/D'],
 
                     'driver_primary.document_type_code' => ['required', 'string', 'max:2', Rule::exists('identity_document_types', 'code')->where('is_active', true)],
                     'driver_primary.document_number'    => ['required', 'string', 'max:20'],
@@ -366,7 +377,7 @@ class ShippingGuideController extends Controller
                     'driver_primary.license_number'     => ['required', 'string', 'max:30'],
 
                     'vehicles_secondary' => ['nullable', 'array', 'max:2'],
-                    'vehicles_secondary.*.plate_number' => ['required', 'string', 'max:20'],
+                    'vehicles_secondary.*.plate_number' => ['required', 'string', 'regex:/^[A-Z0-9]{6,8}$/D'],
 
                     'drivers_secondary' => ['nullable', 'array', 'max:2'],
                     'drivers_secondary.*.document_type_code' => ['required', 'string', 'max:2', Rule::exists('identity_document_types', 'code')->where('is_active', true)],
@@ -377,7 +388,7 @@ class ShippingGuideController extends Controller
                 ],
                 [
                     'vehicle_primary_plate.required' => 'La placa del vehículo principal es obligatoria.',
-                    'vehicle_primary_plate.max'      => 'La placa del vehículo principal no debe exceder 20 caracteres.',
+                    'vehicle_primary_plate.regex'      => 'La placa principal debe tener de 6 a 8 letras mayúsculas o números, sin guiones ni espacios.',
 
                     'driver_primary.document_type_code.required' => 'Debes seleccionar el tipo de documento del conductor.',
                     'driver_primary.document_number.required'    => 'El número de documento del conductor es obligatorio.',
@@ -393,7 +404,7 @@ class ShippingGuideController extends Controller
                     'vehicles_secondary.array' => 'El formato de vehículos secundarios no es válido.',
                     'vehicles_secondary.max'   => 'Solo se permiten hasta 2 vehículos secundarios.',
                     'vehicles_secondary.*.plate_number.required' => 'La placa del vehículo secundario es obligatoria.',
-                    'vehicles_secondary.*.plate_number.max'      => 'La placa del vehículo secundario no debe exceder 20 caracteres.',
+                    'vehicles_secondary.*.plate_number.regex'      => 'La placa secundaria debe tener de 6 a 8 letras mayúsculas o números, sin guiones ni espacios.',
 
                     'drivers_secondary.array' => 'El formato de conductores secundarios no es válido.',
                     'drivers_secondary.max'   => 'Solo se permiten hasta 2 conductores secundarios.',
@@ -439,6 +450,14 @@ class ShippingGuideController extends Controller
 
             DB::table('companies')->where('tenant_id', TenantContext::tenantId())
                 ->where('id', TenantContext::companyId())->lockForUpdate()->first();
+            // Releer después del bloqueo: otro intento pudo confirmar mientras esperábamos.
+            $existing = \App\Services\ShippingGuideEmission::existing($emissionKey);
+            if ($existing) {
+                $guide = $existing;
+                DB::commit();
+                $persisted = true;
+                return \App\Services\ShippingGuideEmission::replay($existing);
+            }
             try {
                 $connection = app(\App\Services\NubefactCompanyConfigService::class)
                     ->forCompany(TenantContext::tenantId(), TenantContext::companyId());
@@ -464,6 +483,7 @@ class ShippingGuideController extends Controller
 
             // ====== Crear guía ======
             $guide = ShippingGuide::create([
+                'emission_key' => $emissionKey,
                 'tenant_id' => TenantContext::tenantId(),
                 'company_id' => TenantContext::companyId(),
                 'branch_id' => TenantContext::branchId(),
@@ -576,9 +596,7 @@ class ShippingGuideController extends Controller
 
                     $descripcion = $this->buildDetailDescription($detail);
 
-                    $cant = (!empty($detail->material_presentation_id))
-                        ? ((float)($detail->packs ?: 0))
-                        : ((float)($detail->quantity ?: 0));
+                    $cant = \App\Services\ShippingGuideSaleLine::quantity($detail);
 
                     if ($cant <= 0) {
                         throw new \RuntimeException('La venta tiene un item con cantidad 0. Revisa packs/quantity.');
@@ -639,48 +657,18 @@ class ShippingGuideController extends Controller
                 'status' => 'SENT', // <-- aquí
             ]);
 
+            $snapshot = \App\Services\ShippingGuideConsultation::snapshot($guide->fresh());
             DB::commit();
             $persisted = true;
 
             $resp = $this->nubefact->send($guide, $connection);
 
-            // Estado por SUNAT
-            $accepted = (bool)($resp['aceptada_por_sunat'] ?? false);
-
-            $soapError = trim((string)($resp['sunat_soap_error'] ?? ''));
-            $description = trim((string)($resp['sunat_description'] ?? ''));
-            $responseCode = trim((string)($resp['sunat_responsecode'] ?? ''));
-
-            // Detectar error real de SUNAT
-            $hasError = (!$accepted && ($soapError !== '' || $responseCode !== ''));
-
-            if ($accepted) {
-                $finalStatus = 'ACCEPTED';
-            } elseif ($hasError) {
-                $finalStatus = 'REJECTED';
-            } else {
-                $finalStatus = 'PENDING_SUNAT';
-            }
-
-            $guide->update([
-                'last_nubefact_response' => $resp,
-
-                'nubefact_enlace' => $resp['enlace'] ?? null,
-                'nubefact_accepted' => $accepted,
-
-                'sunat_description' => $resp['sunat_description'] ?? null,
-                'sunat_note' => $resp['sunat_note'] ?? null,
-                'sunat_responsecode' => $resp['sunat_responsecode'] ?? null,
-                'sunat_soap_error' => $resp['sunat_soap_error'] ?? null,
-
-                'pdf_link' => $resp['enlace_del_pdf'] ?? null,
-                'xml_link' => $resp['enlace_del_xml'] ?? null,
-                'cdr_link' => $resp['enlace_del_cdr'] ?? null,
-
-                // Primero se considera "enviada" -> SENT, pero como guardamos final en una sola, dejamos final
-                // Si quieres guardar el paso intermedio, podrías setear SENT antes y luego el final, pero no es necesario.
-                'status' => $finalStatus,
-            ]);
+            $result = \App\Services\ShippingGuideConsultation::apply($guide->id, $snapshot, $resp, true);
+            $guide = $result['guide'];
+            $resp = $result['response'];
+            $finalStatus = $guide->status;
+            $soapError = trim((string) ($resp['sunat_soap_error'] ?? ''));
+            $description = trim((string) ($resp['sunat_description'] ?? ''));
 
             $message = 'Guía creada y enviada correctamente.';
 
@@ -695,9 +683,10 @@ class ShippingGuideController extends Controller
 
             return response()->json([
                 'message' => $message,
+                'persisted' => true,
                 'status' => $finalStatus,
                 'data' => $guide->fresh(),
-                'nubefact' => $resp,
+                'nubefact' => \App\Services\ShippingGuideDocument::redactResponse($resp),
             ]);
 
         } catch (\Throwable $e) {
@@ -705,27 +694,29 @@ class ShippingGuideController extends Controller
                 if (DB::transactionLevel() > 0) {
                     DB::rollBack();
                 }
+                if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface && $e->getStatusCode() === 409) {
+                    throw $e;
+                }
                 return response()->json(['message' => 'No se pudo guardar la guía. Revise sus datos.'], 422);
             }
 
+            $diagnosticReference = \App\Services\ShippingGuideDiagnostic::record($e, 'generate', $guide);
+            $current = $guide->fresh();
+            $conflict = $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface && $e->getStatusCode() === 409;
             return response()->json([
-                'message' => 'La guía quedó guardada. Consulte su estado antes de intentar emitir otra.',
-                'status' => 'SENT',
-                'data' => $guide->fresh(),
-            ], 502);
+                'message' => 'La guía quedó guardada. Consulte su estado antes de intentar emitir otra.'
+                    . ($diagnosticReference ? ' Referencia de diagnóstico: '.$diagnosticReference : ''),
+                'diagnostic_reference' => $diagnosticReference,
+                'persisted' => true,
+                'status' => $current ? $current->status : null,
+                'data' => $current,
+            ], $conflict ? 409 : 502);
         }
     }
 
     public function exportExcel(Request $request)
     {
-        $data = $request->validate([
-            'date_from' => ['required', 'date'],
-            'date_to'   => ['required', 'date', 'after_or_equal:date_from'],
-        ], [
-            'date_from.required' => 'Selecciona la fecha "Desde".',
-            'date_to.required'   => 'Selecciona la fecha "Hasta".',
-            'date_to.after_or_equal' => 'La fecha "Hasta" no puede ser menor que "Desde".',
-        ]);
+        $data = \App\Services\ShippingGuideFilters::export($request);
 
         $from = $data['date_from'];
         $to   = $data['date_to'];
@@ -738,51 +729,31 @@ class ShippingGuideController extends Controller
     public function consultNubefact($id)
     {
         $guide = ShippingGuide::forCurrentLocal()->where('tipo_de_comprobante', 7)->findOrFail($id);
-
+        \App\Services\ShippingGuideIdentityConflict::assertUsable($guide);
+        if (\Illuminate\Support\Facades\Schema::hasTable('shipping_guide_recovery_attempts')) {
+            abort_if(DB::table('shipping_guide_recovery_attempts')->where('shipping_guide_id', $guide->id)->where('state', 'remote_found')->exists(), 409, 'Número remoto ocupado: compare identidades antes de importar documentos.');
+        }
+        $snapshot = \App\Services\ShippingGuideConsultation::snapshot($guide);
         try {
-            $connection = app(\App\Services\NubefactCompanyConfigService::class)->forCompany(
-                (int) $guide->tenant_id, (int) $guide->company_id
-            );
-            $resp = $this->nubefact->consult($guide->serie, $guide->numero, (int) $guide->tipo_de_comprobante, $connection);
-
-            // Estado según Nubefact/SUNAT
-            $accepted = (bool)($resp['aceptada_por_sunat'] ?? false);
-
-            $newStatus = $accepted ? 'ACCEPTED' : 'PENDING_SUNAT';
-
-            // Si SUNAT rechaza, a veces viene sunat_soap_error o sunat_description/responsecode
-            $soapError = trim((string)($resp['sunat_soap_error'] ?? ''));
-            $responseCode = $resp['sunat_responsecode'] ?? null;
-
-            if (!$accepted && $soapError !== '') {
-                $newStatus = 'REJECTED';
-            }
-
-            $guide->update([
-                'last_nubefact_response' => $resp,
-
-                'nubefact_enlace' => $resp['enlace'] ?? $guide->nubefact_enlace,
-                'nubefact_accepted' => $accepted,
-
-                'sunat_description' => $resp['sunat_description'] ?? null,
-                'sunat_note' => $resp['sunat_note'] ?? null,
-                'sunat_responsecode' => $responseCode,
-                'sunat_soap_error' => $soapError,
-
-                'pdf_link' => $resp['enlace_del_pdf'] ?? null,
-                'xml_link' => $resp['enlace_del_xml'] ?? null,
-                'cdr_link' => $resp['enlace_del_cdr'] ?? null,
-
-                'status' => $newStatus,
-            ]);
-
+            $connection = app(\App\Services\NubefactCompanyConfigService::class)->forCompany((int) $guide->tenant_id, (int) $guide->company_id);
+            $response = $this->nubefact->consult($guide->serie, $guide->numero, (int) $guide->tipo_de_comprobante, $connection);
+            $result = \App\Services\ShippingGuideConsultation::apply($guide->id, $snapshot, $response);
             return response()->json([
-                'message' => $accepted ? 'SUNAT aceptó la guía. Ya hay PDF/XML/CDR.' : 'Guía sigue pendiente en SUNAT.',
-                'data' => $guide->fresh(),
-                'nubefact' => $resp,
+                'message' => $result['accepted'] ? 'Estado actualizado: guía aceptada por SUNAT.' : 'Estado de la guía actualizado.',
+                'data' => $result['guide'],
+                'nubefact' => \App\Services\ShippingGuideDocument::redactResponse($result['response']),
             ]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            throw $e;
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'No se pudo consultar la guía en Nubefact.'], 502);
+            $diagnosticReference = \App\Services\ShippingGuideDiagnostic::record($e, 'consult', $guide);
+            return response()->json([
+                'message' => 'No se pudo actualizar la consulta. Se conservaron los datos guardados.'
+                    . ($diagnosticReference ? ' Referencia de diagnóstico: '.$diagnosticReference : ''),
+                'diagnostic_reference' => $diagnosticReference,
+            ], 502);
         }
     }
 
@@ -822,29 +793,7 @@ class ShippingGuideController extends Controller
 
     private function buildDetailDescription($saleDetail)
     {
-        // 🔥 1) Prioridad: stockItem
-        if ($saleDetail->stockItem) {
-            $name = $saleDetail->stockItem->display_name;
-        }
-        // 🔁 2) Fallback legacy
-        else {
-            $name = optional($saleDetail->material)->full_name
-                ?: ('MATERIAL #' . $saleDetail->material_id);
-        }
-
-        // 📦 3) Si hay presentación, agregar (X UND)
-        if (!empty($saleDetail->material_presentation_id) && $saleDetail->materialPresentation) {
-            $und = $saleDetail->materialPresentation->quantity;
-
-            if (!empty($und)) {
-                return $name . ' (' . $und . ' UND)';
-            }
-
-            return $name;
-        }
-
-        // 🟢 4) Sin presentación
-        return $name;
+        return \App\Services\ShippingGuideSaleLine::description($saleDetail);
     }
 
     public function saleItems(Request $request)
@@ -867,7 +816,7 @@ class ShippingGuideController extends Controller
             $items[] = [
                 'line' => $line++,
                 'descripcion' => $this->buildDetailDescription($detail),
-                'cantidad' => (float) ($detail->material_presentation_id ? $detail->packs : $detail->quantity),
+                'cantidad' => \App\Services\ShippingGuideSaleLine::quantity($detail),
                 'unidad_medida' => 'NIU',
             ];
         }
@@ -951,7 +900,7 @@ class ShippingGuideController extends Controller
         $items = [];
         $line = 1;
         foreach ($sale->details as $detail) {
-            $cant = (!empty($detail->material_presentation_id)) ? ($detail->packs ?: 0) : ($detail->quantity ?: 0);
+            $cant = \App\Services\ShippingGuideSaleLine::quantity($detail);
 
             $items[] = [
                 'line' => $line++,

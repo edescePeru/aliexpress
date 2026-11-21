@@ -163,7 +163,7 @@ class SupplierCreditController extends Controller
                 $credit->state_credit = 'paid_out';
                 if ($request->hasFile('image_paid')) {
                     $file = $request->file('image_paid');
-                    $directory = public_path('images/credits');
+                    $directory = \App\Services\Purchases\SupplierCreditAttachments::directory('paid');
                     if (!is_dir($directory)) { \Illuminate\Support\Facades\File::makeDirectory($directory, 0755, true); }
                     $pdf = $file->getMimeType() === 'application/pdf';
                     $filename = (string) \Illuminate\Support\Str::uuid().($pdf ? '.pdf' : '.jpg');
@@ -293,14 +293,29 @@ class SupplierCreditController extends Controller
     {
         if ($request->input('fechaPago') === '') { $request->merge(['fechaPago' => null]); }
         \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'montoPago' => ['required', 'numeric', 'min:0.01', 'regex:/^[0-9]+(?:\.[0-9]{1,2})?$/'],
+            'request_key' => ['required', 'uuid'],
+            'montoPago' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99', 'regex:/^[0-9]{1,10}(?:\.[0-9]{1,2})?$/'],
             'fechaPago' => ['nullable', 'date_format:d/m/Y'],
             'comprobantePago' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png'],
         ])->validate();
+        $key = strtolower($request->input('request_key'));
+        $date = $request->filled('fechaPago') ? Carbon::createFromFormat('d/m/Y', $request->input('fechaPago'))->toDateString() : null;
+        $fileHash = $request->hasFile('comprobantePago') ? hash_file('sha256', $request->file('comprobantePago')->getRealPath()) : null;
+        if ($fileHash === false) { throw new \RuntimeException('No se pudo verificar el comprobante.'); }
+        $hash = hash('sha256', json_encode([(int) $credit_id, \App\Services\Purchases\SupplierCreditMoney::cents($request->input('montoPago')), $date, $fileHash]));
         $createdFile = null;
         try {
-            $credit = DB::transaction(function () use ($request, $credit_id, &$createdFile) {
+            $result = DB::transaction(function () use ($request, $credit_id, &$createdFile, $key, $hash) {
                 $credit = SupplierCredit::lockForUpdate()->findOrFail($credit_id);
+                $tenant = \App\Support\TenantContext::tenantId();
+                $company = \App\Support\TenantContext::companyId();
+                $previous = DB::table('supplier_credit_payment_requests')->where('tenant_id', $tenant)
+                    ->where('company_id', $company)->where('request_key', $key)->lockForUpdate()->first();
+                if ($previous) {
+                    abort_unless((int) $previous->supplier_credit_id === (int) $credit->id && hash_equals($previous->payload_hash, $hash), 409, 'La referencia ya se utilizó con otros datos. Revisa el historial antes de iniciar otro abono.');
+                    abort_unless(CreditPay::where('supplier_credit_id', $credit->id)->whereKey($previous->credit_pay_id)->exists(), 409, 'El abono original fue retirado. No se volverá a crear al reintentar esta operación.');
+                    return ['credit' => $credit, 'payment_id' => (int) $previous->credit_pay_id, 'replayed' => true];
+                }
                 $pay = CreditPay::create([
                     'supplier_credit_id' => $credit->id,
                     'amount' => $request->input('montoPago'),
@@ -308,7 +323,7 @@ class SupplierCreditController extends Controller
                 ]);
                 if ($request->hasFile('comprobantePago')) {
                     $file = $request->file('comprobantePago');
-                    $directory = public_path('images/credits/pays');
+                    $directory = \App\Services\Purchases\SupplierCreditAttachments::directory('pays');
                     if (!is_dir($directory)) { \Illuminate\Support\Facades\File::makeDirectory($directory, 0755, true); }
                     $pdf = $file->getMimeType() === 'application/pdf';
                     $filename = (string) \Illuminate\Support\Str::uuid().($pdf ? '.pdf' : '.jpg');
@@ -318,14 +333,19 @@ class SupplierCreditController extends Controller
                     $pay->image = $filename;
                     $pay->save();
                 }
-                return $credit;
+                DB::table('supplier_credit_payment_requests')->insert([
+                    'tenant_id' => $tenant, 'company_id' => $company, 'request_key' => $key,
+                    'supplier_credit_id' => $credit->id, 'credit_pay_id' => $pay->id,
+                    'payload_hash' => $hash, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(),
+                ]);
+                return ['credit' => $credit, 'payment_id' => $pay->id, 'replayed' => false];
             });
         } catch (\Throwable $e) {
             // Únicamente el archivo nuevo de esta petición; nunca archivos históricos.
             if ($createdFile && is_file($createdFile)) { \Illuminate\Support\Facades\File::delete($createdFile); }
             throw $e;
         }
-        return response()->json(['message' => 'Pago registrado con éxito.', 'credit' => $credit], 200);
+        return response()->json(['message' => $result['replayed'] ? 'El abono ya estaba registrado.' : 'Pago registrado con éxito.', 'credit' => $result['credit'], 'payment_id' => $result['payment_id'], 'replayed' => $result['replayed']], 200);
     }
 
     public function deletePayCredit(Request $request, $credit_pay_id)
@@ -364,12 +384,12 @@ class SupplierCreditController extends Controller
         $pen = 0; $usd = 0; $legacy = 0;
         foreach ($credits as $credit) {
             $value = \App\Services\Purchases\SupplierCreditBalance::forCredit($credit);
-            $cents = (int) round($value['balance'] * 100);
-            if ($value['currency'] === 'PEN') { $pen += $cents; } else { $usd += $cents; }
+            $cents = $value['balance_cents'];
+            if ($value['currency'] === 'PEN') { $pen = \App\Services\Purchases\SupplierCreditMoney::add($pen, $cents); } else { $usd = \App\Services\Purchases\SupplierCreditMoney::add($usd, $cents); }
             if ($value['legacy_review']) { $legacy++; }
         }
         return response()->json([
-            'deudaSoles' => $pen / 100, 'deudaDolares' => $usd / 100,
+            'deudaSoles' => (float) \App\Services\Purchases\SupplierCreditMoney::decimal($pen), 'deudaDolares' => (float) \App\Services\Purchases\SupplierCreditMoney::decimal($usd),
             'legacyAdvancePendingReviewCount' => $legacy,
             'balanceSource' => 'credit_pays',
         ], 200);

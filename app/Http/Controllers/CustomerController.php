@@ -21,9 +21,7 @@ class CustomerController extends Controller
     public function index()
     {
         $customers = Customer::all();
-        $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
-
+        $permissions = Auth::user()->getAllPermissions()->pluck('name')->toArray();
         return view('customer.index', compact('customers', 'permissions'));
     }
 
@@ -179,42 +177,9 @@ class CustomerController extends Controller
 
     public function destroy(DeleteCustomerRequest $request)
     {
-        $validated = $request->validated();
-
-
-        $customer = Customer::findOrFail(
-            $request->get('customer_id')
-        );
-
-
-        DB::beginTransaction();
-
-        try {
-
-            /*
-             * CascadeSoftDeletes continuará aplicando
-             * el borrado lógico sobre contactNames.
-             */
-            $customer->delete();
-
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' =>
-                    $e->getMessage(),
-            ], 422);
-        }
-
-
-        return response()->json([
-            'message' =>
-                'Cliente eliminado con éxito.',
-        ], 200);
+        $data=$request->validated();
+        app(\App\Services\Customers\CustomerDeletionLifecycle::class)->deleteCustomer($data['customer_id']);
+        return response()->json(['message'=>'Cliente eliminado con éxito.'],200);
     }
 
     public function create()
@@ -269,49 +234,9 @@ class CustomerController extends Controller
 
     public function restore(RestoreCustomerRequest $request)
     {
-        $validated = $request->validated();
-
-
-        $customer = Customer::onlyTrashed()
-            ->where(
-                'id',
-                $request->get('customer_id')
-            )
-            ->firstOrFail();
-
-
-        DB::beginTransaction();
-
-        try {
-
-            $customer->restore();
-
-            /*
-             * Conservamos tu comportamiento actual.
-             */
-            $customer
-                ->contactNames()
-                ->onlyTrashed()
-                ->restore();
-
-
-            DB::commit();
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' =>
-                    $e->getMessage(),
-            ], 422);
-        }
-
-
-        return response()->json([
-            'message' =>
-                'Cliente restaurado con éxito.',
-        ], 200);
+        $data=$request->validated();
+        $result=app(\App\Services\Customers\CustomerDeletionLifecycle::class)->restoreCustomer($data['customer_id']);
+        return response()->json(['message'=>$result['legacy_without_batch'] ? 'Cliente restaurado. Los contactos históricos requieren recuperación individual porque no hay trazabilidad de su borrado.' : 'Cliente restaurado con sus contactos del mismo borrado.', 'restored_contacts'=>$result['restored_contacts'], 'legacy_without_batch'=>$result['legacy_without_batch']],200);
     }
 
     public function payload(Customer $customer)

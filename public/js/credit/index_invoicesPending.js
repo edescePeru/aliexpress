@@ -1374,7 +1374,7 @@ function showImagePreview() {
     var image = $(this).attr('data-image_comprobante');
     console.log(image);
 
-    var url = document.location.origin+ '/images/credits/pays/'+image;
+    var url = image;
 
     $('#imagePreview').attr('src', url);
     $('#zoom').trigger('zoom.destroy');
@@ -1387,122 +1387,73 @@ function showImagePreview() {
     $modalImageComprobante.modal('show');
 }
 
+var supplierCreditPaymentBusy = false;
+var supplierCreditPaymentDrafts = {};
+
+function supplierCreditNewRequestKey() {
+    if (!window.crypto || !window.crypto.getRandomValues) throw new Error('El navegador no permite iniciar esta operación.');
+    var bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    var hex = Array.from(bytes).map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+}
+
+function supplierCreditDraft(creditId) {
+    try { return JSON.parse(sessionStorage.getItem('supplier-credit-payment-'+creditId)) || supplierCreditPaymentDrafts[creditId]; }
+    catch (e) { return supplierCreditPaymentDrafts[creditId]; }
+}
+
+function supplierCreditStoreDraft(creditId, draft) {
+    supplierCreditPaymentDrafts[creditId] = draft;
+    try {
+        if (draft) sessionStorage.setItem('supplier-credit-payment-'+creditId, JSON.stringify(draft));
+        else sessionStorage.removeItem('supplier-credit-payment-'+creditId);
+    } catch (e) { /* El bloqueo de sesión no impide conservar la referencia en memoria. */ }
+}
+
 function savePayCredit() {
-    if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
-    $modalPays.modal('hide');
-    // Obtenemos los datos
-    var credit_id = $("#credito_id").val();
-    var montoPago = $("#montoPago").val();
-    var fechaPago = $("#fechaPago").val();
-
-    console.log(credit_id);
-    console.log(montoPago);
-    console.log(fechaPago);
-    //var comprobantePago = $('#comprobantePago').val();
-
-    var fileInput = $('#comprobantePago')[0].files[0];
-    var formData = new FormData();
-
-    formData.append('credit_id', credit_id);
-    formData.append('montoPago', montoPago);
-    formData.append('fechaPago', fechaPago);
-    formData.append('comprobantePago', fileInput);
-
-    vdialog({
-        type:'alert',// alert, success, error, confirm
-        title: '¿Esta seguro de guardar este pago?',
-        content: 'Se guardará todos los datos de este pago',
-        okValue:'Aceptar',
-        modal:true,
-        cancelValue:'Cancelar',
-        ok: function(){
-            $.ajax({
-                url: '/dashboard/save/pay/credit/'+credit_id,
-                method: 'POST',
-                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-                data: formData,
-                contentType: false,
-                processData: false,
-                success: function (data) {
-                    console.log(data);
-                    toastr.success(data.message, 'Éxito',
-                        {
-                            "closeButton": true,
-                            "debug": false,
-                            "newestOnTop": false,
-                            "progressBar": true,
-                            "positionClass": "toast-top-right",
-                            "preventDuplicates": false,
-                            "onclick": null,
-                            "showDuration": "300",
-                            "hideDuration": "1000",
-                            "timeOut": "2000",
-                            "extendedTimeOut": "1000",
-                            "showEasing": "swing",
-                            "hideEasing": "linear",
-                            "showMethod": "fadeIn",
-                            "hideMethod": "fadeOut"
-                        });
-                    // Actualizar la assitanceDetail
-                    getPaysUpdated(data.credit.id);
-
-                    $("#montoPago").val('');
-                    $("#fechaPago").val('');
-                    $('#comprobantePago').val(null);
-
-                    $modalPays.modal('show');
-                },
-                error: function (data) {
-                    if( data.responseJSON.message && !data.responseJSON.errors )
-                    {
-                        toastr.error(data.responseJSON.message, 'Error',
-                            {
-                                "closeButton": true,
-                                "debug": false,
-                                "newestOnTop": false,
-                                "progressBar": true,
-                                "positionClass": "toast-top-right",
-                                "preventDuplicates": false,
-                                "onclick": null,
-                                "showDuration": "300",
-                                "hideDuration": "1000",
-                                "timeOut": "2000",
-                                "extendedTimeOut": "1000",
-                                "showEasing": "swing",
-                                "hideEasing": "linear",
-                                "showMethod": "fadeIn",
-                                "hideMethod": "fadeOut"
-                            });
-                    }
-                    for ( var property in data.responseJSON.errors ) {
-                        toastr.error(data.responseJSON.errors[property], 'Error',
-                            {
-                                "closeButton": true,
-                                "debug": false,
-                                "newestOnTop": false,
-                                "progressBar": true,
-                                "positionClass": "toast-top-right",
-                                "preventDuplicates": false,
-                                "onclick": null,
-                                "showDuration": "300",
-                                "hideDuration": "1000",
-                                "timeOut": "2000",
-                                "extendedTimeOut": "1000",
-                                "showEasing": "swing",
-                                "hideEasing": "linear",
-                                "showMethod": "fadeIn",
-                                "hideMethod": "fadeOut"
-                            });
-                    }
-                },
-            });
-
+    if (!SupplierCreditUi.allow('pay_credit', $permissions) || supplierCreditPaymentBusy) return;
+    var creditId = $('#credito_id').val();
+    var amount = $('#montoPago').val(); var date = $('#fechaPago').val();
+    var file = $('#comprobantePago')[0].files[0];
+    var fingerprint = JSON.stringify([String(creditId), amount, date, file ? [file.name, file.size, file.lastModified] : null]);
+    var draft = supplierCreditDraft(creditId);
+    if (draft && draft.fingerprint !== fingerprint) {
+        toastr.warning('Hay una operación anterior sin confirmar. Revisa los pagos y usa «Iniciar otro abono» antes de cambiar los datos.');
+        return;
+    }
+    try {
+        if (!draft) { draft = {key: supplierCreditNewRequestKey(), fingerprint: fingerprint}; supplierCreditStoreDraft(creditId, draft); }
+    } catch (e) { toastr.error(e.message); return; }
+    var form = new FormData();
+    form.append('request_key', draft.key); form.append('montoPago', amount); form.append('fechaPago', date);
+    if (file) form.append('comprobantePago', file);
+    supplierCreditPaymentBusy = true; $('#btn-save-pay').prop('disabled', true);
+    $.ajax({
+        url: '/dashboard/save/pay/credit/'+creditId, method: 'POST',
+        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+        data: form, contentType: false, processData: false,
+        success: function (data) {
+            supplierCreditStoreDraft(creditId, null);
+            toastr.success(data.message); getPaysUpdated(data.credit.id);
+            $('#montoPago, #fechaPago').val(''); $('#comprobantePago').val(null);
         },
-        cancel: function(){
-            vdialog.alert('Asistencia no guardada');
-        }
+        error: function (xhr) {
+            var body = xhr.responseJSON || {};
+            if (xhr.status === 422) supplierCreditStoreDraft(creditId, null);
+            toastr.error(body.message || 'No se pudo confirmar el abono. Revisa el historial antes de iniciar otro.');
+        },
+        complete: function () { supplierCreditPaymentBusy = false; $('#btn-save-pay').prop('disabled', false); }
     });
 }
+
+$(document).on('click', '#btn-new-payment-draft', function () {
+    if (supplierCreditPaymentBusy || !SupplierCreditUi.allow('pay_credit', $permissions)) return;
+    if (window.confirm('¿Iniciar otro abono? Revisa primero que el anterior no esté registrado para evitar duplicarlo.')) {
+        supplierCreditStoreDraft($('#credito_id').val(), null);
+        $('#montoPago, #fechaPago').val(''); $('#comprobantePago').val(null);
+    }
+});
 
 function getPaysUpdated(credit_id) {
     $('#body-pays').html('');
@@ -1565,7 +1516,8 @@ function renderTemplatePay(i, id, type,amount, datePay, image) {
         clone2.querySelector("[data-id]").innerHTML = i;
         clone2.querySelector("[data-monto]").innerHTML = amount;
         clone2.querySelector("[data-fecha]").innerHTML = datePay;
-        clone2.querySelector("[data-comprobante]").setAttribute('href', document.location.origin+ '/images/credits/pays/'+image);
+        clone2.querySelector("[data-comprobante]").setAttribute('href', document.location.origin+ '/dashboard/creditos/abonos/'+id+'/comprobante');
+        if (!image || image === 'no_image.png' || image === 'no_image.jpg') clone2.querySelector('[data-comprobante]').remove();
         clone2.querySelector("[data-delete]").setAttribute('data-delete', id);
         if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone2.querySelector('[data-delete]').remove();
 
@@ -1576,7 +1528,8 @@ function renderTemplatePay(i, id, type,amount, datePay, image) {
         clone.querySelector("[data-id]").innerHTML = i;
         clone.querySelector("[data-monto]").innerHTML = amount;
         clone.querySelector("[data-fecha]").innerHTML = datePay;
-        clone.querySelector("[data-comprobante]").setAttribute('data-image_comprobante', image);
+        clone.querySelector("[data-comprobante]").setAttribute('data-image_comprobante', document.location.origin+ '/dashboard/creditos/abonos/'+id+'/comprobante');
+        if (!image || image === 'no_image.png' || image === 'no_image.jpg') clone.querySelector('[data-comprobante]').remove();
         clone.querySelector("[data-delete]").setAttribute('data-delete', id);
         if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone.querySelector('[data-delete]').remove();
 

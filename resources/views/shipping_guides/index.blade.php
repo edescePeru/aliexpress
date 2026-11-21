@@ -123,6 +123,8 @@
 @endsection
 
 @section('content')
+    <div id="greSubmissionNotice" role="status" aria-live="polite" hidden></div>
+
     <div class="container-fluid">
         <div class="card mb-3">
             <div class="card-body">
@@ -232,7 +234,11 @@
 
 @section('scripts')
     <script>
+        window.greCanConsult = @json(auth()->user()->can('edit_referralGuide'));
+        window.greCanPdf = @json(auth()->user()->can('print_referralGuide') || auth()->user()->can('download_referralGuide'));
+        window.greCanDocuments = @json(auth()->user()->can('download_referralGuide'));
         window.routes = {
+            document: "{{ route('shipping_guides.download', ['guide' => ':id', 'type' => ':type']) }}",
             list: "{{ route('shipping_guides.list') }}",
             create: "{{ route('shipping_guides.create') }}",
             export: "{{ route('shipping_guides.export') }}",
