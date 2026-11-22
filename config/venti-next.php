@@ -25,6 +25,7 @@ return [
         'kardex.index',
         'shipping_guides.view',
         'shipping_guides.show',
+        'shipping_guides.create',
         'workforce.index',
         'categoryEquipment.index',
         'categoryEquipment.eliminated',

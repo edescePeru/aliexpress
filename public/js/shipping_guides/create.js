@@ -30,13 +30,71 @@
         $('input[name="customer_email"]').val(email);
     }
 
+    function lookupError(xhr) {
+        var message = xhr.status === 403 ? 'No tienes permiso para consultar estos datos.' :
+            xhr.status === 422 ? 'Revisa los filtros de la consulta.' :
+            xhr.status === 404 ? 'El registro no está disponible en el contexto actual.' :
+            [401, 419].indexOf(xhr.status) !== -1 ? 'La sesión ha vencido. Vuelve a ingresar.' :
+            'No se pudo completar la consulta. Intenta nuevamente.';
+        toastr.error(message, null, { escapeHtml: true });
+    }
+
+    function lookupTransport(params, success, failure) {
+        var request = $.ajax(params);
+        request.then(success);
+        request.fail(function (xhr) {
+            if (xhr.statusText !== 'abort') lookupError(xhr);
+            failure(xhr);
+        });
+        return request;
+    }
+
+    function clearGuideValidation() {
+        $('#guideValidation').prop('hidden', true).empty();
+        $('#frmGuide .is-invalid').removeClass('is-invalid').removeAttr('aria-invalid');
+        $('#frmGuide [data-guide-error]').remove();
+    }
+
+    function openValidationSections(key, $field) {
+        // Hidden input and aggregate errors must also reveal their owning section.
+        var $panels = $field.closest('[data-guide-section]');
+        if (!$panels.length) {
+            var section = key === 'items' || key.indexOf('items.') === 0 ? '07' :
+                key === 'driver_primary' || key.indexOf('driver_primary.') === 0 ? '06' : null;
+            if (section) $panels = $('#guide-panel-' + section);
+        }
+        $panels.collapse('show');
+    }
+
+    function renderGuideValidation(errors, message) {
+        clearGuideValidation();
+        var $summary = $('#guideValidation').prop('hidden', false);
+        $('<strong>').text(message || 'Revisa los datos de la guía.').appendTo($summary);
+        var $list = $('<ul class="mb-0">').appendTo($summary);
+        Object.keys(errors).forEach(function (key) {
+            var text = (errors[key] || [])[0] || '';
+            $('<li>').text(text).appendTo($list);
+            var name = key.replace(/\.([^.[\]]+)/g, '[$1]');
+            var $field = $('#frmGuide [name]').filter(function () { return this.name === name; });
+            openValidationSections(key, $field);
+            if ($field.length && $field.attr('type') !== 'hidden') {
+                $field.addClass('is-invalid').attr('aria-invalid', 'true');
+                var $anchor = $field.next('.select2').length ? $field.next('.select2') : $field;
+                $('<div class="invalid-feedback d-block" data-guide-error>').text(text).insertAfter($anchor);
+            }
+        });
+        $summary.trigger('focus');
+    }
+
     function select2Common() {
         return {
             theme: 'bootstrap4',
             width: '100%',
             allowClear: true,
             placeholder: 'Seleccionar...',
-            dropdownParent: $('#frmGuide') // clave para accordion/cards
+            dropdownParent: $('#frmGuide'),
+            language: { noResults: function () { return 'Sin resultados para esta búsqueda.'; }, errorLoading: function () { return 'No se pudo cargar la consulta.'; } },
+            ajax: { transport: lookupTransport }
         };
     }
 
@@ -49,8 +107,7 @@
         $('#cardPublicTransport').toggle(t === '01');
         $('#cardPrivateDriver').toggle(t === '02');
 
-        if (t === '01' && $('#secDriver').length) $('#secDriver').collapse('hide');
-        if (t === '02' && $('#secTransportista').length) $('#secTransportista').collapse('hide');
+        // Sections stay open; only the existing mode-specific parent is toggled.
     }
 
     // =========================
@@ -58,6 +115,7 @@
     // =========================
     function toggleItemsMode() {
         var mode = $('#items_mode').val();
+        $('#saleItemsHint').toggle(mode === 'SALE');
 
         if (mode === 'SALE') {
             $('#boxSaleMode').show();
@@ -75,6 +133,7 @@
         $('#tbodySaleItems').html('');
         $('#saleItemsCount').text('');
         $('#saleItemsPreview').hide();
+        $('#saleItemsHint').toggle($('#items_mode').val() === 'SALE');
     }
 
     function renderSaleItemsPreview(res) {
@@ -90,15 +149,16 @@
         (res.items || []).forEach(function (it) {
             rows.push(
                 '<tr>' +
-                '<td>' + (it.line || '') + '</td>' +
-                '<td>' + (it.descripcion || '') + '</td>' +
-                '<td class="text-right">' + (parseFloat(it.cantidad).toFixed(2) || 0) + '</td>' +
-                '<td>' + (it.unidad_medida || 'NIU') + '</td>' +
+                '<td class="text-center">' + (it.line || '') + '</td>' +
+                '<td>' + $('<div>').text(it.descripcion || '').html() + '</td>' +
+                '<td class="text-center">' + (parseFloat(it.cantidad).toFixed(2) || 0) + '</td>' +
+                '<td class="text-center">' + $('<div>').text(it.unidad_medida || 'NIU').html() + '</td>' +
                 '</tr>'
             );
         });
 
-        $('#tbodySaleItems').html(rows.join(''));
+        $('#tbodySaleItems').html(rows.join('') || '<tr><td colspan="4" class="next-table-empty">La venta no devuelve líneas para trasladar.</td></tr>');
+        $('#saleItemsHint').hide();
         $('#saleItemsCount').text((res.items || []).length + ' items');
         $('#saleItemsPreview').show();
     }
@@ -137,10 +197,10 @@
 
         $.get(url)
             .done(function (res) {
-                renderSaleItemsPreview(res);
+                if ($('#items_mode').val() === 'SALE' && $('#sale_id').val() === saleId) renderSaleItemsPreview(res);
             })
             .fail(function (xhr) {
-                toastr.error('Error cargando items de la venta');
+                lookupError(xhr);
                 clearSalePreview();
             })
             .always(function () {
@@ -220,8 +280,8 @@
                 .done(function (res) {
                     fillCustomerFields(res);
                 })
-                .fail(function () {
-                    toastr.error('No se pudo cargar datos del cliente');
+                .fail(function (xhr) {
+                    lookupError(xhr);
                 });
         });
     }
@@ -343,6 +403,7 @@
                     action: function () {
                         if (requestStarted) return;
                         requestStarted = true;
+                        clearGuideValidation();
                         $btn.prop('disabled', true).attr('aria-busy', 'true')
                             .html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Enviando…');
                         $.ajax({
@@ -373,6 +434,7 @@
                             }
                             if (xhr.status === 422) {
                                 const errors = response.errors || {};
+                                renderGuideValidation(errors, response.message);
                                 const messages = Object.keys(errors).map(function (key) { return errors[key][0] || ''; });
                                 toastr.error(messages.join(' ') || response.message || 'Revisa los datos de la guía.', null, {escapeHtml: true});
                             } else if ([401, 403, 419].includes(xhr.status) || response.persisted === false) {
@@ -398,7 +460,7 @@
             <td class="text-center align-middle">${idx + 1}</td>
 
             <td>
-                <select class="form-control manualMaterialSelect" style="width:100%"></select>
+                <select class="form-control manualMaterialSelect" aria-label="Producto" style="width:100%"></select>
 
                 <input type="hidden" name="items[${idx}][product_id]" class="manualProductId">
                 <input type="hidden" name="items[${idx}][material_id]" class="manualMaterialId">
@@ -408,7 +470,7 @@
 
             <td>
                 <input type="number" step="0.001" min="0.001"
-                       class="form-control"
+                       class="form-control text-center" aria-label="Cantidad"
                        name="items[${idx}][cantidad]" value="1">
             </td>
 
@@ -421,7 +483,7 @@
             </td>
 
             <td class="text-center align-middle">
-                <button type="button" class="btn btn-sm btn-outline-danger btnDelManualItem">
+                <button type="button" class="btn btn-sm btn-outline-danger btnDelManualItem" aria-label="Quitar línea" title="Quitar línea">
                     <i class="fa fa-trash"></i>
                 </button>
             </td>
@@ -471,11 +533,13 @@
     function initManualMaterialSelect2($select) {
         $select.select2({
             theme: 'bootstrap4',
+            language: { noResults: function () { return 'No hay productos para esta búsqueda.'; }, errorLoading: function () { return 'No se pudo cargar el catálogo.'; } },
             placeholder: 'Buscar material...',
             allowClear: true,
             width: '100%',
             ajax: {
                 url: window.routes.materialsSelect2,
+                transport: lookupTransport,
                 dataType: 'json',
                 delay: 250,
                 data: function (params) {
@@ -511,6 +575,7 @@
     }
 
     function addManualItemRow() {
+        $('#manualItemsEmpty').hide();
         const idx = $('#tbodyManualItems tr.manualItemRow').length;
         $('#tbodyManualItems').append(manualRowTemplate(idx));
 
@@ -538,6 +603,17 @@
 
         csrfHeader();
 
+        $('#frmGuide [data-guide-section]').on('show.bs.collapse hide.bs.collapse', function (event) {
+            if (event.target !== this) return;
+            var opening = event.type === 'show';
+            $(this).closest('section').find('[data-guide-chevron]')
+                .toggleClass('fa-chevron-up', opening).toggleClass('fa-chevron-down', !opening);
+        });
+        // Native client validation also reveals hidden sections without changing rules.
+        $('#frmGuide')[0].addEventListener('invalid', function (event) {
+            openValidationSections(event.target.name || '', $(event.target));
+        }, true);
+
         toggleTransportSections();
         toggleItemsMode();
         initSaleSelect2();
@@ -554,6 +630,7 @@
             clearSalePreview();
         });
 
+        $(document).on('change', '#sale_id', clearSalePreview);
         $(document).on('click', '#btnLoadSaleItems', loadSaleItems);
         $(document).on('click', '#btnSubmitGuide', submitGuide);
 
@@ -564,6 +641,7 @@
         $(document).on('click', '.btnDelManualItem', function () {
             $(this).closest('tr').remove();
             reindexManualRows();
+            $('#manualItemsEmpty').toggle(!$('#tbodyManualItems tr.manualItemRow').length);
         });
     });
 
