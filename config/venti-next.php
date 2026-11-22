@@ -190,6 +190,7 @@ return [
         'platformShippingCatalogs.index',
         'companyStockItem.index',
         'worker.index',
+        'worker.enable',
         'worker.create',
         'worker.edit',
         'plan.index',

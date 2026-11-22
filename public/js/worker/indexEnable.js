@@ -1,10 +1,19 @@
 $(document).ready(function () {
     $permissions = JSON.parse($('#permissions').val());
-    console.log($permissions);
+
     var table = $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/get/workers/enable/",
-            dataSrc: 'data'
+            dataSrc: function (response) {
+                $('#worker-enable-error').prop('hidden', true).empty();
+                return response.data;
+            },
+            error: function (xhr) {
+                $('#worker-enable-error').prop('hidden', false).text(xhr.status === 403
+                    ? 'No tienes permiso para consultar colaboradores deshabilitados.'
+                    : 'No se pudo cargar el listado. Vuelve a intentar la consulta.');
+                $('#dynamic-table_wrapper').hide();
+            }
         },
         bAutoWidth: false,
         "aoColumns": [
@@ -109,7 +118,10 @@ $(document).ready(function () {
                 {
                     var text = '';
                     if ( $.inArray('contract_worker', $permissions) !== -1 ) {
-                        text = item.contract;
+                        var hasContract = item.have_contract === true || item.have_contract === 1 || item.have_contract === '1';
+                        text = '<span class="badge ' + (hasContract ? 'badge-success' : 'badge-secondary') + '">' +
+                            (hasContract ? 'Con contrato' : 'Sin contrato') + '</span>';
+                        if (item.contract) text += '<span class="d-block text-muted">' + $('<div>').text(item.contract).html() + '</span>';
                     }
                     return text ;
                 }
@@ -152,19 +164,21 @@ $(document).ready(function () {
                 {
                     var text = '';
 
-                    //if ( $.inArray('enable_material', $permissions) !== -1 ) {
-                        text = text + '<button data-enable="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Habilitar"><i class="fas fa-recycle"></i> </button>  ';
-                    //}
-                    return text ;
+                    // The page/data/action routes enforce restore_worker, as before.
+                        var name = $('<div>').text(item.first_name + ' ' + item.last_name).html().replace(/"/g, '&quot;');
+                        text = '<button type="button" data-enable="'+item.id+'" data-nombre="'+name+'" data-worker_id="'+item.id+'" class="dropdown-item" title="Habilitar"><i class="fas fa-recycle next-row-action-item-icon" aria-hidden="true"></i><span>Habilitar</span></button>';
+                    return '<div data-buttons><div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones del colaborador"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + text + '</div></div></div>';
                 }
             },
 
         ],
         "aaSorting": [],
         "columnDefs": [
+            { "className": "text-center", "targets": [0, 1, 8, 9, 10, 12, 13, 14, 21, 29] },
+            { "className": "text-right", "targets": [15, 16, 17, 18, 19, 20, 24] },
             {
                 "visible": false,
-                "targets": [ 4, 5, 6, 8, 9, 10, 11, 12, 13,14,15,16,17,18,19,20,21,22,23,24,25,27,28 ]
+                "targets": [ 4, 5, 6, 8, 9, 10, 11, 12, 13,14,15,16,17,18,19,20,22,23,24,25,27,28 ]
             }],
 
         select: {
@@ -174,7 +188,7 @@ $(document).ready(function () {
             "processing": "Procesando...",
             "lengthMenu": "Mostrar _MENU_ registros",
             "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible en esta tabla",
+            "emptyTable": "No hay colaboradores deshabilitados en esta empresa",
             "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
             "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
             "infoFiltered": "(filtrado de un total de _MAX_ registros)",
@@ -306,7 +320,7 @@ $(document).ready(function () {
 
     } );
 
-    $(document).on('click', '[data-column]', function (e) {
+    $('.next-column-visibility-menu').on('click', '[data-column]', function (e) {
         //e.preventDefault();
 
         // Get the column API object
@@ -315,6 +329,29 @@ $(document).ready(function () {
         // Toggle the visibility
         column.visible( ! column.visible() );
     } );
+    $('.next-column-visibility-menu').on('keydown', function (event) {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            $('#worker-columns-trigger').dropdown('hide').trigger('focus');
+        }
+    });
+    // Same floating-panel interaction as Material V2; keep delegated switches inside it.
+    $('.next-column-visibility-menu').on('click', function (event) {
+        event.stopPropagation();
+    });
+    $(document).on('hidden.bs.dropdown', '#dynamic-table .next-row-actions', function () {
+        $(this).children('.next-row-actions-trigger').attr('aria-expanded', 'false');
+    });
+    // Shared row menus are portaled by the shell; restore focus to their owner.
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        var menu = event.target.closest('.next-row-actions-menu');
+        var owner = menu && $(menu).data('nextRowActionsOwner');
+        if (!owner || !$(owner).closest('#dynamic-table').length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        $(owner).children('.next-row-actions-trigger').dropdown('hide').trigger('focus');
+    }, true);
     $('body').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
