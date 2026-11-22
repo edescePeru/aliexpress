@@ -91,6 +91,12 @@ $(document).ready(function () {
         $cashSelect.empty().append($cashOptions.filter(function () {
             return this.value === '' || this.dataset.currency === currency;
         }).clone()).val('').trigger('change');
+        const hasBoxes = $cashSelect.find('option').filter(function () { return this.value !== ''; }).length > 0;
+        $cashSelect.find('option[value=""]').text(hasBoxes
+            ? 'Seleccione caja...'
+            : 'Sin cajas disponibles');
+        $('#finance-cash-empty').prop('hidden', hasBoxes).text(
+            'No hay cajas con sesión propia única abierta en ' + currency + ' para este local.');
         $('.moneda').text(currency);
         pvSelectDefaultCashBox();
     }

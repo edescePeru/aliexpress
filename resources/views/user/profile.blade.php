@@ -15,39 +15,14 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/file-input/css/fileinput.min.css') }}">
     <link href="{{ asset('admin/plugins/file-input/themes/explorer-fas/theme.css') }}" media="all" rel="stylesheet" type="text/css"/>
 
-
-@endsection
-
-@section('styles')
-    <style>
-        .kv-avatar .krajee-default.file-preview-frame,.kv-avatar .krajee-default.file-preview-frame:hover {
-            margin: 0;
-            padding: 0;
-            border: none;
-            box-shadow: none;
-            text-align: center;
-        }
-        .kv-avatar {
-            display: inline-block;
-        }
-        .kv-avatar .file-input {
-            display: table-cell;
-            width: 213px;
-        }
-        .kv-reqd {
-            color: red;
-            font-family: monospace;
-            font-weight: normal;
-        }
-    </style>
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Perfil de usuario</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Mi cuenta</span><h1 class="page-title">Mi perfil</h1><p class="next-page-description">Información y seguridad de tu cuenta.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Datos personales de usuario</h5>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Datos de mi cuenta</strong><span>Perfil del usuario autenticado.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -63,21 +38,21 @@
 @endsection
 
 @section('content')
-    <section class="content">
-        <div class="container-fluid">
+    <section class="next-form-section">
+        <div class="container-fluid px-0">
             <div class="row">
-                <div class="col-md-5">
+                <div class="col-lg-4">
                     <!-- Profile Image -->
-                    <div class="card card-primary card-outline">
-                        <div class="card-body box-profile">
+                    <div class="card">
+                        <div class="next-form-section box-profile">
                             <div class="text-center">
                                 <img class="profile-user-img img-fluid img-circle"
                                      src="{{asset('images/users/'.$user->image)}}"
-                                     alt="User profile picture" >
+                                     alt="Foto de perfil" >
                             </div>
-                            <br>
+
                             <div class="col-md-12">
-                                <button id="btnImage" class="btn btn-primary btn-block"><b>Cambiar imagen</b></button>
+                                <button id="btnImage" type="button" class="btn btn-outline-secondary btn-block"><b>Cambiar imagen</b></button>
                             </div>
                             <div id="changeImage" style="display: none">
                                 <form id="formImage" data-url="{{ route('user.change.image', $user->id) }}" enctype="multipart/form-data">
@@ -87,29 +62,29 @@
                                     </div>
                                     <div class="form-group row">
                                         <div class="col-sm-6">
-                                            <button type="submit" class="btn btn-success btn-block"><b>Guardar imagen</b></button>
+                                            <button type="submit" class="btn btn-primary btn-block"><b>Guardar imagen</b></button>
 
                                         </div>
                                         <div class="col-sm-6">
-                                            <button id="btnCancel" type="button" class="btn btn-secondary btn-block"><b>Cancelar</b></button>
+                                            <button id="btnCancel" type="button" class="btn btn-outline-secondary btn-block"><b>Cancelar</b></button>
                                         </div>
                                     </div>
-                                    <br>
+
                                 </form>
                             </div>
 
                             <hr>
 
-                            <h3 class="profile-username text-center">{{ $user->name }}</h3>
+                            <h2 class="h5 text-center text-break">{{ $user->name }}</h2>
 
                             <hr>
 
-                            <strong><i class="fas fa-book mr-1"></i> Roles</strong>
-                            @foreach( $user->roles as $role )
+                            <h3 class="h6">Roles asignados</h3>
+                            @forelse( $user->roles as $role )
                             <p class="text-muted">
                                 {{ $role->description }}
                             </p>
-                            @endforeach
+                            @empty<p class="text-muted">Sin roles asignados.</p>@endforelse
 
                             <hr>
 
@@ -119,15 +94,15 @@
                     <!-- /.card -->
                 </div>
                 <!-- /.col -->
-                <div class="col-md-7">
+                <div class="col-lg-8">
                     <div class="card">
-                        <div class="card-header p-2">
+                        <div class="next-list-toolbar">
                             <ul class="nav nav-pills">
                                 <li class="nav-item"><a class="nav-link active" href="#settings" data-toggle="tab">Información de usuario</a></li>
                                 <li class="nav-item"><a class="nav-link" href="#passwordReset" data-toggle="tab">Cambiar contraseña</a></li>
                             </ul>
                         </div><!-- /.card-header -->
-                        <div class="card-body">
+                        <div class="next-form-section">
                             <div class="tab-content">
                                 <div class="active tab-pane" id="settings">
                                     <form id="formSettings" data-url="{{ route('user.change.settings', $user->id) }}" class="form-horizontal">
@@ -136,7 +111,7 @@
                                         <div class="form-group row">
                                             <label for="name" class="col-sm-4 col-form-label">Nombre Completo</label>
                                             <div class="col-sm-8">
-                                                <input type="text" class="form-control" id="name" name="name" placeholder="Nombre completo" value="{{ $user->name }}">
+                                                <input type="text" class="form-control" id="name" name="name" placeholder="Nombre completo" value="{{ old('name', $user->name) }}">
                                             </div>
                                         </div>
                                         <div class="form-group row">
@@ -147,7 +122,7 @@
                                         </div>
                                         <div class="form-group row">
                                             <div class="offset-sm-4 col-sm-8">
-                                                <button type="submit" class="btn btn-success">Guardar cambios</button>
+                                                <button type="submit" class="btn btn-primary">Guardar cambios</button>
                                             </div>
                                         </div>
                                     </form>
@@ -158,33 +133,33 @@
                                         <div class="form-group row">
                                             <label for="current_password" class="col-sm-4 col-form-label">Contraseña actual</label>
                                             <div class="input-group col-sm-8">
-                                                <input type="password" class="form-control" id="current_password" name="current_password" placeholder="Contraseña actual">
+                                                <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password" placeholder="Contraseña actual">
                                                 <div class="input-group-append">
-                                                    <button type="button" data-show class="input-group-text"><i class="far fa-eye-slash"></i></button>
+                                                    <button type="button" data-show class="input-group-text" aria-label="Mostrar u ocultar contraseña"><i class="far fa-eye-slash"></i></button>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="form-group row">
                                             <label for="new_password" class="col-sm-4 col-form-label">Nueva contraseña</label>
                                             <div class="input-group col-sm-8">
-                                                <input type="password" class="form-control" id="new_password" name="new_password" placeholder="Nueva contraseña">
+                                                <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="new-password" placeholder="Nueva contraseña">
                                                 <div class="input-group-append">
-                                                    <button type="button" data-show class="input-group-text"><i class="far fa-eye-slash"></i></button>
+                                                    <button type="button" data-show class="input-group-text" aria-label="Mostrar u ocultar contraseña"><i class="far fa-eye-slash"></i></button>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="form-group row">
-                                            <label for="password_confirmation" class="col-sm-4 col-form-label">Repetir contraseña</label>
+                                            <label for="new_password_confirmation" class="col-sm-4 col-form-label">Repetir contraseña</label>
                                             <div class="input-group col-sm-8">
-                                                <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation" placeholder="Repetir contraseña">
+                                                <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation" autocomplete="new-password" placeholder="Repetir contraseña">
                                                 <div class="input-group-append">
-                                                    <button type="button" data-show class="input-group-text"><i class="far fa-eye-slash"></i></button>
+                                                    <button type="button" data-show class="input-group-text" aria-label="Mostrar u ocultar contraseña"><i class="far fa-eye-slash"></i></button>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="form-group row">
                                             <div class="offset-sm-4 col-sm-8">
-                                                <button type="submit" class="btn btn-danger">Cambiar contraseña</button>
+                                                <button type="submit" class="btn btn-primary">Cambiar contraseña</button>
                                             </div>
                                         </div>
                                     </form>

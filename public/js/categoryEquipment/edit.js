@@ -27,7 +27,7 @@ $(document).on('click', '[data-edit]', function () {
 
         console.log(newImage);
         $.ajax({
-            url: 'actualizar/' + categoryId,
+            url: $('#editModal').data('url').replace('__ID__', categoryId),
             method: 'POST',
             data: formData,
             contentType: false,

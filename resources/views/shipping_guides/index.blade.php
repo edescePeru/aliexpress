@@ -27,87 +27,20 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
-
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Guías de remisión</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Logística · Guías</span><h1 class="page-title">Guías de remisión</h1><p class="next-page-description">Consulta de guías remitente del local activo.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de guías de remisión</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Fechas, documento y estado registrado.</span></div><div class="next-toolbar-actions flex-wrap">
 
     @can('create_referralGuide')
-        <button type="button" id="btnEmitir" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-plus font-20"></i> Emitir Guía </button>
+        <button type="button" id="btnEmitir" class="btn btn-outline-secondary btn-sm" > <i class="fa fa-plus font-20"></i> Emitir Guía </button>
     @endcan
     @can('download_referralGuide')
-        <button type="button" id="btnExport" class="btn btn-outline-success btn-sm float-right mr-2" > <i class="fas fa-download"></i> Exportar guías</button>
+        <button type="button" id="btnExport" class="btn btn-outline-secondary btn-sm" > <i class="fas fa-download"></i> Exportar guías</button>
     @endcan
+    </div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -124,27 +57,26 @@
 
 @section('content')
     <div id="greSubmissionNotice" role="status" aria-live="polite" hidden></div>
-
-    <div class="container-fluid">
-        <div class="card mb-3">
-            <div class="card-body">
+    <div class="next-operational-list">
+        <div class="next-form-section">
+            <div>
                 <div class="row">
-                    <div class="col-md-3">
-                        <label>Desde</label>
+                    <div class="col-12 col-md-6 col-xl-3 form-group mb-2">
+                        <label for="fDesde">Desde</label>
                         <input type="date" id="fDesde" class="form-control">
                     </div>
-                    <div class="col-md-3">
-                        <label>Hasta</label>
+                    <div class="col-12 col-md-6 col-xl-3 form-group mb-2">
+                        <label for="fHasta">Hasta</label>
                         <input type="date" id="fHasta" class="form-control">
                     </div>
-                    <div class="col-md-3">
-                        <label>Tipo de Doc.</label>
+                    <div class="col-12 col-md-6 col-xl-3 form-group mb-2">
+                        <label for="fTipoDoc">Tipo de Doc.</label>
                         <select id="fTipoDoc" class="form-control">
                             <option value="7">GUÍA DE REMISIÓN REMITENTE ELECTRÓNICA</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label>Buscar Documento</label>
+                    <div class="col-12 col-md-6 col-xl-3 form-group mb-2">
+                        <label for="fBuscarDoc">Buscar Documento</label>
                         <div class="input-group">
                             <input type="text" id="fBuscarDoc" class="form-control" placeholder="TPD1-123">
                             <div class="input-group-append">
@@ -156,19 +88,20 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped mb-0">
+        <div>
+            <div>
+                <div class="next-list-summary"><strong id="guideCount">Guías</strong><span>Local activo · registros más recientes primero</span></div>
+                <div class="table-responsive" tabindex="0" aria-label="Guías; desplazamiento horizontal">
+                    <table class="table table-bordered table-hover table-sm mb-0">
                         <thead>
-                        <tr class="normal-title">
-                            <th>Tipo</th>
-                            <th>Serie-Número</th>
-                            <th>Fecha Emisión</th>
+                        <tr>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Serie-Número</th>
+                            <th class="text-center">Fecha Emisión</th>
                             <th>Motivo</th>
                             <th>Partida → Llegada</th>
-                            <th>Estado SUNAT</th>
-                            <th class="text-right">Acciones</th>
+                            <th class="text-center">Estado SUNAT</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                         </thead>
                         <tbody id="tbodyGuides">
@@ -179,9 +112,9 @@
                     </table>
                 </div>
 
-                <div class="p-3 d-flex justify-content-between align-items-center">
+                <div class="next-list-toolbar d-flex flex-wrap justify-content-between align-items-center">
                     <div id="paginationInfo" class="text-muted"></div>
-                    <div>
+                    <div class="next-toolbar-actions flex-wrap">
                         <button class="btn btn-sm btn-outline-secondary" id="prevPage">Anterior</button>
                         <button class="btn btn-sm btn-outline-secondary" id="nextPage">Siguiente</button>
                     </div>
@@ -191,7 +124,7 @@
     </div>
 
     <!-- Modal Export Excel -->
-    <div class="modal fade" id="modalExportGuides" tabindex="-1" role="dialog" aria-labelledby="modalExportGuidesLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal next-aux-modal-form" id="modalExportGuides" tabindex="-1" role="dialog" aria-labelledby="modalExportGuidesLabel" aria-hidden="true">
         <div class="modal-dialog modal-md" role="document">
             <div class="modal-content">
 
@@ -202,7 +135,7 @@
                     </button>
                 </div>
 
-                <div class="modal-body">
+                <div class="modal-body next-form-section">
                     <p class="text-muted mb-3">Indica el rango de fechas que deseas descargar</p>
 
                     <div class="form-group">

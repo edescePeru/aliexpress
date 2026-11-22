@@ -29,21 +29,11 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Nuevo tipo de gasto</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración · Gastos</span><h1 class="page-title">Tipos de gasto</h1><p class="next-page-description">Catálogo compartido de conceptos de gasto.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Crear nuevo tipo de gasto</h5>
-    <a href="{{ route('bill.index') }}" class="btn btn-outline-primary btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Tipos de Gasto</a>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Nuevo tipo de gasto</strong><span>Descripción del concepto.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('bill.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -62,21 +52,15 @@
 
     <form id="formCreate" class="form-horizontal" data-url="{{ route('bill.store') }}" enctype="multipart/form-data">
         @csrf
-        <div class="form-group row">
-
-            <div class="col-md-6">
-                <label for="reason">Tipo de gastos </label>
-
-                <textarea name="description" onkeyup="mayus(this);" id="description" class="form-control"></textarea>
-
-            </div>
-
-        </div>
-
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+        <section class="next-form-section"><div class="row"><div class="col-md-6 form-group mb-0">
+            <label for="description">Descripción</label>
+            <textarea name="description" onkeyup="mayus(this);" id="description" class="form-control @error('description') is-invalid @enderror" rows="3">{{ old('description') }}</textarea>
+            @error('description')<span class="invalid-feedback">{{ $message }}</span>@enderror
+        </div></div></section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-        </div>
+            <button type="button" id="btn-submit" class="btn btn-primary">Guardar</button>
+        </div></div>
         <!-- /.card-footer -->
     </form>
 @endsection

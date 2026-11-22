@@ -7,20 +7,20 @@ $(document).ready(function () {
     $(document).on('click', '[data-deleteaccount]', deleteAccount);
 
     $(document).on('select2:select', '.bank', function (e) {
-        var card = $(this).parent().parent().next().next().children().children().next();
-        card.removeClass('btn-outline-warning');
+        var card = $(this).closest('[data-account-row]').find('[data-updateaccount]');
+        card.removeClass('btn-outline-primary');
         card.addClass('btn-outline-secondary');
     });
 
     $(document).on('select2:select', '.currency', function (e) {
-        var card = $(this).parent().parent().next().children().children().next();
-        card.removeClass('btn-outline-warning');
+        var card = $(this).closest('[data-account-row]').find('[data-updateaccount]');
+        card.removeClass('btn-outline-primary');
         card.addClass('btn-outline-secondary');
     });
 
     $(document).on('input', '[data-number_account]', function() {
-        var card = $(this).parent().parent().next().next().next().children().children().next();
-        card.removeClass('btn-outline-warning');
+        var card = $(this).closest('[data-account-row]').find('[data-updateaccount]');
+        card.removeClass('btn-outline-primary');
         card.addClass('btn-outline-secondary');
     });
 
@@ -29,6 +29,7 @@ $(document).ready(function () {
 var $formCreate;
 
 function deleteAccount() {
+    var submitted = false;
     var button = $(this);
     var account_id = $(this).attr('data-deleteAccount');
     var account_number = $(this).attr('data-number');
@@ -37,6 +38,7 @@ function deleteAccount() {
         icon: 'far fa-times-circle',
         theme: 'modern',
         closeIcon: true,
+        onClose: function () { if (!submitted) button.prop('disabled', false); },
         animation: 'zoom',
         type: 'red',
         title: '¿Esta seguro de eliminar esta cuenta?',
@@ -46,6 +48,7 @@ function deleteAccount() {
                 text: 'ELIMINAR',
                 action: function (e) {
                     //$.alert('Descargado igual');
+                    submitted = true;
                     $.ajax({
                         url: "/dashboard/supplier/account/destroy/"+account_id,
                         method: 'POST',
@@ -55,7 +58,8 @@ function deleteAccount() {
                         success: function (data) {
                             console.log(data);
                             $.alert(data.message);
-                            button.parent().parent().parent().parent().remove();
+                            button.closest('[data-account-row]').remove();
+                            refreshAccountSummary();
                             button.attr("disabled", false);
 
                         },
@@ -120,17 +124,20 @@ function deleteAccount() {
 }
 
 function updateAccount() {
+    var submitted = false;
     var button = $(this);
     var account_id = button.attr('data-updateAccount');
-    var number_account = button.parent().parent().prev().prev().prev().children().next().children().next().val();
-    var bank_id = button.parent().parent().prev().prev().children().children().next().val();
-    var currency = button.parent().parent().prev().children().children().next().val();
+    var row = button.closest('[data-account-row]');
+    var number_account = row.find('[data-number_account]').val();
+    var bank_id = row.find('[data-bank]').val();
+    var currency = row.find('[data-currency]').val();
 
     button.attr("disabled", true);
     $.confirm({
         icon: 'far fa-save',
         theme: 'modern',
         closeIcon: true,
+        onClose: function () { if (!submitted) button.prop('disabled', false); },
         animation: 'zoom',
         type: 'orange',
         title: '¿Esta seguro de guardar los cambios?',
@@ -139,6 +146,7 @@ function updateAccount() {
             confirm: {
                 text: 'GUARDAR',
                 action: function (e) {
+                    submitted = true;
                     $.ajax({
                         url: "/dashboard/supplier/account/update/"+account_id,
                         method: 'POST',
@@ -149,7 +157,7 @@ function updateAccount() {
                             $.alert(data.message);
                             button.attr("disabled", false);
                             button.removeClass('btn-outline-secondary');
-                            button.addClass('btn-outline-warning');
+                            button.addClass('btn-outline-primary');
 
                         },
                         error: function (data) {
@@ -300,17 +308,23 @@ function addNewAccount() {
 function renderTemplateAccount(account) {
     var clone = activateTemplate('#template-account');
 
-    clone.querySelector("[data-number_account]").innerHTML = account.number_account;
+    clone.querySelector("[data-number_account]").value = account.number_account == null ? "" : account.number_account;
     var selectBank = clone.querySelector("[data-bank]");
-    selectBank.setAttribute('value', account.bank_id);
+    selectBank.value = account.bank_id == null ? "" : account.bank_id;
 
     var selectCurrency = clone.querySelector("[data-currency]");
-    selectCurrency.setAttribute('value', account.currency);
+    selectCurrency.value = account.currency == null ? "" : account.currency;
 
-    clone.querySelector("[data-updateAccount]").setAttribute('data-updateAccount', account.id);
-    clone.querySelector("[data-deleteAccount]").setAttribute('data-deleteAccount', account.id);
+    ['data-updateAccount', 'data-deleteAccount'].forEach(function (hook) {
+        var action = clone.querySelector('[' + hook + ']');
+        if (action) {
+            action.setAttribute(hook, account.id);
+            action.setAttribute('data-number', account.number_account || '');
+        }
+    });
 
     $('#body-accounts').append(clone);
+    refreshAccountSummary();
 
     var optionFormat = function(item) {
         if ( !item.id ) {
@@ -342,4 +356,9 @@ function renderTemplateAccount(account) {
 function activateTemplate(id) {
     var t = document.querySelector(id);
     return document.importNode(t.content, true);
+}
+function refreshAccountSummary() {
+    var count = $('#body-accounts [data-account-row]').length;
+    $('#account-count').text(count + ' cuentas');
+    $('#account-empty').toggleClass('d-none', count > 0);
 }

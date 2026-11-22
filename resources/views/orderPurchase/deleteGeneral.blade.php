@@ -25,17 +25,11 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras · Histórico</span><h1 class="page-title">Órdenes normales eliminadas</h1><p class="next-page-description">Papelera de la empresa activa · Solo lectura.</p></div>
 @endsection
-
 @section('page-title')
-    <h5 class="card-title">Listado de Ordenes de compras eliminadas</h5>
-
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Papelera de órdenes normales</strong><span>Consulta de registros eliminados</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -51,55 +45,12 @@
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Código</th>
-                <th>Fecha Orden</th>
-                <th>Fecha Llegada</th>
-                <th>Observación</th>
-                <th>Proveedor</th>
-                <th>Aprobado por</th>
-                <th>Moneda</th>
-                <th>Total</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-
-            </tbody>
-        </table>
-    </div>
-    @can('destroy_quote')
-    <div id="modalDelete" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <form id="formDelete" data-url="{{ route('subcategory.destroy') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <input type="hidden" id="subcategory_id" name="subcategory_id">
-                        <strong>¿Está seguro de eliminar esta subcategoría?</strong>
-                        <p id="name"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endcan
+<input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+<section class="next-operational-list" aria-label="Órdenes normales eliminadas">
+<div class="next-list-summary"><div id="trash-status" class="next-list-summary-copy" role="status">Consultando papelera…</div></div>
+<div id="trash-error" class="alert alert-danger m-3 d-none" role="alert"></div>
+<table id="dynamic-table" class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Código</th><th class="text-center">Fecha orden</th><th class="text-center">Fecha llegada</th><th class="text-left">Observación</th><th class="text-left">Proveedor</th><th class="text-left">Aprobado por</th><th class="text-center">Moneda</th><th class="text-right">Total</th><th class="text-center">Tipo</th><th class="text-center">Estado</th><th class="text-center">Acciones</th></tr></thead><tbody></tbody></table>
+</section>
 @endsection
 
 @section('plugins')
@@ -114,7 +65,5 @@
 
 @section('scripts')
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
-    <script>window.normalPurchaseContext = {tenant_id: {{ \App\Support\TenantContext::tenantId() }}, company_id: {{ \App\Support\TenantContext::companyId() }}};</script>
-    <script src="{{ asset('js/orderPurchase/companyContext.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/deleteGeneral.js') }}"></script>
 @endsection

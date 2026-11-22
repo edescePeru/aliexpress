@@ -3,22 +3,26 @@
 @section('activeAdminFinancialSummary', 'active')
 @section('title', 'Resumen financiero')
 @section('page-header')
-    <h1 class="page-title">Resumen financiero</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Caja · consulta</span><h1 class="page-title">Resumen financiero</h1><p class="next-page-description">Saldos y actividad de la empresa, separados por moneda.</p></div>
 @endsection
 
+@section('page-title')
+<h2 class="h6 mb-0">Resumen operativo · Solo lectura</h2>
+@endsection
 @section('content')
+<div class="next-form-section">
     <div class="nav nav-tabs mb-3">
         @foreach (['balances' => 'Saldos de caja', 'activity' => 'Actividad del período'] as $key => $title)
             <a class="nav-link {{ $tab === $key ? 'active' : '' }}"
                href="{{ route('financial.summary', ['tab' => $key, 'branch_id' => $branchId]) }}">{{ $title }}</a>
         @endforeach
     </div>
-    <form action="{{ route('financial.summary') }}" method="GET" class="form-row align-items-end mb-3">
+    <form action="{{ route('financial.summary') }}" method="GET" class="row align-items-end mb-0">
         @if ($tab === 'activity')
             <input type="hidden" name="tab" value="activity">
         @endif
         @if ($branches->count() > 1 || $branchId !== null)
-        <div class="col-md-4 form-group">
+        <div class="col-sm-6 col-lg-3 form-group">
             <label for="branch_id">Sucursal</label>
             <select name="branch_id" id="branch_id" class="form-control">
                 <option value="">Todas las sucursales</option>
@@ -29,24 +33,24 @@
         </div>
         @endif
         @if ($tab === 'activity')
-        <div class="col-md-3 form-group">
+        <div class="col-sm-6 col-lg-2 form-group">
             <label for="period">Período</label>
             <select id="period" name="period" class="form-control">
                 <option value="range" {{ !$allHistory ? 'selected' : '' }}>Rango de fechas</option>
                 <option value="all" {{ $allHistory ? 'selected' : '' }}>Desde el inicio</option>
             </select>
         </div>
-        <div class="col-md-3 form-group">
+        <div class="col-sm-6 col-lg-2 form-group">
             <label for="from">Movimientos desde</label>
             <input type="date" name="from" id="from" class="form-control" value="{{ $from }}">
         </div>
-        <div class="col-md-3 form-group">
+        <div class="col-sm-6 col-lg-2 form-group">
             <label for="to">Hasta</label>
             <input type="date" name="to" id="to" class="form-control" value="{{ $to }}">
         </div>
         @endif
         @if ($tab === 'activity' || $branches->count() > 1 || $branchId !== null)
-        <div class="col-md-2 form-group">
+        <div class="col-sm-6 col-lg-3 form-group">
             <button type="submit" class="btn btn-primary">Consultar</button>
         </div>
         @endif
@@ -76,17 +80,17 @@
     @endif
 
     @forelse ($groups as $currency => $group)
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">{{ $currency }}</h3></div>
+        <section class="mb-3">
+            <h3 class="h6">{{ $currency }}</h3>
             <div class="table-responsive">
-                <table class="table table-sm table-bordered mb-0">
+                <table class="table table-sm table-bordered next-data-table mb-0">
                     <thead>
                         <tr>
                             <th>Caja</th>
                             <th class="text-right">Saldo rendido</th>
                             <th class="text-right">En turnos abiertos</th>
                             <th class="text-right">Por abonar</th>
-                            <th>Acción</th>
+                            <th class="text-center">Consulta</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -107,7 +111,7 @@
                                     <small class="d-block text-muted">{{ $row['sessions'] }} sesiones</small>
                                 </td>
                                 <td class="text-right">{{ number_format($row['pending'], 2) }}</td>
-                                <td><a class="btn btn-sm btn-outline-primary"
+                                <td class="text-center"><a class="btn btn-sm btn-outline-primary"
                                        href="{{ route('financial.summary.movements', ['cashBox' => $row['box']->id, 'branch_id' => $branchId]) }}">Ver movimientos</a></td>
                             </tr>
                         @endforeach
@@ -123,7 +127,7 @@
                     </tfoot>
                 </table>
             </div>
-        </div>
+        </section>
     @empty
         <p class="text-muted">No hay cajas para el contexto seleccionado.</p>
     @endforelse
@@ -135,7 +139,7 @@
     @endif
     <p class="text-muted">Se agrupan por fecha de registro del movimiento que afecta saldo. Los abonos están expresados en neto. La comisión se muestra como dato del cobro.</p>
         <div class="table-responsive">
-            <table class="table table-sm table-bordered">
+            <table class="table table-sm table-bordered next-data-table">
                 <thead>
                     <tr>
                         <th>Moneda</th>
@@ -145,7 +149,7 @@
                         <th class="text-right">Comisiones</th>
                         <th class="text-right">Entrada de fondos</th>
                         <th class="text-right">Traspasos de apertura</th>
-                        <th>Acción</th>
+                        <th class="text-center">Consulta</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -157,7 +161,7 @@
                                 @foreach (['receipts', 'expenses', 'commissions', 'external_funds', 'opening_transfers'] as $field)
                                     <td class="text-right">{{ number_format($row[$field], 2) }}</td>
                                 @endforeach
-                                <td><a class="btn btn-sm btn-outline-primary"
+                                <td class="text-center"><a class="btn btn-sm btn-outline-primary"
                                        href="{{ route('financial.summary.movements', ['cashBox' => $row['box']->id, 'branch_id' => $branchId, 'date_from' => $from, 'date_to' => $to, 'period' => $allHistory ? 'all' : null]) }}">Ver movimientos</a></td>
                             </tr>
                         @endforeach
@@ -176,4 +180,5 @@
     @else
         <p class="text-muted">No hay cajas para el contexto seleccionado.</p>
     @endif
+</div>
 @endsection

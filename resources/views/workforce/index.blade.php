@@ -5,15 +5,13 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">
-        Servicios predeterminados
-    </h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Configuración auxiliar de cotización</span><h1 class="page-title">Servicios predeterminados</h1><p class="next-page-description">Conceptos reutilizables del tenant activo.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">
-        Servicios predeterminados
-    </h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Servicios predeterminados</strong><span>Descripción, unidad, importe y condición facturable.</span></div><div class="next-toolbar-actions flex-wrap">
+@can('manage_workforce')<button type="button" class="btn btn-primary btn-sm" id="btnCreateWorkforce"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nuevo servicio</button>@endcan
+</div></div>
 @endsection
 
 @section('styles-plugins')
@@ -25,7 +23,7 @@
 @section('content')
 
     <div
-            id="workforcePage"
+            id="workforcePage" class="next-operational-list"
 
             data-url-data="{{ route('workforce.data') }}"
 
@@ -38,70 +36,16 @@
             data-url-delete="{{ route('workforce.destroy', ':id') }}"
     >
 
-        <div class="card card-primary">
-
-            <div class="card-header">
-
-                <h3 class="card-title">
-                    Servicios predeterminados
-                </h3>
-
-                <div class="card-tools">
-                    @can('manage_workforce')
-                        <button
-                                type="button"
-                                class="btn btn-sm btn-light"
-                                id="btnCreateWorkforce"
-                        >
-                            <i class="fas fa-plus"></i>
-                            Nuevo servicio
-                        </button>
-                    @endcan
-                </div>
-
-            </div>
-
-            <div class="card-body">
-
-                <div class="row mb-3">
-
-                    <div class="col-md-5">
-
-                        <input
-                                type="text"
-                                id="workforceSearch"
-                                class="form-control form-control-sm"
-                                placeholder="Buscar servicio..."
-                        >
-
-                    </div>
-
-                </div>
-
-                <div id="workforceTableContainer">
-
-                    <div class="text-center py-4">
-
-                        <i class="fas fa-spinner fa-spin"></i>
-
-                        Cargando...
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
+        <div class="next-list-toolbar"><label class="sr-only" for="workforceSearch">Buscar servicio</label><input type="search" id="workforceSearch" class="form-control form-control-sm" placeholder="Buscar servicio..."></div>
+        <div id="workforceTableContainer"><div class="text-center py-4" role="status">Cargando servicios…</div></div>
 
         {{-- =============================================== --}}
         {{-- MODAL CREAR / EDITAR --}}
         {{-- =============================================== --}}
 
         <div
-                class="modal fade"
-                id="modalWorkforce"
+                class="modal fade next-aux-modal next-aux-modal-form"
+                id="modalWorkforce" aria-labelledby="modalWorkforceTitle"
                 tabindex="-1"
         >
 
@@ -130,7 +74,7 @@
 
                     </div>
 
-                    <div class="modal-body">
+                    <div class="modal-body next-form-section">
 
                         <input
                                 type="hidden"
@@ -220,9 +164,7 @@
 
                             <small class="text-muted">
 
-                                Si está activo, el servicio
-                                formará parte del total de
-                                la cotización.
+                                Condición facturable del servicio.
 
                             </small>
 

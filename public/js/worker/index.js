@@ -152,43 +152,46 @@ $(document).ready(function () {
                 {
                     var text = '';
                     if ( $.inArray('edit_worker', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/colaborador/'+item.id+'" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen"></i> </a>  ';
+                        text = text + '<a href="'+document.location.origin+ '/dashboard/editar/colaborador/'+item.id+'" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Editar"><i class="fa fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar</span></a>  ';
                     }
                     if ( $.inArray('destroy_worker', $permissions) !== -1 ) {
-                        text = text + '<button data-delete="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Deshabilitar"><i class="fas fa-window-close"></i> </button>  ';
+                        text = text + '<button data-delete="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="dropdown-item next-row-action-danger" data-toggle="tooltip" data-placement="top" title="Deshabilitar"><i class="fas fa-window-close next-row-action-item-icon" aria-hidden="true"></i><span>Deshabilitar</span></button>  ';
                     }
                     if ( $.inArray('list_workerAccount', $permissions) !== -1 ) {
-                        text = text + '<a href="'+document.location.origin+ '/dashboard/registrar/cuentas/trabajador/'+item.id+'" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Registrar cuentas"><i class="fas fa-money-bill"></i> </a>  ';
+                        text = text + '<a href="'+document.location.origin+ '/dashboard/registrar/cuentas/trabajador/'+item.id+'" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Registrar cuentas"><i class="fas fa-money-bill next-row-action-item-icon" aria-hidden="true"></i><span>Registrar cuentas</span></a>  ';
                     }
                     if ( $.inArray('contract_worker', $permissions) !== -1 ) {
                         if ( item.have_contract == 0 )
                         {
-                            text = text + '<a href="'+document.location.origin+ '/dashboard/crear/contrato/'+item.id+'" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Crear contrato"><i class="fas fa-file-signature"></i> </a>  ';
+                            text = text + '<a href="'+document.location.origin+ '/dashboard/crear/contrato/'+item.id+'" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Crear contrato"><i class="fas fa-file-signature next-row-action-item-icon" aria-hidden="true"></i><span>Crear contrato</span></a>  ';
                             //text = text + '<button data-createcontract="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Crear contrato"><i class="fas fa-file-signature"></i> </button>  ';
                         } else {
-                            text = text + '<a href="'+document.location.origin+ '/dashboard/renovar/contrato/'+item.id+'" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Renovar contrato"><i class="fas fa-sync-alt"></i> </a>  ';
+                            text = text + '<a href="'+document.location.origin+ '/dashboard/renovar/contrato/'+item.id+'" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Renovar contrato"><i class="fas fa-sync-alt next-row-action-item-icon" aria-hidden="true"></i><span>Renovar contrato</span></a>  ';
                             //text = text + '<button data-renewcontract="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Renovar contrato"><i class="fas fa-sync-alt"></i> </button>  ';
                         }
 
                         if ( item.canFinishContract == 1 && item.canFinishContractEdit == 0 )
                         {
-                            text = text + '<button data-termino_contrato="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Terminar contrato"><i class="fas fa-user-slash"></i> </button>  ';
+                            text = text + '<button data-termino_contrato="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="dropdown-item next-row-action-danger" data-toggle="tooltip" data-placement="top" title="Terminar contrato"><i class="fas fa-user-slash next-row-action-item-icon" aria-hidden="true"></i><span>Terminar contrato</span></button>  ';
                         }
 
                         if ( item.canFinishContract == 0 && item.canFinishContractEdit == 1 )
                         {
-                            text = text + '<button data-termino_contrato_edit="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Editar Terminar contrato"><i class="fas fa-user-slash"></i> </button>  ';
-                            text = text + '<button data-termino_contrato_delete="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Eliminar Terminar contrato"><i class="fas fa-user-slash"></i> </button>  ';
+                            text = text + '<button data-termino_contrato_edit="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Editar Terminar contrato"><i class="fas fa-user-slash next-row-action-item-icon" aria-hidden="true"></i><span>Editar Terminar contrato</span></button>  ';
+                            text = text + '<button data-termino_contrato_delete="'+item.id+'" data-nombre="'+item.first_name+' '+item.last_name+'" data-worker_id="'+item.id+'" class="dropdown-item next-row-action-danger" data-toggle="tooltip" data-placement="top" title="Eliminar Terminar contrato"><i class="fas fa-user-slash next-row-action-item-icon" aria-hidden="true"></i><span>Eliminar Terminar contrato</span></button>  ';
                         }
                     }
 
-                    return text ;
+                    if (!text) return '';
+                    return '<div data-buttons><div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Abrir acciones del colaborador"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + text + '</div></div></div>';
                 }
             },
 
         ],
         "aaSorting": [],
         "columnDefs": [
+            { "className": "text-center", "targets": [0, 1, 8, 9, 10, 12, 13, 14, 29] },
+            { "className": "text-right", "targets": [15, 16, 17, 18, 19, 20] },
             {
                 "visible": false,
                 "targets": [ 4, 5, 6, 8, 9, 10, 11, 12, 13,14,15,16,17,18,19,20,21,22,23,24,25,27,28 ]
@@ -333,7 +336,7 @@ $(document).ready(function () {
 
     } );
 
-    $(document).on('click', '[data-column]', function (e) {
+    $('.next-column-visibility-menu').on('click', '[data-column]', function (e) {
         //e.preventDefault();
 
         // Get the column API object
@@ -342,6 +345,29 @@ $(document).ready(function () {
         // Toggle the visibility
         column.visible( ! column.visible() );
     } );
+    $('.next-column-visibility-menu').on('keydown', function (event) {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            $('#worker-columns-trigger').dropdown('hide').trigger('focus');
+        }
+    });
+    // Same floating-panel interaction as Material V2; keep delegated switches inside it.
+    $('.next-column-visibility-menu').on('click', function (event) {
+        event.stopPropagation();
+    });
+    $(document).on('hidden.bs.dropdown', '#dynamic-table .next-row-actions', function () {
+        $(this).children('.next-row-actions-trigger').attr('aria-expanded', 'false');
+    });
+    // Shared row menus are portaled by the shell; restore focus to their owner.
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        var menu = event.target.closest('.next-row-actions-menu');
+        var owner = menu && $(menu).data('nextRowActionsOwner');
+        if (!owner || !$(owner).closest('#dynamic-table').length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        $(owner).children('.next-row-actions-trigger').dropdown('hide').trigger('focus');
+    }, true);
     $('body').tooltip({
         selector: '[data-toggle="tooltip"]'
     });

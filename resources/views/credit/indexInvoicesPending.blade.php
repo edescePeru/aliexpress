@@ -47,7 +47,7 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Control de créditos</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Proveedores · créditos</span><h1 class="page-title">Facturas y saldos de créditos</h1><p class="next-page-description">Consulta y administración de créditos de la empresa activa según sus permisos.</p></div>
 @endsection
 
 @section('page-title')

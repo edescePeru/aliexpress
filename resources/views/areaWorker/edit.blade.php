@@ -29,21 +29,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Área: {{ $areaWorker->description }}</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · RRHH</span><h1 class="page-title">Áreas laborales</h1><p class="next-page-description">Catálogo laboral compartido.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Modificar área</h5>
-    <a href="{{ route('areaWorker.index') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Listado de Áreas de la empresa</a>
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Editar registro</strong><span>Datos del catálogo laboral.</span></div><div class="next-toolbar-actions flex-wrap"><a href="{{ route('areaWorker.index') }}" class="btn btn-outline-secondary btn-sm">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -62,21 +53,23 @@
     <form id="formCreate" class="form-horizontal" data-url="{{ route('areaWorker.update') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="areaWorker_id" value="{{ $areaWorker->id }}">
-        <div class="form-group row">
-            <div class="col-md-6">
-                <label for="name">Descripción <span class="right badge badge-danger">(*)</span></label>
+        <section class="next-form-section"><div class="row">
+            <div class="col-md-6 form-group">
+                <label for="name">Descripción <span class="next-required">(*)</span></label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="far fa-keyboard"></i></span>
                     </div>
-                    <input id="name" type="text" class="form-control" value="{{ $areaWorker->name }}" name="name" >
+                    <input id="name" type="text" class="form-control" value="{{ old('name', $areaWorker->name) }}" name="name" >
                 </div>
             </div>
         </div>
 
-        <div class="text-center">
-            <button type="button" id="btn-submit" class="btn btn-outline-success">Guardar</button>
+        </section>
+        <div class="next-list-toolbar"><div class="next-toolbar-actions flex-wrap">
+            <button type="button" id="btn-submit" class="btn btn-primary">Guardar</button>
             <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
+        </div>
         </div>
         <!-- /.card-footer -->
     </form>

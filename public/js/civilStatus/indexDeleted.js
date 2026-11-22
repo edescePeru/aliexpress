@@ -10,21 +10,27 @@ $(document).ready(function () {
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{ targets: [0, 2], className: 'text-center' }, { targets: 2, orderable: false, searchable: false }],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
         "aoColumns": [
             { data: 'id' },
-            { data: 'description' },
+            { data: 'description', render: $.fn.dataTable.render.text() },
             { data: null,
                 title: 'Acciones',
                 wrap: true,
                 "render": function (item)
                 {
                     var text = '';
+                    var escapeAttribute = function (value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
 
                     //if ( $.inArray('destroy_categoryInvoice', $permissions) !== -1 ) {
-                    text = text + ' <button data-delete="'+item.id+'" data-description="'+item.description+'" '+
-                        ' class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Habilitar estado civil"><i class="fas fa-recycle"></i></button>';
+                    text = text + ' <button data-delete="'+item.id+'" data-description="'+escapeAttribute(item.description)+'" '+
+                        ' class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Habilitar estado civil"><i class="fas fa-recycle"></i> Habilitar</button>';
                     //}
-                    return text;
+                    if (!text) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-expanded="false" aria-label="Acciones del registro ' + item.id + '"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + text + '</div></div>';
 
                 } },
 
@@ -186,7 +192,7 @@ function openModalDelete() {
     var description = $(this).data('description');
 
     $modalDelete.find('[id=civilStatus_id]').val(civilStatus_id);
-    $modalDelete.find('[id=description]').html(description);
+    $modalDelete.find('[id=description]').text(description);
 
     $modalDelete.modal('show');
 }

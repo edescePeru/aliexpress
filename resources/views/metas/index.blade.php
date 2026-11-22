@@ -12,8 +12,15 @@
 
 @section('title', 'Listado de Metas')
 
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas · Metas</span><h1 class="page-title">Metas</h1><p class="next-page-description">Objetivos por usuario de la empresa · Todas las sucursales · PEN.</p></div>
+@endsection
+@section('page-title')
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Metas</strong><span>Metas comerciales de la empresa activa.</span></div></div>
+@endsection
+
 @section('content')
-    <div class="container-fluid">
+    <div class="next-operational-list">
 
         {{-- MENSAJES FLASH --}}
         @if(session('success'))
@@ -26,11 +33,11 @@
         @endif
 
         {{-- CONFIGURACIÓN TIPO DE META --}}
-        <div class="card mb-3">
-            <div class="card-header">
+        <div class="next-form-section">
+            <div class="next-section-header">
                 <h3 class="card-title">Configuración de tipo de meta</h3>
             </div>
-            <div class="card-body">
+            <div class="p-0">
 
                 @if ($tipoMeta)
                     <p class="mb-1"><strong>Tipo de meta configurado</strong>
@@ -47,14 +54,14 @@
         </div>
 
         {{-- LISTADO DE METAS --}}
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="next-form-section">
+            <div class="next-page-toolbar flex-wrap">
                 <h3 class="card-title mb-0">Listado de metas</h3>
 
                 @can('create_metas')
                 <div>
                     <a href="{{ $canCreateMetas ? route('metas.create') : '#' }}"
-                       class="btn btn-success btn-sm {{ $canCreateMetas ? '' : 'disabled' }}"
+                       class="btn btn-primary btn-sm {{ $canCreateMetas ? '' : 'disabled' }}"
                        @if(!$canCreateMetas) disabled title="Configura el tipo de meta primero" @endif>
                         <i class="fas fa-plus"></i> Crear meta
                     </a>
@@ -64,29 +71,29 @@
 
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
+                    <table class="table table-bordered table-sm table-hover mb-0">
                         <thead>
                         <tr>
-                            <th style="width: 60px;">ID</th>
+                            <th class="text-center">ID</th>
                             <th>Nombre</th>
-                            <th style="width: 120px;">Tipo</th>
-                            <th style="width: 150px;">Monto</th>
-                            <th style="width: 150px;">Usuarios</th>
-                            <th style="width: 80px;">Acciones</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-right">Monto</th>
+                            <th class="text-center">Usuarios</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($metas as $meta)
                             <tr data-meta-id="{{ $meta->id }}">
-                                <td>{{ $meta->id }}</td>
+                                <td class="text-center">{{ $meta->id }}</td>
                                 <td>{{ $meta->nombre }}</td>
-                                <td class="text-uppercase">{{ $meta->tipo }}</td>
-                                <td>S/ {{ number_format($meta->monto, 2) }}</td>
-                                <td>{{ $meta->users_count }}</td>
-                                <td>
+                                <td class="text-center text-uppercase">{{ $meta->tipo }}</td>
+                                <td class="text-right">S/ {{ number_format($meta->monto, 2) }}</td>
+                                <td class="text-center">{{ $meta->users_count }}</td>
+                                <td class="text-center">
                                     @can('edit_metas')
                                     <a href="{{ route('metas.edit', $meta->id) }}"
-                                       class="btn btn-warning btn-sm"
+                                       class="btn btn-outline-secondary btn-sm"
                                        title="Editar meta">
                                         <i class="fas fa-edit"></i>
                                     </a>
@@ -115,7 +122,7 @@
             </div>
 
             @if($metas->hasPages())
-                <div class="card-footer">
+                <div class="next-list-pagination">
                     {{ $metas->links() }}
                 </div>
             @endif

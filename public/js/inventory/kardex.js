@@ -1,4 +1,20 @@
+let kardexRequest = null;
+let kardexRequestVersion = 0;
+
+function kardexState(message, isError) {
+    $('#kardex-body').empty().append(
+        $('<tr>').append($('<td>', {
+            colspan: 10, class: 'text-center py-4' + (isError ? ' text-danger' : ''),
+            role: isError ? 'alert' : 'status'
+        }).text(message))
+    );
+}
+
 $(function () {
+    $('#form-kardex').on('submit', function (event) {
+        event.preventDefault();
+        $('#btn-search-kardex').trigger('click');
+    });
 
     $('#stock_item_id').select2({
         placeholder: 'Busque y seleccione un producto...',
@@ -45,13 +61,23 @@ $(function () {
         }
     });
 
-    // 2) Click en Buscar Kardex
+    $('#stock_item_id, #warehouse_id').on('change', function () {
+        kardexRequestVersion++;
+        if (kardexRequest) kardexRequest.abort();
+        $('#kardex-header').prop('hidden', true);
+        $('#kardex-table').attr('aria-busy', 'false');
+        $('#kardex-count').text('Consulta pendiente');
+        kardexState('Pulsa Buscar para consultar los filtros seleccionados.');
+    });
+
     $('#btn-search-kardex').on('click', function () {
         let stockItemId = $('#stock_item_id').val();
         let warehouseId = $('#warehouse_id').val();
 
         if (!stockItemId) {
-            alert('Seleccione un producto.');
+            $('#kardex-count').text('Selecciona un producto o variante');
+            kardexState('Seleccione un producto o variante.');
+            $('#stock_item_id').select2('open');
             return;
         }
 
@@ -60,28 +86,29 @@ $(function () {
 });
 
 function money(simbolo, valor) {
-    if (valor === null || valor === undefined || valor === '' || Number(valor) === 0) {
+    if (valor === null || valor === undefined || valor === '') {
         return '';
     }
     return simbolo + ' ' + parseFloat(valor).toFixed(2);
 }
 
 function loadKardex(stockItemId, warehouseId = null) {
-    $('#kardex-header').hide();
-    $('#kardex-body').html(
-        '<tr><td colspan="10" class="text-center">Cargando...</td></tr>'
-    );
+    const version = ++kardexRequestVersion;
+    if (kardexRequest) kardexRequest.abort();
+    $('#kardex-header').prop('hidden', true);
+    $('#kardex-count').text('Consultando movimientos…');
+    $('#kardex-table').attr('aria-busy', 'true');
+    kardexState('Cargando movimientos…');
 
-    $.getJSON('/dashboard/kardex/' + stockItemId, {
+    kardexRequest = $.getJSON('/dashboard/kardex/' + stockItemId, {
         warehouse_id: warehouseId
     }, function (res) {
+        if (version !== kardexRequestVersion) return;
         let tbody = $('#kardex-body');
         tbody.empty();
 
         if (!res.rows || res.rows.length === 0) {
-            tbody.append(
-                '<tr><td colspan="10" class="text-center">No se encontraron movimientos para el producto seleccionado.</td></tr>'
-            );
+            kardexState('No se encontraron movimientos para el producto y almacén seleccionados.');
         } else {
             res.rows.forEach(function (r) {
                 let origen = r.source_type + ' #' + r.source_id;
@@ -92,21 +119,27 @@ function loadKardex(stockItemId, warehouseId = null) {
                 }
 
                 let tr = $('<tr>');
-                tr.append('<td>' + (r.date || '') + '</td>');
-                tr.append('<td>' + r.type + '</td>');
-                tr.append($('<td>').text(origen));
-                tr.append('<td class="text-right">' + (r.qty_in || '') + '</td>');
-                tr.append('<td class="text-right">' + (r.qty_out || '') + '</td>');
-                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.unit_cost_in) + '</td>');
-                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.unit_cost_out) + '</td>');
-                tr.append('<td class="text-right">' + (r.saldo_qty || 0) + '</td>');
-                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.saldo_cost) + '</td>');
-                tr.append('<td class="text-right">' + money(r.simbolo_moneda, r.saldo_total) + '</td>');
+                tr.append($('<td>', {class: 'text-center text-nowrap'}).text(r.date || ''));
+                tr.append($('<td>', {class: 'text-center'}).append(
+                    $('<span>', {class: 'badge badge-light'}).text(r.type)
+                ));
+                tr.append($('<td>', {class: 'text-left text-nowrap'}).text(origen));
+                ['qty_in', 'qty_out'].forEach(function (key) {
+                    tr.append($('<td>', {class: 'text-center'}).text(r[key] == null ? '' : r[key]));
+                });
+                ['unit_cost_in', 'unit_cost_out'].forEach(function (key) {
+                    tr.append($('<td>', {class: 'text-right text-nowrap'}).text(money(r.simbolo_moneda, r[key])));
+                });
+                tr.append($('<td>', {class: 'text-center'}).text(r.saldo_qty == null ? '' : r.saldo_qty));
+                ['saldo_cost', 'saldo_total'].forEach(function (key) {
+                    tr.append($('<td>', {class: 'text-right text-nowrap'}).text(money(r.simbolo_moneda, r[key])));
+                });
                 tbody.append(tr);
             });
         }
 
-        $('#kardex-header').show();
+        $('#kardex-count').text((res.rows || []).length + ' movimientos');
+        $('#kardex-header').prop('hidden', false);
 
         $('#kardex-material-name').text(
             res.stock_item_name || res.material_name || ('StockItem ID ' + res.stock_item_id)
@@ -116,11 +149,18 @@ function loadKardex(stockItemId, warehouseId = null) {
             res.warehouse_name || 'General y almacenes del local actual'
         );
 
-    }).fail(function (xhr) {
+    }).fail(function (xhr, status) {
+        if (status === 'abort' || version !== kardexRequestVersion) return;
         const errors = xhr.responseJSON && xhr.responseJSON.errors;
-        const message = errors && errors.currency ? errors.currency[0] : 'Error al obtener el Kardex.';
-        $('#kardex-body').empty().append(
-            $('<tr>').append($('<td>', { colspan: 10, class: 'text-center text-danger' }).text(message))
-        );
+        const messages = {403: 'No tiene permiso o contexto autorizado para esta consulta.',
+            404: 'El producto o almacén no existe o no está disponible en el contexto actual.',
+            422: 'Revise los filtros de la consulta.', 401: 'Su sesión ha expirado. Inicie sesión nuevamente.',
+            419: 'Su sesión ha expirado. Recargue la página.'};
+        const firstError = errors && Object.keys(errors)[0];
+        const message = firstError ? errors[firstError][0] : (messages[xhr.status] || 'Error al obtener el Kardex. Intente nuevamente.');
+        $('#kardex-count').text('Consulta no disponible');
+        kardexState(message, true);
+    }).always(function () {
+        if (version === kardexRequestVersion) $('#kardex-table').attr('aria-busy', 'false');
     });
 }

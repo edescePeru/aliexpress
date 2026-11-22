@@ -2,20 +2,17 @@
 
 @section('title') Ver Guía de Remisión @endsection
 
-@section('styles')
-    <style>
-        .kv { font-size: 14px; }
-        .kv b { display:inline-block; min-width: 190px; }
-    </style>
+@section('page-header')
+<div class="next-page-heading"><span class="next-page-eyebrow">Logística · Guías</span><h1 class="page-title">Detalle de guía</h1><p class="next-page-description">Información registrada del local activo.</p></div>
 @endsection
 
 @section('content')
-    <div class="container-fluid">
+    <div class="next-form-section">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="next-page-toolbar flex-wrap mb-3">
             <h4 class="mb-0">Guía: {{ $guide->serie }}-{{ $guide->numero }}</h4>
 
-            <div>
+            <div class="next-toolbar-actions flex-wrap">
                 <a href="{{ route('shipping_guides.view') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fa fa-arrow-left"></i> Volver
                 </a>
@@ -67,7 +64,7 @@
         {{-- Encabezado --}}
         <div class="card mb-3">
             <div class="card-header"><b>Encabezado</b></div>
-            <div class="card-body kv">
+            <div class="card-body next-form-section text-break">
                 <div><b>Fecha emisión:</b> {{ optional($guide->fecha_emision)->format('d/m/Y') ?? $guide->fecha_emision }}</div>
                 <div><b>Inicio traslado:</b> {{ optional($guide->fecha_inicio_traslado)->format('d/m/Y') ?? $guide->fecha_inicio_traslado }}</div>
                 <div><b>Motivo:</b> {{ $guide->motivo_traslado_code }} - {{ $transferReasonName ?? '' }}</div>
@@ -83,7 +80,7 @@
         {{-- Traslado --}}
         <div class="card mb-3">
             <div class="card-header"><b>Traslado</b></div>
-            <div class="card-body kv">
+            <div class="card-body next-form-section text-break">
                 <div><b>Peso bruto:</b> {{ $guide->peso_bruto_total }} {{ $guide->peso_bruto_um_code }}</div>
                 <div><b>Bultos:</b> {{ $guide->numero_bultos }}</div>
                 <div><b>Indicador SUNAT:</b> {{ $guide->sunat_shipping_indicator_code }}</div>
@@ -95,7 +92,7 @@
             <div class="col-md-6">
                 <div class="card mb-3">
                     <div class="card-header"><b>Punto de partida</b></div>
-                    <div class="card-body kv">
+                    <div class="card-body next-form-section text-break">
                         <div><b>Ubigeo:</b> {{ $guide->partida_ubigeo }}</div>
                         <div><b>Dirección:</b> {{ $guide->partida_direccion }}</div>
                     </div>
@@ -104,7 +101,7 @@
             <div class="col-md-6">
                 <div class="card mb-3">
                     <div class="card-header"><b>Punto de llegada</b></div>
-                    <div class="card-body kv">
+                    <div class="card-body next-form-section text-break">
                         <div><b>Ubigeo:</b> {{ $guide->llegada_ubigeo }}</div>
                         <div><b>Dirección:</b> {{ $guide->llegada_direccion }}</div>
                     </div>
@@ -115,26 +112,26 @@
         {{-- Transporte --}}
         <div class="card mb-3">
             <div class="card-header"><b>Transporte</b></div>
-            <div class="card-body">
-                <div class="kv mb-2">
+            <div class="card-body next-form-section">
+                <div class="mb-2 text-break">
                     <b>Transportista:</b>
                     {{ $guide->transportista_name ?? '-' }}
                     ({{ $guide->transportista_doc_type ?? '' }} {{ $guide->transportista_doc_number ?? '' }})
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive" tabindex="0" aria-label="Datos de guía; desplazamiento horizontal">
                     <table class="table table-sm table-bordered">
                         <thead>
                         <tr>
-                            <th>Tipo</th>
-                            <th>Placa</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Placa</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($guide->vehicles as $v)
                             <tr>
-                                <td>{{ $v->is_primary ? 'Principal' : 'Secundario' }}</td>
-                                <td>{{ $v->plate_number }}</td>
+                                <td class="text-center">{{ $v->is_primary ? 'Principal' : 'Secundario' }}</td>
+                                <td class="text-center">{{ $v->plate_number }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="2" class="text-center text-muted">Sin vehículos</td></tr>
@@ -143,23 +140,23 @@
                     </table>
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive" tabindex="0" aria-label="Datos de guía; desplazamiento horizontal">
                     <table class="table table-sm table-bordered">
                         <thead>
                         <tr>
-                            <th>Tipo</th>
-                            <th>Doc</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Doc</th>
                             <th>Conductor</th>
-                            <th>Licencia</th>
+                            <th class="text-center">Licencia</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($guide->drivers as $d)
                             <tr>
-                                <td>{{ $d->is_primary ? 'Principal' : 'Secundario' }}</td>
-                                <td>{{ $d->document_type_code }} {{ $d->document_number }}</td>
+                                <td class="text-center">{{ $d->is_primary ? 'Principal' : 'Secundario' }}</td>
+                                <td class="text-center">{{ $d->document_type_code }} {{ $d->document_number }}</td>
                                 <td>{{ $d->first_name }} {{ $d->last_name }}</td>
-                                <td>{{ $d->license_number }}</td>
+                                <td class="text-center">{{ $d->license_number }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="4" class="text-center text-muted">Sin conductores</td></tr>
@@ -174,24 +171,24 @@
         {{-- Items --}}
         <div class="card mb-3">
             <div class="card-header"><b>Items</b></div>
-            <div class="card-body">
-                <div class="table-responsive">
+            <div class="card-body next-form-section">
+                <div class="table-responsive" tabindex="0" aria-label="Datos de guía; desplazamiento horizontal">
                     <table class="table table-sm table-bordered">
                         <thead>
                         <tr>
-                            <th>#</th>
+                            <th class="text-center">#</th>
                             <th>Descripción</th>
-                            <th class="text-right">Cantidad</th>
-                            <th>UM</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">UM</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($guide->items as $it)
                             <tr>
-                                <td>{{ $it->line }}</td>
+                                <td class="text-center">{{ $it->line }}</td>
                                 <td>{{ $it->descripcion }}</td>
-                                <td class="text-right">{{ $it->cantidad }}</td>
-                                <td>{{ $it->unidad_medida }}</td>
+                                <td class="text-center">{{ $it->cantidad }}</td>
+                                <td class="text-center">{{ $it->unidad_medida }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="4" class="text-center text-muted">Sin items</td></tr>

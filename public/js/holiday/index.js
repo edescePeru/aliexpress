@@ -10,6 +10,10 @@ $(document).ready(function () {
             dataSrc: 'data'
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar"<"next-list-search-row"<"next-list-search-control"f><"next-list-length"l>>><"next-list-summary text-wrap"i><"next-list-content"<"table-responsive"t>><"next-list-pagination"p>',
+        columnDefs: [{ targets: [0, 3, 1], className: 'text-center' }, { targets: 3, orderable: false, searchable: false }],
+        preDrawCallback: function () { $(this.api().table().container()).find('.dataTables_info').addClass('text-wrap'); },
+        drawCallback: function () { $(this.api().table().container()).find('.dataTables_empty').addClass('text-left text-wrap'); },
         "aoColumns": [
             { data: 'year' },
             { data: null,
@@ -25,7 +29,7 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    return item.description;
+                    return $('<div>').text(item.description || '').html();
                 }
             },
             { data: null,
@@ -34,15 +38,17 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     var text = '';
+                    var escapeAttribute = function (value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
                     //if ( $.inArray('update_categoryInvoice', $permissions) !== -1 ) {
                         text = text + '<a href="'+document.location.origin+ '/dashboard/editar/feriado/'+item.id+
-                            '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar Feriado"><i class="fa fa-pen"></i></a>';
+                            '" class="dropdown-item" data-toggle="tooltip" data-placement="top" title="Editar Feriado"><i class="fa fa-pen"></i> Editar</a>';
                     //}
                     //if ( $.inArray('destroy_categoryInvoice', $permissions) !== -1 ) {
-                        text = text + ' <button data-delete="'+item.id+'" data-description="'+item.description+'" data-date="'+moment(item.date_complete).format('DD/MM/YYYY')+'" data-year="'+item.year+'" '+
-                            ' class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Eliminar Feriado"><i class="fa fa-trash"></i></button>';
+                        text = text + ' <button data-delete="'+item.id+'" data-description="'+escapeAttribute(item.description)+'" data-date="'+moment(item.date_complete).format('DD/MM/YYYY')+'" data-year="'+item.year+'" '+
+                            ' class="dropdown-item text-danger" data-toggle="tooltip" data-placement="top" title="Eliminar Feriado"><i class="fa fa-trash"></i> Eliminar</button>';
                     //}
-                    return text;
+                    if (!text) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-expanded="false" aria-label="Acciones del registro ' + item.id + '"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right">' + text + '</div></div>';
 
                 } },
 
@@ -292,6 +298,7 @@ function openModalDelete() {
 
     $modalDelete.find('[id=holiday_id]').val(holiday_id);
     var text = '';
+                    var escapeAttribute = function (value) { return $('<div>').text(value == null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
     text = 'Feriado: ' + moment(date).format('DD/MM/YYYY') + ' ' + description
     $modalDelete.find('[id=description]').html(text);
     $modalDelete.modal('show');

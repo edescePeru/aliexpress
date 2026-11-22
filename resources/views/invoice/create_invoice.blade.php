@@ -28,29 +28,14 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
 
-        /*.modal-dialog {
-            height: 100% !important;
-        }*/
-
-        /*.modal-content {
-            height: auto;
-            min-height: 100%;
-        }*/
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Facturas por compra/servicio</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Finanzas · Facturas</span><h1 class="page-title">Nueva factura de compra / servicio</h1><p class="next-page-description">Documento financiero de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Crear nueva factura por compra/servicio</h5>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Factura de compra / servicio</strong><span>Documento, líneas e importes.</span></div><div class="next-toolbar-actions"><a class="btn btn-outline-secondary btn-sm" href="{{ route('invoice.index') }}">Volver al listado</a></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -66,20 +51,15 @@
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('invoice.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal next-form-section" data-url="{{ route('invoice.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Datos generales</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                        <div class="next-section-header mb-0"><div><span class="next-section-kicker">01</span><h2>Documento y proveedor</h2></div></div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group " id="sandbox-container">
@@ -103,12 +83,12 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="observation">Observación </label>
-                                    <textarea name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...."></textarea>
+                                    <textarea id="observation" name="observation" cols="30" class="form-control" style="word-break: break-all;" placeholder="Ingrese observación ...."></textarea>
                                 </div>
                                 <div class="form-group">
                                     <label for="category_invoice">Categoría </label>
                                     <div class="input-group">
-                                        <select id="category_invoice" name="category_invoice_id" class="form-control select2" style="width: 90%;">
+                                        <select id="category_invoice" name="category_invoice_id" class="form-control select2" style="width: 100%;">
                                             <option></option>
                                             @foreach( $categories as $category )
                                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -124,18 +104,18 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group row">
-                                    <div class="col-md-8">
-                                        <label for="invoice">Factura <span class="right badge badge-danger">(*)</span></label>
+                                    <div class="col-12">
+                                        <label for="invoice">Factura <span class="next-required">(*)</span></label>
                                         <input type="text" id="invoice" name="invoice" class="form-control">
                                     </div>
                                     {{--<div class="col-md-4">
-                                        <label for="btn-grouped"> Diferido <span class="right badge badge-danger">(*)</span></label> <br>
+                                        <label for="btn-grouped"> Diferido <span class="next-required">(*)</span></label> <br>
                                         <input id="btn-grouped" type="checkbox" name="deferred_invoice" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
                                     </div>--}}
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="type_order">Tipo de Orden <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="type_order">Tipo de Orden <span class="next-required">(*)</span></label>
                                     <input type="hidden" id="entry_type" value="Por compra" name="entry_type" class="form-control" readonly>
                                     <select id="type_order" name="type_order" class="form-control select2" style="width: 100%;">
                                         <option></option>
@@ -150,21 +130,22 @@
                                 </div>
                                 <div class="form-group row">
                                     <div class="col-md-4">
-                                        <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
+                                        <label for="btn-currency"> Moneda <span class="next-required">(*)</span></label> <br>
                                         <input id="btn-currency" type="checkbox" name="currency_invoice" data-bootstrap-switch data-off-color="primary" data-on-text="DOLARES" data-off-text="SOLES" data-on-color="success" readonly>
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <div class="col-md-4">
+                                    <div class="col-12 col-lg-6">
                                         <label for="pv_cash_box_id">
-                                            Caja <span class="right badge badge-danger">(*)</span>
+                                            Caja <span class="next-required">(*)</span>
                                         </label>
 
                                         <select id="pv_cash_box_id"
                                                 name="pv_cash_box_id"
+                                                aria-describedby="finance-cash-empty"
                                                 class="form-control select2"
                                                 style="width: 100%;">
-                                            <option value=""></option>
+                                            <option value="">{{ $cashBoxes->isEmpty() ? 'Sin cajas disponibles' : 'Seleccione caja...' }}</option>
 
                                             @foreach($cashBoxes as $b)
                                                 <option
@@ -177,11 +158,12 @@
                                                 </option>
                                             @endforeach
                                         </select>
+                                        <small id="finance-cash-empty" class="form-text text-muted" role="status" @if($cashBoxes->isNotEmpty()) hidden @endif>No hay cajas con sesión propia única abierta disponibles para esta moneda y local.</small>
                                     </div>
 
-                                    <div class="col-md-4" id="pv_cash_box_subtype_wrap" style="display:none;">
+                                    <div class="col-12 col-lg-6" id="pv_cash_box_subtype_wrap" style="display:none;">
                                         <label for="pv_cash_box_subtype_id">
-                                            Canal / Subtipo <span class="right badge badge-danger">(*)</span>
+                                            Canal / Subtipo <span class="next-required">(*)</span>
                                         </label>
 
                                         <select id="pv_cash_box_subtype_id"
@@ -204,28 +186,23 @@
                 <!-- /.card -->
             </div>
             <div class="col-md-12">
-                <div class="card card-warning">
-                    <div class="card-header">
-                        <h3 class="card-title">Materiales/Servicios</h3>
-
-                        <div class="card-tools">
-                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                                <i class="fas fa-minus"></i></button>
-                        </div>
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <div class="next-section-header mb-0"><div><span class="next-section-kicker">02</span><h2>Líneas de compra / servicio</h2></div></div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
 
-                        <div class="row">
-                            <div class="col-md-4">
+                        <div class="row align-items-end">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="form-group">
-                                    <label for="material_search">Ingresar material/Servicio <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="material_search">Material / Servicio <span class="next-required">(*)</span></label>
                                     <input type="text" id="material_search" onkeyup="mayus(this);" class="form-control">
 
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
-                                    <label for="material_unit">Unidad <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="material_unit">Unidad <span class="next-required">(*)</span></label>
                                     <select id="material_unit" name="material_unit" class="form-control select2" style="width: 100%;">
                                         <option></option>
                                         @foreach( $unitMeasures as $unitMeasure )
@@ -234,31 +211,34 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl">
                                 <div class="form-group">
-                                    <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="quantity">Cantidad <span class="next-required">(*)</span></label>
                                     <input type="number" id="quantity" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
-                                    <label for="price">Importe total <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="price">Importe total <span class="next-required">(*)</span></label>
                                     <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
                                     this.style.borderColor=/^\d+(?:\.\d{1,2})?$/.test(this.value)?'':'red'
                                     ">
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="finance-tax-kind">Afectación de IGV</label>
+                            <div class="col-12 col-md-6 col-xl-2">
+                                <div class="form-group">
+                                <label for="finance-tax-kind">Afectación IGV</label>
                                 <select id="finance-tax-kind" class="form-control">
                                     <option value="gravada">Gravada (18 % incluido)</option>
                                     <option value="exonerada">Exonerada</option>
                                     <option value="inafecta">Inafecta</option>
                                 </select>
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <label for="btn-add"> &nbsp; </label>
-                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary">Agregar <i class="fas fa-arrow-circle-right"></i></button>
+                            <div class="col-12 col-md-6 col-xl-auto">
+                                <div class="form-group">
+                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary">Agregar</button>
+                                </div>
                             </div>
 
                         </div>
@@ -269,22 +249,22 @@
                             <div class="col-md-12">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h3 class="card-title">Materiales/Servicios</h3>
+                                        <h3 class="card-title">Detalle agregado</h3>
                                     </div>
                                     <!-- /.card-header -->
-                                    <div class="card-body table-responsive p-0" style="height: 300px;">
-                                        <table class="table table-head-fixed text-nowrap">
+                                    <div class="card-body table-responsive p-0" tabindex="0" aria-label="Líneas de factura; desplazamiento horizontal local">
+                                        <table class="table table-bordered table-hover table-sm next-data-table text-nowrap">
                                             <thead>
                                                 <tr>
-                                                    <th>Codigo</th>
+                                                    <th class="text-center">Codigo</th>
                                                     <th>Material</th>
-                                                    <th>Cantidad</th>
-                                                    <th>Und</th>
-                                                    <th>Precio Unit.</th>
-                                                    <th>Total sin Imp.</th>
-                                                    <th>Total Imp.</th>
-                                                    <th>Importe</th>
-                                                    <th>Acciones</th>
+                                                    <th class="text-center">Cantidad</th>
+                                                    <th class="text-center">Und</th>
+                                                    <th class="text-right">Precio Unit.</th>
+                                                    <th class="text-right">Total sin Imp.</th>
+                                                    <th class="text-right">Total Imp.</th>
+                                                    <th class="text-right">Importe</th>
+                                                    <th class="text-center">Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="body-materials">
@@ -293,14 +273,14 @@
                                             </tbody>
                                             <template id="materials-selected">
                                                 <tr>
-                                                    <td data-id>183</td>
+                                                    <td class="text-center" data-id>183</td>
                                                     <td data-description>John Doe</td>
-                                                    <td data-quantity>John Doe</td>
-                                                    <td data-unit>11-7-2014</td>
-                                                    <td data-price>11-7-2014</td>
-                                                    <td data-subtotal>11-7-2014</td>
-                                                    <td data-taxes>11-7-2014</td>
-                                                    <td data-total>11-7-2014</td>
+                                                    <td class="text-center" data-quantity>John Doe</td>
+                                                    <td class="text-center" data-unit>11-7-2014</td>
+                                                    <td class="text-right" data-price>11-7-2014</td>
+                                                    <td class="text-right" data-subtotal>11-7-2014</td>
+                                                    <td class="text-right" data-taxes>11-7-2014</td>
+                                                    <td class="text-right" data-total>11-7-2014</td>
                                                     <td>
                                                         <button type="button" data-delete="" class="btn btn-danger"><i class="fas fa-trash"></i></button>
                                                     </td>
@@ -315,29 +295,29 @@
                         </div>
                         <div class="row">
                             <!-- accepted payments column -->
-                            <div class="col-6">
+                            <div class="col-12 col-md-6">
 
                             </div>
                             <!-- /.col -->
-                            <div class="col-6">
+                            <div class="col-12 col-md-6">
                                 <p class="lead">Resumen de factura</p>
 
                                 <div class="table-responsive">
                                     <table class="table">
-                                        <tr><th>Gravada</th><td><span class="moneda">PEN</span> <span id="finance-gravada">0.00</span></td></tr>
-                                        <tr><th>Exonerada</th><td><span class="moneda">PEN</span> <span id="finance-exonerada">0.00</span></td></tr>
-                                        <tr><th>Inafecta</th><td><span class="moneda">PEN</span> <span id="finance-inafecta">0.00</span></td></tr>
+                                        <tr><th>Gravada</th><td class="text-right"><span class="moneda">PEN</span> <span id="finance-gravada">0.00</span></td></tr>
+                                        <tr><th>Exonerada</th><td class="text-right"><span class="moneda">PEN</span> <span id="finance-exonerada">0.00</span></td></tr>
+                                        <tr><th>Inafecta</th><td class="text-right"><span class="moneda">PEN</span> <span id="finance-inafecta">0.00</span></td></tr>
                                         <tr>
                                             <th style="width:50%">Subtotal: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="subtotal">0.00</span> </td>
+                                            <td class="text-right"><span class="moneda">PEN</span> <span id="subtotal">0.00</span> </td>
                                         </tr>
                                         <tr>
                                             <th>Igv: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="taxes">0.00</span> </td>
+                                            <td class="text-right"><span class="moneda">PEN</span> <span id="taxes">0.00</span> </td>
                                         </tr>
                                         <tr>
                                             <th>Total: </th>
-                                            <td ><span class="moneda">PEN</span> <span id="total">0.00</span> </td>
+                                            <td class="text-right"><span class="moneda">PEN</span> <span id="total">0.00</span> </td>
                                         </tr>
                                     </table>
                                 </div>
@@ -352,15 +332,15 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 next-toolbar-actions flex-wrap">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar factura compra/servicio</button>
+                <button type="button" id="btn-submit" class="btn btn-primary">Guardar factura compra/servicio</button>
             </div>
         </div>
         <!-- /.card-footer -->
     </form>
 
-    <div id="modalAddItems" class="modal fade" tabindex="-1">
+    <div id="modalAddItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -451,7 +431,7 @@
         </div>
     </div>
 
-    <div id="modalAddGroupItems" class="modal fade" tabindex="-1">
+    <div id="modalAddGroupItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -515,12 +495,12 @@
     </div>
 
     <!-- Modal Crear Categoria -->
-    <div class="modal fade" id="modalCategoria" tabindex="-1" role="dialog" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalCategoria" tabindex="-1" role="dialog" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header">
                     <h5 class="modal-title" id="modalCategoriaLabel">Crear Categoría</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -529,7 +509,7 @@
                         @csrf
                         <div class="form-group row">
                             <div class="col-md-6">
-                                <label>Categoría <span class="right badge badge-danger">(*)</span></label>
+                                <label>Categoría <span class="next-required">(*)</span></label>
                                 <input type="text" class="form-control" name="name" onkeyup="mayus(this);" placeholder="Ejm: ELECTRICIDAD">
                             </div>
 

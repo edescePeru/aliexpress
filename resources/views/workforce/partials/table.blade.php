@@ -1,6 +1,7 @@
-<div class="table-responsive">
+<div class="next-list-summary"><strong>{{ $workforces->total() }} servicios</strong><span>Catálogo del tenant activo</span></div>
+<div class="table-responsive" tabindex="0" aria-label="Servicios; desplazamiento horizontal">
 
-    <table class="table table-sm table-hover">
+    <table class="table table-bordered table-sm table-hover">
 
         <thead>
 
@@ -10,7 +11,7 @@
                 Servicio
             </th>
 
-            <th>
+            <th class="text-center">
                 Unidad
             </th>
 
@@ -46,7 +47,7 @@
                     {{ $workforce->description }}
                 </td>
 
-                <td>
+                <td class="text-center">
 
                     {{ optional(
                         $workforce->unitMeasure
@@ -86,7 +87,7 @@
                         <button
                                 type="button"
                                 class="btn btn-sm btn-outline-primary"
-                                data-edit-workforce="{{ $workforce->id }}"
+                                aria-label="Editar servicio" data-edit-workforce="{{ $workforce->id }}"
                         >
                             <i class="fas fa-edit"></i>
                         </button>
@@ -94,7 +95,7 @@
                         <button
                                 type="button"
                                 class="btn btn-sm btn-outline-danger"
-                                data-delete-workforce="{{ $workforce->id }}"
+                                aria-label="Eliminar servicio" data-delete-workforce="{{ $workforce->id }}"
                         >
                             <i class="fas fa-trash"></i>
                         </button>
@@ -130,7 +131,7 @@
     $workforces->lastPage() > 1
 )
 
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="next-list-toolbar d-flex flex-wrap justify-content-between align-items-center">
 
         <small class="text-muted">
 
@@ -145,7 +146,7 @@
 
         <nav>
 
-            <ul class="pagination pagination-sm mb-0">
+            <ul class="pagination pagination-sm mb-0 flex-wrap">
 
                 @for(
                     $page = 1;

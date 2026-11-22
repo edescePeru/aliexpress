@@ -25,12 +25,13 @@
             var select = root.find('.js-warehouse-preference select').empty();
             select.append($('<option>').val('').text('Usar general predeterminado'));
             rows.forEach(function (w) {
-                var tr = $('<tr>'), actions = $('<td>');
-                tr.append($('<td>').text(w.name), $('<td>').text(w.comment || ''));
+                var tr = $('<tr>'), actionCell = $('<td class="text-center">'), actions = $('<div class="next-toolbar-actions flex-wrap justify-content-center">');
+                actionCell.append(actions);
+                tr.append($('<td class="text-left">').text(w.name), $('<td class="text-left">').text(w.comment || ''));
                 var description = w.locations_count === 1 ? 'Una ubicación' : 'Revisar: ' + w.locations_count + ' ubicaciones';
                 if (w.is_default) { description += ' · Predeterminado general'; }
-                tr.append($('<td>').text(description));
-                actions.append($('<button type="button" class="btn btn-outline-primary btn-sm mr-2">').text('Editar').on('click', function () {
+                tr.append($('<td class="text-center">').text(description));
+                actions.append($('<button type="button" class="btn btn-outline-primary btn-sm">').text('Editar').on('click', function () {
                     form.find('[name=warehouse_id]').val(w.id);
                     form.find('[name=name]').val(w.name).trigger('focus');
                     form.find('[name=comment]').val(w.comment || '');
@@ -41,7 +42,7 @@
                         save($(this), {action: 'default', warehouse_id: w.id});
                     }));
                 }
-                tr.append(actions); tbody.append(tr);
+                tr.append(actionCell); tbody.append(tr);
                 if (data.is_branch) {
                     select.append($('<option>').val(w.id).text(w.name).prop('disabled', w.locations_count !== 1));
                 }

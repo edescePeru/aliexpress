@@ -30,28 +30,12 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_open.png') no-repeat center center;
-            cursor: pointer;
-        }
-        tr.details td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_close.png') no-repeat center center;
-        }
-    </style>
-@endsection
-
 @section('page-header')
-    <h1 class="page-title">Reporte de Entradas por compras</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Almacén · Reportes</span><h1 class="page-title">Entradas por compra</h1><p class="next-page-description">Consulta de entradas de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Reporte de entradas</h5>
-
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Reporte de entradas por compra</strong><span>Consulta por fecha de registro · Solo lectura</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -65,164 +49,38 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    
-    @can('searchReportEntries_entryPurchase')
-        <form id="myForm">
+    <section class="next-operational-list" aria-label="Reporte de entradas por compra">
+        @can('searchReportEntries_entryPurchase')
+        <form id="myForm" class="next-list-toolbar">
             @csrf
-            <div class="row">
-                <div class="col-md-3">
-                    <strong> Seleccione un rango de fechas: </strong>
-                </div>
-                <div class="col-md-6" id="sandbox-container">
+            <div class="row align-items-end">
+                <div class="col-12 col-md-8 col-lg-6" id="sandbox-container">
+                    <label for="start">Fechas de registro</label>
                     <div class="input-daterange input-group" id="datepicker">
-                        <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start">
-                        <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                        <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end">
+                        <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" aria-label="Fecha inicial" autocomplete="off" placeholder="dd/mm/aaaa">
+                        <div class="input-group-prepend input-group-append"><span class="input-group-text">al</span></div>
+                        <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" aria-label="Fecha final" autocomplete="off" placeholder="dd/mm/aaaa">
                     </div>
                 </div>
-                <div class="col-md-1">
-                    <button type="button" id="submitButton" class="btn btn-primary me-5">Buscar</button>
+                <div class="col-12 col-md-auto mt-2 mt-md-0 next-toolbar-actions">
+                    <button type="submit" id="submitButton" class="btn btn-primary btn-sm"><i class="fas fa-search mr-1" aria-hidden="true"></i>Buscar</button>
                 </div>
-                
             </div>
-            <br><br/>
+            <small class="form-text text-muted">El rango filtra la fecha de registro; la tabla muestra la fecha de entrada.</small>
         </form>
-    @endcan
-
-    <div class="table-responsive" id="element_loader">
-        <table class="table table-bordered table-hover" id="dynamic-table">
-            <thead>
-            <tr>
-                <th>Guia de remisión</th>
-                <th>Orden de compra</th>
-                <th>Factura</th>
-                <th>Tipo de entrada</th>
-                <th>Proveedor</th>
-                <th>Fecha</th>
-                <th>Diferido</th>
-                <th>Imagen</th>
-                <th>Total</th>
-                <th>Moneda</th>
-                <th>Acciones</th>
-            </tr>
-            </thead>
-            <tbody>
-
-            </tbody>
-        </table>
-    </div>
-
-    <div id="modalDelete" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <form id="formDelete" data-url="{{ route('material.destroy') }}">
-                    @csrf
-                    <div class="modal-body">
-                        <input type="hidden" id="material_id" name="material_id">
-                        <p>¿Está seguro de eliminar este material?</p>
-                        <p id="descriptionDelete"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
-                    </div>
-                </form>
-            </div>
+        @else
+        <div class="next-form-section"><p class="mb-0">No tienes permiso para realizar búsquedas en este reporte.</p></div>
+        @endcan
+        <div class="next-list-summary"><div class="next-list-summary-copy" id="report-status" role="status">Selecciona un rango de fechas para consultar.</div></div>
+        <div id="report-error" class="alert alert-danger m-3 d-none" role="alert"></div>
+        <div id="element_loader">
+            <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
+                <thead><tr>
+                    <th class="text-center">Guía de remisión</th><th class="text-center">Orden de compra</th><th class="text-center">Factura</th><th>Tipo de entrada</th><th>Proveedor</th><th class="text-center">Fecha</th><th class="text-center">Diferido</th><th class="text-right">Total</th><th class="text-center">Moneda</th>
+                </tr></thead><tbody></tbody>
+            </table>
         </div>
-    </div>
-
-    <div id="modalImage" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Visualización del documento</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <div class="modal-body">
-                    <img id="image-document" src="" alt="" width="100%">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modalItems" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Listado de detalles e Items</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                </div>
-
-                <div class="modal-body table-responsive">
-                    <table class="table table-head-fixed text-nowrap table-hover">
-                        <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Material</th>
-                            <th>Cantidad</th>
-                            <th>Precio</th>
-                        </tr>
-                        </thead>
-                        <tbody id="table-details">
-
-                        </tbody>
-                        <template id="template-detail">
-                            <tr>
-                                <td data-code></td>
-                                <td data-material></td>
-                                <td data-quantity></td>
-                                <td data-price></td>
-                            </tr>
-                        </template>
-                    </table>
-                    <hr>
-                    <table class="table table-head-fixed text-nowrap table-hover">
-                        <thead>
-                        <tr>
-                            <th style="width: 10px">#</th>
-                            <th>Material</th>
-                            <th>Código</th>
-                            <th>Largo</th>
-                            <th>Ancho</th>
-                            <th>Peso</th>
-                            <th>Precio</th>
-                            <th>Ubicación</th>
-                            <th>Estado</th>
-                        </tr>
-                        </thead>
-                        <tbody id="table-items">
-
-                        </tbody>
-                        <template id="template-item">
-                            <tr>
-                                <td data-i></td>
-                                <td data-material></td>
-                                <td data-code></td>
-                                <td data-length></td>
-                                <td data-width><span class="badge bg-danger">55%</span></td>
-                                <td data-weight></td>
-                                <td data-price></td>
-                                <td data-location></td>
-                                <td data-state></td>
-                            </tr>
-                        </template>
-                    </table>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    </section>
 @endsection
 
 @section('plugins')

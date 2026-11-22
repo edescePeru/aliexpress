@@ -111,6 +111,34 @@ $(function () {
             .prop('disabled', !isActive);
     }
 
+    function priceListError(xhr, fallback) {
+        const response = xhr.responseJSON || {};
+        const messages = Object.values(response.errors || {}).reduce((all, value) => all.concat(value), []);
+        return escapeHtml(messages.length ? messages.join(' · ') : (response.message || fallback));
+    }
+
+    function renderPriceLists(lists) {
+        const canManage = Number($app.data('can-manage')) === 1;
+        const columns = canManage ? 5 : 4;
+        $('#priceListSummary').text(lists.length + ' listas · Empresa activa');
+        $('#priceListBody').html(lists.length ? lists.map(function (list) {
+            return '<tr><td>' + escapeHtml(list.name) + '</td><td class="text-center">' + escapeHtml(list.currency) +
+                '</td><td class="text-center"><span class="badge ' + (list.is_active ? 'badge-success' : 'badge-secondary') + '">' +
+                (list.is_active ? 'Activa' : 'Inactiva') + '</span></td><td class="text-center">' +
+                (list.is_default ? '<span class="badge badge-primary">Predeterminada</span>' : '—') + '</td>' +
+                (canManage ? '<td class="text-center"><button type="button" class="btn btn-outline-secondary btn-sm" data-edit-price-list="' + Number(list.id) + '" aria-label="Editar lista ' + escapeHtml(list.name).replace(/"/g, '&quot;') + '"><i class="fas fa-edit" aria-hidden="true"></i></button></td>' : '') + '</tr>';
+        }).join('') : '<tr><td colspan="' + columns + '" class="text-center text-muted py-4">No hay listas de precios en esta empresa.</td></tr>');
+    }
+
+    $app.on('click', '[data-edit-price-list]', function () {
+        if (hasUnsavedChanges) {
+            toastr.warning('Guarde los cambios antes de editar la lista de precios.');
+            return;
+        }
+        const list = priceListsCache.find(item => Number(item.id) === Number($(this).data('edit-price-list')));
+        if (list) openEditPriceListModal(list);
+    });
+
     function loadPriceLists(preferredId = null)
     {
         $priceList
@@ -130,6 +158,7 @@ $(function () {
                     response.data || [];
 
                 priceListsCache = lists;
+                renderPriceLists(lists);
 
                 $priceList.empty();
 
@@ -204,12 +233,15 @@ $(function () {
                 currentPriceListId =
                     parseInt(selectedId);
 
-                loadMaterials(1);
+                if ($body.length) loadMaterials(1);
             },
 
             error: function (xhr) {
 
                 currentPriceListId = null;
+                priceListsCache = [];
+                $('#priceListSummary').text('No se pudieron cargar las listas. Vuelva a cargar la página.');
+                $('#priceListBody').empty();
 
                 clearMaterials();
 
@@ -273,31 +305,30 @@ $(function () {
         $.confirm({
             title:
                 'Editar lista de precios',
+            columnClass: 'col-12 col-md-8 col-lg-6',
+            escapeKey: 'cancel',
+            backgroundDismiss: 'cancel',
 
             content: `
-            <form>
+            <form class="next-form-section">
 
                 <div class="form-group">
-                    <label>
-                        Nombre
-                    </label>
+                    <label for="editPriceListName">Nombre</label>
 
                     <input
                         type="text"
                         class="form-control"
-                        name="name"
+                        name="name" id="editPriceListName"
                         value="${escapeHtml(priceList.name)}"
                     >
                 </div>
 
                 <div class="form-group">
-                    <label>
-                        Moneda
-                    </label>
+                    <label for="editPriceListCurrency">Moneda</label>
 
                     <select
                         class="form-control"
-                        name="currency"
+                        name="currency" id="editPriceListCurrency"
                     >
                         <option
                             value="PEN"
@@ -479,8 +510,7 @@ $(function () {
                 function (xhr) {
 
                     toastr.error(
-                        xhr.responseJSON?.message
-                        || 'No se pudo actualizar la lista.'
+                        priceListError(xhr, 'No se pudo actualizar la lista.')
                     );
                 }
         });
@@ -1005,31 +1035,30 @@ $(function () {
             $.confirm({
                 title:
                     'Nueva lista de precios',
+                columnClass: 'col-12 col-md-8 col-lg-6',
+                escapeKey: 'cancel',
+                backgroundDismiss: 'cancel',
 
                 content: `
-                    <form>
+                    <form class="next-form-section">
 
                         <div class="form-group">
-                            <label>
-                                Nombre
-                            </label>
+                            <label for="newPriceListName">Nombre</label>
 
                             <input
                                 type="text"
                                 class="form-control"
-                                name="name"
+                                name="name" id="newPriceListName"
                                 placeholder="Ej. REGULAR"
                             >
                         </div>
 
                         <div class="form-group">
-                            <label>
-                                Moneda
-                            </label>
+                            <label for="newPriceListCurrency">Moneda</label>
 
                             <select
                                 class="form-control"
-                                name="currency"
+                                name="currency" id="newPriceListCurrency"
                             >
                                 <option value="PEN">
                                     PEN
@@ -1212,8 +1241,7 @@ $(function () {
                 function (xhr) {
 
                     toastr.error(
-                        xhr.responseJSON?.message
-                        || 'No se pudo crear la lista.'
+                        priceListError(xhr, 'No se pudo crear la lista.')
                     );
                 }
         });

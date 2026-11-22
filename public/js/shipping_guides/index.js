@@ -102,13 +102,13 @@
 
                 rows.push(`
                     <tr data-row-id="${g.id}">
-                        <td>Remitente</td>
-                        <td>${g.serie}-${g.numero ?? ''}</td>
-                        <td>${fmtDate(g.fecha_emision)}</td>
+                        <td class="text-center">Remitente</td>
+                        <td class="text-center">${g.serie}-${g.numero ?? ''}</td>
+                        <td class="text-center">${fmtDate(g.fecha_emision)}</td>
                         <td>${motivo}</td>
                         <td>${g.partida_ubigeo ?? ''} → ${g.llegada_ubigeo ?? ''}</td>
-                        <td>${badgeStatus(g.status, g.identity_conflict, g.emission_state)}</td>
-                        <td class="text-right">
+                        <td class="text-center">${badgeStatus(g.status, g.identity_conflict, g.emission_state)}</td>
+                        <td class="text-center">
                             ${buildActions(g)}
                         </td>
                     </tr>
@@ -118,6 +118,7 @@
 
         $('#tbodyGuides').html(rows.join(''));
 
+        $('#guideCount').text(`${paginated.total} guías`);
         $('#paginationInfo').text(
             `Página ${paginated.current_page} de ${paginated.last_page} | Total: ${paginated.total}`
         );
@@ -134,6 +135,10 @@
                 renderRows(res.data);
             })
             .fail(function () {
+                $('#tbodyGuides').html('<tr><td colspan="7" class="text-center text-danger p-4">No se pudieron cargar las guías.</td></tr>');
+                $('#guideCount').text('Error de carga');
+                $('#paginationInfo').text('');
+                $('#prevPage, #nextPage').prop('disabled', true);
                 toastr.error('Error cargando guías');
             });
     }

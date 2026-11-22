@@ -27,6 +27,10 @@ function getDataCategoryEquipmentEliminated($numberPage) {
     }, function (data) {
         renderDataCategoryEquipments(data);
     }).fail(function (jqXHR, textStatus, errorThrown) {
+        $('#body-card').html('<tr><td colspan="4" class="text-center text-danger py-4">No se pudieron cargar las categorías.</td></tr>');
+        $('#textPagination').text('Error de carga');
+        $('#numberItems').text('—');
+        $('#pagination').empty();
         // Función de error
         console.error(textStatus, errorThrown);
     });
@@ -41,7 +45,8 @@ function renderDataCategoryEquipments(data) {
     $("#body-card").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' categorías');
+    $("#textPagination").text(pagination.totalFilteredRecords ? 'Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' categorías' : 'Sin resultados');
+    if (!dataAccounting.length) $('#body-card').html('<tr><td colspan="4" class="text-center text-muted py-4">No se encontraron categorías.</td></tr>');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -89,17 +94,19 @@ function renderDataCategoryEquipments(data) {
 
 function renderCategoryEquipmentCard(data) {
     var clone = activateTemplate('#item-card');
-    clone.querySelector("[data-description]").innerHTML = data.description;
+    clone.querySelector("[data-description]").textContent = data.description;
     clone.querySelector("[data-number]").innerHTML = data.number;
     var imageElement = clone.querySelector("[data-image]");
     imageElement.setAttribute('src', document.location.origin + '/images/categoryEquipment/' + data.image);
-    imageElement.style.width = '100px';
+    imageElement.setAttribute('width', '48');
     imageElement.style.height = 'auto';
 
     var restoreButton = clone.querySelector("[data-restore]");
+    if (restoreButton) {
     restoreButton.setAttribute('data-restore', data.id);
     restoreButton.setAttribute('data-description', data.description);
     restoreButton.setAttribute('data-image', data.image);
+    }
 
     $("#body-card").append(clone);
     $('[data-toggle="tooltip"]').tooltip();

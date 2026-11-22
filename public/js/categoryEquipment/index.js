@@ -52,7 +52,7 @@ function renderSuggestions(suggestions) {
     suggestionsContainer.html('');
 
     for (var i = 0; i < suggestions.length; i++) {
-        var suggestionHtml = '<div class="suggestion">' + suggestions[i].description + '</div>';
+        var suggestionHtml = $('<button type="button" class="suggestion list-group-item list-group-item-action py-2"></button>').text(suggestions[i].description);
         suggestionsContainer.append(suggestionHtml);
     }
 }
@@ -71,10 +71,14 @@ function getDataCategoryEquipment($numberPage) {
         renderDataCategoryEquipments(data);
 
     }).fail(function(jqXHR, textStatus, errorThrown) {
+        $('#body-card').html('<tr><td colspan="4" class="text-center text-danger py-4">No se pudieron cargar las categorías.</td></tr>');
+        $('#textPagination').text('Error de carga');
+        $('#numberItems').text('—');
+        $('#pagination').empty();
         // Función de error, se ejecuta cuando la solicitud GET falla
         console.error(textStatus, errorThrown);
-        if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.message, 'Error', {
+        if ((jqXHR.responseJSON || {}).message && !(jqXHR.responseJSON || {}).errors) {
+            toastr.error((jqXHR.responseJSON || {}).message, 'Error', {
                 "closeButton": true,
                 "debug": false,
                 "newestOnTop": false,
@@ -92,8 +96,8 @@ function getDataCategoryEquipment($numberPage) {
                 "hideMethod": "fadeOut"
             });
         }
-        for (var property in jqXHR.responseJSON.errors) {
-            toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
+        for (var property in (jqXHR.responseJSON || {}).errors) {
+            toastr.error((jqXHR.responseJSON || {}).errors[property], 'Error', {
                 "closeButton": true,
                 "debug": false,
                 "newestOnTop": false,
@@ -132,7 +136,8 @@ function renderDataCategoryEquipments(data) {
     $("#body-card").html('');
     $("#pagination").html('');
     $("#textPagination").html('');
-    $("#textPagination").html('Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' categorías');
+    $("#textPagination").text(pagination.totalFilteredRecords ? 'Mostrando '+pagination.startRecord+' a '+pagination.endRecord+' de '+pagination.totalFilteredRecords+' categorías' : 'Sin resultados');
+    if (!dataAccounting.length) $('#body-card').html('<tr><td colspan="4" class="text-center text-muted py-4">No se encontraron categorías.</td></tr>');
     $('#numberItems').html('');
     $('#numberItems').html(pagination.totalFilteredRecords);
 
@@ -180,14 +185,14 @@ function renderDataCategoryEquipments(data) {
 
 function renderCategoryEquipmentCard(data) {
     var clone = activateTemplate('#item-card');
-    clone.querySelector("[data-description]").innerHTML = data.description;
+    clone.querySelector("[data-description]").textContent = data.description;
     clone.querySelector("[data-number]").innerHTML = data.number;
     clone.querySelector("[data-id]").setAttribute('data-id', data.id);
     /*var imageUrl = document.location.origin + '/images/categoryEquipment/' + data.image;
     clone.querySelector("[data-image]").setAttribute('src', imageUrl);*/
     var imageElement = clone.querySelector("[data-image]");
     imageElement.setAttribute('src', document.location.origin + '/images/categoryEquipment/' + data.image);
-    imageElement.style.width = '100px';
+    imageElement.setAttribute('width', '48');
     imageElement.style.height = 'auto';
 
     var equipButton = clone.querySelector("[data-equip]");
@@ -195,14 +200,18 @@ function renderCategoryEquipmentCard(data) {
     equipButton.setAttribute('href', document.location.origin + '/dashboard/equipos/categoria/' + data.id);
 
     var editButton = clone.querySelector("[data-edit]");
+    if (editButton) {
     editButton.setAttribute('data-edit', data.id);
     editButton.setAttribute('data-description', data.description);
     editButton.setAttribute('data-image', data.image);
+    }
 
     var deleteButton = clone.querySelector("[data-delete]");
+    if (deleteButton) {
     deleteButton.setAttribute('data-delete', data.id);
     deleteButton.setAttribute('data-description', data.description);
     deleteButton.setAttribute('data-image', data.image);
+    }
 
     $("#body-card").append(clone);
     $('[data-toggle="tooltip"]').tooltip();

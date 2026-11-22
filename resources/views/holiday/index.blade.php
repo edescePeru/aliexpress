@@ -29,18 +29,12 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
+@section('page-header')
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración · RRHH</span><h1 class="page-title">Feriados</h1><p class="next-page-description">Catálogo laboral compartido.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Listado de Feriados</h5>
-    <button id="btn-generate" data-url="{{ route('holiday.generate') }}" class="btn btn-outline-warning btn-sm float-right" > <i class="fas fa-glass-cheers"></i> Generar feriados </button>
-
+    <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado de feriados</strong><span>Datos del catálogo laboral.</span></div><div class="next-toolbar-actions flex-wrap"><button id="btn-generate" data-url="{{ route('holiday.generate') }}" class="btn btn-outline-secondary btn-sm" > <i class="fas fa-glass-cheers"></i> Generar feriados </button>@can('holiday_worker')<a href="{{ route('holiday.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus" aria-hidden="true"></i> Nuevo registro</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -58,7 +52,7 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <div class="table-responsive">
+    <div class="next-operational-list">
         <table class="table table-bordered table-hover table-sm" id="dynamic-table">
             <thead>
             <tr>
@@ -74,12 +68,12 @@
         </table>
     </div>
 
-    <div id="modalDelete" class="modal fade" tabindex="-1">
+    <div id="modalDelete" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Confirmar eliminación</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <form id="formDelete" data-url="{{ route('holiday.destroy') }}">
                     @csrf

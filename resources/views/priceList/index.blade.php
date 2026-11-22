@@ -12,7 +12,7 @@
     active
 @endsection
 
-@section('title', 'Precios')
+@section('title', 'Listas de precios')
 
 @section('styles-plugins')
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2/css/select2.min.css') }}">
@@ -33,11 +33,15 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Lista de precios</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Configuración de empresa</span><h1 class="page-title">Listas de precios</h1><p class="next-page-description">Mantenimiento general de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
-    <h5 class="card-title">Administrar lista de precios</h5>
+    <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listas de precios</strong><span>Nombre, moneda y estado de cada lista.</span></div><div class="next-toolbar-actions flex-wrap">
+    @can('manage_priceListMaterial')
+        <button type="button" class="btn btn-primary btn-sm" id="btnNewPriceList"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva lista</button>
+    @endcan
+    </div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -55,7 +59,8 @@
 @section('content')
 
     <div
-            id="priceListApp"
+            id="priceListApp" class="next-operational-list"
+            data-can-manage="{{ auth()->user()->can('manage_priceListMaterial') ? 1 : 0 }}"
 
             data-url-lists="{{ route('priceList.lists') }}"
             data-url-store="{{ route('priceList.store') }}"
@@ -66,75 +71,26 @@
             data-url-save-variants-template="{{ route('priceList.materialVariants.save', [ 'priceList' => '__LIST__', 'material' => '__MATERIAL__' ]) }}"
     >
 
-        <div class="row">
-
-            <div class="col-md-5">
-
-                <div class="form-group">
-                    <label>Empresa actual</label>
-
-                    <div class="form-control bg-light">
-                        {{ $company->business_name }}
-                        -
-                        {{ $company->ruc }}
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="col-md-5">
-                <div class="form-group">
-                    <label>
-                        Lista de precios
-                    </label>
-
-                    <div class="d-flex align-items-center">
-
-                        <div class="flex-grow-1 mr-2">
-                            <select
-                                    id="priceList"
-                                    class="form-control select2"
-                                    style="width: 100%;"
-                            >
-                            </select>
-                        </div>
-
-                        @can('manage_priceListMaterial')
-                            <button
-                                    type="button"
-                                    class="btn btn-outline-secondary"
-                                    id="btnEditPriceList"
-                                    title="Editar lista"
-                            >
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        @endcan
-
-                    </div>
-                </div>
-            </div>
-
-            @can('manage_priceListMaterial')
-                <div class="col-md-2 d-flex align-items-end">
-
-                    <div class="form-group w-100">
-
-                        <button
-                                type="button"
-                                class="btn btn-primary btn-block"
-                                id="btnNewPriceList"
-                        >
-                            <i class="fas fa-plus"></i>
-                            Nueva lista
-                        </button>
-
-                    </div>
-
-                </div>
-            @endcan
-
+<div class="next-list-toolbar"><p class="mb-0 text-break"><strong>Empresa actual:</strong> {{ $company->business_name }} · {{ $company->ruc }}</p></div>
+        <div class="next-list-summary" role="status" id="priceListSummary">Cargando listas…</div>
+        <div class="table-responsive" tabindex="0" aria-label="Listas de precios; desplazamiento horizontal">
+            <table class="table table-bordered table-hover table-sm">
+                <thead><tr><th>Nombre</th><th class="text-center">Moneda</th><th class="text-center">Estado</th><th class="text-center">Default</th>@can('manage_priceListMaterial')<th class="text-center">Acciones</th>@endcan</tr></thead>
+                <tbody id="priceListBody"></tbody>
+            </table>
         </div>
-
+        {{-- Existing product-price editor: separate contract, not modernized in this phase. --}}
+        @can('manage_priceListMaterial')
+        <details class="next-form-section overflow-auto">
+            <summary>Precios de productos</summary>
+            <p class="text-muted small mt-2">Edición de precios base y variantes por lista.</p>
+            <div class="form-group">
+                <label for="priceList">Lista de precios</label>
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 mr-2"><select id="priceList" class="form-control select2 w-100"></select></div>
+                    <button type="button" class="btn btn-outline-secondary" id="btnEditPriceList" title="Editar lista" aria-label="Editar lista seleccionada"><i class="fas fa-edit" aria-hidden="true"></i></button>
+                </div>
+            </div>
         <hr>
 
         <div class="row mb-3">
@@ -197,6 +153,8 @@
             </div>
         </div>
 
+        </details>
+        @endcan
     </div>
 
 @endsection
