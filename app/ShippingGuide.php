@@ -8,8 +8,11 @@ use App\Support\TenantContext;
 class ShippingGuide extends Model
 {
     protected $table = 'shipping_guides';
-    protected $hidden = ['emission_key', 'last_nubefact_payload', 'last_nubefact_response', 'nubefact_enlace', 'pdf_link', 'xml_link', 'cdr_link', 'pdf_zip_base64', 'xml_zip_base64', 'cdr_zip_base64'];
-    protected $appends = ['documents_available', 'identity_conflict'];
+    protected $hidden = ['emission_fingerprint', 'emission_key', 'last_nubefact_payload', 'last_nubefact_response', 'nubefact_enlace', 'pdf_link', 'xml_link', 'cdr_link', 'pdf_zip_base64', 'xml_zip_base64', 'cdr_zip_base64'];
+    protected $appends = ['documents_available', 'identity_conflict', 'emission_state', 'emission_state_label'];
+
+    public function getEmissionStateAttribute() { return \App\Services\ShippingGuideTransmission::state($this); }
+    public function getEmissionStateLabelAttribute() { return \App\Services\ShippingGuideTransmission::label($this); }
 
     public function getIdentityConflictAttribute()
     {
@@ -27,7 +30,7 @@ class ShippingGuide extends Model
 
 
     protected $fillable = [
-        'emission_key',
+        'emission_key', 'emission_fingerprint', 'submission_state', 'submission_http_status', 'submission_provider_code', 'submission_diagnostic_reference',
         'tenant_id', 'company_id', 'branch_id',
         'guide_type',
         'tipo_de_comprobante',

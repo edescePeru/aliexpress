@@ -589,12 +589,15 @@ class WorkerController extends Controller
 
     public function getWorkersEnable()
     {
-        $workers = app(WorkerAccess::class)->scope(Worker::query())->where('enable', 0)->get();
+        $workers = app(WorkerAccess::class)->scope(Worker::query())->where('enable', 0)
+            ->select('workers.*')
+            ->selectSub(DB::table('contracts')->selectRaw('1')->whereColumn('contracts.worker_id', 'workers.id')->limit(1), 'has_contract_record')
+            ->get();
         $arrayWorkers = [];
 
         foreach ( $workers as $worker )
         {
-            $haveContract = rand(0,1);
+            $haveContract = (bool) $worker->has_contract_record;
 
             array_push( $arrayWorkers, [
                 'id' => $worker->id,
@@ -627,7 +630,7 @@ class WorkerController extends Controller
                 'pension_system' => ($worker->pension_system_id == null) ? '': $worker->pension_system->description,
                 'percentage_pension_system' => ($worker->percentage_pension_system == null || $worker->percentage_pension_system == 0) ? '':$worker->percentage_pension_system,
                 'area_worker' => ($worker->area_worker_id == null) ? '': $worker->area_worker->name,
-                'have_contract' => rand(0,1)
+                'have_contract' => $haveContract
             ] );
         }
 

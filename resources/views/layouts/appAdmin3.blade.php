@@ -1504,7 +1504,7 @@
                     </li>
 
                     @canany('enable_orderService')
-                        <li class="nav-header">ORDENES DE SERVICIO</li>
+                        <!-- PAY-01: cabecera legacy retirada. -->
                     @endcanany
                     @can('watch_orderService')
                         <li class="nav-item has-treeview @yield('openOrderService')">
@@ -2469,57 +2469,7 @@
                                     </li>
                                 @endcanany
                                 @can('watch_orderService')
-                                    <li class="nav-item has-treeview @yield('openOrderService')">
-                                        <a href="#" class="nav-link @yield('activeOrderService')">
-                                            <i class="nav-icon fas fa-credit-card"></i>
-                                            <p>
-                                                <b>ORDENES SERVICIO</b>
-                                                <i class="right fas fa-angle-left"></i>
-                                            </p>
-                                        </a>
-                                        <ul class="nav nav-treeview">
-                                            @can('list_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.index') }}" class="nav-link @yield('activeListOrderService')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Listar ordenes</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                            @can('create_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.create') }}" class="nav-link @yield('activeCreateOrderService')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Crear orden</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                            @can('list_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.list.regularize') }}" class="nav-link @yield('activeListOrderServiceRegularize')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Listar regularizadas</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                            @can('list_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.list.deleted') }}" class="nav-link @yield('activeListOrderServiceDeleted')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Listar Anuladas</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                            @can('list_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.list.lost') }}" class="nav-link @yield('activeListOrderServiceLost')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Ordenes Perdidas</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                        </ul>
-                                    </li>
+                                    {{-- PAY-01: navegación de módulos legacy retirada. --}}
                                 @endcan
                                 @can('list_entryPurchase')
                                     <li class="nav-item has-treeview @yield('openEntryPurchase')">
@@ -3640,25 +3590,7 @@
                                     </li>
                                 @endcan
                                 @can('show_service')
-                                    <li class="nav-item has-treeview @yield('openService')">
-                                        <a href="#" class="nav-link @yield('activeService')">
-                                            <i class="nav-icon fas fa-credit-card"></i>
-                                            <p>
-                                                <b>SERVICIOS</b>
-                                                <i class="right fas fa-angle-left"></i>
-                                            </p>
-                                        </a>
-                                        <ul class="nav nav-treeview">
-                                            @can('list_orderService')
-                                                <li class="nav-item">
-                                                    <a href="{{ route('order.service.index') }}" class="nav-link @yield('activeListOrderService')">
-                                                        <i class="far fa-circle nav-icon"></i>
-                                                        <p>Listar órdenes</p>
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                        </ul>
-                                    </li>
+                                    {{-- PAY-01: navegación de módulos legacy retirada. --}}
                                 @endcan
                             </ul>
                         </li>
@@ -5485,57 +5417,7 @@
                                         </li>
                                     @endcanany
                                     @can('watch_orderService')
-                                        <li class="nav-item has-treeview @yield('openOrderService')">
-                                            <a href="#" class="nav-link @yield('activeOrderService')">
-                                                <i class="nav-icon fas fa-credit-card"></i>
-                                                <p>
-                                                    <b>ORDENES SERVICIO</b>
-                                                    <i class="right fas fa-angle-left"></i>
-                                                </p>
-                                            </a>
-                                            <ul class="nav nav-treeview">
-                                                @can('list_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.index') }}" class="nav-link @yield('activeListOrderService')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Listar ordenes</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                                @can('create_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.create') }}" class="nav-link @yield('activeCreateOrderService')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Crear orden</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                                @can('list_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.list.regularize') }}" class="nav-link @yield('activeListOrderServiceRegularize')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Listar regularizadas</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                                @can('list_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.list.deleted') }}" class="nav-link @yield('activeListOrderServiceDeleted')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Listar Anuladas</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                                @can('list_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.list.lost') }}" class="nav-link @yield('activeListOrderServiceLost')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Ordenes Perdidas</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                            </ul>
-                                        </li>
+                                        {{-- PAY-01: navegación de módulos legacy retirada. --}}
                                     @endcan
                                     @can('list_entryPurchase')
                                         <li class="nav-item has-treeview @yield('openEntryPurchase')">
@@ -6658,25 +6540,7 @@
                                         </li>
                                     @endcan
                                     @can('show_service')
-                                        <li class="nav-item has-treeview @yield('openService')">
-                                            <a href="#" class="nav-link @yield('activeService')">
-                                                <i class="nav-icon fas fa-credit-card"></i>
-                                                <p>
-                                                    <b>SERVICIOS</b>
-                                                    <i class="right fas fa-angle-left"></i>
-                                                </p>
-                                            </a>
-                                            <ul class="nav nav-treeview">
-                                                @can('list_orderService')
-                                                    <li class="nav-item">
-                                                        <a href="{{ route('order.service.index') }}" class="nav-link @yield('activeListOrderService')">
-                                                            <i class="far fa-circle nav-icon"></i>
-                                                            <p>Listar órdenes</p>
-                                                        </a>
-                                                    </li>
-                                                @endcan
-                                            </ul>
-                                        </li>
+                                        {{-- PAY-01: navegación de módulos legacy retirada. --}}
                                     @endcan
                                 </ul>
                             </li>
@@ -8160,7 +8024,7 @@
                         </li>
 
                         @canany('enable_orderService')
-                            <li class="nav-header">ORDENES DE SERVICIO</li>
+                            <!-- PAY-01: cabecera legacy retirada. -->
                         @endcanany
                         @can('watch_orderService')
                             <li class="nav-item has-treeview @yield('openOrderService')">

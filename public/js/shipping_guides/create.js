@@ -362,7 +362,13 @@
                             const response = xhr.responseJSON || {};
                             if (response.persisted === true || response.status === 'SENT') {
                                 navigating = true;
-                                guideResultRedirect('uncertain', response.diagnostic_reference);
+                                guideResultRedirect(response.emission_state === 'API_ERROR' ? 'api_error' : 'uncertain', response.diagnostic_reference);
+                                return;
+                            }
+                            if (xhr.status === 409) {
+                                navigating = true; // Mantener bloqueada esta operación conflictiva.
+                                $btn.attr('aria-busy', 'false').text('Operación en conflicto');
+                                toastr.error(response.message || 'La operación cambió. Revisa la guía existente antes de continuar.', null, {escapeHtml: true});
                                 return;
                             }
                             if (xhr.status === 422) {

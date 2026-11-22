@@ -17,6 +17,11 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(\App\Http\Middleware\EnsureOwnProfile::class)->only(['changeImage', 'changeSettings', 'changePassword']);
+    }
+
     public function index()
     {
         $users = $this->tenantDirectory()->get();
@@ -175,6 +180,7 @@ class UserController extends Controller
 
     public function changeImage(Request $request, User $user)
     {
+        \App\Services\SelfProfileAccess::assertSelf($request->user(), $user);
         //dump($user);
         //dd($request);
         if ($request->file('image')) {
@@ -195,6 +201,7 @@ class UserController extends Controller
 
     public function changeSettings(UpdateUserSettingsRequest $request, User $user)
     {
+        \App\Services\SelfProfileAccess::assertSelf($request->user(), $user);
         $validated = $request->validated();
 
         DB::beginTransaction();
@@ -217,30 +224,20 @@ class UserController extends Controller
 
     public function changePassword(UpdateUserPasswordRequest $request, User $user)
     {
-        //dd();
+        \App\Services\SelfProfileAccess::assertSelf($request->user(), $user);
         $validated = $request->validated();
-
-        DB::beginTransaction();
-        try {
-
-            $passwordCurrent = $request->get('current_password');
-            if ( ! Hash::check($request->get('current_password'), $user->password) )
-            {
-                return response()->json(['message' => 'Debe conocer su contraseña actual.'], 422);
-            }
-            $passwordNew = $request->get('new_password');
-            $user->password = bcrypt($passwordNew) ;
-            $user->save();
-
-            DB::commit();
-
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json(['message' => 'Debe conocer su contraseña actual.'], 422);
         }
-
+        try {
+            DB::transaction(function () use ($user, $validated) {
+                $user->password = bcrypt($validated['new_password']);
+                $user->save();
+            });
+        } catch (\Throwable $error) {
+            return response()->json(['message' => 'No se pudo actualizar la contraseña.'], 422);
+        }
         return response()->json(['message' => 'Contraseña actualizada con éxito.'], 200);
-
     }
 
     public function disable(DeleteUserRequest $request)

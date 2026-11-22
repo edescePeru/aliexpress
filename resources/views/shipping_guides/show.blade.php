@@ -50,7 +50,7 @@
 
         {{-- Estado --}}
         <div class="alert alert-info">
-            <b>Estado:</b> {{ $guide->identity_conflict ? 'CONFLICTO DE NUMERACIÓN' : $guide->status }}
+            <b>Estado:</b> {{ $guide->emission_state_label }}
             @if($guide->sunat_responsecode)
                 | <b>Code:</b> {{ $guide->sunat_responsecode }}
             @endif
@@ -58,6 +58,11 @@
                 | <b>Desc:</b> {{ $guide->sunat_description }}
             @endif
         </div>
+
+        @if($guide->submission_diagnostic_reference)
+            <div class="alert alert-warning">Referencia de diagnóstico: {{ $guide->submission_diagnostic_reference }}.
+                Revisa el error antes de intentar otra emisión. Los reintentos de la misma operación no crean otra guía.</div>
+        @endif
 
         {{-- Encabezado --}}
         <div class="card mb-3">

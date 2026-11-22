@@ -113,7 +113,8 @@ class ShippingGuideRecovery
                 foreach ($fresh->vehicles as $vehicle) {
                     $vehicle->update(['plate_number' => GreVehiclePlate::normalize($vehicle->plate_number)]);
                 }
-                $fresh->update(['last_nubefact_payload' => $corrected]);
+                $fresh->forceFill(['last_nubefact_payload' => $corrected, 'status'=>'SENT', 'submission_state'=>'UNKNOWN',
+                    'submission_http_status'=>null,'submission_provider_code'=>null,'submission_diagnostic_reference'=>null])->save();
                 DB::table('shipping_guide_recovery_attempts')->where('id', $attemptId)->update(['phase' => 'generate', 'updated_at' => now()]);
                 return [$corrected, ShippingGuideConsultation::snapshot($fresh->fresh())];
             });
@@ -125,6 +126,7 @@ class ShippingGuideRecovery
             return ['ok' => true, 'message' => 'Se recibió respuesta del envío de recuperación. Estado: '.$result['guide']->status.'.', 'status' => $result['guide']->status];
         } catch (\Throwable $error) {
             $reference = ShippingGuideDiagnostic::record($error, $generationStarted ? 'generate' : 'consult', $guide);
+            if ($generationStarted) { ShippingGuideTransmission::failure($guide->id, $snapshot, $error, $reference); }
             $details = $error instanceof NubefactGreHttpException ? $error->diagnostic() : [];
             $this->finish($attemptId, $generationStarted ? 'review_after_send' : 'blocked_before_send', [
                 'diagnostic_reference' => $reference,
@@ -139,7 +141,7 @@ class ShippingGuideRecovery
 
     private function eligible(ShippingGuide $guide): bool
     {
-        return !ShippingGuideIdentityConflict::blocked($guide) && $guide->status === 'SENT' && !$guide->nubefact_accepted
+        return !ShippingGuideIdentityConflict::blocked($guide) && ($guide->status === 'SENT' || ($guide->status === 'DRAFT' && ShippingGuideTransmission::state($guide) === 'REGISTERED') || ($guide->status === 'ERROR' && ShippingGuideTransmission::state($guide) === 'API_ERROR')) && !$guide->nubefact_accepted
             && empty($guide->last_nubefact_response) && !$guide->nubefact_enlace
             && !$guide->pdf_link && !$guide->xml_link && !$guide->cdr_link;
     }

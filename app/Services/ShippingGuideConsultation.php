@@ -39,11 +39,12 @@ class ShippingGuideConsultation
             if ($responseCode !== null && !is_string($responseCode) && !is_int($responseCode)) {
                 throw new \UnexpectedValueException('Código de respuesta inválido.');
             }
-            $hasError = $error !== '' || ($emission && trim((string) $responseCode) !== '');
+            $hasError = $error !== '' || ($responseCode !== null && trim((string) $responseCode) !== '' && trim((string) $responseCode) !== '0');
             $status = $accepted ? 'ACCEPTED' : ($hasError ? 'REJECTED' : 'PENDING_SUNAT');
             $guide->update([
                 'last_nubefact_response'=>$merged, 'nubefact_enlace'=>$merged['enlace'] ?? null,
-                'nubefact_accepted'=>$accepted, 'status'=>$status,
+                'nubefact_accepted'=>$accepted, 'status'=>$status, 'submission_state'=>$status,
+                'submission_http_status'=>null, 'submission_provider_code'=>null, 'submission_diagnostic_reference'=>null,
                 'sunat_description'=>$response['sunat_description'] ?? null,
                 'sunat_note'=>$response['sunat_note'] ?? null,
                 'sunat_responsecode'=>$response['sunat_responsecode'] ?? null,

@@ -39,7 +39,18 @@
         return moment(dateStr).format('DD/MM/YYYY');
     }
 
-    function badgeStatus(status, conflict) {
+    function badgeStatus(status, conflict, emissionState) {
+        const phases = {
+            REGISTERED: ['secondary', 'REGISTRADA, ENVÍO NO CONFIRMADO'],
+            UNKNOWN: ['warning', 'RESULTADO EXTERNO POR CONFIRMAR'],
+            API_ERROR: ['danger', 'ERROR INFORMADO POR NUBEFACT'],
+            PENDING_SUNAT: ['warning', 'PENDIENTE SUNAT'],
+            ACCEPTED: ['success', 'ACEPTADA'], REJECTED: ['danger', 'RECHAZADA POR SUNAT']
+        };
+        if (!conflict && Object.prototype.hasOwnProperty.call(phases, emissionState)) {
+            const phase = phases[emissionState];
+            return '<span class="badge badge-' + phase[0] + '">' + phase[1] + '</span>';
+        }
         if (conflict) return '<span class="badge badge-danger">CONFLICTO DE NUMERACIÓN</span>';
         if (status === 'ACCEPTED') return '<span class="badge badge-success">ACEPTADA</span>';
         if (status === 'SENT') return '<span class="badge badge-warning">POR CONFIRMAR</span>';
@@ -59,7 +70,7 @@
         if (g.identity_conflict) return parts.join(' ');
 
         // Consultar si está pendiente / o no tiene links aún
-        if (window.greCanConsult && ['PENDING_SUNAT', 'SENT', 'ERROR'].includes(g.status)) {
+        if (window.greCanConsult && (['REGISTERED','UNKNOWN','API_ERROR','PENDING_SUNAT'].includes(g.emission_state) || ['PENDING_SUNAT', 'SENT', 'ERROR'].includes(g.status))) {
             parts.push(`<button class="btn btn-sm btn-outline-warning ml-1 btnConsultar" data-id="${g.id}">Consultar</button>`);
         }
 
@@ -96,7 +107,7 @@
                         <td>${fmtDate(g.fecha_emision)}</td>
                         <td>${motivo}</td>
                         <td>${g.partida_ubigeo ?? ''} → ${g.llegada_ubigeo ?? ''}</td>
-                        <td>${badgeStatus(g.status, g.identity_conflict)}</td>
+                        <td>${badgeStatus(g.status, g.identity_conflict, g.emission_state)}</td>
                         <td class="text-right">
                             ${buildActions(g)}
                         </td>
@@ -189,6 +200,7 @@
             pending: ['info', 'Guía enviada a Nubefact. La respuesta de SUNAT está pendiente. Usa Consultar para actualizar el estado.'],
             rejected: ['danger', 'SUNAT rechazó la guía. Revisa el detalle antes de realizar otra acción.'],
             existing: ['info', 'La guía ya estaba guardada. Se abrió el listado sin repetir el envío.'],
+            api_error: ['danger', 'Nubefact informó un error. La guía quedó guardada; revisa su detalle y diagnóstico antes de otro intento.'],
             uncertain: ['warning', 'No se pudo confirmar el envío. Revisa la guía en el listado y consulta su estado antes de crear o enviar otra.']
         };
         if (code && Object.prototype.hasOwnProperty.call(notices, code)) {

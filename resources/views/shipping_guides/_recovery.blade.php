@@ -1,6 +1,6 @@
 @if(auth()->user()->can('list_referralGuide') && auth()->user()->can('create_referralGuide') && auth()->user()->can('edit_referralGuide'))
     @php($recoveryPreview = app(\App\Services\ShippingGuideRecovery::class)->preview($guide))
-    @if(!$guide->identity_conflict && $guide->status === 'SENT')
+    @if(!$guide->identity_conflict && in_array($guide->emission_state, ['REGISTERED','UNKNOWN','API_ERROR'], true))
         <section class="card mb-3" aria-label="Recuperación de envío">
             <div class="card-header">Recuperar envío de {{ $guide->serie }}-{{ $guide->numero }}</div>
             <div class="card-body">

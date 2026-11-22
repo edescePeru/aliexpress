@@ -201,7 +201,8 @@ class ShippingGuideController extends Controller
 
         $operation = $request->validate(['emission_key' => ['required', 'uuid']]);
         $emissionKey = strtolower($operation['emission_key']);
-        $existing = \App\Services\ShippingGuideEmission::existing($emissionKey);
+        $fingerprint = \App\Services\ShippingGuideRequestFingerprint::make($request);
+        $existing = \App\Services\ShippingGuideEmission::existing($emissionKey, $fingerprint);
         if ($existing) {
             return \App\Services\ShippingGuideEmission::replay($existing);
         }
@@ -451,7 +452,7 @@ class ShippingGuideController extends Controller
             DB::table('companies')->where('tenant_id', TenantContext::tenantId())
                 ->where('id', TenantContext::companyId())->lockForUpdate()->first();
             // Releer después del bloqueo: otro intento pudo confirmar mientras esperábamos.
-            $existing = \App\Services\ShippingGuideEmission::existing($emissionKey);
+            $existing = \App\Services\ShippingGuideEmission::existing($emissionKey, $fingerprint);
             if ($existing) {
                 $guide = $existing;
                 DB::commit();
@@ -484,6 +485,7 @@ class ShippingGuideController extends Controller
             // ====== Crear guía ======
             $guide = ShippingGuide::create([
                 'emission_key' => $emissionKey,
+                'emission_fingerprint' => $fingerprint,
                 'tenant_id' => TenantContext::tenantId(),
                 'company_id' => TenantContext::companyId(),
                 'branch_id' => TenantContext::branchId(),
@@ -650,17 +652,20 @@ class ShippingGuideController extends Controller
             // ====== Envío Nubefact ======
             $guide->load(['items', 'vehicles', 'drivers']);
 
-            // NO existe SENDING en tu enum -> usamos SENT como "enviado a Nubefact"
+            // Registro local no acredita recepción externa; el contrato operativo está en submission_state.
             $payload = $this->nubefact->buildPayload($guide);
             $guide->update([
                 'last_nubefact_payload' => $payload,
-                'status' => 'SENT', // <-- aquí
+                'status' => 'DRAFT',
+                'submission_state' => 'REGISTERED',
             ]);
 
             $snapshot = \App\Services\ShippingGuideConsultation::snapshot($guide->fresh());
             DB::commit();
             $persisted = true;
 
+            $guide = \App\Services\ShippingGuideTransmission::begin($guide->id, $snapshot);
+            $snapshot = \App\Services\ShippingGuideConsultation::snapshot($guide);
             $resp = $this->nubefact->send($guide, $connection);
 
             $result = \App\Services\ShippingGuideConsultation::apply($guide->id, $snapshot, $resp, true);
@@ -685,6 +690,7 @@ class ShippingGuideController extends Controller
                 'message' => $message,
                 'persisted' => true,
                 'status' => $finalStatus,
+                'emission_state' => $guide->emission_state,
                 'data' => $guide->fresh(),
                 'nubefact' => \App\Services\ShippingGuideDocument::redactResponse($resp),
             ]);
@@ -701,6 +707,7 @@ class ShippingGuideController extends Controller
             }
 
             $diagnosticReference = \App\Services\ShippingGuideDiagnostic::record($e, 'generate', $guide);
+            \App\Services\ShippingGuideTransmission::failure($guide->id, $snapshot, $e, $diagnosticReference);
             $current = $guide->fresh();
             $conflict = $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface && $e->getStatusCode() === 409;
             return response()->json([
@@ -709,6 +716,7 @@ class ShippingGuideController extends Controller
                 'diagnostic_reference' => $diagnosticReference,
                 'persisted' => true,
                 'status' => $current ? $current->status : null,
+                'emission_state' => $current ? $current->emission_state : null,
                 'data' => $current,
             ], $conflict ? 409 : 502);
         }
