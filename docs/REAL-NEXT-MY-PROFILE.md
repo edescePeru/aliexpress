@@ -57,3 +57,57 @@ Conservados CSRF en3 formularios y JS/plugin hooks. No ejecución de guardar nom
 Cambios previos de Required Password Change/test/documentación preservados. Backend, esquema, JS funcional y módulos ajenos intactos. Sin commit.
 
 Estado: frontend visual PASS; lectura SELF PASS; autorización SELF de mutaciones BACKEND SYNC OPEN; mutaciones/upload QA PENDING. No se declara el flujo completo seguro por una modernización visual.
+
+## PROFILE-01 Closure — 2026-11-22
+
+Esta sección supera el estado histórico de ausencia de SELF. **SELF ownership PASS; cierre integral de mutaciones NOT CLOSED** debido a imagen. Required Password Change y USER-01 global permanecen separados; no se reabrieron.
+
+### SELF Guard
+
+| Mutation | Route name / path | Method | SELF Guard | Permission |
+|---|---|---|---|---|
+| Imagen | user.change.image / dashboard/change/image/user/{user} | POST | EnsureOwnProfile + assertSelf en action | Sin adicional |
+| Settings | user.change.settings / dashboard/change/settings/user/{user} | POST | Mismo guard doble | Sin adicional |
+| Password | user.change.password / dashboard/change/password/user/{user} | POST | Mismo guard doble | Sin adicional |
+
+artisan route:list confirma web, auth, check.user.enabled, password.changed, tenant.context, EnsureOwnProfile. Binding User $user. SelfProfileAccess compara estrictamente IDs convertidos a string; middleware corre antes de FormRequest y controller vuelve a defender. No sustituye SELF por tenant/company/branch.
+
+### Settings Mutation
+
+PASS aislado: propio actualiza name; email es requerido/validado pero conserva valor original por contrato. Vacío422 con errores name/email. Payload tenant_id, is_platform_admin, password y user no altera esos campos ni destino. Transacción termina en0.
+
+### Password Mutation
+
+PASS aislado: campos vacíos422, confirmación distinta422, actual incorrecta422 con hash intacto y transactionLevel=0; query posterior funciona. Correcta200: hash nuevo verifica y anterior deja de verificar; hash ajeno intacto. Usuario autenticado y remember_token se conservan. Controller no invalida otras sesiones/tokens ni cambia must_change_password; no se afirma revocación global. Se valida hash/estado auth, no login E2E por servidor web.
+
+### Image Mutation
+
+PNG mínimo propio200, image=1.png y archivo presente. Sin archivo422. **Aceptación integral FAIL:** texto inocuo qa.txt también200 e image=1.txt. No hay validación backend de MIME/extensión/tamaño; jpg/png/jpeg sólo es restricción del plugin. No existe máximo contractual de aplicación para certificar tamaño permitido/rechazado. Límites PHP/webserver no sustituyen validación de endpoint.
+
+### Negative Ownership Tests
+
+Las tres actions rechazan otro usuario mismo tenant403 y otro tenant403. Inexistente fail closed403/404 según orden guard/binding. Snapshot completo de users intacto. Dos uploads ajenos403 antes de move: fuente sigue existiendo y destino vacío. Manipulación user/tenant del payload no cambia destino ni privilegios.
+
+Suite usa router Laravel con SubstituteBindings y middleware real del controller, usuarios SQLite temporales. No ejecuta toda la cadena auth/tenant de producción: se inspeccionó route:list; no presentar la suite como HTTP E2E de todos los middleware.
+
+### Storage / Rollback
+
+Destino public/images/users/{id}.{clientOriginalExtension}. Move ocurre antes de save, sin transacción filesystem. Mismo nombre sobrescribe; extensión distinta deja anterior. Reproducido en carpeta temporal: previous.jpg queda tras reemplazo; evento saving forzado a fallar produce500 y destruye contenido previo de 1.png aunque DB no cambie. No rollback/cleanup. No se expuso archivo QA en public real.
+
+[OPEN] Validación y persistencia de imagen: UserController::changeImage. DEV debe definir tipos/tamaño, validar antes de mover, preservar avatar previo al fallar DB y limpiar archivos nuevos/anteriores según éxito/fallo. No se inventa política de tamaño ni se cambia arquitectura durante QA.
+
+### HTTP/UI Evidence
+
+Chrome headless aislado; HTML actual renderizado desde MySQL READ ONLY/ROLLBACK: EDESCE4 y Gamarra7 muestran SELF correcto. POST del navegador interceptados con respuestas controladas; ninguna mutación de Owners. Mutaciones reales del controller probadas por separado en suite SQLite.
+
+Settings success/validation, password error, imagen success/error y preview PASS. Cinco POST conservan CSRF y FormData multipart, cero pageerrors. Callback conserva reload; avatar persistido tras reload no certificado end-to-end. Sin rediseño ni nueva matriz responsive completa. Evidencia local: %TEMP%/profile-closure-ui.json y profile-closure-*.png.
+
+Defecto UI reproducido antes de corregir: error imagen sólo decía Error porque leía jqXHR.message. Corrección mínima en public/js/user/profile.js: responseJSON.message con fallback. Segunda ejecución confirma texto No se pudo guardar la imagen. Sin cambios de payload/estética.
+
+### Tests / Cleanup / Final Status
+
+Reproducción: PHP7.3 vendor/phpunit/phpunit/phpunit tests/Feature/ProfileMutationClosureTest.php --do-not-cache-result. **5 tests / 56 assertions PASS**; tests con observed/debt caracterizan defectos actuales, NO certifican seguridad del upload. SQLite :memory:, red de negocio no utilizada, almacenamiento temporal aleatorio eliminado por teardown. Sin cuentas persistentes ni contraseñas de Owner modificadas.
+
+Read SELF PASS; Settings PASS; Password PASS; imagen happy path PASS / validación y rollback FAIL. **PROFILE-01 ownership corregido; PROFILE-01 MUTATION CLOSURE OPEN** hasta corregir imagen. USER-01 separado. Backend unchanged; frontend sólo mensaje error; CSS0; node --check PASS; git diff --check PASS. No commit.
+
+Archivos: public/js/user/profile.js; tests/Feature/ProfileMutationClosureTest.php; docs/REAL-NEXT-MY-PROFILE.md. Blade intacto: @csrf en tres forms, image multipart, data-url con ID propio, AJAX POST preservado.

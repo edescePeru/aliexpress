@@ -4,9 +4,12 @@ $(document).ready(function () {
     var table = $('#dynamic-table').DataTable( {
         ajax: {
             url: "/dashboard/view/material/all/variants/"+idMaterial,
-            dataSrc: 'data'
+            dataSrc: function (json) { $('#variants-feedback').text(json.data.length ? '' : 'Este material no tiene variantes habilitadas en la empresa activa.').toggleClass('d-none', !!json.data.length).removeClass('text-danger'); return json.data; },
+            error: function (xhr) { $('#variants-feedback').text('No se pudieron consultar las variantes ('+xhr.status+').').removeClass('d-none').addClass('text-danger'); }
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar d-flex justify-content-between flex-wrap"lf>rt<"next-list-toolbar d-flex justify-content-between flex-wrap"ip>',
+        columnDefs: [{targets:[0,1,2,3],render:$.fn.dataTable.render.text()}, {targets:[1,2,4,5],className:'text-center'}, {targets:[0,3],className:'text-left'}],
         "aoColumns": [
             { data: 'material.full_name' },
             { data: 'talla.short_name' },
@@ -17,8 +20,9 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    let url = document.location.origin + '/images/material/variants/' + item.image;
-                    return '<button data-ver_imagen data-src="'+url+'" class="btn btn-outline-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>';
+                    if (!item.image) return '<span class="text-muted">Sin imagen</span>';
+                    let url = document.location.origin + '/images/material/variants/' + encodeURIComponent(item.image);
+                    return '<button data-ver_imagen data-src="'+url+'" class="btn btn-outline-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Ver Imagen"><i class="fa fa-image"></i></button>';
                 }
             },
             { data: null,
@@ -26,8 +30,8 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    var status = (item.is_active == 1) ? '<span class="badge bg-success">Activo</span>' :
-                        (item.is_active == 0) ? '<span class="badge bg-danger">Inactivo</span>' :
+                    var status = (item.is_active == 1) ? '<span class="badge badge-success">Activo</span>' :
+                        (item.is_active == 0) ? '<span class="badge badge-secondary">Inactivo</span>' :
                             'Indefinido';
                     return '<p> '+status+' </p>'
                 }

@@ -14,9 +14,10 @@ return [
     'enabled' => true,
 
     // Exact registered URI for the unnamed normal-purchase detail view.
-    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/eliminada/{id}'],
+    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/eliminada/{id}', 'dashboard/ver/orden/compra/finanzas/eliminada/{id}', 'dashboard/editar/orden/compra/finanza/{id}'],
 
     'routes' => [
+        'stockitems.view.variants',
         'order.purchase.delete',
         'entry.purchase.report.index',
         'invoice.create',
@@ -78,12 +79,16 @@ return [
         'configUserWeb.create',
         'configUserWeb.edit',
         'cashMovement.my.index',
+        'cashMovement.admin.index',
         'cashRegister.session',
         'entry.purchase.indexV2',
         'entry.purchase.show',
         'financial.summary',
         'financial.summary.movements',
         'order.purchase.finance.index',
+        'order.purchase.finance.create',
+        'order.purchase.finance.delete',
+        'order.purchase.finance.list.regularize',
         'index.credit.supplier',
         'index.invoices.pending',
         'order.purchase.list.indexV2',

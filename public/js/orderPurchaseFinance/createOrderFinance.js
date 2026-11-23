@@ -365,6 +365,7 @@ function storeOrderPurchase() {
             }, 2000 )
         },
         error: function (data) {
+            data.responseJSON = data.responseJSON || {message: 'No se pudo completar la solicitud (HTTP ' + data.status + ').'};
             if( data.responseJSON.message && !data.responseJSON.errors )
             {
                 toastr.error(data.responseJSON.message, 'Error',

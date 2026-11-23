@@ -112,7 +112,7 @@ function storeImage() {
             }, 2000 )
         },
         error: function (data) {
-            toastr.error(data.message, 'Error',
+            toastr.error((data.responseJSON && data.responseJSON.message) || 'No se pudo guardar la imagen.', 'Error',
                 {
                     "closeButton": true,
                     "debug": false,

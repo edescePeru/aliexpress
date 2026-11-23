@@ -297,9 +297,11 @@ $(document).ready(function () {
         }).DataTable( {
         ajax: {
             url: "/dashboard/get/invoices/pending",
-            dataSrc: 'data'
+            dataSrc: function (json) { $('#credit-list-feedback').text(json.data.length ? '' : 'No hay créditos en la empresa activa.').toggleClass('d-none', !!json.data.length).removeClass('text-danger'); return json.data; },
+            error: function (xhr) { $('#credit-list-feedback').text('No se pudo consultar el listado (' + xhr.status + ').').removeClass('d-none').addClass('text-danger'); }
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar d-flex justify-content-between flex-wrap"lf>rt<"next-list-toolbar d-flex justify-content-between flex-wrap"ip>',
         "aoColumns": [
             { data: null,
                 title: 'Orden',
@@ -448,7 +450,7 @@ $(document).ready(function () {
                 wrap: true,
                 "render": function (item)
                 {
-                    return '<p> '+ item.estado +'</p>';
+                    return creditStateBadge(item.stateCredit) + '<small class="d-block">'+ $('<span>').text(item.estado).html() +'</small>';
                 }
             },
             { data: null,
@@ -485,19 +487,22 @@ $(document).ready(function () {
                     var text = '';
 
                     if (['control_credit', 'pay_credit', 'nopay_credit'].some(function (p) { return SupplierCreditUi.can(p, $permissions); })) {
-                        text += ' <button data-pays="'+item.id+'" class="btn btn-outline-primary btn-sm" title="Ver pagos"><i class="fas fa-file-invoice-dollar"></i></button>';
+                        text += ' <button data-pays="'+item.id+'" class="dropdown-item" title="Ver abonos"><i class="fas fa-file-invoice-dollar next-row-action-item-icon"></i><span>Abonos e historial</span></button>';
                     }
                     if (SupplierCreditUi.can('edit_credit', $permissions)) {
-                        text += ' <button data-add_days="'+item.id+'" data-fecha="'+item.fechaVencimiento+'" class="btn btn-outline-success btn-sm" title="Agregar 7 días"><i class="fas fa-plus-circle"></i></button>';
+                        text += ' <button data-add_days="'+item.id+'" data-fecha="'+item.fechaVencimiento+'" class="dropdown-item" title="Agregar 7 días"><i class="fas fa-plus-circle next-row-action-item-icon"></i><span>Agregar 7 días</span></button>';
                     }
 
-                    return text; /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
+                    return creditRowMenu(text); /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
                 }
             },
 
         ],
         "aaSorting": [],
         "columnDefs": [
+            {targets: [5,6,7,8,9,10], className: 'text-right'},
+            {targets: [0,1,3,11,12,13,14,15,16,18], className: 'text-center'},
+            {targets: [2,4,17], className: 'text-left'},
             {
                 "visible": false,
                 "targets": [ 0, 5, 6, 7, 8, 16, 17 ]
@@ -638,27 +643,9 @@ $(document).ready(function () {
                 "hours": "Horas"
             }
         },
-        "createdRow": function(row, data, dataIndex) {
-            var valor = data.stateCredit; // Supongamos que el valor de interés está en la tercera columna (índice 2)
-
-            if (valor == "outstanding") {
-                $(row).find('td:eq(9)').css('background-color', '#28a745'); // Cambiar el color de fondo de la tercera celda de la fila a rojo
-            } else {
-                if (valor == "by_expire") {
-                    $(row).find('td:eq(9)').css('background-color', '#ffc107'); // Cambiar el color de fondo de la tercera celda de la fila a rojo
-                } else {
-                    if (valor == "expired") {
-                        $(row).find('td:eq(9)').css('background-color', '#dc3545'); // Cambiar el color de fondo de la tercera celda de la fila a rojo
-                    } else {
-                        $(row).find('td:eq(9)').css('background-color', '#007bff'); // Cambiar el color de fondo de la tercera celda de la fila a rojo
-
-                    }
-                }
-            }
-        }
     } );
 
-    $(document).on('click', '[data-column]', function (e) {
+    $('.next-column-visibility-menu').on('click', '[data-column]', function (e) {
         //e.preventDefault();
 
         // Get the column API object
@@ -668,6 +655,10 @@ $(document).ready(function () {
         column.visible( ! column.visible() );
     } );
 
+    $('.next-column-visibility-menu').on('click', function (e) { e.stopPropagation(); });
+    $('.next-column-visibility-menu').on('keydown', function (e) {
+        if (e.key === 'Escape') { e.stopPropagation(); $('#credit-columns-trigger').dropdown('hide').trigger('focus'); }
+    });
     $modalAddItems = $('#modalAddItems');
 
     //$(document).on('click', '[data-delete]', deleteItem);
@@ -781,7 +772,7 @@ $(document).ready(function () {
     $('body').tooltip({
         selector: '[data-toggle="tooltip"]'
     });
-    
+
     $("#btn-summary").on('click', showModalSummary);
 
     $(document).on('click', '[data-pays]',showModalPays);
@@ -1418,13 +1409,16 @@ function savePayCredit() {
     var file = $('#comprobantePago')[0].files[0];
     var fingerprint = JSON.stringify([String(creditId), amount, date, file ? [file.name, file.size, file.lastModified] : null]);
     var draft = supplierCreditDraft(creditId);
-    if (draft && draft.fingerprint !== fingerprint) {
+    if (draft && draft.fingerprint !== fingerprint && !draft.validationRejected) {
         toastr.warning('Hay una operación anterior sin confirmar. Revisa los pagos y usa «Iniciar otro abono» antes de cambiar los datos.');
         return;
     }
     try {
         if (!draft) { draft = {key: supplierCreditNewRequestKey(), fingerprint: fingerprint}; supplierCreditStoreDraft(creditId, draft); }
     } catch (e) { toastr.error(e.message); return; }
+    draft.fingerprint = fingerprint; draft.validationRejected = false; supplierCreditStoreDraft(creditId, draft);
+    $('#payment-request-key').val(draft.key);
+    creditPaymentClearErrors();
     var form = new FormData();
     form.append('request_key', draft.key); form.append('montoPago', amount); form.append('fechaPago', date);
     if (file) form.append('comprobantePago', file);
@@ -1434,13 +1428,14 @@ function savePayCredit() {
         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
         data: form, contentType: false, processData: false,
         success: function (data) {
-            supplierCreditStoreDraft(creditId, null);
+            supplierCreditStoreDraft(creditId, null); $('#payment-request-key').val('');
             toastr.success(data.message); getPaysUpdated(data.credit.id);
             $('#montoPago, #fechaPago').val(''); $('#comprobantePago').val(null);
         },
         error: function (xhr) {
             var body = xhr.responseJSON || {};
-            if (xhr.status === 422) supplierCreditStoreDraft(creditId, null);
+            if (xhr.status === 422) { draft.validationRejected = true; supplierCreditStoreDraft(creditId, draft); }
+            creditPaymentShowError(xhr);
             toastr.error(body.message || 'No se pudo confirmar el abono. Revisa el historial antes de iniciar otro.');
         },
         complete: function () { supplierCreditPaymentBusy = false; $('#btn-save-pay').prop('disabled', false); }
@@ -1450,61 +1445,44 @@ function savePayCredit() {
 $(document).on('click', '#btn-new-payment-draft', function () {
     if (supplierCreditPaymentBusy || !SupplierCreditUi.allow('pay_credit', $permissions)) return;
     if (window.confirm('¿Iniciar otro abono? Revisa primero que el anterior no esté registrado para evitar duplicarlo.')) {
-        supplierCreditStoreDraft($('#credito_id').val(), null);
+        supplierCreditStoreDraft($('#credito_id').val(), null); $('#payment-request-key').val(''); creditPaymentClearErrors();
         $('#montoPago, #fechaPago').val(''); $('#comprobantePago').val(null);
     }
 });
 
+var creditHistoryRequest = null;
+var creditPaymentInputs = {};
 function getPaysUpdated(credit_id) {
-    $('#body-pays').html('');
-    $("#body-items-load").LoadingOverlay("show", {
-        background  : "rgba(236, 91, 23, 0.5)"
-    });
-
-    $.ajax({
-        url: "/dashboard/get/pays/credit/"+credit_id,
-        type: 'GET',
-        dataType: 'json',
+    if (creditHistoryRequest) creditHistoryRequest.abort();
+    $('#body-pays').empty(); $('#credit-history-status').text('Cargando abonos…').removeClass('text-danger');
+    creditHistoryRequest = $.ajax({
+        url: '/dashboard/get/pays/credit/'+credit_id, type: 'GET', dataType: 'json',
         success: function (json) {
-            //console.log(json.consumables.length);
-            for (var i=0; i<json.pays.length; i++)
-            {
-                renderTemplatePay(i+1, json.pays[i].id, json.pays[i].type,json.pays[i].monto, json.pays[i].fecha, json.pays[i].comprobante);
-            }
-            $("#body-items-load").LoadingOverlay("hide", true);
+            if (String($('#credito_id').val()) !== String(credit_id)) return;
+            $('#credit-history-status').text(json.pays.length ? '' : 'Este crédito no tiene abonos registrados.');
+            json.pays.forEach(function (pay, i) { renderTemplatePay(i+1, pay.id, pay.type, pay.monto, pay.fecha, pay.comprobante); });
+        },
+        error: function (xhr, status) {
+            if (status !== 'abort') $('#credit-history-status').text('No se pudo consultar el historial ('+xhr.status+').').addClass('text-danger');
         }
     });
 }
-
 function showModalPays() {
-    $('#body-pays').html('');
-    $("#body-items-load").LoadingOverlay("show", {
-        background  : "rgba(236, 91, 23, 0.5)"
-    });
-
     var credit_id = $(this).data('pays');
-
-    $("#montoPago").val('');
-    $("#fechaPago").val('');
-    $('#comprobantePago').val(null);
-
-    $("#credito_id").val(credit_id);
-
-    $.ajax({
-        url: "/dashboard/get/pays/credit/"+credit_id,
-        type: 'GET',
-        dataType: 'json',
-        success: function (json) {
-            //console.log(json.consumables.length);
-            for (var i=0; i<json.pays.length; i++)
-            {
-                renderTemplatePay(i+1, json.pays[i].id, json.pays[i].type, json.pays[i].monto, json.pays[i].fecha, json.pays[i].comprobante);
-            }
-            $("#body-items-load").LoadingOverlay("hide", true);
-        }
-    });
-    $modalPays.modal('show');
-
+    var previous = $('#credito_id').val();
+    if (previous) creditPaymentInputs[previous] = {amount: $('#montoPago').val(), date: $('#fechaPago').val()};
+    if (String(previous) !== String(credit_id)) {
+        var values = creditPaymentInputs[credit_id] || {};
+        $('#montoPago').val(values.amount || ''); $('#fechaPago').val(values.date || ''); $('#comprobantePago').val(null);
+    }
+    $('#credito_id').val(credit_id);
+    var draft = supplierCreditDraft(credit_id); $('#payment-request-key').val(draft ? draft.key : '');
+    creditPaymentClearErrors();
+    var rows = $('#dynamic-table2').DataTable().rows().data().toArray();
+    var row = rows.find(function (r) { return String(r.id) === String(credit_id); });
+    $('#credit-payment-context').text(row ? row.proveedor+' · '+row.factura : 'Crédito '+credit_id);
+    $('#credit-payment-balance').text(row ? 'Saldo actual: '+row.deudaActual+' '+row.moneda : '');
+    getPaysUpdated(credit_id); $modalPays.modal('show');
 }
 
 function renderTemplatePay(i, id, type,amount, datePay, image) {
@@ -1513,27 +1491,27 @@ function renderTemplatePay(i, id, type,amount, datePay, image) {
     {
         var clone2 = activateTemplate('#template-pay2');
 
-        clone2.querySelector("[data-id]").innerHTML = i;
-        clone2.querySelector("[data-monto]").innerHTML = amount;
-        clone2.querySelector("[data-fecha]").innerHTML = datePay;
+        clone2.querySelector("[data-id]").textContent = i;
+        clone2.querySelector("[data-monto]").textContent = amount;
+        clone2.querySelector("[data-fecha]").textContent = datePay;
         clone2.querySelector("[data-comprobante]").setAttribute('href', document.location.origin+ '/dashboard/creditos/abonos/'+id+'/comprobante');
         if (!image || image === 'no_image.png' || image === 'no_image.jpg') clone2.querySelector('[data-comprobante]').remove();
         clone2.querySelector("[data-delete]").setAttribute('data-delete', id);
         if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone2.querySelector('[data-delete]').remove();
 
-        $('#body-pays').append(clone2);
+        creditEmptyActions(clone2); $('#body-pays').append(clone2);
     } else {
         var clone = activateTemplate('#template-pay');
 
-        clone.querySelector("[data-id]").innerHTML = i;
-        clone.querySelector("[data-monto]").innerHTML = amount;
-        clone.querySelector("[data-fecha]").innerHTML = datePay;
+        clone.querySelector("[data-id]").textContent = i;
+        clone.querySelector("[data-monto]").textContent = amount;
+        clone.querySelector("[data-fecha]").textContent = datePay;
         clone.querySelector("[data-comprobante]").setAttribute('data-image_comprobante', document.location.origin+ '/dashboard/creditos/abonos/'+id+'/comprobante');
         if (!image || image === 'no_image.png' || image === 'no_image.jpg') clone.querySelector('[data-comprobante]').remove();
         clone.querySelector("[data-delete]").setAttribute('data-delete', id);
         if (!SupplierCreditUi.can('nopay_credit', $permissions)) clone.querySelector('[data-delete]').remove();
 
-        $('#body-pays').append(clone);
+        creditEmptyActions(clone); $('#body-pays').append(clone);
     }
 
 
@@ -2196,3 +2174,34 @@ function activateTemplate(id) {
     return document.importNode(t.content, true);
 }
 
+
+// Shared Venti Next presentation; no amount or balance calculations.
+function creditRowMenu(items) {
+    if (!items) return '<span class="text-muted">Sin acciones</span>';
+    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del crédito"><i class="fas fa-ellipsis-h"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">'+items+'</div></div>';
+}
+function creditEmptyActions(fragment) {
+    var menu = fragment.querySelector('.next-row-actions');
+    if (menu && !menu.querySelector('.dropdown-item')) menu.replaceWith(document.createTextNode('—'));
+}
+function creditPaymentClearErrors() {
+    $('#credit-payment-error').addClass('d-none').text('');
+    $('#modalPays .is-invalid').removeClass('is-invalid').removeAttr('aria-invalid');
+    $('#modalPays .invalid-feedback').text('');
+}
+function creditPaymentShowError(xhr) {
+    var body = xhr.responseJSON || {};
+    $('#credit-payment-error').text(body.message || 'No se pudo confirmar el abono ('+xhr.status+'). Revisa el historial.').removeClass('d-none');
+    ['montoPago', 'fechaPago', 'comprobantePago'].forEach(function (field) {
+        if (body.errors && body.errors[field]) {
+            $('#'+field).addClass('is-invalid').attr('aria-invalid', 'true');
+            $('#'+field+'-error').text([].concat(body.errors[field]).join(' '));
+        }
+    });
+}
+
+function creditStateBadge(state) {
+    var labels = {outstanding:'Pendiente', by_expire:'Por vencer', expired:'Vencido', paid_out:'Pagado'};
+    var tone = state === 'expired' ? 'danger' : state === 'by_expire' ? 'warning' : state === 'paid_out' ? 'success' : 'secondary';
+    return '<span class="badge badge-'+tone+'">'+$('<span>').text(labels[state] || state || 'Sin estado').html()+'</span>';
+}
