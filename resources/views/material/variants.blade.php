@@ -25,41 +25,29 @@
     <link rel="stylesheet" href="{{ asset('admin/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_open.png') no-repeat center center;
-            cursor: pointer;
-        }
-        tr.details td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_close.png') no-repeat center center;
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
-    <h1 class="page-title">Variantes de Material {{$material->code}}</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Materiales · consulta</span><h1 class="page-title">Variantes del material</h1><p class="next-page-description">{{ $material->code }} · {{ $material->full_name }}</p></div>
     <input type="hidden" id="id-material" value="{{$material->id}}">
 @endsection
 
 @section('page-title')
     <h5 class="card-title">Listado de variantes de materiales</h5>
-    <a href="{{ route('material.indexV2') }}" class="btn btn-outline-success btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Regresar </a>
+    <a href="{{ route('material.indexV2') }}" class="btn btn-outline-secondary btn-sm float-right" > <i class="fa fa-arrow-left font-20"></i> Regresar </a>
 @endsection
 
 @section('content')
+    <div id="variants-feedback" class="next-form-section d-none" role="status"></div>
     <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="dynamic-table">
+        <table class="table table-bordered table-hover table-sm" id="dynamic-table">
             <thead>
             <tr>
                 <th>Material</th>
                 <th>Talla</th>
                 <th>Color</th>
                 <th>Resumen atributo</th>
-                <th>Image</th>
+                <th>Imagen</th>
                 <th>Estado</th>
             </tr>
             </thead>
@@ -69,15 +57,15 @@
         </table>
     </div>
 
-    <div id="modalImage" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div id="modalImage" class="modal fade next-aux-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Visualización de la imagen</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <img id="image-document" src="" alt="" width="80%">
+                    <img id="image-document" src="" alt="Imagen de la variante" class="img-fluid d-block mx-auto">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>

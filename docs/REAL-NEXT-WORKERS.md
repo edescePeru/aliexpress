@@ -157,3 +157,74 @@ Correction files: `resources/views/worker/index.blade.php`,
 `public/js/worker/index.js`, this document. Earlier create/edit/allowlist integration
 changes remain in the working tree; this correction did not modify them.
 Backend/routes/permissions/dataset: unchanged. CSS added: 0. No commit.
+
+
+## Worker Index Enable
+
+2026-11-22 — **FRONTEND INTEGRATED**. Backend unchanged; 0 CSS nuevo. Esta fase no modifica worker.index/create/edit.
+
+### Route / permission / purpose
+
+- GET `/dashboard/habilitar/colaborador`: route name **worker.enable**, controller WorkerController@indexEnable, Blade worker.indexEnable. No existe una route llamada worker.indexEnable; la allowlist usa el nombre real worker.enable, sólo esta vista.
+- GET `/dashboard/get/workers/enable/`: getWorkersEnable, endpoint DataTables sin route name. `restore_worker` requerido por middleware del controller; la vista lo requiere en routes/web.php.
+- POST `/dashboard/enable/worker/{id}`: enable, restore_worker; preservado NO ejecutado.
+- Diferencia frente al directorio worker.index: esta superficie lista `enable=0` para habilitación. No es listado de contratos vigentes ni de workers actualmente habilitados. No se agregaron edición/alta/renovación de contratos, export ni acciones del directorio general.
+
+### Scope
+
+WorkerCompanyContext y WorkerAccess intactos: ownership de filas **tenant + company**. WorkerAccess valida además usuario habilitado, membresías company/branch y contexto activo; branch es requisito de acceso, no filtro de ownership Worker. No selector ni filtro branch nuevo.
+
+### have_contract semantics
+
+**DETERMINISTIC HISTORICAL EXISTENCE**. Backend selectSub consulta existencia de cualquier contracts.worker_id=workers.id; no usa vigencia, fechas ni enable. Frontend sólo interpreta el booleano have_contract, muestra `Con contrato` / `Sin contrato`, sin inferir desde contract_id/código o fechas.
+Se reutiliza columna21 Contrato, ahora visible inicialmente para mostrar el estado; conserva código de contrato si backend lo entrega y el guard contract_worker previo para su contenido. No se agrega columna ni switch. El código es información adicional, no autoridad del badge. Aviso explícito indica que existencia histórica no confirma vigencia.
+
+### Dataset / HTTP read QA
+
+Lectura actual MySQL READ ONLY, sin fixtures DB; dos respuestas consecutivas completas comparadas idénticas por contexto:
+
+| Cuenta QA | T/C/B | IDs deshabilitados | have_contract | HTTP vista/datos |
+| --- | --- | --- | --- | --- |
+| Owner EDESCE | 1/1/1 | [2] | false | 200/200 |
+| Owner Gamarra | 3/3/4 | [] | N/A | 200/200 |
+
+HTTP autenticado separado confirma la misma igualdad y carga venti-next.css. No escrituras de negocio. No hay mezcla real con/sin contrato en este dataset; mezcla validada sólo como variación controlada del renderer en memoria del navegador, claramente separada de datos reales. No certifica mutación ni crea contratos.
+
+### Columns / actions / column visibility
+
+29 columnas configurables originales, índices e IDs preservados: Código, DNI, Nombres, Apellidos, Dirección, Teléfono, Email, Cargo, Género, Fecha Nac., Edad, Nivel Estudios, N° Hijos, Fecha Ingreso, Fecha Cese, Salario Diario, Salario Mensual, Pensión Alimentos, ESSALUD, Asignación Familiar, Quinta Categoría, Contrato, Estado Civil, Sistema Pensión, Porcentaje Sistema Pensión, Observación, Área, Profesión, Motivo de Cese. Más columna Acciones no configurable.
+Se conserva DataTables, búsqueda y paginación cliente, sin reescribir su contrato. Guards contract_worker de información laboral/salarial preservados. Columnas ocultas predeterminadas intactas salvo21 Contrato, ahora marcada visible coherentemente en switch/DataTables.
+Columnas se presenta en toolbar con next-column-visibility-menu/grid/options, idéntico patrón worker.index, dos columnas/una móvil y Escape/click fuera. No disclosure ni switches inventados.
+Acción única Habilitar dentro de trigger `…`, reutilizando next-row-actions/menu y portal de shell. Se conservan data-enable, data-nombre, data-worker_id, handler destroyWorker, confirmación, endpoint POST y CSRF. La autorización restore_worker se mantiene en rutas, sin reemplazarla por una inferencia JS sobre roles. No se pulsó Habilitar ni se abrió la confirmación.
+Nuevo colaborador conserva URL worker.create y presentación/visibilidad @can(create_worker) del baseline. No se navegó a create/edit durante esta fase. No se añadió Exportar porque esta superficie no lo tenía.
+
+### Empty / error
+
+Datos vacíos: `No hay colaboradores deshabilitados en esta empresa`. Búsqueda sin coincidencias conserva mensaje DataTables diferenciado. Badge false no es un estado de usuario ni un error.
+Fallo AJAX muestra alert visible (403 distingue permiso), oculta tabla fallida en lugar de presentar un falso empty state. Simulación403 aislada PASS; no se afirma que sea un nuevo QA de autenticación sin permiso.
+
+### Visual parity / responsive
+
+Reutilización directa de worker.index aprobado: next-page-heading, toolbar/actions, tabla next-data-table, wrapper acolchado next-form-section, scroll local, menús de columnas/acciones, badges y alineación. IDs/fechas/cantidades/estado/acciones centrados; importes/porcentajes derecha. Sin CSS nuevo, sin segundo componente.
+Chrome/Chromium headless vía Playwright, perfil propio del proceso, sin controlar escritorio ni ventanas del usuario. Render real Laravel de cada Owner y JSON real reproducido en navegador; requests ajenos a assets/read fixture bloqueados y POST abortados. Prueba visual/DOM separada del smoke HTTP autenticado.
+
+| Viewport | document.scrollWidth | Columnas / acciones dentro de viewport | Toggle / Escape |
+| --- | --- | --- | --- |
+| 320 | 320 | PASS | PASS |
+| 375 | 375 | PASS | PASS |
+| 390 | 390 | PASS | PASS |
+| 576 | 576 | PASS | PASS |
+| 768 | 768 | PASS | PASS |
+| 992 | 992 | PASS | PASS |
+| 1200 | 1200 | PASS | PASS |
+| 1440 | 1440 | PASS | PASS |
+
+Capturas reales320/1440 inspeccionadas. Tabla ancha con scroll local (en móvil desplazar para ver las demás columnas); cero overflow global. Cero pageerrors. Estados PASS: sin contrato real, búsqueda vacía, Gamarra vacío, mezcla controlada, error403 controlado diferenciado. No afirmar mezcla real ni prueba de vigencia.
+Evidencia local: `%TEMP%/worker-enable-evidence/` (results.json,320.png,1440.png). Harness y render temporales retirados del workspace tras QA.
+
+### Checks / boundary
+
+Blade compile PHP7.3.33 PASS; node --check indexEnable.js PASS; PHP lint config PASS; git diff --check PASS.
+JS modificado sólo en presentación de badges/acciones, accesibilidad de menús/alineación y estado de error de lectura. getWorkersEnable/WorkerAccess/controller/model/routes sin cambios. No alta/edición/baja/asignación de contrato, habilitación de Worker ni otra mutación. MUTATION QA PENDING.
+
+Archivos: resources/views/worker/indexEnable.blade.php; public/js/worker/indexEnable.js; config/venti-next.php (worker.enable); docs/REAL-NEXT-WORKERS.md. Sin commit.

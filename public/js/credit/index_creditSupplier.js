@@ -286,9 +286,11 @@ $(document).ready(function () {
     var table2 = $('#dynamic-table2').DataTable( {
         ajax: {
             url: "/dashboard/get/only/credits/supplier",
-            dataSrc: 'data'
+            dataSrc: function (json) { $('#registered-list-feedback').text(json.data.length ? '' : 'No hay créditos registrados en esta empresa.').toggleClass('d-none', !!json.data.length).removeClass('text-danger'); return json.data; }, error: function (xhr) { $('#registered-list-feedback').text('No se pudo consultar el listado ('+xhr.status+').').removeClass('d-none').addClass('text-danger'); }
         },
         bAutoWidth: false,
+        dom: '<"next-list-toolbar d-flex justify-content-between flex-wrap"lf>rt<"next-list-toolbar d-flex justify-content-between flex-wrap"ip>',
+        columnDefs: [{targets:[3,4],className:'text-right'},{targets:[1,2,5,6,7,8,10,12,13,14,15],className:'text-center'},{targets:[0,9,11],className:'text-left'}],
         "aoColumns": [
             { data: null,
                 title: 'Proveedor',
@@ -320,7 +322,7 @@ $(document).ready(function () {
                 "render": function (item)
                 {
                     if ( item.purchase == null ) {
-                        return '<p>'+ item.service.code +'</p>';
+                        return $('<span>').text(item.service ? item.service.code : (item.code_order || 'Sin orden')).html();
                     } else {
                         return '<p> '+ item.purchase.code +'</p>';
                     }
@@ -430,10 +432,10 @@ $(document).ready(function () {
                 {
                     if ( item.state_credit != null )
                     {
-                        return (item.state_credit === 'outstanding') ? '<span class="badge bg-info">Pendiente</span>' :
-                            (item.state_credit === 'by_expire') ? '<span class="badge bg-warning">Por expirar</span>' :
-                                (item.state_credit === 'expired') ? '<span class="badge bg-danger">Expirado</span>' :
-                                    '<span class="badge bg-success">Pagado</span>';
+                        return (item.state_credit === 'outstanding') ? '<span class="badge badge-secondary">Pendiente</span>' :
+                            (item.state_credit === 'by_expire') ? '<span class="badge badge-warning">Por expirar</span>' :
+                                (item.state_credit === 'expired') ? '<span class="badge badge-danger">Expirado</span>' :
+                                    '<span class="badge badge-success">Pagado</span>';
                     } else {
                         return 'No tiene';
                     }
@@ -537,18 +539,26 @@ $(document).ready(function () {
                     if ( item.state_credit != 'paid_out' )
                     {
                         if ( $.inArray('edit_credit', $permissions) !== -1 ) {
-                            text = text + '<button type="button" data-edit="' + item.id + '" class="btn btn-outline-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Editar crédito"><i class="fa fa-pen"></i> </button> ';
+                            text = text + '<button type="button" data-edit="' + item.id + '" class="dropdown-item" title="Editar crédito"><i class="fa fa-pen next-row-action-item-icon"></i><span>Editar fechas / observaciones</span> </button> ';
                         }
                         if ( $.inArray('pay_credit', $permissions) !== -1 ) {
-                            text = text + '<button type="button" data-pay="' + item.id + '" class="btn btn-outline-success btn-sm" data-toggle="tooltip" data-placement="top" title="Crédito pagado"><i class="fa fa-dollar-sign"></i> </button>';
+                            text = text + '<button type="button" data-pay="' + item.id + '" class="dropdown-item" title="Marca manual de pago"><i class="fa fa-dollar-sign next-row-action-item-icon"></i><span>Marcar pagado</span> </button>';
                         }
                     } else {
                         if ( $.inArray('nopay_credit', $permissions) !== -1 ) {
-                            text = text + '<button type="button" data-nopay="' + item.id + '" class="btn btn-outline-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Anular pago"><i class="fas fa-strikethrough"></i> </button>';
+                            text = text + '<button type="button" data-nopay="' + item.id + '" class="dropdown-item next-row-action-danger" title="Revertir marca de pago"><i class="fas fa-strikethrough next-row-action-item-icon"></i><span>Revertir marca de pago</span> </button>';
                         }
                     }
 
-                    return text; /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
+                    if (SupplierCreditUi.can('edit_credit', $permissions)) text += '<button type="button" class="dropdown-item" data-extend-credit="'+item.id+'">Ampliar vencimiento +7 días</button>';
+                    var labels = {pending:'Pendiente',pending50:'CANC./PEND.50%',canceled:'Cancelado'};
+                    var transitions = '';
+                    Object.keys(labels).forEach(function (state) {
+                        if (state !== item.state_pay && SupplierCreditUi.transition(item.state_pay, state, $permissions)) transitions += '<button type="button" class="dropdown-item" data-credit-state="'+state+'" data-current="'+item.state_pay+'" data-credit="'+item.id+'">'+labels[state]+'</button>';
+                    });
+                    if (transitions) text += '<div class="dropdown-divider"></div><h6 class="dropdown-header">Estado manual: '+(labels[item.state_pay] || 'Sin estado')+'</h6>'+transitions;
+                    if (!text) return '<span class="text-muted">Sin acciones</span>';
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del crédito"><i class="fas fa-ellipsis-h"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">'+text+'</div></div>'; /*'<a href="'+document.location.origin+ '/dashboard/entrada/compra/editar/'+item.id+'" class="btn btn-outline-warning btn-sm"><i class="fa fa-pen"></i> </a>  <button data-delete="'+item.id+'" data-description="'+item.description+'" data-measure="'+item.measure+'" class="btn btn-outline-danger btn-sm"><i class="fa fa-trash"></i> </button>' */
                 }
             },
 
@@ -724,7 +734,8 @@ $(document).ready(function () {
 
     $("#btn-pay").on('click', paidCredit);
 
-    $(document).on('change', '[id=date_issue]', modifyDateIsuue);
+    // Dates are independently editable; backend validates their ordering.
+    // The legacy deadline-derived autofill could overwrite an explicit date or produce Invalid date.
 
     $(document).on('click', '[data-details]', showDetails);
 
@@ -845,8 +856,8 @@ function cancelPayCredit() {
         closeIcon: true,
         animation: 'zoom',
         type: 'red',
-        title: '¿Está seguro de cancelar el pago de este crédito?',
-        content: 'Se actualizará la página.',
+        title: '¿Revertir la marca manual de pago?',
+        content: 'No elimina abonos ni comprobantes. Se actualizará la página.',
         buttons: {
             confirm: {
                 text: 'CONFIRMAR',
@@ -882,9 +893,10 @@ function cancelPayCredit() {
     });
 }
 
-function paidCredit() {
+function paidCredit(event) {
     if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
-    event.preventDefault();
+    if (event) event.preventDefault();
+    registeredClearErrors($('#formPay'));
     $("#btn-pay").attr("disabled", true);
     // Obtener la URL
     var paidUrl = $formPay.data('url');
@@ -922,62 +934,21 @@ function paidCredit() {
                 location.reload();
             }, 2000 )
         },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-pay").attr("disabled", false);
-
-        },
+        error: function (data) { registeredFormError($('#formPay'), data); $('#btn-pay').prop('disabled', false); }
     });
 }
 
 function payCredit() {
     if (!SupplierCreditUi.allow('pay_credit', $permissions)) return;
+    registeredClearErrors($modalPay);
+    $modalPay.find('button[id=btn-pay], button[id=btn-submit]').prop('disabled', true);
     var credit_id = $(this).data('pay');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,
         type: 'GET',
         dataType: 'json',
         success: function (json) {
+            $modalPay.find('button[id=btn-pay], button[id=btn-submit]').prop('disabled', false);
             var credit = json.credit;
             console.log(credit);
             //console.log(json[0].supplier);
@@ -986,21 +957,21 @@ function payCredit() {
                     (credit.state_credit === 'expired') ? 'Expirado' :
                         'Pagado';
             $modalPay.find('[id=credit_id]').val(credit.id);
-            $modalPay.find('[id=days_deadline]').val(credit.deadline.days);
-            $modalPay.find('[id=supplier]').val(credit.supplier.business_name);
+            $modalPay.find('[id=days_deadline]').val((credit.deadline ? credit.deadline.days : ''));
+            $modalPay.find('[id=supplier]').val((credit.supplier ? credit.supplier.business_name : 'Sin proveedor'));
             $modalPay.find('[id=invoice]').val(credit.invoice);
             $modalPay.find('[id=code_order]').val(credit.code_order);
             $modalPay.find('[id=total_soles]').val(credit.total_soles);
             $modalPay.find('[id=total_dollars]').val(credit.total_dollars);
             $modalPay.find('[id=total_dollars]').val(credit.total_dollars);
-            $modalPay.find('[id=date_issue]').val(moment(credit.date_issue).format('DD/MM/YYYY'));
-            $modalPay.find('[id=payment_deadline]').val(credit.deadline.description);
-            $modalPay.find('[id=date_expiration_2]').val(moment(credit.date_expiration).format('DD/MM/YYYY'));
+            $modalPay.find('[id=date_issue]').val((credit.date_issue ? moment(credit.date_issue).format('DD/MM/YYYY') : ''));
+            $modalPay.find('[id=payment_deadline]').val((credit.deadline ? credit.deadline.description : ''));
+            $modalPay.find('[id=date_expiration_2]').val((credit.date_expiration ? moment(credit.date_expiration).format('DD/MM/YYYY') : ''));
             $modalPay.find('[id=state_credit]').val(estado);
             $modalPay.find('[id=days_to_expiration]').val(credit.days_to_expiration);
             $modalPay.find('[id=observation]').val(credit.observation);
 
-            $modalPay.find('[id=date_paid]').datepicker('setDate', moment(credit.date_paid).format('DD/MM/YYYY'));
+            $modalPay.find('[id=date_paid]').datepicker('setDate', (credit.date_paid ? moment(credit.date_paid).format('DD/MM/YYYY') : ''));
             $modalPay.find('[id=observation2]').val(credit.observation_extra);
 
             $('#date_picker_paid .date_picker_paid').datepicker({
@@ -1012,7 +983,8 @@ function payCredit() {
                 todayHighlight: true,
                 defaultViewDate: moment().format('L')
             });
-        }
+        },
+        error: function (xhr) { registeredFormError($modalPay, xhr); }
     });
     $modalPay.modal('show');
 }
@@ -1058,9 +1030,10 @@ function modifyDateIsuue() {
 
 }
 
-function updateCredit() {
+function updateCredit(event) {
     if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
-    event.preventDefault();
+    if (event) event.preventDefault();
+    registeredClearErrors($('#formEdit'));
     $("#btn-submit").attr("disabled", true);
     // Obtener la URL
     var editUrl = $formEdit.data('url');
@@ -1098,51 +1071,7 @@ function updateCredit() {
                 location.reload();
             }, 2000 )
         },
-        error: function (data) {
-            if( data.responseJSON.message && !data.responseJSON.errors )
-            {
-                toastr.error(data.responseJSON.message, 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            for ( var property in data.responseJSON.errors ) {
-                toastr.error(data.responseJSON.errors[property], 'Error',
-                    {
-                        "closeButton": true,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": true,
-                        "positionClass": "toast-top-right",
-                        "preventDuplicates": false,
-                        "onclick": null,
-                        "showDuration": "300",
-                        "hideDuration": "1000",
-                        "timeOut": "2000",
-                        "extendedTimeOut": "1000",
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    });
-            }
-            $("#btn-submit").attr("disabled", false);
-
-        },
+        error: function (data) { registeredFormError($('#formEdit'), data); $('#btn-submit').prop('disabled', false); }
     });
 }
 
@@ -1194,12 +1123,15 @@ function addCredit() {
 
 function editCredit() {
     if (!SupplierCreditUi.allow('edit_credit', $permissions)) return;
+    registeredClearErrors($modalEdit);
+    $modalEdit.find('button[id=btn-pay], button[id=btn-submit]').prop('disabled', true);
     var credit_id = $(this).data('edit');
     $.ajax({
         url: "/dashboard/get/credit/by/id/"+credit_id,
         type: 'GET',
         dataType: 'json',
         success: function (json) {
+            $modalEdit.find('button[id=btn-pay], button[id=btn-submit]').prop('disabled', false);
             var credit = json.credit;
             console.log(credit);
             //console.log(json[0].supplier);
@@ -1208,16 +1140,16 @@ function editCredit() {
                     (credit.state_credit === 'expired') ? 'Expirado' :
                     'Pagado';
             $modalEdit.find('[id=credit_id]').val(credit.id);
-            $modalEdit.find('[id=days_deadline]').val(credit.deadline.days);
-            $modalEdit.find('[id=supplier]').val(credit.supplier.business_name);
+            $modalEdit.find('[id=days_deadline]').val((credit.deadline ? credit.deadline.days : ''));
+            $modalEdit.find('[id=supplier]').val((credit.supplier ? credit.supplier.business_name : 'Sin proveedor'));
             $modalEdit.find('[id=invoice]').val(credit.invoice);
             $modalEdit.find('[id=code_order]').val(credit.code_order);
             $modalEdit.find('[id=total_soles]').val(credit.total_soles);
             $modalEdit.find('[id=total_dollars]').val(credit.total_dollars);
             $modalEdit.find('[id=total_dollars]').val(credit.total_dollars);
-            $modalEdit.find('[id=date_issue]').datepicker('setDate', moment(credit.date_issue).format('DD/MM/YYYY'));
-            $modalEdit.find('[id=payment_deadline]').val(credit.deadline.description);
-            $modalEdit.find('[id=date_expiration_2]').datepicker('setDate', moment(credit.date_expiration).format('DD/MM/YYYY'));
+            $modalEdit.find('[id=date_issue]').datepicker('setDate', (credit.date_issue ? moment(credit.date_issue).format('DD/MM/YYYY') : ''));
+            $modalEdit.find('[id=payment_deadline]').val((credit.deadline ? credit.deadline.description : ''));
+            $modalEdit.find('[id=date_expiration_2]').datepicker('setDate', (credit.date_expiration ? moment(credit.date_expiration).format('DD/MM/YYYY') : ''));
             $modalEdit.find('[id=state_credit]').val(estado);
             $modalEdit.find('[id=days_to_expiration]').val(credit.days_to_expiration);
             $modalEdit.find('[id=observation]').val(credit.observation);
@@ -1240,7 +1172,8 @@ function editCredit() {
                 todayHighlight: true,
                 defaultViewDate: moment().format('L')
             });
-        }
+        },
+        error: function (xhr) { registeredFormError($modalEdit, xhr); }
     });
     $modalEdit.modal('show');
 }
@@ -1463,3 +1396,34 @@ function activateTemplate(id) {
     return document.importNode(t.content, true);
 }
 
+
+function registeredClearErrors(form) {
+    form.find('[data-credit-error]').addClass('d-none').text('');
+    form.find('.invalid-feedback').remove(); form.find('.is-invalid').removeClass('is-invalid').removeAttr('aria-invalid');
+}
+function registeredFormError(form, xhr) {
+    var body = xhr.responseJSON || {};
+    form.find('[data-credit-error]').text(body.message || 'No se pudo completar la operación ('+xhr.status+').').removeClass('d-none');
+    Object.keys(body.errors || {}).forEach(function (name) {
+        form.find('[name]').filter(function () { return this.name === name; }).each(function () {
+            $(this).addClass('is-invalid').attr('aria-invalid','true').after($('<div class="invalid-feedback">').text([].concat(body.errors[name]).join(' ')));
+        });
+    });
+}
+// Existing backend operations, confirmed through the same dialog plugin as reversal.
+$(document).on('click','[data-extend-credit]',function () {
+    if (!SupplierCreditUi.allow('edit_credit',$permissions)) return;
+    registeredConfirm('Ampliar vencimiento +7 días','Se agregarán exactamente 7 días al vencimiento, si el estado del crédito lo permite.','/dashboard/add/days/credit/'+$(this).attr('data-extend-credit'));
+});
+$(document).on('click','[data-credit-state]',function () {
+    var state=$(this).attr('data-credit-state'), current=$(this).attr('data-current');
+    if (!SupplierCreditUi.transition(current,state,$permissions)) return;
+    registeredConfirm('Cambiar estado manual','No registra ni elimina abonos. Se aplicará el estado seleccionado.','/dashboard/change/status/credit/'+$(this).attr('data-credit')+'/'+state);
+});
+function registeredConfirm(title, message, url) {
+    $.confirm({title:title,content:message,theme:'modern',buttons:{
+        confirm:{text:'Confirmar',btnClass:'btn-primary',action:function(){
+            $.ajax({url:url,method:'POST',headers:{'X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')},success:function(data){toastr.success(data.message);$('#dynamic-table2').DataTable().ajax.reload(null,false);},error:function(xhr){toastr.error((xhr.responseJSON || {}).message || 'No se pudo completar la operación ('+xhr.status+').');}});
+        }},cancel:{text:'Cancelar'}
+    }});
+}

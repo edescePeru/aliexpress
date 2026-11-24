@@ -30,20 +30,7 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_open.png') no-repeat center center;
-            cursor: pointer;
-        }
-        tr.details td.details-control {
-            background: url('/admin/plugins/datatables/resources/details_close.png') no-repeat center center;
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
 <div class="next-page-heading"><span class="next-page-eyebrow">Proveedores · créditos</span><h1 class="page-title">Créditos registrados</h1><p class="next-page-description">Consulta y administración de créditos de la empresa activa según sus permisos.</p></div>
@@ -67,58 +54,14 @@
 
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
-    {{--<h3>Listado de facturas</h3>
-    <div class="row">
-        <div class="col-md-3">
-            <strong> Seleccione un rango de fechas: </strong>
+    <div class="next-list-toolbar"><div class="row"><div class="col-md-7 col-xl-5" id="sandbox-container2">
+        <label for="start2">Fechas de emisión</label><div class="input-daterange input-group" id="datepicker2">
+            <input type="text" class="form-control form-control-sm date-range-filter2" id="start2" name="start" aria-label="Desde">
+            <div class="input-group-append input-group-prepend"><span class="input-group-text">al</span></div>
+            <input type="text" class="form-control form-control-sm date-range-filter2" id="end2" name="end" aria-label="Hasta">
         </div>
-        <div class="col-md-6" id="sandbox-container">
-            <div class="input-daterange input-group" id="datepicker">
-                <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start">
-                <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end">
-            </div>
-        </div>
-
-        <br><br>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover table-sm" id="dynamic-table">
-            <thead>
-            <tr>
-                <th>Fecha de factura</th>
-                <th>Orden de compra</th>
-                <th>Factura</th>
-                <th>Proveedor</th>
-                <th>Subtotal</th>
-                <th>Impuestos</th>
-                <th>Total</th>
-                <th>Imagen</th>
-                <th>Acciones</th>
-            </tr>
-            </thead>
-            <tbody>
-
-            </tbody>
-        </table>
-    </div>
-    <br>
-    <hr>--}}
-    <h3>Listado de créditos</h3>
-    <div class="row">
-        <div class="col-md-3">
-            <strong> Seleccione un rango de fechas: </strong>
-        </div>
-        <div class="col-md-6" id="sandbox-container2">
-            <div class="input-daterange input-group" id="datepicker2">
-                <input type="text" class="form-control form-control-sm date-range-filter2" id="start2" name="start">
-                <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
-                <input type="text" class="form-control form-control-sm date-range-filter2" id="end2" name="end">
-            </div>
-        </div>
-
-        <br><br>
-    </div>
+    </div></div></div>
+    <div id="registered-list-feedback" class="next-form-section d-none" role="status"></div>
     <div class="table-responsive">
         <table class="table table-bordered table-hover table-sm" id="dynamic-table2">
             <thead>
@@ -147,16 +90,17 @@
         </table>
     </div>
 
-    <div id="modalPay" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div id="modalPay" class="modal fade next-aux-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Información del crédito</h4>
+                    <h4 class="modal-title">Marcar crédito como pagado</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <form id="formPay" data-url="{{ route('credit.control.paid') }}">
+                <form class="d-flex flex-column overflow-hidden" id="formPay" data-url="{{ route('credit.control.paid') }}" enctype="multipart/form-data">
                     @csrf
-                    <div class="modal-body">
+                    <div class="modal-body next-form-section"><p class="text-muted">Marca manual de pago. No registra un abono ni elimina los existentes.</p>
+                        <div class="alert alert-danger d-none" data-credit-error role="alert"></div>
                         <input type="hidden" id="credit_id" name="credit_id">
                         <input type="hidden" id="days_deadline" name="days_deadline">
                         <div class="form-group row">
@@ -231,7 +175,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label for="image">Imagen/PDF Comprobante </label>
-                                <input type="file" id="image_paid" name="image_paid" class="form-control">
+                                <input type="file" id="image_paid" name="image_paid" class="form-control-file w-100">
                             </div>
                             <div class="col-md-4">
                                 <label for="observation2"> Observación de pago <span class="right badge badge-danger">(*)</span></label>
@@ -243,7 +187,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         @can('pay_credit')
-                        <button type="button" id="btn-pay" class="btn btn-success">Guardar pago</button>
+                        <button type="button" id="btn-pay" class="btn btn-primary">Marcar pagado</button>
                         @endcan
                     </div>
                 </form>
@@ -274,16 +218,17 @@
         </div>
     </div>
 
-    <div id="modalEdit" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div id="modalEdit" class="modal fade next-aux-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Información del crédito</h4>
+                    <h4 class="modal-title">Editar fechas y observaciones</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <form id="formEdit" data-url="{{ route('credit.control.update') }}">
+                <form class="d-flex flex-column overflow-hidden" id="formEdit" data-url="{{ route('credit.control.update') }}">
                     @csrf
-                    <div class="modal-body">
+                    <div class="modal-body next-form-section">
+                        <div class="alert alert-danger d-none" data-credit-error role="alert"></div>
                         <input type="hidden" id="credit_id" name="credit_id">
                         <input type="hidden" id="days_deadline" name="days_deadline">
                         <div class="form-group row">
@@ -356,7 +301,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         @can('edit_credit')
-                        <button type="button" id="btn-submit" class="btn btn-success">Guardar cambios</button>
+                        <button type="button" id="btn-submit" class="btn btn-primary">Guardar cambios</button>
                         @endcan
                     </div>
                 </form>

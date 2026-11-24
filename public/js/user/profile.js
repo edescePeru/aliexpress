@@ -59,6 +59,7 @@ function hideFormImage() {
 
 function storeImage(event) {
     event.preventDefault();
+
     const form = this;
     const $button = $(form).find('button[type="submit"], input[type="submit"]');
     if ($(form).data('avatar-sending')) { return; }

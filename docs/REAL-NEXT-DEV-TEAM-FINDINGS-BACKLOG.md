@@ -1,5 +1,7 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+> Estado más reciente: addendum 2026-11-22 al final y REAL-NEXT-DEV-DELIVERY-REVIEW-2026-11-22.md. Conteos/estados anteriores se conservan como historial.
+
 Fecha: **2026-11-13 (America/Lima)**. Código contrastado: HEAD `9262d65` y documentación canónica acumulada. Preparado para backend/dev y producto; **no enviado a terceros**.
 
 ## Resumen para triage
@@ -405,3 +407,35 @@ DEV debe imponer ownership SELF backend y probar usuario propio/ajeno antes de h
 ## PUR-01 / Finance Purchase List — 2026-11-18
 
 **PUR-01 / FINANCE PURCHASE LIST — FIXED / QA PASSED / FRONTEND INTEGRATED**. Sólo index/AJAX con list_orderPurchaseFinance y scope tenant/company, branch N/A. Dataset real0; controllers/vistas en transacción READ ONLY; aislamiento positivo SQLite privado y permisos de ruta:2 tests/10 assertions PASS. Responsive8 anchos con HTML real/respuestas controladas; no equivale a smoke HTTP positivo con órdenes reales. Ver REAL-NEXT-FINANCE-PURCHASES-LIST-READONLY.md. MULTIPAGE QA — PENDING DATASET. Backend unchanged/CSS0. Create/edit/show/lost, posting, pagos y documentos excluidos. PUR-01 general sigue OPEN/PARTIALLY FIXED; DOCUMENT SECURITY — BACKEND/INFRA OPEN. La condición legacy showPrices_quote oculta total sólo en presentación, no redacta JSON; cualquier requisito de confidencialidad de ese campo requiere definición/protección backend, no filtro JS.
+
+
+## Entrega DEV / revalidación 2026-11-22 — HEAD 9816321
+
+## Findings matrix
+
+| Finding | Previous state | DEV change | QA evidence | Final state | Frontend consequence |
+| --- | --- | --- | --- | --- | --- |
+| GUIDE-01 Create | OPEN | create_referralGuide formalizado en 7 rutas y controller; contexto T/C/B | siete rutas + middleware Spatie directo/rol permitido, list-only/ninguno403; scope con IDs; GET Owners200 | FIXED / QA PASS focalizado; Store HTTP/CSRF pendiente | Create Remitente desbloqueado para integración de formulario |
+| GUIDE-02 | OPEN | emission_key, fingerprint, replay,409, lock company y unique | replay/conflicto/retry PASS fake; concurrencia MySQL reportada DEV sin artefacto entregado; migraciones locales pendientes | PARTIAL de cierre verificable/instalación; implementación secuencial QA PASS | no habilitar emisión operativa local todavía |
+| GRE failure | SENT ambiguo | submission_state + snapshots + failure conservador | timeout UNKNOWN; retry no send; late failure conserva ACCEPTED; pending/rejected/API_ERROR PASS | FIXED / QA PASS aislado; instalación/HTTP pendiente | contrato visual definido; no certifica proveedor |
+| WORKER ENABLE | rand | subquery contracts.worker_id | histórico incluye deleted; repetición MySQL y SQLite; HTTP ambos200 | FIXED / QA PASS | worker.indexEnable READY |
+| PROFILE-01 | sin SELF | EnsureOwnProfile + SelfProfileAccess en las tres acciones | propio settings/password200, imagen sin archivo422; ajenos403; hash ajeno intacto; transaction0 tras password inválida | FIXED / HTTP QA PENDING | cierre mutaciones perfil BACKEND READY; upload positivo pendiente |
+| PAY-01 | SQL1054 en dos ediciones | retiro intencional 27+17 acciones | 44 acciones410 sin SQL, sin acceso a documentos; scope PaymentDeadline intacto | CLOSED BY RETIREMENT para OrderService/Proforma | ambos SKIP / RETIRED; no READY |
+| MAT-03 | OPEN | sin cambio en update físico | diff sólo selectores Material; request intacto | OPEN | Save retacería bloqueado |
+| MAT-04 | OPEN | NOT TOUCHED | UpdateMaterialRequest sin delta | OPEN | multinivel sigue bloqueado |
+| MAT-05 | OPEN | NOT TOUCHED | casts previos sin delta | OPEN | flags siguen bloqueados |
+| MAT-01 | diseño pendiente | NOT TOUCHED | no decisión entregada para historia/stock/reservas/omisión/maestro | DESIGN DECISION | no cerrar Save global |
+| CASH-02 | decisión moneda histórica | NOT TOUCHED | sin delta CashBox | DECISION OPEN | independiente de GRE/Worker/Profile |
+| CASH-03 | decisión is_deferred | NOT TOUCHED | sin delta Subtype | DECISION OPEN | no cerrar edición histórica |
+| CASH-04 | decisión desactivación | NOT TOUCHED | sin delta Subtype | DECISION OPEN | no cerrar toggle referenciado |
+
+
+Evidencia completa, commits, ocho migraciones PENDING y matriz frontend: [DEV Delivery Review](REAL-NEXT-DEV-DELIVERY-REVIEW-2026-11-22.md). 14 tests/224 assertions SQLite PASS; HTTP Owners EDESCE/Gamarra PASS para Create GRE/Worker/Kardex y selectores. No emisión real. GUIDE-02 conserva límite de concurrencia MySQL no reproducible desde artefactos entregados, aunque DEV la afirma. Perfil HTTP/uploads pendientes. PAY cerrado por retiro, no por reparación. TTT1-3 no encontrada en DB local; documentos separados. No cerrar findings globales QA/INV/PUR/EXT por evidencia parcial.
+
+## Post-migration delta 2026-11-22 — evidencia vigente
+
+8/8 Ran/batch179 confirmadas con PHP7.3.33 y schema SHOW CREATE/INDEX. CODE/SCHEMA MISMATCH RESOLVED para las ocho. GUIDE-02 pasa PARTIAL→FIXED / MYSQL CONCURRENCY QA PENDING. GRE fake6/42 PASS (incluida nueva operación/nuevo número). Concurrencia MySQL sigue DEV CLAIM ONLY: ninguna suite entregada localizada; no se inventó una. GUIDE-01 sin cambio; failure FIXED/QA PASS aislado. GRE Create UNLOCKED; operación PARTIAL por concurrencia y Store HTTP/auth/CSRF, no por schema/documentos.
+
+SupplierCredits schema OK y read suite4/28 PASS; fachadas integradas sin cambio, pagos no certificados. Customer03 sin blocker de instalación, lifecycle QA pendiente (sin suite aislada entregada). Inventory107 filas idénticas al SELECT up/down sobre dataset actual; Kardex/selectores y producto válido HTTP200 ambos Owners. No reabrir INV01 completo.
+
+Históricos GRE STALE:5 errors/1 failure por emission_key ausente y assertion middleware obsoleta; no regresión de migrations. No tests históricos modificados ni mutación de negocio real. TTT1-3 ausencia local EXPECTED/DEMO DATA. Ver [delta con clasificación por test](REAL-NEXT-DEV-DELIVERY-REVIEW-2026-11-22.md). Próximo frontend GRE Create Remitente. Sin commit.

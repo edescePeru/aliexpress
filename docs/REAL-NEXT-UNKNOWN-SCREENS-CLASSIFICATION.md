@@ -276,3 +276,20 @@ QuoteSale Forms sigue WAIT por contactos/capacidades; registrarComprobante separ
 
 Cierre: sólo este documento modificado en esta fase; frontend/backend intactos,
 cero pruebas extensas, cero mutaciones, sin commit. `git diff --check`: PASS.
+
+
+## Readiness delta — entrega DEV 2026-11-22
+
+Baseline c32352c → 9816321; ver [revisión con evidencia](REAL-NEXT-DEV-DELIVERY-REVIEW-2026-11-22.md). No nuevo discovery.
+
+- Normal Purchase Trash + Deleted Detail: integrados en c32352c; no siguen en cola READY.
+- Shipping Guide Create Remitente: WAIT → FRONTEND UNLOCKED para formulario. GUIDE-01 QA focalizada PASS y GET Owners200. Store local NO certificado: migraciones pendientes; concurrencia MySQL sólo claim DEV sin artefacto entregado. Documentos no son blocker de diseño Create.
+- worker.indexEnable: WAIT → FRONTEND UNLOCKED. Existencia histórica determinista; WorkerAccess conservado; SQLite/MySQL repetido y HTTP PASS. Restore excluido.
+- My Profile: mutaciones BACKEND READY / HTTP QA PENDING. Middleware SELF probado con binding privado; upload positivo y servidor instalado pendientes. No reabrir Required Password Change.
+- OrderService y Proforma: WAIT → SKIP / RETIRED. 44 acciones410 sin SQL, datos conservados.
+- ReferralGuide legacy / FollowMaterial / Promotions legacy: SKIP / RETIRED por controllers/rutas410, no rescatar UI.
+- Variantes/StockItems/Items: INV-01 recibe guardas reales; reclasificar blocker antiguo como IMPLEMENTATION CHANGED / FOCUSED QA PENDING, no declarar READY sin comprobar su contrato puntual.
+- Material Save MAT-01/03/04/05 y Cash02/03/04 permanecen pendientes separados.
+- Kardex: refresh caché + smoke HTTP200 ambos Owners para vista/selectores. Frontend permanece cerrado; nueva migración de vista SQL pendiente por separado.
+
+Próxima: GRE Create Remitente. Segunda: Worker indexEnable. Tercera: My Profile mutation closure. Son 2 pantallas y 1 cierre, no tres diseños nuevos. No implementar emisión hasta instalar/revalidar schema y el contrato HTTP requerido. Ocho migraciones pendientes enumeradas en revisión; no se aplicaron.
