@@ -11,6 +11,7 @@
 <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de empresa</strong><span>Empresas del grupo empresarial.</span></div></div>
 @endsection
 @section('content')
+@include('tenantCompany._plan_capacity', ['capacityTenant' => auth()->user()->tenant])
 <form id="formCreateTenantCompany" data-url="{{ route('tenantCompany.store') }}">
 @csrf
 <section class="next-form-section" aria-labelledby="company-identity-title"><div class="next-section-header"><div><span class="next-section-kicker">01</span><h2 id="company-identity-title">Datos de la empresa</h2><p>Los campos con (*) son obligatorios.</p></div></div><div class="row">

@@ -369,6 +369,10 @@
                             error: function (xhr) {
                                 let msg = 'Ocurrió un error.';
                                 if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                    const firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                                    if (firstKey) msg = xhr.responseJSON.errors[firstKey][0];
+                                }
                                 $.alert({ title: 'Error', content: escapeHtml(msg), type: 'red' });
                             }
                         });

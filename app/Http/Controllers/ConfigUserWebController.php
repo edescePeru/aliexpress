@@ -859,133 +859,31 @@ class ConfigUserWebController extends Controller
         ]);
     }
 
-    public function changeStatus(Request $request,$id,TenantPlanService $planService) {
+    public function changeStatus(Request $request, $id, TenantPlanService $planService)
+    {
         $this->ensureTenantOwner();
-
-        $authUser = Auth::user();
-
-        $user = $this
-            ->findTenantUserOrFail($id);
-
-        /*
-         * No permitimos que el Owner cambie
-         * el estado de su propia cuenta.
-         */
-        if ($user->id === $authUser->id) {
-            return response()->json([
-                'message' =>
-                    'No puedes cambiar el estado de tu propia cuenta.'
-            ], 422);
-        }
-
-        /*
-         * Tampoco permitimos inhabilitar
-         * al propietario del tenant.
-         *
-         * Aunque actualmente tendremos un Owner
-         * principal, dejamos esta protección
-         * explícita.
-         */
-        if ($user->is_tenant_owner) {
-            return response()->json([
-                'message' =>
-                    'El propietario del tenant no puede ser inhabilitado desde este módulo.'
-            ], 422);
-        }
-
-        $request->validate([
-            'status' => [
-                'required',
-                'in:0,1',
-            ],
-        ]);
-
-        $newStatus =
-            (int) $request->status;
-
-        /*
-         * Si ya se encuentra en ese estado,
-         * no ejecutamos cambios innecesarios.
-         */
-        if (
-            (int) $user->enable
-            ===
-            $newStatus
-        ) {
-            return response()->json([
-                'message' =>
-                    $newStatus === 1
-                        ? 'El usuario ya se encuentra activo.'
-                        : 'El usuario ya se encuentra inhabilitado.',
-
-                'enable' =>
-                    (bool) $user->enable,
-            ]);
-        }
-
-        /*
-         * Para ACTIVAR debemos verificar
-         * nuevamente el cupo contratado.
-         */
-        if ($newStatus === 1) {
-
-            $tenant =
-                $authUser->tenant;
-
-            if (!$tenant) {
-                return response()->json([
-                    'message' =>
-                        'No se encontró el tenant del usuario.'
-                ], 422);
-            }
-
-            try {
-
-                $planService
-                    ->ensureCanActivateUser(
-                        $tenant
-                    );
-
-            } catch (\RuntimeException $e) {
-
-                return response()->json([
-                    'message' =>
-                        $e->getMessage(),
-                ], 422);
-            }
-        }
-
-        $user->enable =
-            $newStatus === 1;
-
-        /*
-         * Al inhabilitar:
-         *
-         * - eliminamos remember_token;
-         * - no tocamos Worker;
-         * - mantenemos roles;
-         * - mantenemos companies;
-         * - mantenemos branches;
-         * - mantenemos historial.
-         *
-         * Si luego vuelve a habilitarse,
-         * recupera el mismo alcance.
-         */
-        if (!$user->enable) {
-            $user->remember_token = null;
-        }
-
-        $user->save();
-
-        return response()->json([
-            'message' =>
-                $user->enable
-                    ? 'Usuario activado correctamente.'
-                    : 'Usuario inhabilitado correctamente.',
-
-            'enable' =>
-                (bool) $user->enable,
-        ]);
+        $this->findTenantUserOrFail($id);
+        $values = $request->validate(['status' => ['required', 'in:0,1']]);
+        try {
+            $user = DB::transaction(function () use ($id, $values, $planService) {
+                $tenant = $planService->lockTenant((int) Auth::user()->tenant_id);
+                $user = $this->tenantUsersQuery()->whereKey($id)->lockForUpdate()->firstOrFail();
+                if ((int) $user->id === (int) Auth::id() || $user->is_tenant_owner) {
+                    throw new \RuntimeException('No puedes cambiar el estado del propietario desde este módulo.');
+                }
+                $status = (int) $values['status'];
+                if ((int) $user->enable !== $status) {
+                    if ($status === 1) { $planService->ensureCanActivateUser($tenant); }
+                    $user->enable = $status === 1;
+                    if (!$user->enable) { $user->remember_token = null; }
+                    $user->save();
+                }
+                return $user;
+            });
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) { throw $e; }
+        catch (\Illuminate\Database\QueryException $e) { throw $e; }
+        catch (\RuntimeException $e) { return response()->json(['message' => $e->getMessage()], 422); }
+        return response()->json(['message' => $user->enable ? 'Usuario activado correctamente.' : 'Usuario inhabilitado correctamente.', 'enable' => (bool) $user->enable]);
     }
 
     public function planSummary(TenantPlanService $planService) {
@@ -1514,6 +1412,10 @@ class ConfigUserWebController extends Controller
         DB::beginTransaction();
 
         try {
+            $tenant = $planService->lockTenant((int) $tenant->id);
+            try { $planService->ensureCanActivateUser($tenant); }
+            catch (\Illuminate\Database\QueryException $e) { throw $e; }
+            catch (\RuntimeException $e) { throw \Illuminate\Validation\ValidationException::withMessages(['plan' => $e->getMessage()]); }
 
             $user = User::create([
                 'tenant_id' =>
@@ -1614,6 +1516,9 @@ class ConfigUserWebController extends Controller
 
             DB::commit();
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (\Throwable $e) {
 
             DB::rollBack();

@@ -90,6 +90,10 @@ class TenantBranchController extends Controller
                     $user
                 ) {
 
+                    $quota = app(\App\Services\TenantPlanService::class);
+                    $lockedTenant = $quota->lockTenant((int) $company->tenant_id);
+                    $quota->ensureStructureCapacity($lockedTenant, 0, 1);
+                    $company = Company::query()->where('tenant_id', $lockedTenant->id)->where('is_active', true)->whereKey($company->id)->lockForUpdate()->firstOrFail();
                     $priceListId = app(\App\Services\BranchPriceListService::class)->assignment((int) $company->id, $validated['price_list_id'] ?? null, true);
                     $branch = Branch::create([
                         'catalog_slug' => $validated['catalog_slug'] ?? null,
@@ -330,6 +334,8 @@ class TenantBranchController extends Controller
                      * Validamos que su Company pertenezca
                      * al Tenant actual.
                      */
+                    $quota = app(\App\Services\TenantPlanService::class);
+                    $lockedTenant = $quota->lockTenant((int) $tenantId);
                     $branch = Branch::query()
                         ->whereHas('company', function ($query) use ($tenantId) {
                             $query->where(
@@ -350,6 +356,7 @@ class TenantBranchController extends Controller
                      */
 
                     if (!$branch->is_active) {
+                        $quota->ensureStructureCapacity($lockedTenant, 0, 1);
 
                         /*
                          * No tiene sentido activar una sucursal

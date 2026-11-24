@@ -146,13 +146,15 @@ class CompanyBankAccountController extends Controller
     ) {
         $validated = $request->validated();
 
-        $account = $this->findAccount($id);
-
         DB::transaction(
             function () use (
-                $account,
+                $id,
                 $validated
             ) {
+                $guard = app(\App\Services\CashConfigurationGuard::class);
+                $guard->lockContext();
+                $account = $guard->scope(CompanyBankAccount::query())->whereKey($id)->lockForUpdate()->firstOrFail();
+                $boxes = $guard->bankAccountCurrency($account, $validated['currency']);
                 $isDefault =
                     !empty(
                     $validated['is_default']
@@ -204,7 +206,13 @@ class CompanyBankAccountController extends Controller
                             ? true
                             : $isDefault,
                 ]);
-            }
+                // Only unused linked bank boxes can reach this point with a different currency.
+                foreach ($boxes as $box) {
+                    $box->currency = $validated['currency'];
+                    $box->save();
+                }
+            },
+            3
         );
 
         return response()->json([

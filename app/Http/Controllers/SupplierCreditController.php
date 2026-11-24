@@ -608,10 +608,7 @@ class SupplierCreditController extends Controller
                 return route('entry.purchase.show', [$entry->id]);
             }
         }
-        if ($credit->order_purchase_finance_id && Auth::user()->can('list_orderPurchaseFinance')) {
-            $order = OrderPurchaseFinance::find($credit->order_purchase_finance_id);
-            if ($order) { return route('show.order.purchase.finance', [$order->id]); }
-        }
+        // Las referencias financieras históricas se conservan sin enlazar al módulo retirado.
         if ($credit->order_purchase_id && Auth::user()->can('list_orderPurchaseNormal')) {
             $order = OrderPurchase::find($credit->order_purchase_id);
             if ($order) { return url('/dashboard/ver/orden/compra/normal/'.$order->id); }

@@ -11,6 +11,16 @@ use Illuminate\Validation\ValidationException;
 
 class TenantContextController extends Controller
 {
+    public function clear(Request $request)
+    {
+        $user = Auth::user();
+        abort_unless($user && $user->enable && $user->isTenantOwner() && !$user->isPlatformAdmin(), 403);
+        TenantContext::clear();
+        session(['multitenancy.tenant_id' => (int) $user->tenant_id]);
+        $request->session()->regenerate();
+        return response()->json(['success' => true, 'message' => 'Volviste a administración del negocio.']);
+    }
+
     public function branches(Request $request)
     {
         $request->validate([
@@ -142,7 +152,7 @@ class TenantContextController extends Controller
         });
 
         session([
-            'multitenancy.tenant_id' => $user->tenant_id,
+            'multitenancy.tenant_id' => (int) $user->tenant_id,
             'multitenancy.company_id' => $company->id,
             'multitenancy.branch_id' => $branch->id,
         ]);

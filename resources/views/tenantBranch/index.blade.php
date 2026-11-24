@@ -27,6 +27,7 @@
 @endsection
 
 @section('content')
+@include('tenantCompany._plan_capacity', ['capacityTenant' => auth()->user()->tenant])
 
     <div class="table-responsive" tabindex="0" aria-label="Sucursales; tabla con desplazamiento horizontal">
 

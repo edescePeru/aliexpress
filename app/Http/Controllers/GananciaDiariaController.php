@@ -138,7 +138,7 @@ class GananciaDiariaController extends Controller
 
             if (!empty($sale->pdf_path)) {
                 // PDF local guardado
-                $printUrl = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                $printUrl = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
             }
 
             $array[] = [

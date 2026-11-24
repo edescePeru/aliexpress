@@ -18,6 +18,46 @@ use Illuminate\Validation\Rule;
 
 class UpdateMaterialRequest extends FormRequest
 {
+    private $originalEditValues = null;
+
+    protected function prepareForValidation()
+    {
+        $this->preserveOmittedValues();
+    }
+
+    public function preserveOmittedValues(?Material $material = null, bool $lock = false): void
+    {
+        if ($this->originalEditValues === null) { $this->originalEditValues = $this->all(); }
+        app(\App\Services\Materials\MaterialEditValues::class)->fill($this, $this->originalEditValues, $material, $lock);
+    }
+
+    public function materialInputProvided(string $field): bool
+    {
+        return array_key_exists($field, $this->originalEditValues ?? $this->all());
+    }
+
+    public function materialRowProvided($index, string $field): bool
+    {
+        $original = $this->originalEditValues ?? $this->all();
+        $rows = isset($original['variantes_json']) && is_string($original['variantes_json']) ? json_decode($original['variantes_json'], true) : [];
+        return is_array($rows) && isset($rows[$index]) && is_array($rows[$index]) && array_key_exists($field, $rows[$index]);
+    }
+
+    public function inventoryValuesForWrite($index, array $effective): array
+    {
+        $original = $this->originalEditValues ?? $this->all();
+        $rows = isset($original['variantes_json']) && is_string($original['variantes_json']) ? json_decode($original['variantes_json'], true) : [];
+        foreach ($effective as $i => &$level) {
+            if (!is_array($level)) { continue; }
+            $input = $rows[$index]['inventory_levels'][$i] ?? [];
+            foreach (['min_alert', 'max_alert'] as $field) {
+                if (!is_array($input) || !array_key_exists($field, $input)) { unset($level[$field]); }
+            }
+        }
+        unset($level);
+        return $effective;
+    }
+
     public function authorize()
     {
         return true;
@@ -26,6 +66,7 @@ class UpdateMaterialRequest extends FormRequest
 
     public function rules()
     {
+        $this->preserveOmittedValues();
         $tenantId =
             TenantContext::tenantId();
 
@@ -319,6 +360,7 @@ class UpdateMaterialRequest extends FormRequest
             ],
 
             'variantes_json' => [
+                'sometimes',
                 'required',
                 'string',
             ],
@@ -715,6 +757,8 @@ class UpdateMaterialRequest extends FormRequest
              * ========================================================
              */
 
+            if (!$this->materialInputProvided('variantes_json')) { return; }
+
             $variantes =
                 json_decode(
                     $this->input(
@@ -786,6 +830,10 @@ class UpdateMaterialRequest extends FormRequest
                 $variantes as $index => $variante
             ) {
 
+                if (!is_array($variante)) {
+                    $validator->errors()->add('variantes_json', 'Cada variante debe ser un objeto válido.');
+                    continue;
+                }
                 $fila =
                     $index + 1;
 
@@ -826,20 +874,11 @@ class UpdateMaterialRequest extends FormRequest
                     );
 
 
-                $isActive =
-                    $variante[
-                    'is_active'
-                    ] ?? 1;
+                $isActive = array_key_exists('is_active', $variante) ? $variante['is_active'] : 1;
 
-                $afectoInventario =
-                    $variante[
-                    'afecto_inventario'
-                    ] ?? 1;
+                $afectoInventario = array_key_exists('afecto_inventario', $variante) ? $variante['afecto_inventario'] : 1;
 
-                $pack =
-                    $variante[
-                    'pack'
-                    ] ?? 0;
+                $pack = array_key_exists('pack', $variante) ? $variante['pack'] : 0;
 
                 $cantidadPack =
                     $variante[
@@ -1356,8 +1395,8 @@ class UpdateMaterialRequest extends FormRequest
 
                 if (
                 !in_array(
-                    (int) $isActive,
-                    [0, 1],
+                    $isActive,
+                    [0, 1, '0', '1', false, true],
                     true
                 )
                 ) {
@@ -1373,8 +1412,8 @@ class UpdateMaterialRequest extends FormRequest
 
                 if (
                 !in_array(
-                    (int) $afectoInventario,
-                    [0, 1],
+                    $afectoInventario,
+                    [0, 1, '0', '1', false, true],
                     true
                 )
                 ) {
@@ -1390,8 +1429,8 @@ class UpdateMaterialRequest extends FormRequest
 
                 if (
                 !in_array(
-                    (int) $pack,
-                    [0, 1],
+                    $pack,
+                    [0, 1, '0', '1', false, true],
                     true
                 )
                 ) {
@@ -1466,7 +1505,8 @@ class UpdateMaterialRequest extends FormRequest
                 }
 
 
-                $warehouseIds = [];
+                $inventoryLevelIds = [];
+                $inventoryPositions = [];
 
 
                 foreach (
@@ -1474,6 +1514,10 @@ class UpdateMaterialRequest extends FormRequest
                     as $levelIndex => $level
                 ) {
 
+                    if (!is_array($level)) {
+                        $validator->errors()->add('variantes_json', 'Cada nivel de inventario debe ser un objeto válido.');
+                        continue;
+                    }
                     $subFila =
                         $levelIndex + 1;
 
@@ -1565,14 +1609,14 @@ class UpdateMaterialRequest extends FormRequest
 
 
                     /*
-                     * No repetir Warehouse dentro del payload
+                     * No repetir InventoryLevel dentro del payload
                      * de un StockItem.
                      */
 
                     if (
                     in_array(
-                        (string) $warehouseId,
-                        $warehouseIds,
+                        (string) (int) $inventoryLevelId,
+                        $inventoryLevelIds,
                         true
                     )
                     ) {
@@ -1581,13 +1625,13 @@ class UpdateMaterialRequest extends FormRequest
                             ->errors()
                             ->add(
                                 'variantes_json',
-                                "La fila {$fila} tiene almacenes repetidos en los niveles de inventario."
+                                "La fila {$fila} tiene niveles de inventario repetidos."
                             );
 
                     } else {
 
-                        $warehouseIds[] =
-                            (string) $warehouseId;
+                        $inventoryLevelIds[] =
+                            (string) (int) $inventoryLevelId;
                     }
 
 
@@ -1663,6 +1707,17 @@ class UpdateMaterialRequest extends FormRequest
                             ->first();
 
 
+                    if ($inventoryLevel && array_key_exists('location_id', $level)
+                        && (!is_scalar($level['location_id']) || (string) $level['location_id'] !== (string) $inventoryLevel->location_id)) {
+                        $validator->errors()->add('variantes_json', 'La ubicación enviada no corresponde al nivel de inventario.');
+                    }
+                    if ($inventoryLevel) {
+                        $position = $inventoryLevel->warehouse_id.':'.$inventoryLevel->location_id;
+                        if (isset($inventoryPositions[$position])) {
+                            $validator->errors()->add('variantes_json', 'Una ubicación física está repetida en los niveles de inventario.');
+                        }
+                        $inventoryPositions[$position] = true;
+                    }
                     if (!$inventoryLevel) {
 
                         $validator

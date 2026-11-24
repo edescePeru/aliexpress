@@ -24,13 +24,13 @@ class SupplierCreditAttachmentController extends Controller
 
     public function paid($credit)
     {
-        $record = SupplierCredit::findOrFail($credit);
+        $record = app(\App\Services\Purchases\SupplierCreditDocumentAccess::class)->paid($credit);
         return $this->stream('paid', $record->image_paid);
     }
 
     public function payment($payment)
     {
-        $record = CreditPay::findOrFail($payment);
+        $record = app(\App\Services\Purchases\SupplierCreditDocumentAccess::class)->payment($payment);
         return $this->stream('pays', $record->image);
     }
 

@@ -26,6 +26,7 @@ class SupplierCreditAttachments
             && !in_array($filename, ['no_image.png', 'no_image.jpg'], true), 404);
         $directories = [$this->privateBase.DIRECTORY_SEPARATOR.$kind,
             $this->legacyBase.($kind === 'pays' ? DIRECTORY_SEPARATOR.'pays' : '')];
+        $candidates = [];
         foreach ($directories as $directory) {
             $root = realpath($directory);
             if (!$root) { continue; }
@@ -34,8 +35,16 @@ class SupplierCreditAttachments
             if (!$path || !is_file($path) || strncasecmp($path, $prefix, strlen($prefix)) !== 0) { continue; }
             $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path);
             abort_unless(in_array($mime, ['application/pdf', 'image/jpeg', 'image/png'], true), 404);
-            return ['path' => $path, 'mime' => $mime, 'extension' => $mime === 'application/pdf' ? 'pdf' : ($mime === 'image/png' ? 'png' : 'jpg')];
+            if ($mime !== 'application/pdf') { abort_unless(@getimagesize($path) !== false, 404); }
+            $candidates[] = ['path' => $path, 'mime' => $mime, 'extension' => $mime === 'application/pdf' ? 'pdf' : ($mime === 'image/png' ? 'png' : 'jpg')];
         }
-        abort(404);
+        abort_unless(count($candidates) > 0, 404);
+        $first = $candidates[0];
+        foreach (array_slice($candidates, 1) as $candidate) {
+            $originalHash = hash_file('sha256', $first['path']);
+            $otherHash = hash_file('sha256', $candidate['path']);
+            abort_unless($originalHash && $otherHash && hash_equals($originalHash, $otherHash), 404);
+        }
+        return $first;
     }
 }
