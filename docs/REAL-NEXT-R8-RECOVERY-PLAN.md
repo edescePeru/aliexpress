@@ -1,5 +1,22 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.4 — DOCUMENTATION COMPLETE (2026-11-25)
+
+Estado vigente para preparar el cierre, por decisión del propietario: [Resumen ejecutivo Universo C](REAL-NEXT-R8-PRODUCT-SCOPE-DECISIONS.md). Las secciones inferiores conservan evidencia histórica; sus instrucciones de espera y estados anteriores no sustituyen este checkpoint.
+
+| Frente | Estado vigente | Límite / responsable pendiente |
+|---|---|---|
+| Universo A | Auditoría completada, 194/194 | No equivale a certificación integral ni QA mutadora. |
+| Universo B | Homologaciones completadas, 2/2 | Observaciones visuales Branch/GRE también resueltas en R8.2D. |
+| Universo C | Documentado, 125/125; 37 submódulos / cinco familias | PENDIENTE DE REUNIÓN FUNCIONAL. Transferido a futura definición funcional, sin declarar certificación, retiro ni homologación. |
+| Recuperaciones frontend directas | Completadas; pendientes directas confirmadas 0 | No se agregan tareas automáticas para las 125 superficies C. |
+| Handoff DEV | Completado en R8.3 | [Entrega consolidada](REAL-NEXT-DEV-HANDOFF-R8-CONSOLIDATED.md); resolución de blockers a cargo de sus responsables DEV. |
+| Consulta S201/S203 | Independiente y pendiente | Contrato monetario; no pertenece a C ni incrementa FR. |
+
+**76 recuperadas + 11 bloqueadas + 23 excluidas = 110.** R8.4 no cambia esta contabilidad ni cierra bloqueos DEV. Las decisiones posibles para C serán Mantener, Homologar posteriormente, Postergar, Retirar operativamente o Solicitar aclaración técnica; ninguna se adopta aquí.
+
+**R8.5 READINESS: PENDING OWNER REVIEW / AUTHORIZATION.** La preparación documental del cierre está completa; esperar revisión del propietario para el cierre final. No iniciar R8.5 automáticamente ni condicionar este resumen a resolver la vigencia de C ahora. Sólo documentación: sin QA, implementación, cambios de sidebar/permisos/allowlist, mutaciones, nuevas entregas DEV, commit, push o merge.
+
 ## R8.2D — COMPLETE (2026-11-25)
 
 S328 Branch y S306 GRE: observaciones visuales R8.1 resueltas mediante Row Actions Dropdown + Font Awesome; una acción conserva botón directo. [Informe R8.2D](REAL-NEXT-R8-BRANCH-GRE-ROW-ACTIONS-HOMOLOGATION.md). Gates, condiciones, contratos y handlers conservados; 960 combinaciones GRE simuladas y 10 combinaciones responsive PASS. Cero mutaciones/proveedores; backend/CSS/allowlist sin cambios.
