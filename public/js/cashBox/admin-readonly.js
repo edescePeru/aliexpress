@@ -9,7 +9,7 @@
     const error = document.getElementById('list-error');
     const errorMessage = document.getElementById('list-error-message');
     const count = document.getElementById('numberItems');
-    let pending, sequence = 0;
+    let pending, sequence = 0, currentPage = 1;
     function cell(row, value, className) {
         const td = document.createElement('td');
         td.className = className || '';
@@ -38,6 +38,9 @@
         status.appendChild(badge);
         cell(row, item.amount, 'text-right'); cell(row, item.amount_regularize, 'text-right'); cell(row, item.commission, 'text-right');
         cell(row, [item.description, item.observation].filter(Boolean).join(' | '), 'text-left text-nowrap');
+        const actions = cell(row, '', 'text-center'); actions.textContent = '';
+        const menu = window.CashAdminOperations.menu(item, root.dataset);
+        if (menu) actions.appendChild(menu); else actions.textContent = '—';
         body.appendChild(row);
     }
     function pageButton(page, label, disabled, active) {
@@ -47,6 +50,7 @@
         button.addEventListener('click', () => load(page)); li.appendChild(button); pagination.appendChild(li);
     }
     function load(page) {
+        currentPage = page;
         const version = ++sequence;
         if (pending) pending.abort();
         error.classList.add('d-none'); text.textContent = 'Cargando movimientos…';
@@ -58,7 +62,7 @@
                 if (version !== sequence) return;
                 body.textContent = ''; pagination.textContent = '';
                 (res.data || []).forEach(render);
-                if (!res.data || !res.data.length) { const row = document.createElement('tr'); const td = cell(row, 'No se encontraron movimientos', 'next-table-empty'); td.colSpan = 11; body.appendChild(row); }
+                if (!res.data || !res.data.length) { const row = document.createElement('tr'); const td = cell(row, 'No se encontraron movimientos', 'next-table-empty'); td.colSpan = 12; body.appendChild(row); }
                 const meta = res.meta || {};
                 count.textContent = meta.total || 0; root.setAttribute('aria-busy', 'false');
                 text.textContent = `Mostrando ${meta.from || 0} a ${meta.to || 0} de ${meta.total || 0} movimientos`;
@@ -78,5 +82,6 @@
     }
     form.addEventListener('submit', e => { e.preventDefault(); load(1); });
     form.addEventListener('change', e => { if (e.target.tagName === 'SELECT' || e.target.type === 'date') load(1); });
+    $(document).on('cash:regularized', function () { load(currentPage); });
     load(1);
 })();

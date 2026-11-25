@@ -5,8 +5,8 @@ Fecha: 2026-11-24. Baseline HEAD 744d28b; R0/R1 sin commit. Registro canónico d
 ## Inventario y contabilidad
 
 - Baseline: 76 pérdidas confirmadas en 30 superficies. IDs FR-001…FR-076 estables: no renumerar al cerrar ni borrar filas.
-- R1: 13 de esas capacidades implementadas (11 General, 2 Error SUNAT); 63 siguen pendientes de recuperación en otras familias. No avanzar a Caja Admin en R1.
-- Nuevas pruebas de alcanzabilidad: FR-077/078 (rechazo NC y solución SUNAT) recuperadas. Universo conocido ahora 78; no es definitivo.
+- R1: 13 capacidades implementadas (11 General, 2 Error SUNAT). R2: FR-014/015/016 recuperadas. Total16/76 originales implementadas;60 pendientes en otras familias. R2 fue autorizado después de revisar Ventas; no avanzar a R3 sin revisión.
+- Nuevas pruebas de alcanzabilidad: FR-077/078 (rechazo NC y solución SUNAT) recuperadas. R2 añade FR-079 (sesión propia). Universo conocido ahora79; no es definitivo.
 - 9 superficies con paridad estática parcial; 158 pendientes de contraste semántico. Ninguna se promociona por un token scan.
 - Implementación y QA son estados distintos. IMPLEMENTED no significa mutación certificada. Documentos/proveedores y mutaciones reales no se ejecutaron.
 - Los campos PENDING EXACT / PENDING HEAD OPERATION AUDIT son huecos de evidencia explícitos del inventario previo; no contratos inferidos ni capacidades cerradas. Se conservan para completar en la fase correspondiente, sin reabrir ahora otros módulos.
@@ -208,13 +208,13 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Módulo/pantalla: `cashMovement.admin.index` / `cashBox.admin_index`. Prioridad: P0.
 - URL local: [http://127.0.0.1:8080/dashboard/cash-movements/admin](http://127.0.0.1:8080/dashboard/cash-movements/admin). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Abrir caja. Commit de pérdida: `744d28b`.
-- Permiso: `Sin permission middleware específico en cashRegister.open; autorización efectiva y CASH-02/03/04 requieren revisión antes de recuperar`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
+- Permiso: Auth/contexto activo SELF; no permission granular en cashRegister.open. Admin exige listCashMovementAdmin_cashBox, no abre para otro actor. Condición: caja activa contextual y sesión propia.
 - Endpoint: `POST /dashboard/cash-registers/open`. Handler: `data-cashbox-btn → CASH_REGISTER_OPEN_URL`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker nuevo demostrado para recuperar el control. CASH-02/03/04 y DOC-01 permanecen abiertos según capacidad; ver informe R2.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R2.
+- QA independiente: STATIC CONTRACT + ISOLATED UI PASS; REAL MUTATION / DOCUMENT QA PENDING. Ninguna operación real ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-015 — Regularizar
@@ -225,10 +225,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `regularize_caja`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `POST /dashboard/cash-registers/regularize`. Handler: `data-regularizar → formRegularize → regularization.js`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker nuevo demostrado para recuperar el control. CASH-02/03/04 y DOC-01 permanecen abiertos según capacidad; ver informe R2.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R2.
+- QA independiente: STATIC CONTRACT + ISOLATED UI PASS; REAL MUTATION / DOCUMENT QA PENDING. Ninguna operación real ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-016 — Documento
@@ -236,13 +236,13 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Módulo/pantalla: `cashMovement.admin.index` / `cashBox.admin_index`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/cash-movements/admin](http://127.0.0.1:8080/dashboard/cash-movements/admin). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Documento. Commit de pérdida: `744d28b`.
-- Permiso: `print_puntoVenta para venta; contrato documental Entry requiere revisión DOC-01`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
+- Permiso: print_puntoVenta para venta, list_invoice para factura. Guard SaleListGuard / FinanceInvoiceContext en destino. Condición: sale_id o, en su ausencia, entry_id contextual.
 - Endpoint: `GET /dashboard/imprimir/documento/venta/{sale_id}; legacy Entry /dashboard/factura/compra/ver/{entry_id}`. Handler: `data-print_nota → enlace por sale_id/entry_id`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Sin blocker nuevo demostrado para recuperar el control. CASH-02/03/04 y DOC-01 permanecen abiertos según capacidad; ver informe R2.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R2.
+- QA independiente: STATIC CONTRACT + ISOLATED UI PASS; REAL MUTATION / DOCUMENT QA PENDING. Ninguna operación real ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-017 — Crear
@@ -1104,6 +1104,19 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Motivo: exclusión read-only del renderer. Blocker: ninguno demostrado.
 - Responsable: Frontend. Recuperación: IMPLEMENTED R1. QA: STATIC/UNIT PASS; mensaje escapado; no proveedor.
 - Cierre: acceso condicional y texto seguro preservados; no ejecutar operaciones externas para mostrar diagnóstico.
+
+### FR-079 — Navegar a sesión propia desde Admin
+
+- Módulo/pantalla: cashMovement.admin.index / cashBox.admin_index.
+- URL local: http://127.0.0.1:8080/dashboard/cash-movements/admin.
+- Funcionalidad original: caja abierta del actor permite ir a su sesión. Evidencia: 744d28b^ dispatcher → _admin_legacy; admin_index.js rama isOpen de data-cashbox-btn. Pérdida: 744d28b.
+- Permiso: Auth/contexto SELF; Admin exige listCashMovementAdmin_cashBox. Condición: openCashBoxIds del actor/tenant/company/branch.
+- Endpoint: GET /dashboard/cash-registers/session/{cashBox}. Handler: enlace de caja abierta, mismo destino histórico.
+- Motivo: exclusión read-only; no retiro aprobado. Blocker actual: ninguno nuevo para navegación.
+- Responsable: Frontend. Recuperación: IMPLEMENTED R2.
+- QA independiente: STATIC SELF CONTRACT + LINK/ISOLATED NAVIGATION PASS; operaciones de sesión no ejecutadas.
+- Condición de cierre: mantener acceso contextual propio y no abrir sesión por GET; permisos y business QA separados.
+- Evidencia: REAL-NEXT-CASH-MOVEMENTS-ADMIN-FUNCTIONAL-PARITY-RECOVERY.md. No duplica CASH-02/03/04.
 
 ## Investigaciones R1 sin pérdida operativa demostrada
 
