@@ -563,6 +563,14 @@ See `docs/VENTI-NEXT-COMPONENT-PATTERNS.md` and
 
 Tables and operational lists
 
+## Sticky row actions — shared Material V2 pattern
+
+Every current Next operational table with a dedicated row-action column and local horizontal scrolling must keep that column visible on the right, including at initial scroll. Reuse the Material V2 sticky surface in `public/admin/dist/css/venti-next.css`, not a page-specific implementation or viewport-fixed column.
+
+`initializeNextStickyTableActions` in `public/js/layout/admin2.js` applies `.next-sticky-action-cell` to matching header/body cells on Next-stylesheet pages. A simple last header uses existing `data-buttons`, the explicit presentation marker `.next-action-column`, or the exact label Acciones/Acción/Opciones. It preserves colspan empty/detail rows, observes AJAX replacement and DataTables draws/visibility, and skips FixedColumns-owned tables and mobile card layouts. Material V2 keeps its existing `next-materials-table` / `data-buttons` contract. Use the existing `.table-responsive` wrapper and `.next-row-actions` portal for menus; never add a second fixed-column mechanism.
+
+Do not infer that every button inside a data cell defines an actions column. Mixed data/actions or complex headers need explicit review; do not pin unrelated data columns or add/remove actions to force compliance. Preserve permissions, handlers and DataTables behavior. Validate 375/768/1024/1440/1920 at start/middle/end scroll, menu clipping, alignment and redraw. See `docs/REAL-NEXT-GLOBAL-STICKY-TABLE-ACTIONS.md` for scope, evidence and the authorized Items action-column correction.
+
 ## Table Alignment Standard
 
 Unless a screen has a documented functional reason to behave differently, all operational tables must follow this alignment standard:

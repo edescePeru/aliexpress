@@ -1,5 +1,41 @@
 # REAL NEXT — R8.5 — Final Frontend Closure
 
+## Addendum vigente posterior al cierre — decisiones funcionales del propietario
+
+Baseline compartido y HEAD observado: **ae3153f1b7ef4251dbbe48c57e2311dc138e802f** (`ae3153f`), rama `feature/venti-next-frontend`; working tree inicial limpio. Fuente: decisión explícita del propietario posterior a R8.5. No se repitió auditoría ni QA y no se consultaron desarrollos remotos.
+
+**UNIVERSE C PRODUCT DECISIONS: 125/125. SUBMODULES DECIDED: 37/37. PRODUCT DECISIONS PENDING: 0.** Este addendum prevalece sobre los estados históricos «pendiente de reunión» y «transferido para decidir» que se conservan debajo. No reabre R8 ni inicia R9.
+
+| Alcance vigente | Superficies | Tratamiento |
+|---|---:|---|
+| Universo A | 194 | Alcance frontend actual; resultados históricos de auditoría preservados. |
+| Universo B | 2 | Homologaciones completadas. |
+| Universo C, C-17 a C-37 | 59 | **DEFERRED — FUTURE REDESIGN**; 21 submódulos RRHH transaccional legacy. No homologar ni recuperar. |
+| Universo C, C-01 a C-16 | 66 | **OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING**; 16 submódulos. Baja a cargo del backlog backend existente. |
+| Exclusiones anteriores | 58 | Conservan su clasificación individual. |
+| **Total inventariado** | **379** | **194 + 2 + 59 + 66 + 58 = 379**. |
+| **Alcance frontend actual** | **196** | **194 + 2**; no implica certificación de todos los flujos. |
+| **Fuera del alcance actual** | **183** | **59 + 66 + 58**; no equivale a 183 retiros técnicos. |
+
+RRHH: el propietario informa que el acceso actual está restringido mediante roles y permisos; esta fase no lo verifica ni certifica. Se prevé un rediseño importante futuro. Las 66 superficies tienen baja operativa **aprobada**, no implementada ni validada aquí. Su código se conserva como referencia histórica; si vuelven a requerirse, se reconstruirán desde cero bajo la arquitectura vigente según la decisión recibida. No crear tareas duplicadas de baja.
+
+**FRONTEND PROJECT: REMAINS CLOSED. BACKEND RETIREMENT: EXISTING BACKLOG.** Ningún cambio de implementación, permisos, rutas, sidebar, allowlist, datos o infraestructura. Sin mutaciones, QA, commit, push ni merge.
+
+Decisiones individuales y límites de dependencias compartidas: [addendum del documento de alcance](REAL-NEXT-R8-PRODUCT-SCOPE-DECISIONS.md). Los IDs C y R8-S y las matrices históricas se conservan. La clasificación C se desglosa por tratamiento aprobado, sin mover automáticamente esas filas a las 58 exclusiones anteriores.
+
+### Conciliación documental FR-110 / EXPENSE-01 — propuesta, no reclasificación aplicada
+
+FR-110 describe exclusivamente la recuperación del retorno desde **Crear gasto (S109)** hacia el listado legacy de **Rendición (C-05)**. Al aprobarse la baja de ese destino, deja de tener justificación funcional recuperar esa navegación hacia el listado legacy dentro del alcance actual. Esto no retira Crear gasto ni sus capacidades vigentes, y no autoriza eliminar enlaces o modificar comportamiento en esta fase.
+
+**Propuesta para aprobación del propietario:** reclasificar FR-110 de `BLOCKED / EXPENSE-01` a `EXCLUDED — OWNER-APPROVED PRODUCT SCOPE` por retiro funcional del destino, no por reparación técnica. Hasta recibir aprobación específica de la reclasificación, FR-110 permanece en su estado contable histórico. Si se aprueba posteriormente, registrar un nuevo corte **76 recuperadas + 10 bloqueadas + 24 excluidas = 110**, sin reescribir el corte R8 de **76 recuperadas + 11 bloqueadas + 23 excluidas = 110**. Ese corte propuesto **no se aplica aquí**.
+
+**EXPENSE-01 NO se declara técnicamente resuelto.** Su tratamiento técnico sigue en el backlog existente; aprobar una baja no demuestra que rutas/JSON estén bloqueados ni que ownership haya sido corregido. DEV debe separar el destino legacy de Crear gasto y de consumidores compartidos vigentes. No cerrar otros findings por asociación con Rendición, RRHH, inventario u otra familia. S201/S203 conserva su consulta contractual monetaria independiente.
+
+### Checkpoints históricos preservados
+
+Los estados, HEAD y working tree registrados debajo pertenecen a sus ejecuciones originales. El cierre R8.5 permanece vigente; la transferencia funcional de C ya tiene decisión de producto, pero no baja técnica ejecutada. Los blockers DEV y límites de certificación siguen abiertos según su estado individual.
+
+
 Fecha: **2026-11-25 (America/Lima)**. Cierre autorizado por el propietario después de aprobar R8.4. Repositorio `aliexpress`; aplicación de referencia `http://127.0.0.1:8080`; runtime contractual `C:\wamp64\bin\php\php7.3.33\php.exe` (no ejecutado en esta fase documental).
 
 ## A. Resumen ejecutivo

@@ -35,7 +35,7 @@ and plugin hooks.
 | GLOBAL NEXT | `--next-*` color, spacing, radius, focus and floating-surface tokens | Shared visual vocabulary; no module logic. |
 | SHARED LIST COMPONENT | `.next-operational-list`, `.next-list-toolbar`, `.next-list-filters-*`, `.next-list-summary`, `.next-data-table`, `.next-row-actions*`, `.next-column-visibility*`, `.next-list-pagination` | Presentation and responsive composition validated by Sales and Materials V2. |
 | SALES-SPECIFIC | payment-state cells, dispatch switches, electronic-document states and `.pp-*` workflow overlays | Sales vocabulary, permissions, templates and callbacks remain owned by `puntoVenta.list`. |
-| MATERIAL-LIST-SPECIFIC | `.next-materials-table` width/sticky action cell, stock/image cell actions, rotation state and visibility checkbox state | Advanced dataset behavior and material business hooks remain owned by `material.indexV2`. |
+| MATERIAL-LIST-SPECIFIC | `.next-materials-table` dataset width, stock/image cell actions, rotation state and visibility checkbox state | Advanced dataset behavior and material business hooks remain owned by `material.indexV2`; its sticky action surface is now shared below. |
 
 The shared selectors define appearance only. Screen-specific endpoints, AJAX
 parameters, templates, permissions, status text, `data-*` hooks and callbacks
@@ -662,3 +662,21 @@ inside `.table-responsive` is valid; a document-wide scrollbar is not.
 Los controles de una misma operación deben aprovechar el ancho horizontal disponible en escritorio. Cuando la legibilidad y la resolución lo permitan, disponer en una única fila la incorporación de materiales/productos, filtros de reportes, buscadores con parámetros, selectores operativos, cantidades/precios, switches y botones de incorporación. Asignar anchos proporcionales al contenido y su importancia: no usar columnas iguales indiscriminadamente ni dar a un botón/switch el mismo ancho que a un buscador. Mantener labels y alineación de controles; la ayuda no debe provocar saltos innecesarios. Permitir varias filas en tablet/móvil o cuando el contenido lo necesite, sin overflow horizontal del formulario ni inputs ilegibles.
 
 La ausencia de overflow no basta para aprobar visualmente: comprobar densidad, aprovechamiento horizontal, alineación, proporción de controles, saltos innecesarios, espacios vacíos y consistencia Venti Next. Aplicar en futuras homologaciones e incorporar esta comprobación en R8. No iniciar un barrido global en esta fase. Decisión del propietario R7.7A/B, 2026-11-25.
+
+## Global sticky table actions — mandatory shared pattern
+
+The Material V2 action-cell presentation is the authority. On current Next pages, tables with a dedicated action column and local horizontal scroll must keep actions visible at the right from initial scroll through the end. Earlier references to an optional/material-specific sticky column are superseded by this standard.
+
+- Existing Material markup: `.table-responsive > table.next-data-table.next-materials-table`; `th[data-buttons]` and `td[data-buttons]`. Do not add the material-specific width class to unrelated datasets.
+- Shared presentation: `.next-sticky-action-cell` on the header and corresponding body cells; `position: sticky; right: 0`, body z-index 2 / header 3, opaque `--next-surface` / `--next-surface-strong`, border `--next-border-strong` and shadow `-1px 0 0 var(--next-border)`. Existing compact width/min-width 4.25rem and nowrap are reused; actual controls may require more width.
+- `initializeNextStickyTableActions` in `public/js/layout/admin2.js` runs only when the allowlisted Next stylesheet is present. It recognizes the last simple header by `data-buttons`, `.next-action-column` or exact Acciones/Acción/Opciones label, then tags matching non-spanning cells. Descriptive Acción in Activity Log is not an action column; its final Detalle already has `data-buttons`.
+- AJAX replacement: batched MutationObserver. DataTables: draw/column-visibility/column-reorder events; no dataset/paging/sorting changes. FixedColumns-owned tables are skipped to avoid competing mechanisms. Responsive card layouts remain cards; resize refreshes presentation.
+- Empty/detail colspan rows remain untouched. No action column is created. Inline actions inside Código/Imagen/Estado do not authorize fixing those data columns. Complex headers require explicit mapping/review instead of guessing.
+- Menus retain `.dropdown.next-row-actions`, `.next-row-actions-trigger`, `.next-row-actions-menu`, `data-boundary="viewport"`, Font Awesome and `.next-row-action-item-icon`; the existing body portal prevents scroll-container clipping. Single actions remain direct controls.
+- Opaque hover, striped and active/selected/success/danger row surfaces use existing tokens. No viewport-fixed table column, inline CSS, new dependency or per-page stylesheet.
+
+Evidence and known limits: [Global Sticky Table Actions](REAL-NEXT-GLOBAL-STICKY-TABLE-ACTIONS.md). The isolated render matrix is not authenticated functional certification. Do not apply this work to Universe C or prior exclusions.
+
+### Items — authorized dedicated action column
+
+Items replaces its old first Detail control column with a final Acciones column; Code remains informational. Keep a direct detail button without code-edit permission, or the standard two-action dropdown with that permission. A portalled detail control resolves its DataTables row by `data-item-id`, not DOM ancestry; preserve the existing child-row detail and never duplicate controls in the source cells. This owner-authorized restructuring closes the documented Items exception without introducing another sticky mechanism or CSS.

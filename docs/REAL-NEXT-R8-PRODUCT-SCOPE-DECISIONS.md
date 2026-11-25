@@ -1,5 +1,100 @@
 # REAL NEXT — R8.4 — Product Scope Decisions
 
+## Addendum vigente posterior al cierre — decisiones funcionales del propietario
+
+Baseline compartido y HEAD observado: **ae3153f1b7ef4251dbbe48c57e2311dc138e802f** (`ae3153f`), rama `feature/venti-next-frontend`; working tree inicial limpio. Fuente: decisión explícita del propietario posterior a R8.5. No se repitió auditoría ni QA y no se consultaron desarrollos remotos.
+
+**UNIVERSE C PRODUCT DECISIONS: 125/125. SUBMODULES DECIDED: 37/37. PRODUCT DECISIONS PENDING: 0.** Este addendum prevalece sobre los estados históricos «pendiente de reunión» y «transferido para decidir» que se conservan debajo. No reabre R8 ni inicia R9.
+
+| Alcance vigente | Superficies | Tratamiento |
+|---|---:|---|
+| Universo A | 194 | Alcance frontend actual; resultados históricos de auditoría preservados. |
+| Universo B | 2 | Homologaciones completadas. |
+| Universo C, C-17 a C-37 | 59 | **DEFERRED — FUTURE REDESIGN**; 21 submódulos RRHH transaccional legacy. No homologar ni recuperar. |
+| Universo C, C-01 a C-16 | 66 | **OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING**; 16 submódulos. Baja a cargo del backlog backend existente. |
+| Exclusiones anteriores | 58 | Conservan su clasificación individual. |
+| **Total inventariado** | **379** | **194 + 2 + 59 + 66 + 58 = 379**. |
+| **Alcance frontend actual** | **196** | **194 + 2**; no implica certificación de todos los flujos. |
+| **Fuera del alcance actual** | **183** | **59 + 66 + 58**; no equivale a 183 retiros técnicos. |
+
+RRHH: el propietario informa que el acceso actual está restringido mediante roles y permisos; esta fase no lo verifica ni certifica. Se prevé un rediseño importante futuro. Las 66 superficies tienen baja operativa **aprobada**, no implementada ni validada aquí. Su código se conserva como referencia histórica; si vuelven a requerirse, se reconstruirán desde cero bajo la arquitectura vigente según la decisión recibida. No crear tareas duplicadas de baja.
+
+**FRONTEND PROJECT: REMAINS CLOSED. BACKEND RETIREMENT: EXISTING BACKLOG.** Ningún cambio de implementación, permisos, rutas, sidebar, allowlist, datos o infraestructura. Sin mutaciones, QA, commit, push ni merge.
+
+
+### Decisiones vigentes por submódulo — IDs originales conservados
+
+| ID | Submódulo | Superficies | Decisión aprobada |
+|---|---|---:|---|
+| C-01 | Caja legacy por tipo | 1 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-02 | Egresos de proveedores | 1 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-03 | Reembolsos | 3 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-04 | Registro/verificación facial | 2 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-05 | Rendición: lista/editar/reporte | 3 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-06 | Compras normales: vistas legacy alternativas | 4 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-07 | Cronogramas y avances | 7 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-08 | Trabajos y finanzas | 1 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-09 | Órdenes de ejecución | 3 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-10 | Entradas inventario/retacería y reportes legacy | 8 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-11 | Solicitudes y salidas simples / áreas / activos | 6 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-12 | Combos | 2 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-13 | Equipos predeterminados por categoría | 3 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-14 | Materiales / activos / tienda / paquetes legacy | 9 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-15 | Navegador de estructura física legacy | 11 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-16 | Retacería e Items | 2 | OPERATIONAL RETIREMENT APPROVED — BACKEND PENDING |
+| C-17 | Asistencia y reportes de horas/pagos | 8 | DEFERRED — FUTURE REDESIGN |
+| C-18 | Boletas de personal | 4 | DEFERRED — FUTURE REDESIGN |
+| C-19 | Bonos especiales | 4 | DEFERRED — FUTURE REDESIGN |
+| C-20 | Contratos y renovaciones | 5 | DEFERRED — FUTURE REDESIGN |
+| C-21 | Cuentas del trabajador | 1 | DEFERRED — FUTURE REDESIGN |
+| C-22 | Descansos médicos | 3 | DEFERRED — FUTURE REDESIGN |
+| C-23 | Descuentos | 3 | DEFERRED — FUTURE REDESIGN |
+| C-24 | Gratificaciones | 2 | DEFERRED — FUTURE REDESIGN |
+| C-25 | Jornada de trabajo | 1 | DEFERRED — FUTURE REDESIGN |
+| C-26 | Licencia sin goce | 3 | DEFERRED — FUTURE REDESIGN |
+| C-27 | Licencias | 3 | DEFERRED — FUTURE REDESIGN |
+| C-28 | Pagos al personal | 1 | DEFERRED — FUTURE REDESIGN |
+| C-29 | Parentescos eliminados | 1 | DEFERRED — FUTURE REDESIGN |
+| C-30 | Pensiones alimenticias | 2 | DEFERRED — FUTURE REDESIGN |
+| C-31 | Permisos | 3 | DEFERRED — FUTURE REDESIGN |
+| C-32 | Permisos por hora | 3 | DEFERRED — FUTURE REDESIGN |
+| C-33 | Préstamos al personal | 3 | DEFERRED — FUTURE REDESIGN |
+| C-34 | Renta de quinta categoría | 2 | DEFERRED — FUTURE REDESIGN |
+| C-35 | Régimen de trabajo | 1 | DEFERRED — FUTURE REDESIGN |
+| C-36 | Suspensiones | 3 | DEFERRED — FUTURE REDESIGN |
+| C-37 | Vacaciones | 3 | DEFERRED — FUTURE REDESIGN |
+
+### Dependencias compartidas que DEV debe preservar durante la baja
+
+Se reutiliza evidencia R8/R8.3/R8.4, sin nueva investigación ni certificación de equivalencia. Son límites para el trabajo backend **ya existente**, no tickets nuevos.
+
+| Grupo decidido | Dependencia conocida / límite de la baja |
+|---|---|
+| C-20 / C-21 (RRHH postergado) | Colaboradores/Worker vigente enlaza contratos y cuentas. No retirar Colaboradores ni reinterpretar `have_contract` (existencia histórica, no vigencia). La postergación no autoriza modificar esos enlaces aquí. |
+| C-13 | CategoryEquipment vigente navega a equipos predeterminados hijos. Dar de baja el destino legacy no autoriza retirar el catálogo padre ni consumidores compartidos; DEV debe tratar explícitamente esa dependencia. |
+| C-06 | Compras normales V2/trash vigente no se retira por la baja de vistas legacy alternativas. Preservar flujo activo y referencias compartidas. |
+| C-12 / C-14 / C-15 / C-16 | Material V2, Variants, inventario moderno, StockItems, ManagedWarehouse, Location e InventoryLevel no se retiran por asociación de nombre. No eliminar Items, tablas ni servicios compartidos. No se afirma equivalencia funcional total con combos, activos, paquetes o retacería. |
+| C-10 | Entradas V2 y entradas de compra vigentes permanecen; separar inventario/retacería/reportes legacy de sus consumidores actuales. |
+| C-11 | Traslados modernos y disponibilidad permanecen. Salida simple/activos legacy no define el alcance completo de los servicios compartidos de stock. |
+| C-01 / C-03 | CashMovement/CashSession modernos no se retiran junto con Caja por tipo/Reembolsos; equivalencia de los flujos no demostrada. |
+| C-02 / C-08 | No trasladar la baja a SupplierCredit ni Finance Invoice por similitud de reporte/fuentes. Conservar el estado individual de cada consumer, sin reactivarlo por esta nota. |
+| C-05 | Crear gasto vigente y Bill (catálogo) no son el listado/edición/reporte legacy de Rendición. FR-110 requiere la conciliación separada siguiente. |
+| C-07 / C-09 / restantes | Mantener las decisiones de cada módulo vigente que comparta referencias. Dependencias adicionales no confirmadas: Por determinar por DEV dentro de su baja existente; no ampliar automáticamente el retiro. |
+
+
+### Conciliación documental FR-110 / EXPENSE-01 — propuesta, no reclasificación aplicada
+
+FR-110 describe exclusivamente la recuperación del retorno desde **Crear gasto (S109)** hacia el listado legacy de **Rendición (C-05)**. Al aprobarse la baja de ese destino, deja de tener justificación funcional recuperar esa navegación hacia el listado legacy dentro del alcance actual. Esto no retira Crear gasto ni sus capacidades vigentes, y no autoriza eliminar enlaces o modificar comportamiento en esta fase.
+
+**Propuesta para aprobación del propietario:** reclasificar FR-110 de `BLOCKED / EXPENSE-01` a `EXCLUDED — OWNER-APPROVED PRODUCT SCOPE` por retiro funcional del destino, no por reparación técnica. Hasta recibir aprobación específica de la reclasificación, FR-110 permanece en su estado contable histórico. Si se aprueba posteriormente, registrar un nuevo corte **76 recuperadas + 10 bloqueadas + 24 excluidas = 110**, sin reescribir el corte R8 de **76 recuperadas + 11 bloqueadas + 23 excluidas = 110**. Ese corte propuesto **no se aplica aquí**.
+
+**EXPENSE-01 NO se declara técnicamente resuelto.** Su tratamiento técnico sigue en el backlog existente; aprobar una baja no demuestra que rutas/JSON estén bloqueados ni que ownership haya sido corregido. DEV debe separar el destino legacy de Crear gasto y de consumidores compartidos vigentes. No cerrar otros findings por asociación con Rendición, RRHH, inventario u otra familia. S201/S203 conserva su consulta contractual monetaria independiente.
+
+
+### Evidencia histórica R8.4 preservada
+
+Las tablas y el anexo siguientes conservan su fecha de corte previa a la reunión. Sus 125 IDs R8-S, URLs y agrupación C no se renumeran. Las decisiones pendientes históricas han sido sustituidas exclusivamente por el addendum anterior; no quedan decisiones funcionales C abiertas.
+
 Fecha: **2026-11-25 (America/Lima)**. Documento ejecutivo para reunión funcional.
 
 **125 superficies / 37 submódulos / cinco familias. PRODUCT DECISIONS: DEFERRED TO FUNCTIONAL TEAM.**

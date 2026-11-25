@@ -29,27 +29,33 @@
             autoWidth: false, pageLength: 25, lengthMenu: [10, 25, 50, 100], deferRender: true, rowId: 'id',
             dom: '<"next-list-toolbar d-flex flex-wrap align-items-center justify-content-between"lf><"table-responsive"t><"next-list-pagination"ip>',
             columns: [
-                {className: 'text-center', orderable: false, searchable: false, data: null, defaultContent: '<button type="button" class="btn btn-outline-secondary btn-sm next-table-cell-action item-detail-toggle" aria-expanded="false" aria-label="Ver detalle del Item"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>'},
                 {data: 'material_description', name: 'material.full_name', render: function (value, type) { return type === 'display' ? text(value) : value; }},
-                {data: 'code', name: 'code', className: 'text-center', render: function (value, type, row) {
-                    if (type !== 'display') return value;
-                    const id = text(row.id).replace(/"/g, '&quot;');
-                    const action = window.canEditItemCode ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del Item ' + id + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu"><button type="button" class="dropdown-item btn-edit-item-code" data-item-id="' + id + '"><i class="fas fa-edit next-row-action-item-icon" aria-hidden="true"></i>Editar código</button></div></div>' : '';
-                    return '<div class="d-flex align-items-center justify-content-between"><span class="text-break">' + text(value) + '</span>' + action + '</div>';
-                }},
+                {data: 'code', name: 'code', className: 'text-center', render: function (value, type) { return type === 'display' ? '<span class="text-break">' + text(value) + '</span>' : value; }},
                 {data: 'price', name: 'price', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
                 {data: 'percentage', name: 'percentage', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
-                {data: 'state_item', orderable: false, searchable: false, className: 'text-center', render: function (value, type) { return type === 'display' ? state(value) : value; }}
+                {data: 'state_item', orderable: false, searchable: false, className: 'text-center', render: function (value, type) { return type === 'display' ? state(value) : value; }},
+                {data: null, orderable: false, searchable: false, className: 'text-center', render: function (item, type) {
+                    if (type !== 'display') return '';
+                    const id = text(item.id).replace(/"/g, '&quot;');
+                    const detailButton = '<button type="button" class="' + (window.canEditItemCode ? 'dropdown-item' : 'btn btn-outline-secondary btn-sm next-table-cell-action') + ' item-detail-toggle" data-item-id="' + id + '" aria-expanded="false" aria-label="Ver detalle del Item"><i class="fas fa-chevron-down next-row-action-item-icon" aria-hidden="true"></i><span>Ver detalle</span></button>';
+                    if (!window.canEditItemCode) return detailButton;
+                    return '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del Item ' + id + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + detailButton + '<button type="button" class="dropdown-item btn-edit-item-code" data-item-id="' + id + '"><i class="fas fa-edit next-row-action-item-icon" aria-hidden="true"></i>Editar código</button></div></div>';
+                }}
             ],
             order: [],
             language: {processing: 'Consultando…', search: 'Buscar:', lengthMenu: 'Mostrar _MENU_', info: 'Mostrando _START_ a _END_ de _TOTAL_ Items', infoEmpty: 'Sin Items en este contexto', infoFiltered: '(de _MAX_ Items)', zeroRecords: 'No se encontraron Items.', emptyTable: 'No hay Items en este contexto.', paginate: {first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último'}},
             initComplete: function () { $table.closest('.table-responsive').attr({tabindex: '0', 'aria-label': 'Items; desplazamiento horizontal de tabla'}); }
         });
-        $table.on('click', '.item-detail-toggle', function () {
-            const row = table.row($(this).closest('tr'));
+        // Menu is portalled to body; resolve the same DataTables row by Item ID.
+        $(document).on('click', '.item-detail-toggle', function () {
+            const id = $(this).data('item-id');
+            const row = table.row(function (index, data) { return String(data.id) === String(id); });
+            if (!row.any()) return;
+            $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
             const open = !row.child.isShown();
             if (open) row.child(detail(row.data())).show(); else row.child.hide();
             $(this).attr({'aria-expanded': String(open), 'aria-label': open ? 'Cerrar detalle del Item' : 'Ver detalle del Item'}).find('i').toggleClass('fa-chevron-up', open).toggleClass('fa-chevron-down', !open);
+            $(this).find('span').text(open ? 'Cerrar detalle' : 'Ver detalle');
         });
         let saving = false, codeTrigger;
         // The shared dropdown may be portalled outside the table: resolve data by Item ID.
