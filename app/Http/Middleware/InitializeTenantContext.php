@@ -67,6 +67,20 @@ class InitializeTenantContext
          * Si ya existe contexto en sesión, se valida
          * nuevamente en cada petición.
          */
+        if ($user->isTenantOwner()) {
+            if (!$this->hasCompleteContext() || !$this->isCurrentContextValid($user)) {
+                $this->clearTenantContext();
+                session(['multitenancy.tenant_id' => (int) $user->tenant_id]);
+                $tenantRoutes = ['dashboard.principal', 'tenantCompany.*', 'tenantBranch.*', 'configUserWeb.*',
+                    'tenant.context.*', 'user.profile', 'user.change.image', 'user.change.settings', 'user.change.password'];
+                if (!$request->routeIs(...$tenantRoutes)) {
+                    if ($request->expectsJson()) { abort(403, 'Selecciona una empresa y un local antes de continuar.'); }
+                    return redirect()->route('dashboard.principal')->with('status', 'Selecciona una empresa y un local antes de continuar.');
+                }
+            }
+            return $next($request);
+        }
+
         if ($this->hasCompleteContext()) {
             if (!$this->isCurrentContextValid($user)) {
                 $this->clearTenantContext();
@@ -125,7 +139,7 @@ class InitializeTenantContext
          * variables con otras sesiones del sistema.
          */
         session([
-            'multitenancy.tenant_id' => $user->tenant_id,
+            'multitenancy.tenant_id' => (int) $user->tenant_id,
             'multitenancy.company_id' => $company->id,
             'multitenancy.branch_id' => $branch->id,
         ]);

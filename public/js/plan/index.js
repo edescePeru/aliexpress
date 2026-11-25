@@ -41,7 +41,7 @@ $(function () {
                 $('#bodyPlans').html(`
                     <tr>
                         <td
-                            colspan="7"
+                            colspan="9"
                             class="text-center"
                         >
                             <i
@@ -92,7 +92,7 @@ $(function () {
             html = `
                 <tr>
                     <td
-                        colspan="7"
+                        colspan="9"
                         class="text-center text-muted"
                     >
                         No se encontraron planes.
@@ -149,6 +149,8 @@ $(function () {
                         <td class="text-center">
                             ${plan.max_active_users}
                         </td>
+                        <td class="text-center">${plan.max_active_companies == null ? 'Pendiente' : escapeHtml(String(plan.max_active_companies))}</td>
+                        <td class="text-center">${plan.max_active_branches == null ? 'Pendiente' : escapeHtml(String(plan.max_active_branches))}</td>
 
                         <td class="text-center">
                             ${plan.tenants_count}
@@ -396,6 +398,9 @@ $(function () {
                 .val(
                     plan.max_active_users
                 );
+
+            $('#edit_max_active_companies').val(plan.max_active_companies == null ? '' : plan.max_active_companies);
+            $('#edit_max_active_branches').val(plan.max_active_branches == null ? '' : plan.max_active_branches);
 
             $('#edit_description')
                 .val(

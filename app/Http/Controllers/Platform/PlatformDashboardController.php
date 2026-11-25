@@ -9,11 +9,12 @@ class PlatformDashboardController extends Controller
 {
     public function index()
     {
+        $summary = app(\App\Services\PlatformDashboardSummary::class)->data();
         $user = Auth::user();
 
         return view(
             'platform.dashboard.index',
-            compact('user')
+            array_merge(['user' => $user], $summary)
         );
     }
 }

@@ -39,6 +39,16 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
+    protected function authenticated(Request $request, $user)
+    {
+        \App\Support\TenantContext::clear();
+        if ($user->isTenantOwner() && !$user->isPlatformAdmin()) {
+            $request->session()->put('multitenancy.tenant_id', (int) $user->tenant_id);
+            $request->session()->forget('url.intended');
+            return redirect()->route('dashboard.principal');
+        }
+    }
+
     protected function credentials(Request $request)
     {
         return [

@@ -1,5 +1,21 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## Estado vigente R7.5 — 2026-11-25
+
+Esta adenda prevalece sobre estados históricos; no borra evidencia anterior. Ver REAL-NEXT-DEV-DELIVERY-INTEGRATION-2026-11-25.md, REAL-NEXT-DEV-DELIVERY-RECONCILIATION-2026-11-25.md y REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-PLAN.md.
+
+DEV41ed99f/0129133 (origin bf6e834) integrado. PROFILE01/MAT01/03/04/05/CASH02/03/04 con fixes comprobados en tests aislados; QA real mutador separado. C/Q parcial: NormalCreate/Edit y EntryCreate desbloqueados; nuevo ENTRY-R75-01: entry_edit exige edit_entryPurchase mientras ruta/DB usan update_entryPurchase. No seed ni bypass; DEV debe alinear. ENTRY-R4-01, INV01 ajuste/reportes, METRIC01 residual, DASH-R7-01 y FIN03 siguen abiertos. PUR-R3-01/02 fix presente, QA específico pendiente; impresión aún no recuperada. QA02 no cerrado globalmente.
+
+Finanzas/legacysettings/access retirados; Express/FreeSale/industrial/outputlegacy pausados; SupplierCredits y restantes legacy fuera de recuperación. Invoice y QuoteSale vigentes. J/P/K CLOSED BY BUSINESS DECISION — TECHNICAL LIMITATIONS DOCUMENTED; no equivalen a certificación técnica.
+
+107 FR únicos =62 recuperados +12 candidatos R7.6 +10 bloqueados +23 excluidos. Candidatos:017/018/036/046/049/054/083/088/093/096/097/098. Bloqueados:047/048/059/063/064/102/103/105/106/107. No nuevas recuperaciones contabilizadas por un fix backend. Universo197/40/157 permanece; R8 no iniciado.
+
+Owner cambia deliberadamente flujo: login tenant-only, dashboard.owner aun con contexto. Se conserva FR104 Exportar entradas con permisos/contexto, sin ejecutar. Platform instalación PENDING: migración2026_11_21_000001 No, faltan columnas max_active_companies/branches. No migraciones/cupos/roles compartidos modificados. 71tests/832assertions SQLite PASS;9tests renderer PASS;40renders responsive sin overflow/pageerror. ContextPOST interceptado: el real escribe defaults y NO se ejecutó.
+
+R7.6 GO WITH CONDITIONS; ningún reabrir automático GRE/Profile uploads/paquetes cerrados. Nuevo defecto ENTRY-R75-01 separado de hallazgos históricos. Backend propio0; CSS propio0; mutaciones negocio0; sin push.
+
+## Evidencia histórica preservada
+
 Fecha: 2026-11-24. Baseline HEAD 744d28b; R0/R1 sin commit. Registro canónico de recuperación frontend, no duplicado del backlog DEV.
 
 ## Estado vigente R7 (2026-11-25)

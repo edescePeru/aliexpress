@@ -14,6 +14,9 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Protect entry documents even when the physical file exists.
+    RewriteRule ^images/entries(?:/|$) index.php [L,NC]
+
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f

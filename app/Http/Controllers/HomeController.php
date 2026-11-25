@@ -43,6 +43,7 @@ class HomeController extends Controller
      */
     public function index()
     {
+        if (Auth::user() && (Auth::user()->isTenantOwner() || Auth::user()->isPlatformAdmin())) { return redirect()->route('dashboard.principal'); }
         return view('home');
     }
 
@@ -52,6 +53,10 @@ class HomeController extends Controller
 
         if ($user && $user->isPlatformAdmin()) {
             return redirect()->route('platform.dashboard');
+        }
+
+        if ($user && $user->isTenantOwner()) {
+            return view('dashboard.owner', app(\App\Services\OwnerWorkspace::class)->data());
         }
 
         $customerCount = Customer::count();

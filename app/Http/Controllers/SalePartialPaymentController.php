@@ -128,7 +128,7 @@ class SalePartialPaymentController extends Controller
                 $subtype = app(\App\Services\Sales\SaleListAccess::class)->subtypes()->where(function ($q) use ($cashBoxId) { $q->whereNull('cash_box_id')->orWhere('cash_box_id', $cashBoxId); })
                     ->where('is_active', 1)
                     ->where('id', (int)$subtypeId)
-                    ->first();
+                    ->lockForUpdate()->first();
 
                 if (!$subtype) {
                     throw new \Exception('El subtipo seleccionado no es válido o está inactivo.');
@@ -388,7 +388,7 @@ class SalePartialPaymentController extends Controller
                 $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
 
                 if (file_exists($localPath)) {
-                    $urlPrint = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                    $urlPrint = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
                     $printType = 'sunat_pdf';
                 }
             }

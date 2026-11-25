@@ -19,6 +19,9 @@ class UserController extends Controller
 {
     public function __construct()
     {
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':legacy-access')->only([
+            'index','store','update','destroy','getRoles','getUsers','indexEnable','getUsersDelete','disable','enable','convertUsersToWorkers'
+        ]);
         $this->middleware(\App\Http\Middleware\EnsureOwnProfile::class)->only(['changeImage', 'changeSettings', 'changePassword']);
     }
 
@@ -181,22 +184,8 @@ class UserController extends Controller
     public function changeImage(Request $request, User $user)
     {
         \App\Services\SelfProfileAccess::assertSelf($request->user(), $user);
-        //dump($user);
-        //dd($request);
-        if ($request->file('image')) {
-            $path = public_path() . '/images/users/';
-            $extension = $request->file('image')->getClientOriginalExtension();
-            $filename = $user->id . '.' . $extension;
-            $request->file('image')->move($path, $filename);
-            $user->image = $filename;
-            $user->save();
-
-            return response()->json(['message' => 'Imagen cambiada con éxito.'], 200);
-
-        }
-
-        return response()->json(['message' => 'No se pudo guardar la imagen.'], 422);
-
+        app(\App\Services\ProfileAvatarService::class)->replace($request, $user);
+        return response()->json(['message' => 'Imagen cambiada con éxito.'], 200);
     }
 
     public function changeSettings(UpdateUserSettingsRequest $request, User $user)

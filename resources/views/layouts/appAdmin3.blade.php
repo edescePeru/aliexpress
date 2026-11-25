@@ -2299,60 +2299,74 @@
                                         </a>
                                         <ul class="nav nav-treeview">
                                             @can('list_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.list.general') }}" class="nav-link @yield('activeGeneralQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Listado general</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('list_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{route('quote.index')}}" class="nav-link @yield('activeListQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Listar cotizaciones</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('create_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.create') }}" class="nav-link @yield('activeCreateQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Crear cotización</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('showRaised_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.raise') }}" class="nav-link @yield('activeRaiseQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Elevar cotización</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('destroy_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.deleted') }}" class="nav-link @yield('activeDeletedQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Anuladas</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('finish_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.closed') }}" class="nav-link @yield('activeClosedQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Finalizadas</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('list_quote')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                     <a href="{{ route('quote.list.lost') }}" class="nav-link @yield('activeLostQuote')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Perdidas</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('list_porcentageQuote')
                                                 <li class="nav-item">
@@ -2410,12 +2424,14 @@
                                                 </li>
                                             @endcanany
                                             @can('list_orderPurchaseExpress')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('purchase-express'))
+<li class="nav-item">
                                                     <a href="{{route('order.purchase.express.index')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Listar express</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('list_orderPurchaseNormal')
                                                 <li class="nav-item">
@@ -2426,12 +2442,14 @@
                                                 </li>
                                             @endcan
                                             @can('create_orderPurchaseExpress')
-                                                <li class="nav-item">
+                                                @if(\App\Support\OperationalModules::enabled('purchase-express'))
+<li class="nav-item">
                                                     <a href="{{ route('order.purchase.express.create') }}" class="nav-link @yield('activeCreateOrderPurchaseExpress')">
                                                         <i class="far fa-circle nav-icon"></i>
                                                         <p>Crear Express</p>
                                                     </a>
                                                 </li>
+@endif
                                             @endcan
                                             @can('create_orderPurchaseNormal')
                                                 <li class="nav-item">
@@ -2515,7 +2533,8 @@
                                     </li>
                                 @endcan
                                 @can('list_output')
-                                    <li class="nav-item has-treeview @yield('openOutputs')">
+                                    @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputs')">
                                         <a href="#" class="nav-link @yield('activeOutputs')">
                                             <i class="nav-icon fas fa-share"></i>
                                             <p>
@@ -2533,6 +2552,7 @@
 
                                         </ul>
                                     </li>
+@endif
                                 @endcan
                                 @can('list_categoryInvoice')
                                     <li class="nav-item has-treeview @yield('openCategoryInvoice')">
@@ -2701,7 +2721,8 @@
                                     </li>
                                 @endcan
                                 @can('list_quote')
-                                    <li class="nav-item has-treeview @yield('openQuote')">
+                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item has-treeview @yield('openQuote')">
                                         <a href="#" class="nav-link @yield('activeQuote')">
                                             <i class="nav-icon fas fa-people-carry"></i>
                                             <p>
@@ -2777,6 +2798,7 @@
 
                                         </ul>
                                     </li>
+@endif
                                 @endcan
                                 @can('list_orderExecution')
                                     <li class="nav-item has-treeview @yield('openOrderExecutions')">
@@ -2804,7 +2826,8 @@
                                     </li>
                                 @endcan
                                 @can('list_output')
-                                    <li class="nav-item has-treeview @yield('openOutputs')">
+                                    @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputs')">
                                         <a href="#" class="nav-link @yield('activeOutputs')">
                                             <i class="nav-icon fas fa-share"></i>
                                             <p>
@@ -2831,6 +2854,7 @@
                                             @endcan
                                         </ul>
                                     </li>
+@endif
                                 @endcan
                             </ul>
                         </li>
@@ -3285,7 +3309,8 @@
                                     </li>
                                 @endcan
                                 @can('list_quote')
-                                    <li class="nav-item has-treeview @yield('openQuote')">
+                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item has-treeview @yield('openQuote')">
                                         <a href="#" class="nav-link @yield('activeQuote')">
                                             <i class="nav-icon fas fa-people-carry"></i>
                                             <p>
@@ -3361,6 +3386,7 @@
 
                                         </ul>
                                     </li>
+@endif
                                 @endcan
                                 @can('list_area')
                                     <li class="nav-item has-treeview @yield('openInventory')">
@@ -3518,7 +3544,8 @@
                                     </li>
                                 @endcan
                                 @can('list_request')
-                                    <li class="nav-item has-treeview @yield('openOutputRequest')">
+                                    @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputRequest')">
                                         <a href="#" class="nav-link @yield('activeOutputRequest')">
                                             <i class="nav-icon fas fa-file"></i>
                                             <p>
@@ -3553,6 +3580,7 @@
                                             @endcan
                                         </ul>
                                     </li>
+@endif
                                 @endcan
                                 @can('list_invoice')
                                     <li class="nav-item has-treeview @yield('openInvoice')">
@@ -5247,60 +5275,74 @@
                                             </a>
                                             <ul class="nav nav-treeview">
                                                 @can('list_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.list.general') }}" class="nav-link @yield('activeGeneralQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Listado general</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('list_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{route('quote.index')}}" class="nav-link @yield('activeListQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Listar cotizaciones</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('create_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.create') }}" class="nav-link @yield('activeCreateQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Crear cotización</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('showRaised_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.raise') }}" class="nav-link @yield('activeRaiseQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Elevar cotización</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('destroy_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.deleted') }}" class="nav-link @yield('activeDeletedQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Anuladas</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('finish_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.closed') }}" class="nav-link @yield('activeClosedQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Finalizadas</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('list_quote')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item">
                                                         <a href="{{ route('quote.list.lost') }}" class="nav-link @yield('activeLostQuote')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Perdidas</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('list_porcentageQuote')
                                                     <li class="nav-item">
@@ -5358,12 +5400,14 @@
                                                     </li>
                                                 @endcanany
                                                 @can('list_orderPurchaseExpress')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('purchase-express'))
+<li class="nav-item">
                                                         <a href="{{route('order.purchase.express.index')}}" class="nav-link @yield('activeListOrderPurchaseExpress')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Listar express</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('list_orderPurchaseNormal')
                                                     <li class="nav-item">
@@ -5374,12 +5418,14 @@
                                                     </li>
                                                 @endcan
                                                 @can('create_orderPurchaseExpress')
-                                                    <li class="nav-item">
+                                                    @if(\App\Support\OperationalModules::enabled('purchase-express'))
+<li class="nav-item">
                                                         <a href="{{ route('order.purchase.express.create') }}" class="nav-link @yield('activeCreateOrderPurchaseExpress')">
                                                             <i class="far fa-circle nav-icon"></i>
                                                             <p>Crear Express</p>
                                                         </a>
                                                     </li>
+@endif
                                                 @endcan
                                                 @can('create_orderPurchaseNormal')
                                                     <li class="nav-item">
@@ -5463,7 +5509,8 @@
                                         </li>
                                     @endcan
                                     @can('list_output')
-                                        <li class="nav-item has-treeview @yield('openOutputs')">
+                                        @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputs')">
                                             <a href="#" class="nav-link @yield('activeOutputs')">
                                                 <i class="nav-icon fas fa-share"></i>
                                                 <p>
@@ -5481,6 +5528,7 @@
 
                                             </ul>
                                         </li>
+@endif
                                     @endcan
                                     @can('list_categoryInvoice')
                                         <li class="nav-item has-treeview @yield('openCategoryInvoice')">
@@ -5650,7 +5698,8 @@
                                         </li>
                                     @endcan
                                     @can('list_quote')
-                                        <li class="nav-item has-treeview @yield('openQuote')">
+                                        @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item has-treeview @yield('openQuote')">
                                             <a href="#" class="nav-link @yield('activeQuote')">
                                                 <i class="nav-icon fas fa-people-carry"></i>
                                                 <p>
@@ -5726,6 +5775,7 @@
 
                                             </ul>
                                         </li>
+@endif
                                     @endcan
                                     @can('list_orderExecution')
                                         <li class="nav-item has-treeview @yield('openOrderExecutions')">
@@ -5753,7 +5803,8 @@
                                         </li>
                                     @endcan
                                     @can('list_output')
-                                        <li class="nav-item has-treeview @yield('openOutputs')">
+                                        @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputs')">
                                             <a href="#" class="nav-link @yield('activeOutputs')">
                                                 <i class="nav-icon fas fa-share"></i>
                                                 <p>
@@ -5780,6 +5831,7 @@
                                                 @endcan
                                             </ul>
                                         </li>
+@endif
                                     @endcan
                                 </ul>
                             </li>
@@ -6235,7 +6287,8 @@
                                         </li>
                                     @endcan
                                     @can('list_quote')
-                                        <li class="nav-item has-treeview @yield('openQuote')">
+                                        @if(\App\Support\OperationalModules::enabled('industrial-quotes'))
+<li class="nav-item has-treeview @yield('openQuote')">
                                             <a href="#" class="nav-link @yield('activeQuote')">
                                                 <i class="nav-icon fas fa-people-carry"></i>
                                                 <p>
@@ -6311,6 +6364,7 @@
 
                                             </ul>
                                         </li>
+@endif
                                     @endcan
                                     @can('list_area')
                                         <li class="nav-item has-treeview @yield('openInventory')">
@@ -6468,7 +6522,8 @@
                                         </li>
                                     @endcan
                                     @can('list_request')
-                                        <li class="nav-item has-treeview @yield('openOutputRequest')">
+                                        @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputRequest')">
                                             <a href="#" class="nav-link @yield('activeOutputRequest')">
                                                 <i class="nav-icon fas fa-file"></i>
                                                 <p>
@@ -6503,6 +6558,7 @@
                                                 @endcan
                                             </ul>
                                         </li>
+@endif
                                     @endcan
                                     @can('list_invoice')
                                         <li class="nav-item has-treeview @yield('openInvoice')">

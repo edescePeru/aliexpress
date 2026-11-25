@@ -101,7 +101,7 @@ class QuoteSaleController extends Controller
         $user = Auth::user();
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -168,7 +168,7 @@ class QuoteSaleController extends Controller
         $user = Auth::user();
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -228,6 +228,7 @@ class QuoteSaleController extends Controller
 
     public function getMaterials(Request $request)
     {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->catalog();
         $companyId = TenantContext::companyId();
         $catalog = app(QuoteBranchCatalog::class);
 
@@ -348,6 +349,7 @@ class QuoteSaleController extends Controller
 
     public function getMaterialTotals()
     {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->catalog();
         $catalog = app(QuoteBranchCatalog::class);
         $catalog->validateContext();
         $companyId =
@@ -789,6 +791,7 @@ class QuoteSaleController extends Controller
     }
 
     public function getAvailableItemsByStockItem($stockItemId) {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->catalog();
         $companyId = TenantContext::companyId();
         $catalog = app(QuoteBranchCatalog::class);
         $catalog->validateContext();
@@ -968,7 +971,7 @@ class QuoteSaleController extends Controller
         $user = Auth::user();
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -5138,7 +5141,7 @@ class QuoteSaleController extends Controller
         $user = Auth::user();
 
         $permissions = $user
-            ->getPermissionsViaRoles()
+            ->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -7921,6 +7924,7 @@ class QuoteSaleController extends Controller
 
     public function showRegistrarComprobante($typeComprobante)
     {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->conversion();
         abort_unless(
             in_array($typeComprobante, ['Boleta', 'Factura', 'Ticket'], true),
             404
@@ -7931,7 +7935,7 @@ class QuoteSaleController extends Controller
         $branchId = TenantContext::branchId();
 
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()
+        $permissions = $user->getAllPermissions()
             ->pluck('name')
             ->toArray();
 
@@ -8074,6 +8078,7 @@ class QuoteSaleController extends Controller
 
     public function buscar(Request $request)
     {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->conversion();
         $branchScope = app(QuoteBranchReadScope::class);
         if (!$request->filled('code') && !$request->filled('name')) {
             return response()->json([]);
@@ -8137,6 +8142,8 @@ class QuoteSaleController extends Controller
 
     public function getDataIndividual($id)
     {
+        app(\App\Services\Quotes\QuoteFormReadAccess::class)->conversion();
+        app(\App\Services\Quotes\QuoteBranchContext::class)->assertQuote($id);
         $quote = Quote::with([
             'customer:id,business_name,RUC,address',
             'contact:id,name',
@@ -8952,7 +8959,7 @@ class QuoteSaleController extends Controller
                     if (!empty($sale->pdf_path)) {
                         $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
                         if (file_exists($localPath)) {
-                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                            $urlPrint  = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
                             $printType = 'sunat_pdf';
                         }
                     }
@@ -9425,7 +9432,7 @@ class QuoteSaleController extends Controller
                 if (!empty($sale->pdf_path)) {
                     $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
                     if (file_exists($localPath)) {
-                        $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                        $urlPrint  = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
                         $printType = 'sunat_pdf';
                     } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
                         $urlPrint  = $nubefactResult['enlace_del_pdf'];
@@ -10512,9 +10519,7 @@ class QuoteSaleController extends Controller
                     );
 
                     if (file_exists($localPath)) {
-                        $urlPrint = asset(
-                            'comprobantes/pdfs/' . $sale->pdf_path
-                        );
+                        $urlPrint = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
 
                         $printType = 'sunat_pdf';
                     }
@@ -10739,6 +10744,7 @@ class QuoteSaleController extends Controller
     public function raiseQuote(Request $request, $quote_id)
     {
         $begin = microtime(true);
+        app(\App\Services\Quotes\QuoteDocumentFiles::class)->authorize($quote_id, 'raise_quote');
         $quote = Quote::find($quote_id);
         // Leer el código enviado desde el popup
         $code = trim($request->input('code_customer', ''));
@@ -10781,7 +10787,7 @@ class QuoteSaleController extends Controller
 
             $description = str_replace(array('"', "'", "/"),'',$quote->description_quote);
 
-            $name = $quote->code . ' '. ltrim(rtrim($description)) . '.pdf';
+            $name = 'quote-'.$quote->id.'-'.bin2hex(random_bytes(16)).'.pdf';
 
             $image_path = public_path().'/pdfs/quotes/'.$name;
             if (file_exists($image_path)) {
@@ -10802,7 +10808,7 @@ class QuoteSaleController extends Controller
 
             foreach ( $pdfs as $pdf )
             {
-                $namePdf = public_path().'/images/planos/'.$pdf->image;
+                $namePdf = app(\App\Services\Quotes\QuoteDocumentFiles::class)->pdfPath($quote->id, $pdf->image);
                 $oMerger->addPDF($namePdf, 'all');
             }
 
@@ -10911,6 +10917,7 @@ class QuoteSaleController extends Controller
 
     public function printQuoteToCustomer($id)
     {
+        app(\App\Services\Quotes\QuoteDocumentFiles::class)->authorize($id, 'printCustomer_quote', true);
         $quote = Quote::where('id', $id)
             ->with('customer')
             ->with('deadline')
@@ -11055,14 +11062,18 @@ class QuoteSaleController extends Controller
 
         $name = $quote->code . ' '. ltrim(rtrim($description)) . '.pdf';
 
-        return $pdf->stream($name);
+        $response = $pdf->stream($name);
+        $response->setPrivate();
+        $response->headers->set('Cache-Control', 'private, no-store');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        return $response;
     }
 
     public function show($id)
     {
         $begin = microtime(true);
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
         $unitMeasures = UnitMeasure::all();
         $customers = Customer::all();
         $defaultConsumable = '(*)';

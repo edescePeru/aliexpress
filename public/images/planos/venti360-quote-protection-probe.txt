@@ -1,0 +1,1 @@
+Harmless quote attachment probe. Public access must return HTTP 403.

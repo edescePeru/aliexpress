@@ -8,6 +8,7 @@ let $material;
 $(document).ready(function () {
     $.ajax({
         url: "/dashboard/get/materials/stock/items/entry",
+        data: {consumer: 'entry_edit'},
         type: 'GET',
         dataType: 'json',
         success: function (json) {

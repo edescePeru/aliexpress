@@ -58,7 +58,8 @@
                                 <form id="formImage" data-url="{{ route('user.change.image', $user->id) }}" enctype="multipart/form-data">
                                     @csrf
                                     <div class="form-group">
-                                        <input type="file" name="image" id="image" class="form-control" data-show-caption="true">
+                                        <input type="file" accept="image/png,image/jpeg" name="image" id="image" class="form-control" data-show-caption="true">
+                                        <small class="text-muted">PNG o JPG, máximo 2 MB y 4096 píxeles por lado.</small>
                                     </div>
                                     <div class="form-group row">
                                         <div class="col-sm-6">
@@ -228,5 +229,5 @@
             });
         });
     </script>
-    <script src="{{ asset('js/user/profile.js') }}"></script>
+    <script src="{{ asset('js/user/profile.js') }}?v=avatar-safe-1"></script>
 @endsection

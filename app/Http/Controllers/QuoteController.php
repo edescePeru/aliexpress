@@ -51,6 +51,8 @@ class QuoteController extends Controller
     public function __construct(TipoCambioService $tipoCambioService)
     {
         $this->tipoCambioService = $tipoCambioService;
+        // QuoteSale shares only this contact lookup; it keeps its own permission/context guard.
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':industrial-quotes')->except(['getContactsByCustomer']);
     }
 
     public function index()
@@ -3607,15 +3609,7 @@ class QuoteController extends Controller
 
     public function getContactsByCustomer($customer_id)
     {
-        $contacts = ContactName::where('customer_id', $customer_id)->get();
-        $array = [];
-        foreach ( $contacts as $contact )
-        {
-            array_push($array, ['id'=> $contact->id, 'contact' => $contact->name]);
-        }
-
-        //dd($array);
-        return $array;
+        return app(\App\Services\Quotes\QuoteFormReadAccess::class)->contacts($customer_id);
     }
 
     // Reemplazar materiales en cotizaciones

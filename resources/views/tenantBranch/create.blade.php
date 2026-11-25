@@ -11,6 +11,7 @@
 <div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Configuración de sucursal</strong><span>{{ $company->business_name }} · RUC {{ $company->ruc }}</span></div></div>
 @endsection
 @section('content')
+@include('tenantCompany._plan_capacity', ['capacityTenant' => auth()->user()->tenant])
 <form id="formCreateTenantBranch" data-url="{{ route('tenantBranch.store') }}">
     @csrf
     <input type="hidden" name="company_id" value="{{ $company->id }}">

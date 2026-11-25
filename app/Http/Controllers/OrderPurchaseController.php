@@ -42,6 +42,24 @@ class OrderPurchaseController extends Controller
     public function __construct(TipoCambioService $tipoCambioService)
     {
         $this->tipoCambioService = $tipoCambioService;
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':purchase-express')->only(['indexOrderPurchaseExpress', 'createOrderPurchaseExpress', 'storeOrderPurchaseExpress', 'showOrderPurchaseExpress', 'updateOrderPurchaseExpress', 'editOrderPurchaseExpress', 'updateDetail', 'destroyDetail', 'destroyOrderPurchaseExpress', 'getAllOrderExpress', 'getDataOrderExpress', 'indexExpressV2', 'getInformationQuantityMaterial']);
+        $this->middleware(function ($request, $next) {
+            app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize();
+            return $next($request);
+        })->only(['indexOrderPurchaseNormal', 'indexNormalV2', 'getAllOrderNormal', 'getDataOrderNormal', 'createOrderPurchaseNormal', 'editOrderPurchaseNormal', 'showOrderPurchaseNormal', 'showOrderPurchaseDelete', 'printOrderPurchase', 'printOrderPurchaseDelete', 'showOrderOperator', 'indexOrderPurchaseLost', 'getAllOrderPurchaseLost', 'indexOrderPurchaseRegularize', 'getAllOrderRegularize', 'getStateOrderPurchase']);
+        $this->middleware('permission:list_orderPurchaseNormal')->only(['getAllOrderPurchaseLost', 'getAllOrderRegularize', 'showOrderOperator']);
+
+        $reportActions = ['reportOrderPurchaseByMaterial', 'getReportOrderPurchaseByMaterial', 'exportReportOrdersByMaterial'];
+        $this->middleware('permission:report_orderPurchaseExpress')->only($reportActions);
+        $this->middleware(function ($request, $next) {
+            $actor = Auth::user();
+            abort_unless($actor && !$actor->isPlatformAdmin()
+                && TenantContext::tenantIdOrNull() && TenantContext::companyIdOrNull()
+                && (int) $actor->tenant_id === (int) TenantContext::tenantIdOrNull(), 403,
+                'Seleccione un contexto empresarial autorizado para consultar el reporte.');
+            return $next($request);
+        })->only($reportActions);
+
     }
 
     public function getReportOrderPurchaseByMaterial(Request $request, $pageNumber = 1)
@@ -714,7 +732,7 @@ class OrderPurchaseController extends Controller
     public function indexNormalV2()
     {
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         $registros = OrderPurchase::where('type', 'n')->get();
 
@@ -883,7 +901,7 @@ class OrderPurchaseController extends Controller
     {
         //$orders = OrderPurchase::with(['supplier', 'approved_user'])->get();
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         return view('orderPurchase.deleteGeneral', compact('permissions'));
     }
@@ -1378,24 +1396,13 @@ class OrderPurchaseController extends Controller
 
     public function showOrderOperator($code)
     {
-        $begin = microtime(true);
-        $suppliers = Supplier::all();
-        $users = User::all();
-
-        $order = OrderPurchase::with(['supplier', 'approved_user', 'deadline'])->where('code', $code)->first();
-        $details = OrderPurchaseDetail::where('order_purchase_id', $order->id)
-            ->with(['material'])->get();
-
-        $end = microtime(true) - $begin;
-
-        Audit::create([
-            'user_id' => Auth::user()->id,
-            'action' => 'Ver Orden Compra Operador',
-            'time' => $end
-        ]);
-        return view('orderPurchase.showOperator', compact('order', 'details', 'suppliers', 'users'));
-
+        $access = app(\App\Services\Purchases\NormalPurchaseReadAccess::class);
+        $access->authorize('list_orderPurchaseNormal');
+        $order = $access->query()->where('code', $code)->firstOrFail();
+        Audit::create(['user_id' => Auth::id(), 'action' => 'Ver Orden Compra Operador', 'time' => 0]);
+        return $this->showOrderPurchaseNormal($order->id);
     }
+
 
     public function updateOrderPurchaseExpress(StoreOrderPurchaseRequest $request)
     {
@@ -1945,6 +1952,7 @@ class OrderPurchaseController extends Controller
 
     public function createOrderPurchaseNormal()
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('create_orderPurchaseNormal');
         $begin = microtime(true);
         $suppliers = Supplier::all();
         $users = app(NormalPurchaseGuard::class)->users()->get();
@@ -2137,13 +2145,14 @@ class OrderPurchaseController extends Controller
     {
         //$orders = OrderPurchase::with(['supplier', 'approved_user'])->get();
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         return view('orderPurchase.indexNormal', compact('permissions'));
     }
 
     public function showOrderPurchaseNormal($id)
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('list_orderPurchaseNormal');
         $suppliers = Supplier::all();
         $users = app(\App\Services\Purchases\NormalPurchaseGuard::class)->users()->get();
 
@@ -2157,6 +2166,7 @@ class OrderPurchaseController extends Controller
 
     public function showOrderPurchaseDelete($id)
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('destroy_orderPurchaseNormal');
         $suppliers = Supplier::all();
         $users = app(\App\Services\Purchases\NormalPurchaseGuard::class)->users()->get();
 
@@ -2195,6 +2205,7 @@ class OrderPurchaseController extends Controller
 
     public function editOrderPurchaseNormal($id)
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('update_orderPurchaseNormal');
         $suppliers = Supplier::all();
         $quotesRaised = Quote::where('company_id', TenantContext::companyId())->where('raise_status', 1)
             ->where('state_active', 'open')->get();
@@ -2388,7 +2399,8 @@ class OrderPurchaseController extends Controller
 
     public function printOrderPurchase($id)
     {
-        $purchase_order = OrderPurchase::with([
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('list_orderPurchaseNormal');
+        $purchase_order = app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->query(false)->with([
             'approved_user',
             'deadline',
             'details' => function ($query) {
@@ -2399,7 +2411,7 @@ class OrderPurchaseController extends Controller
             }
         ])
             ->where('id', $id)
-            ->first();
+            ->firstOrFail();
 
         $length = 5;
         $codeOrder = ''.str_pad($id, $length, "0", STR_PAD_LEFT);
@@ -2444,8 +2456,9 @@ class OrderPurchaseController extends Controller
 
     public function printOrderPurchaseDelete($id)
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('list_orderPurchaseNormal');
         $purchase_order = null;
-        $purchase_order = OrderPurchase::with([
+        $purchase_order = app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->query(true)->with([
             'approved_user',
             'deadline',
             'details' => function ($query) {
@@ -2456,7 +2469,7 @@ class OrderPurchaseController extends Controller
             }
         ])
             ->where('id', $id)
-            ->first();
+            ->firstOrFail();
 
         $length = 5;
         $codeOrder = ''.str_pad($id,$length,"0", STR_PAD_LEFT);
@@ -2557,15 +2570,16 @@ class OrderPurchaseController extends Controller
     {
         //$orders = OrderPurchase::with(['supplier', 'approved_user'])->get();
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         return view('orderPurchase.indexRegularize', compact('permissions'));
     }
 
     public function getAllOrderRegularize()
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('list_orderPurchaseNormal');
         $begin = microtime(true);
-        $orders = OrderPurchase::with(['supplier', 'approved_user'])
+        $orders = app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->query()->with(['supplier', 'approved_user'])
             ->where('regularize', 'r')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -2583,37 +2597,19 @@ class OrderPurchaseController extends Controller
     {
         //$orders = OrderPurchase::with(['supplier', 'approved_user'])->get();
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         return view('orderPurchase.indexLost', compact('permissions'));
     }
 
     public function getAllOrderPurchaseLost()
     {
+        app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->authorize('list_orderPurchaseNormal');
         $begin = microtime(true);
-        $orders = OrderPurchase::withTrashed()
-            ->pluck('code')->toArray();
-        //dump($orders);
-        $ids = [];
-        for ($i=0; $i< count($orders); $i++)
-        {
-            $id = (int) substr( $orders[$i], 3 );
-            array_push($ids, $id);
-        }
-        //dump($ids);
-        $lost = [];
-        $iterator = 1;
-        for ( $j=0; $j< count($ids); $j++ )
-        {
-            while( $iterator < $ids[$j] )
-            {
-                $codeOrder = 'OC-'.str_pad($iterator,5,"0", STR_PAD_LEFT);
-                array_push($lost, ['code'=>$codeOrder]);
-                $iterator++;
-            }
-            $iterator++;
-        }
-        //dd($lost);
+        // OC numbering was shared with Express. Reserved historical numbers must not become gaps.
+        $codes = OrderPurchase::withTrashed()->where('tenant_id', TenantContext::tenantId())
+            ->where('company_id', TenantContext::companyId())->pluck('code')->all();
+        $lost = app(\App\Services\Purchases\NormalPurchaseReadAccess::class)->missingCodes($codes);
         $end = microtime(true) - $begin;
 
         Audit::create([

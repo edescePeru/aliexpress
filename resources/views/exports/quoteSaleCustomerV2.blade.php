@@ -495,7 +495,7 @@
             @foreach($images as $image)
                 <p><em><u>{{ $image->description }}</u></em></p>
 
-                <img src="{{ asset('/images/planos/'.$image->image) }}"
+                <img src="{{ app(\App\Services\Quotes\QuoteDocumentFiles::class)->imageDataUri($quote->id, $image->image) }}"
                      style="max-width:100%; max-height:450px; margin-bottom:15px;">
             @endforeach
         </div>

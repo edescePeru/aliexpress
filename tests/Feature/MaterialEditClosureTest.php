@@ -152,13 +152,13 @@ class MaterialEditClosureTest extends TestCase
         $this->assertSame(200,$this->save($this->request(['type_tax_id'=>2]))->getStatusCode());
         foreach(['category','subcategory','brand','material_type','subtype','exampler','unit_measure','typescrap'] as $field)
             $this->invalid($this->request([$field=>9]),$field);
-        $this->invalid($this->request(['material_id'=>9]),'material_id');
+        try{$this->validator($this->request(['material_id'=>9]));$this->fail('Foreign material accepted');}catch(\Illuminate\Database\Eloquent\ModelNotFoundException $e){$this->assertSame(\App\Material::class,$e->getModel());}
         $this->invalid($this->request(['material_inventory_branch'=>99]),'context');
         $this->invalid($this->request([],[$this->row(['stock_item_id'=>9])]),'variantes_json');
     }
-    public function test_inventory_thresholds_scope_and_known_multiple_location_rejection() {
+    public function test_inventory_thresholds_scope_and_multiple_locations() {
         foreach([1,2] as $id) {
-            $row=$this->row(['inventory_levels'=>[['id'=>$id,'warehouse_id'=>$id,'min_alert'=>3,'max_alert'=>30,'location_id'=>999]]]);
+            $row=$this->row(['inventory_levels'=>[['id'=>$id,'warehouse_id'=>$id,'min_alert'=>3,'max_alert'=>30,'location_id'=>$id]]]);
             $this->assertSame(200,$this->save($this->request([],[$row]))->getStatusCode());
             $level=DB::table('inventory_levels')->find($id); $this->assertEquals(3,$level->min_alert);$this->assertEquals($id,$level->location_id);$this->assertEquals(10,$level->qty_on_hand);$this->assertEquals(2,$level->qty_reserved);
         }
@@ -169,34 +169,32 @@ class MaterialEditClosureTest extends TestCase
         DB::table('locations')->insert(['id'=>5,'tenant_id'=>1,'company_id'=>1,'warehouse_id'=>1]);
         DB::table('inventory_levels')->insert(['id'=>5,'tenant_id'=>1,'company_id'=>1,'stock_item_id'=>1,'warehouse_id'=>1,'location_id'=>5,'min_alert'=>0,'max_alert'=>0]);
         $levels=[['id'=>1,'warehouse_id'=>1,'min_alert'=>1,'max_alert'=>2],['id'=>5,'warehouse_id'=>1,'min_alert'=>3,'max_alert'=>4]];
-        $v=$this->validator($this->request([],[$this->row(['inventory_levels'=>$levels])])); $this->assertTrue($v->fails());
-        $this->assertStringContainsString('almacenes repetidos',implode(' ',$v->errors()->all()));
+        $v=$this->validator($this->request([],[$this->row(['inventory_levels'=>$levels])])); $this->assertFalse($v->fails(),json_encode($v->errors()->toArray()));
         DB::transaction(function () use ($levels) {app(MaterialInventoryScope::class)->sync(\App\StockItem::find(1),$levels);});
         $this->assertEquals(3,DB::table('inventory_levels')->where('id',5)->value('min_alert'));
         DB::table('locations')->where('id',1)->update(['warehouse_id'=>2]);
         $this->invalid($this->request([],[$this->row(['inventory_levels'=>[['id'=>1,'warehouse_id'=>1]]])]),'variantes_json');
     }
-    public function test_current_flags_allow_disabling_with_stock_and_coerce_invalid_strings() {
+    public function test_flags_allow_disabling_with_stock_but_reject_invalid_strings() {
         $before=$this->data('inventory_levels');
         $this->assertSame(200,$this->save($this->request([],[$this->row(['is_active'=>0,'afecto_inventario'=>0])]))->getStatusCode());
         $this->assertEquals(0,DB::table('stock_items')->where('id',1)->value('tracks_inventory'));
         $this->assertSame($before,$this->data('inventory_levels'));
         foreach(['is_active','afecto_inventario'] as $field) {
             $this->invalid($this->request([],[$this->row([$field=>2])]),'variantes_json');
-            $this->assertSame(200,$this->save($this->request([],[$this->row([$field=>'invalid'])]))->getStatusCode());
+            $this->invalid($this->request([],[$this->row([$field=>'invalid'])]),'variantes_json');
             $this->assertEquals(0,DB::table('stock_items')->where('id',1)->value($field==='is_active'?$field:'tracks_inventory'));
         }
     }
-    public function test_retaceria_currently_propagates_to_other_company_items() {
+    public function test_retaceria_preserves_other_company_items() {
         DB::table('items')->where('id',2)->update(['state_item'=>'exited']);
-        $this->assertSame(200,$this->save($this->request(['typescrap'=>2]))->getStatusCode());
-        $this->assertEquals(8,DB::table('items')->where('id',2)->value('length'));
+        $before=$this->data('items');$this->assertSame(200,$this->save($this->request(['typescrap'=>2]))->getStatusCode());
+        $this->assertSame($before,$this->data('items'));
         $this->assertEquals(2,DB::table('items')->where('id',2)->value('company_id'));
     }
-    public function test_current_update_accepts_material_enabled_only_in_other_company() {
+    public function test_update_rejects_material_enabled_only_in_other_company() {
         $this->assertSame([],app(MaterialCompanyCatalog::class)->apply(\App\Material::query())->where('id',2)->pluck('id')->all());
-        $this->assertSame(200,$this->save($this->request(['material_id'=>2],[$this->row(['stock_item_id'=>2,'sku'=>'SKU-2','codigo_barras'=>'BAR-2'])]))->getStatusCode());
-        $this->assertSame('Edited',DB::table('materials')->where('id',2)->value('full_name'));
+        $before=$this->snapshot();try{$this->save($this->request(['material_id'=>2],[$this->row(['stock_item_id'=>2,'sku'=>'SKU-2','codigo_barras'=>'BAR-2'])]));$this->fail('Foreign company accepted');}catch(\Illuminate\Database\Eloquent\ModelNotFoundException $e){$this->assertSame($before,$this->snapshot());}
     }
     public function test_controller_rolls_back_intermediate_material_variant_and_inventory_writes() {
         $row=$this->variants(); $before=$this->snapshot();
@@ -206,14 +204,14 @@ class MaterialEditClosureTest extends TestCase
         $response=app(MaterialController::class)->update($request);
         $this->assertSame(422,$response->getStatusCode());$this->assertSame($before,$this->snapshot());
     }
-    public function test_omitted_flags_reactivate_and_inventory_change_keeps_physical_history() {
+    public function test_omitted_flags_preserve_disabled_values_and_physical_history() {
         $before=$this->snapshot();
         $this->assertSame(200,$this->save($this->request([],[$this->row(['is_active'=>0,'afecto_inventario'=>0])]))->getStatusCode());
         foreach(['items','inventory_levels','warehouse_transfer_lines','sale_details','detail_entries'] as $t)$this->assertSame($before[$t],$this->data($t));
         $row=$this->row();unset($row['is_active'],$row['afecto_inventario']);
         $this->assertSame(200,$this->save($this->request([],[$row]))->getStatusCode());
-        $this->assertEquals(1,DB::table('stock_items')->where('id',1)->value('is_active'));
-        $this->assertEquals(1,DB::table('stock_items')->where('id',1)->value('tracks_inventory'));
+        $this->assertEquals(0,DB::table('stock_items')->where('id',1)->value('is_active'));
+        $this->assertEquals(0,DB::table('stock_items')->where('id',1)->value('tracks_inventory'));
     }
     public function test_stale_parameters_and_unauthorized_company_guard_fail_closed() {
         $before=$this->snapshot();

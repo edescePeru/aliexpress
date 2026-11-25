@@ -385,133 +385,42 @@ class CashBoxSubtypeController extends Controller
 
     public function update(Request $request)
     {
-        $companyId =
-            TenantContext::companyId();
-
-        $id =
-            (int)
-            $request->input(
-                'id'
-            );
-
-        if ($id <= 0) {
-
-            return response()->json([
-                'message' =>
-                    'ID requerido.',
-            ], 422);
-        }
-
-        $sub =
-            CashBoxSubtype::query()
-                ->where(
-                    'id',
-                    $id
-                )
-                ->where(
-                    'company_id',
-                    $companyId
-                )
-                ->firstOrFail();
-
-        $data =
-            $this->validateSubtype(
-                $request
-            );
-
-        $conflictMsg =
-            $this->conflictRuleMessage(
-                $data['code'],
-                $data['cash_box_id'],
-                $sub->id,
-                $companyId
-            );
-
-        if ($conflictMsg) {
-
-            return response()->json([
-                'message' =>
-                    $conflictMsg,
-            ], 422);
-        }
-
-        if (
-        $this->existsSameScopeDuplicate(
-            $data['code'],
-            $data['cash_box_id'],
-            $sub->id,
-            $companyId
-        )
-        ) {
-
-            return response()->json([
-                'message' =>
-                    'Ya existe un subtipo con ese código en ese alcance.',
-            ], 422);
-        }
-
-        $sub->update(
-            $data
-        );
-
-        return response()->json([
-            'message' =>
-                'Subtipo actualizado correctamente.',
-
-            'data' =>
-                $sub
-                    ->fresh([
-                        'cashBox',
-                    ]),
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            $guard = app(\App\Services\CashConfigurationGuard::class);
+            $guard->lockContext();
+            $request->validate(['id' => ['required', 'integer', 'min:1']]);
+            $sub = $guard->scope(CashBoxSubtype::query())->whereKey($request->input('id'))->lockForUpdate()->firstOrFail();
+            // An omitted flag means keep it; it must never reinterpret a saved payment.
+            foreach (['is_deferred', 'requires_commission'] as $field) {
+                if (!array_key_exists($field, $request->all())) { $request->merge([$field => (int) $sub->$field]); }
+            }
+            $data = $this->validateSubtype($request);
+            $guard->assertSubtype($sub, $data);
+            $conflict = $this->conflictRuleMessage($data['code'], $data['cash_box_id'], $sub->id, TenantContext::companyId());
+            if ($conflict) { return response()->json(['message' => $conflict], 422); }
+            if ($this->existsSameScopeDuplicate($data['code'], $data['cash_box_id'], $sub->id, TenantContext::companyId())) {
+                return response()->json(['message' => 'Ya existe un subtipo con ese código en ese alcance.'], 422);
+            }
+            $sub->update($data);
+            return response()->json(['message' => 'Subtipo actualizado correctamente.', 'data' => $sub->fresh(['cashBox'])]);
+        }, 3);
     }
+
 
     public function toggle(Request $request)
     {
-        $companyId =
-            TenantContext::companyId();
-
-        $id =
-            (int)
-            $request->input(
-                'id'
-            );
-
-        if ($id <= 0) {
-
-            return response()->json([
-                'message' =>
-                    'ID requerido.',
-            ], 422);
-        }
-
-        $sub =
-            CashBoxSubtype::query()
-                ->where(
-                    'id',
-                    $id
-                )
-                ->where(
-                    'company_id',
-                    $companyId
-                )
-                ->firstOrFail();
-
-        $sub->is_active =
-            !$sub->is_active;
-
-        $sub->save();
-
-        return response()->json([
-            'message' =>
-                $sub->is_active
-                    ? 'Subtipo activado correctamente.'
-                    : 'Subtipo desactivado correctamente.',
-
-            'data' =>
-                $sub,
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            $guard = app(\App\Services\CashConfigurationGuard::class);
+            $guard->lockContext();
+            $request->validate(['id' => ['required', 'integer', 'min:1']]);
+            $sub = $guard->scope(CashBoxSubtype::query())->whereKey($request->input('id'))->lockForUpdate()->firstOrFail();
+            if ($sub->is_active) { $guard->assertCanDeactivate($sub); }
+            $sub->is_active = !$sub->is_active;
+            $sub->save();
+            return response()->json(['message' => $sub->is_active ? 'Subtipo activado correctamente.' : 'Subtipo desactivado correctamente.', 'data' => $sub]);
+        }, 3);
     }
+
 
     private function validateSubtype(
         Request $request
@@ -539,10 +448,10 @@ class CashBoxSubtypeController extends Controller
                     'nullable|integer|min:0',
 
                 'is_deferred' =>
-                    'nullable',
+                    'sometimes|boolean',
 
                 'requires_commission' =>
-                    'nullable',
+                    'sometimes|boolean',
             ]);
 
         $data['cash_box_id'] = $data['cash_box_id'] ?? null;

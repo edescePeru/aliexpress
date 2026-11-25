@@ -484,6 +484,10 @@ class TenantController extends Controller
                     ]);
 
 
+                    $lockedTenant = $planService->lockTenant((int) $tenant->id);
+                    $planService->ensureStructureCapacity($lockedTenant, 1, 1);
+                    $tenant = $lockedTenant;
+
                     $company = Company::create([
                         'tenant_id' =>
                             $tenant->id,
@@ -748,6 +752,8 @@ class TenantController extends Controller
                 }
             );
 
+        } catch (\App\Exceptions\TenantCapacityException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
 
             report($e);
@@ -976,6 +982,9 @@ class TenantController extends Controller
             $oldValues
         ) {
 
+            $tenant = Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+            $selectedPlan = Plan::query()->whereKey($validated['plan_id'])->where('is_active', true)->sharedLock()->firstOrFail();
+            $tenant->unsetRelation('plan');
             $tenant->update([
                 'name' =>
                     $validated['name'],

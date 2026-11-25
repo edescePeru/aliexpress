@@ -24,6 +24,11 @@ use Barryvdh\DomPDF\Facade as PDF;
 
 class ReportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':industrial-quotes')->only(['quotesReport', 'quoteSummaryReport', 'quoteIndividualReport', 'exportQuotesExcel', 'chartQuotesDollarsSoles', 'chartQuotesDollarsSolesView']);
+    }
+
     public function amountInWarehouse()
     {
         $materials = Material::where('stock_current', '>', 0)

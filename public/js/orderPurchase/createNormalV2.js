@@ -26,6 +26,7 @@ $(document).ready(function () {
 
     $.ajax({
         url: "/dashboard/get/materials/stock/items/entry",
+        data: {consumer: 'purchase_create'},
         type: 'GET',
         dataType: 'json',
         success: function (json) {
@@ -85,7 +86,8 @@ $(document).ready(function () {
             delay: 300,
             data: function (params) {
                 return {
-                    search: params.term || ''
+                    search: params.term || '',
+                    consumer: 'purchase_create'
                 };
             },
             processResults: function (data) {
@@ -419,6 +421,7 @@ function abrirModalStockItemsVariant(material) {
 
     $.ajax({
         url: url,
+        data: {consumer: 'purchase_create'},
         method: 'GET',
         dataType: 'json',
         success: function (response) {

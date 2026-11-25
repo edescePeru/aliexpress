@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\DB;
 
 class DataGeneralController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':legacy-settings');
+    }
+
     private $defaultVariables = [
 
     ];

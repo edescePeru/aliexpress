@@ -1128,7 +1128,7 @@ class PuntoVentaController extends Controller
                     if (!empty($sale->pdf_path)) {
                         $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
                         if (file_exists($localPath)) {
-                            $urlPrint  = asset('comprobantes/pdfs/' . $sale->pdf_path);
+                            $urlPrint  = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
                             $printType = 'sunat_pdf';
                         }
                     } elseif (!empty($nubefactResult['enlace_del_pdf'])) {
@@ -1189,12 +1189,12 @@ class PuntoVentaController extends Controller
                     } catch(\Throwable $e) {
                         $warnings[]='El comprobante está confirmado, pero falta recuperar sus archivos.';
                     }
-                    if(!empty($sale->pdf_path)){$urlPrint=asset('comprobantes/pdfs/'.$sale->pdf_path);$printType='sunat_pdf';}
+                    if(!empty($sale->pdf_path)){$urlPrint=route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);$printType='sunat_pdf';}
                     elseif(!empty($result['enlace_del_pdf'])){$urlPrint=$result['enlace_del_pdf'];$printType='sunat_pdf';}
                 }
             }
             if($sale->emission_status==='confirmed'&&!empty($sale->pdf_path)){
-                $urlPrint=asset('comprobantes/pdfs/'.$sale->pdf_path);$printType='sunat_pdf';
+                $urlPrint=route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);$printType='sunat_pdf';
             }
             if($record['replayed'])$warnings[]='La operación ya estaba registrada. No se repitió el cobro, el consumo ni el envío al proveedor.';
         } catch(\Throwable $e) {
@@ -5726,10 +5726,7 @@ class PuntoVentaController extends Controller
                         $resultadoArchivos['errores'],
 
                     'pdf_url' => !empty($sale->pdf_path)
-                        ? asset(
-                            'comprobantes/pdfs/'
-                            . $sale->pdf_path
-                        )
+                        ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf'])
                         : null,
                 ], 200);
             }
@@ -5750,10 +5747,7 @@ class PuntoVentaController extends Controller
                 ],
 
                 'pdf_url' => !empty($sale->pdf_path)
-                    ? asset(
-                        'comprobantes/pdfs/'
-                        . $sale->pdf_path
-                    )
+                    ? route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf'])
                     : null,
             ], 200);
 

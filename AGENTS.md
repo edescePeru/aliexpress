@@ -951,3 +951,16 @@ Adapt only what the real contract requires.
 - Do not create divergent POS interfaces or duplicate the shared stylesheet. Preserve separate JS contracts; controlled Blade duplication is acceptable when extraction risks legacy hooks.
 - Shared POS changes must be checked on both V1 and V2. Never bypass option resolution or pass a Material ID as a StockItem ID for visual convenience.
 - See docs/REAL-NEXT-POS-V1-INTEGRATION.md and docs/REAL-NEXT-POS-V2-VISUAL-INTEGRATION.md.
+
+
+## DEV delivery intent and inherited frontend restrictions (R7.5, 2026-11-25)
+
+DEV is authoritative for intentional business changes, backend contracts, permissions, security and validation. Absence of a control in multitenancy is NOT proof of intentional retirement: DEV may have inherited our read-only gates, removed buttons/modals, handlers or navigation through earlier merges. Trace origin using Git, owner decisions, delivery documentation and current contracts before preserving or recovering it.
+
+Use together: explicit business decisions; intentional DEV changes; current DEV contracts; operational history before homologation; Git provenance; Venti Next visual standards; R0–R7 recoveries. Never use either multitenancy alone as a functional parity baseline or old frontend as authority over new business rules. Ambiguity requires an owner decision; do not invent intent to obtain a clean merge.
+
+Current scope supersedes earlier R3 wording without deleting its evidence: Financial Purchase is operationally RETIRED (410); legacy General Settings and user/role/permission administration are retired/server blocked. Express, Free Sale, industrial Quotes and legacy Output Requests are PAUSED/server blocked. General Purchases, Supplier Credits (temporarily), OrderService, Proforma, legacy ReferralGuide, FollowMaterial and legacy Promotions are outside active recovery. Do not erase historical code/data or shared dependencies.
+
+Orders by Material remains active with report_orderPurchaseExpress. Invoice is NOT Financial Purchase; QuoteSale is NOT industrial Quote. J/P and K are CLOSED BY BUSINESS DECISION — TECHNICAL LIMITATIONS DOCUMENTED; do not reopen excluded certification or claim it ran. New integration regressions are separate.
+
+Owner login deliberately has tenant-only context; dashboard.principal renders dashboard.owner for an Owner even with company/branch selected. Operators retain the operational dashboard; Platform has its exclusive dashboard. Preserve the R7 entry export only with operational context and its existing permissions, without imposing the former dashboard on Owner or introducing bypasses. New DEV surfaces may remain pending Venti Next homologation; merge is not authorization for wholesale redesign.

@@ -398,49 +398,52 @@ class CashBoxController extends Controller
      */
     public function store(Request $request)
     {
-        $tenantId =
-            TenantContext::tenantId();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            app(\App\Services\CashConfigurationGuard::class)->lockContext();
+            $tenantId =
+                TenantContext::tenantId();
 
-        $companyId =
-            TenantContext::companyId();
+            $companyId =
+                TenantContext::companyId();
 
-        $data =
-            $this->validateCashBox(
-                $request
-            );
+            $data =
+                $this->validateCashBox(
+                    $request
+                );
 
-        /*
-         * Nunca aceptamos Tenant/Company
-         * enviados desde frontend.
-         */
+            /*
+             * Nunca aceptamos Tenant/Company
+             * enviados desde frontend.
+             */
 
-        $data['tenant_id'] =
-            $tenantId;
+            $data['tenant_id'] =
+                $tenantId;
 
-        $data['company_id'] =
-            $companyId;
+            $data['company_id'] =
+                $companyId;
 
-        /*
-         * Una CashBox nueva comienza sin saldo maestro.
-         */
-        $data['current_balance'] =
-            0;
+            /*
+             * Una CashBox nueva comienza sin saldo maestro.
+             */
+            $data['current_balance'] =
+                0;
 
-        $data['is_active'] =
-            true;
+            $data['is_active'] =
+                true;
 
-        $box =
-            CashBox::create(
-                $data
-            );
+            $box =
+                CashBox::create(
+                    $data
+                );
 
-        return response()->json([
-            'message' =>
-                'Caja creada correctamente.',
+            return response()->json([
+                'message' =>
+                    'Caja creada correctamente.',
 
-            'data' =>
-                $box,
-        ], 201);
+                'data' =>
+                    $box,
+            ], 201);
+        }, 3);
     }
 
     /**
@@ -449,76 +452,19 @@ class CashBoxController extends Controller
      */
     public function update(Request $request)
     {
-        $companyId =
-            TenantContext::companyId();
-
-        $id =
-            (int)
-            $request->input(
-                'id'
-            );
-
-        if ($id <= 0) {
-
-            return response()->json([
-                'message' =>
-                    'ID requerido.',
-            ], 422);
-        }
-
-        /*
-         * BelongsToTenant protege Tenant.
-         *
-         * Company se valida explícitamente.
-         */
-
-        $box =
-            CashBox::query()
-                ->where(
-                    'id',
-                    $id
-                )
-                ->where(
-                    'company_id',
-                    $companyId
-                )
-                ->firstOrFail();
-
-        $data =
-            $this->validateCashBox(
-                $request,
-                $box
-            );
-
-        /*
-         * Seguridad:
-         *
-         * current_balance
-         * tenant_id
-         * company_id
-         *
-         * nunca son editables desde este CRUD.
-         */
-
-        $box->update(
-            $data
-        );
-
-        return response()->json([
-            'message' =>
-                'Caja actualizada correctamente.',
-
-            'data' =>
-                $box
-                    ->fresh([
-                        'branch',
-                    ]),
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            $guard = app(\App\Services\CashConfigurationGuard::class);
+            $guard->lockContext();
+            $request->validate(['id' => ['required', 'integer', 'min:1']]);
+            $box = $guard->scope(CashBox::query())->whereKey($request->input('id'))->lockForUpdate()->firstOrFail();
+            $data = $this->validateCashBox($request, $box);
+            $guard->assertCurrency($box, array_key_exists('currency', $data) ? $data['currency'] : $box->currency);
+            $box->update($data);
+            return response()->json(['message' => 'Caja actualizada correctamente.', 'data' => $box->fresh(['branch'])]);
+        }, 3);
     }
 
-    /**
-     * Activar/Desactivar (AJAX)
-     */
+
     public function toggle(Request $request)
     {
         $companyId =

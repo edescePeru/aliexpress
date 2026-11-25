@@ -1,0 +1,9 @@
+# Texto para el auditor — solo este paquete
+
+**M — MAT-01: decisiones del negocio.** Por decisión expresa del negocio no queremos bloquear la edición de identificadores, unidad, control de inventario o composición del pack por la existencia de historial, dentro de los campos admitidos por el formulario actual. También se permite desactivar productos aun con existencias/reservas y modificar el maestro compartido entre empresas del mismo tenant. Estas restricciones no se consideran requisitos pendientes de implementación: se descartan por decisión funcional.
+
+Se mantienen permisos, aislamiento entre tenants, pertenencia de filas, unicidad y validaciones de catálogos/ubicaciones. Los cambios compartidos pueden reflejarse en las empresas que utilizan el maestro, sin reescribir sus niveles de inventario ni piezas/movimientos históricos. La restricción anterior sobre retacería compartida se sustituye por esta política; las piezas previas conservan su tipo.
+
+**Corrección implementada — campos omitidos:** se distingue la omisión de un valor explícito. La cabecera, filas, variantes y alertas de inventario mantienen sus valores actuales si no se enviaron; no se reemplazan por null, cero ni defaults de creación. Se vuelven a resolver y validar los valores bajo bloqueo antes de guardar. Las filas nuevas conservan las reglas de creación. Los productos sin StockItems activos se excluyen del listado operativo V2 y de los selectores de ventas, manteniendo su historia y acceso administrativo autorizado.
+
+**Validación y estado:** pasaron pruebas aisladas con Request/controlador/modelos reales, incluidos cambios históricos/compartidos permitidos, omisiones, desactivación con stock, contextos negativos y reversión ante fallo. Pasó sintaxis PHP. Paquete preparado; pendiente de instalación y revisión HTTP/UI. La concurrencia MySQL y los uploads/documentos no se certifican con estas pruebas.

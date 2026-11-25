@@ -2346,13 +2346,7 @@ class EntryController extends Controller
 
     public function editEntryPurchase($id)
     {
-        $entry = Entry::query()
-            ->where(
-                'company_id',
-                TenantContext::companyId()
-            )
-            ->where('id', $id)
-            ->firstOrFail();
+        $entry = app(\App\Services\Inventory\PurchaseFormReadAccess::class)->entryForEdit($id);
 
         $suppliers = Supplier::query()
             ->orderBy('business_name')
@@ -4538,9 +4532,9 @@ class EntryController extends Controller
     {
         $begin = microtime(true);
         $user = Auth::user();
-        $permissions = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+        $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
-        $entry = Entry::find($entry_id);
+        $entry = app(\App\Services\Purchases\EntryExtraDocuments::class)->entry($entry_id);
 
         $imagesInvoices = [];
         $imagesGuides = [];
@@ -4579,123 +4573,35 @@ class EntryController extends Controller
 
     public function updateImage(Request $request, $image)
     {
-        $begin = microtime(true);
-        //dd($request->get('image_id'));
-        DB::beginTransaction();
-        try {
-            $id = $request->get('image_id');
-            $code = $request->get('image_code');
-
-            $image = EntryImage::find($id);
-            $image->code = $code;
-            $image->save();
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Imagen Entrada modificada ',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Imagen modificada con éxito'], 200);
-
+        return $this->extraDocumentOperation(function () use ($request, $image) {
+            app(\App\Services\Purchases\EntryExtraDocuments::class)->update($request, $image);
+        }, 'Imagen modificada con éxito');
     }
 
     public function deleteImage(Request $request, $image)
     {
-        //dd($request->get('image_id'));
-        DB::beginTransaction();
-        try {
-            $id = $request->get('image_id');
-
-            $imagen = EntryImage::find($id);
-
-            $image_path = public_path().'/images/entries/extras/'.$imagen->image;
-            if (file_exists($image_path)) {
-                unlink($image_path);
-            }
-
-            $imagen->delete();
-
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-        return response()->json(['message' => 'Imagen eliminada con éxito'], 200);
-
+        return $this->extraDocumentOperation(function () use ($request, $image) {
+            app(\App\Services\Purchases\EntryExtraDocuments::class)->delete($request, $image);
+        }, 'Imagen eliminada con éxito');
     }
 
     public function saveImages(Request $request, $entry_id)
     {
-        $begin = microtime(true);
-        //dd($request->get('image_id'));
-        DB::beginTransaction();
-        try {
-            // TODO: Tratamiento de las imagenes de las entradas
+        return $this->extraDocumentOperation(function () use ($request, $entry_id) {
+            app(\App\Services\Purchases\EntryExtraDocuments::class)->upload($request, $entry_id);
+        }, 'Imágenes guardadas con éxito');
+    }
 
-            $images = $request->images;
-            $descriptions = $request->codeimages;
-            $types = $request->types;
-
-            if ( count($images) != 0 && count($descriptions) != 0 )
-            {
-                foreach ( $images as $key => $image )
-                {
-                    $path = public_path().'/images/entries/extras/';
-                    $img = $image;
-
-                    $extension = $img->getClientOriginalExtension();
-                    //$filename = $entry->id . '.' . $extension;
-                    if ( strtoupper($extension) != "PDF" )
-                    {
-                        $filename = $entry_id .'_'. $this->generateRandomString(20). '.JPG';
-                        $imgQuote = Image::make($img);
-                        $imgQuote->orientate();
-                        $imgQuote->save($path.$filename, 80, 'JPG');
-
-                        EntryImage::create([
-                            'entry_id' => $entry_id,
-                            'code' => $descriptions[$key],
-                            'image' => $filename,
-                            'type' => $types[$key],
-                            'type_file' => 'img',
-                        ]);
-                    } else {
-                        $filename = 'pdf'.$entry_id .'_'. $this->generateRandomString(20) . '.' .$extension;
-                        $img->move($path, $filename);
-
-                        EntryImage::create([
-                            'entry_id' => $entry_id,
-                            'code' => $descriptions[$key],
-                            'image' => $filename,
-                            'type' => $types[$key],
-                            'type_file' => 'pdf'
-                        ]);
-                    }
-
-                }
-            }
-
-            $end = microtime(true) - $begin;
-
-            Audit::create([
-                'user_id' => Auth::user()->id,
-                'action' => 'Guardar images entries POST',
-                'time' => $end
-            ]);
-            DB::commit();
-        } catch ( \Throwable $e ) {
-            DB::rollBack();
-            return response()->json(['message' => $e->getMessage()], 422);
+    private function extraDocumentOperation(callable $operation, string $message)
+    {
+        try { $operation(); }
+        catch (\Illuminate\Validation\ValidationException $e) { throw $e; }
+        catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) { throw $e; }
+        catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) { throw $e; }
+        catch (\Throwable $e) {
+            return response()->json(['message'=>'No se pudo completar el cambio de adjuntos. Actualice la pantalla antes de intentar nuevamente.'], 422);
         }
-        return response()->json(['message' => 'Imágenes guardadas con éxito'], 200);
-
+        return response()->json(['message'=>$message], 200);
     }
 
     public function onlyZeros($cadena) {
