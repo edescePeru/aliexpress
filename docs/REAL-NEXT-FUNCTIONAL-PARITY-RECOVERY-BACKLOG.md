@@ -1734,3 +1734,8 @@ QA: 7 tests /46 assertions SQLite; 16 combinaciones responsive +6 cargas de cont
 ## R7 — cierre de revisión, no cierre de todos los blockers
 
 Una superficie modificada;1 capacidad recuperada y7 pendientes. Backend0, CSS0, sin writes comerciales ni exports reales. R8 requiere revisión del propietario; quedan157 superficies por contraste semántico, ledger único en documento R7.
+
+
+## Candidato R8 registrado durante R7.7D — 2026-11-25
+
+QuoteSale Edit (/dashboard/editar/cotizacion/venta/79; familia /{id}): Guardar datos generales sigue comentado, observación R7.7C. No asumir retiro intencional. En R8 investigar Git/origen, intención, alcanzabilidad histórica, contrato backend y posible gate heredado; cotejar IDs existentes antes de crear otro finding. Sin intervención funcional ni FR nuevo en R7.7D. Ver informe OWNER-PLATFORM-STRUCTURE-LIMITS-HOMOLOGATION. Contabilidad vigente74 recuperadas+10 bloqueadas+23 excluidas=107. R8 no iniciada.

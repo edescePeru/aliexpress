@@ -69,3 +69,9 @@ R7.6 GO WITH CONDITIONS. 12 candidatos FR;62 recuperados actuales;10 pendientes 
 ## R7.7C — QuoteSale / Reporte por Material — 2026-11-25
 
 Tres superficies homologadas: quoteSale.create, quoteSale.edit (cotización79 EDESCE C1) y report.orders.by.materials. Ver REAL-NEXT-QUOTE-SALE-PURCHASE-MATERIAL-REPORT-HOMOLOGATION.md. Permisos auxiliares Create OR Edit y contexto DEV preservados. Exportar del reporte alineado con report_orderPurchaseExpress, reemplazando gate obsoleto por roles; Express no reactivado. JS sólo loading/error no JSON del reporte. 24 checks responsive y12 modales PASS; guardados/export interceptados, cero mutaciones comerciales. Observación preexistente: botón de guardado general de Edit comentado; no se reactivó ni se certifica ese control. Backend/CSS/infraestructura0. Contabilidad sin duplicados: **74 recuperadas +10 bloqueadas +23 excluidas =107**. Persistencia pendiente; no recertificación backend/J/P. R7.7D/R8 no iniciadas. Sin commit/push/merge.
+
+## R7.7D — Owner / Platform / Structure Limits — 2026-11-25
+
+Ver REAL-NEXT-OWNER-PLATFORM-STRUCTURE-LIMITS-HOMOLOGATION.md. Dos dashboards homologados y Create/Edit de Planes reconciliados;12 páginas revisadas,9 páginas relacionadas ya conformes sin cambios. Allowlist existente suficiente. Migración estructural confirmada batch180; máximos empresas/locales reales NULL: pendientes, no ilimitados ni modificados.61 comprobaciones focalizadas Chrome aislado; contexto y export FR104 interceptados. Backend/JS/CSS nuevo/infraestructura/mutaciones0. Contabilidad74+10+23=107 intacta.
+
+Candidato R8 explícito: QuoteSale Edit /dashboard/editar/cotizacion/venta/79, Guardar datos generales comentado; investigar origen/intención/alcanzabilidad/contrato antes de decidir recuperación o retiro. No intervenir aquí. R7.7E/R8 no iniciadas. Sin commit/push/merge; revisión del propietario pendiente.
