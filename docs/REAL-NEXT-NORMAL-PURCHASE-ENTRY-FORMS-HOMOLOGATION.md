@@ -97,3 +97,31 @@ Archivos intervenidos: config/venti-next.php; resources/views/orderPurchase/crea
 [OPEN] ENTRY-R75-01 y ENTRY-R4-01 permanecen fuera de esta fase; no bypass ni modificación. [PENDING] Persistencia real Store/Update/detalles/uploads y recepción: QA comercial no ejecutado; no bloquea Guardar. [UNCHANGED] Contratos DEV y limitación documental del entorno8080 permanecen. No nuevos findings backend demostrados durante la integración. No rehabilitar módulos legacy ni introducir selección de orden en Entry directa.
 
 Estado:3/3 FRONTEND HOMOLOGATED; FUNCTIONAL PARITY PASS para inventario y escenarios ejecutados; FORM SUBMISSION/PAYLOAD PASS mediante interceptación; MUTATION QA PENDING. Capacidades globales74 recuperadas +10 bloqueadas +23 excluidas=107, sin doble conteo. PHP Blade compile, tres JS syntax checks y git diff --check PASS. Esperar revisión del propietario.
+
+## R7.7A/B — Owner visual corrections — 2026-11-25
+
+Corrección focalizada posterior a la aprobación funcional. Sin cambios backend, JavaScript operativo, CSS, contratos ni infraestructura. Sin POST ni mutaciones comerciales. Sin commit/push/merge ni inicio R7.7C/R8. Los cambios documentales de R7.7B preexistentes se conservan.
+
+La regla permanente **Desktop-first density for operational field groups** se incorporó a `AGENTS.md` y `docs/VENTI-NEXT-COMPONENT-PATTERNS.md`: proporción, densidad, alineación y aprovechamiento horizontal forman parte de la aceptación visual; ausencia de overflow por sí sola no basta. Comprobación futura R8, sin barrido global actual.
+
+QA Chrome headless aislado con HTML renderizado por Laravel y assets actuales; lecturas bajo transacción READ ONLY, sin controlar navegador/escritorio del propietario. Perfil probado en ambas pestañas a 320/375/768/992/1200/1440/1920/2560. Entrada en esas mismas resoluciones: una fila completa a 1440/1920/2560; redistribución en anchuras menores cuando el área de contenido no alcanza. Cero overflow global y pageerrors. Los 8 controles conservan su orden. Todas las capturas son de viewport real; no certificación de mutaciones.
+
+Comparación de atributos funcionales del HTML completo antes/después (incluye shell): Perfil267 y Entrada303 elementos idénticos en IDs, names, values, methods/actions, CSRF, data-*, href, required/disabled/readonly y handlers inline. Sólo clases visuales, wrapper de grilla y roles/ARIA de pestañas cambiaron. Capacidades perdidas:0. Conteos FR sin cambios:74+10+23=107.
+
+Blade compile PHP7.3.33: PASS. `git diff --check`: PASS. JS sin cambios; no se repite QA funcional de R7.7A/B.
+
+### Entrada: Materiales en una fila de escritorio
+
+Causa: grilla original sumaba18 columnas (4+7x2), forzando segunda fila. Se reutiliza `form-row` con buscador col-xl-3, lote/cantidad/precio col-xl-1, fecha/almacén col-xl-2 y switch/Agregar col-xl-auto. `col-md-*` y `col-*` mantienen redistribución natural. Fecha conserva espacio para d/m/Y; Agregar pierde únicamente btn-block, mantiene icono, aria-label, id y handler. Label d-block alinea su eje. La ayuda del almacén permanece debajo dentro de su columna sin desplazar la fila.
+
+A1440 los controles están alineados con diferencia máxima de2px (geometría de plugins/botón), también a1920/2560. No formulario con scroll horizontal. La tabla conserva su scroll local.
+
+Archivo de implementación: `resources/views/entry/create_entry_purchaseV2.blade.php`.
+
+### Evidencia antes/después
+
+- Materiales1440: [antes](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-before-entry-1440.png) / [después](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-after-entry-1440.png).
+- Materiales1920: [antes](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-before-entry-1920.png) / [después](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-after-entry-1920.png).
+- Materiales móvil: [antes](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-before-entry-375.png) / [después](C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-after-entry-375.png).
+
+Matriz y scripts: `C:/Users/Remso/.codex/visualizations/2026/09/29/01a0eb59-3ffa-7bd2-9885-1a304f512347/owner-final-results.json`, `owner-final.cjs`, `owner-tab-states.json`.

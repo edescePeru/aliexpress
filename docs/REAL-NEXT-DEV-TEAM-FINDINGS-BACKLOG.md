@@ -1,5 +1,10 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
 ## Aclaración vigente R7.6.1 — 2026-11-25
 
 Por decisión del propietario, la observación local DOC-01 no bloquea recuperar controles con lectores DEV. FR049/054/083/088/093/096/097/098 frontend recuperado; protección HTTP directa en despliegue sigue pendiente por separado. Virtual host descartado, ejemplo retirado, entorno8080 intacto. No nuevo finding ni recertificación J/P/K. La exigencia de instalación previa de la sección siguiente es evidencia histórica sustituida por esta decisión. Ver informe R76.

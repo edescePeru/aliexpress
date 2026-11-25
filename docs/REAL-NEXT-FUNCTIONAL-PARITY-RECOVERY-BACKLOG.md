@@ -1,5 +1,10 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
 ## Seguimiento R7.7A — 2026-11-25
 
 Normal Create/Edit y Entry Purchase Create homologados3/3. Ver REAL-NEXT-NORMAL-PURCHASE-ENTRY-FORMS-HOMOLOGATION.md. Campos, modales, acciones y payloads preservados;24 checks responsive PASS; mutaciones interceptadas, ninguna compra/entrada real. Backend/JS/CSS0. Allowlist limitada a3 vistas. FR017/018/046 ya recuperadas en R7.6: **no sumar otra vez**. Contabilidad74 recuperadas+10 bloqueadas+23 excluidas=107. ENTRY-R75-01/ENTRY-R4-01 intactos. R7.7B/R8 no iniciadas; sin commit/push/merge. Evidencia anterior conservada.

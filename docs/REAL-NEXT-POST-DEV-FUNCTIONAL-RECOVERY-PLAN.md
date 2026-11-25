@@ -1,5 +1,10 @@
 # REAL NEXT — Post-DEV Functional Recovery Plan (R7.6)
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
 ## Seguimiento R7.7A — 2026-11-25
 
 Normal Create/Edit y Entry Purchase Create homologados3/3. Ver REAL-NEXT-NORMAL-PURCHASE-ENTRY-FORMS-HOMOLOGATION.md. Campos, modales, acciones y payloads preservados;24 checks responsive PASS; mutaciones interceptadas, ninguna compra/entrada real. Backend/JS/CSS0. Allowlist limitada a3 vistas. FR017/018/046 ya recuperadas en R7.6: **no sumar otra vez**. Contabilidad74 recuperadas+10 bloqueadas+23 excluidas=107. ENTRY-R75-01/ENTRY-R4-01 intactos. R7.7B/R8 no iniciadas; sin commit/push/merge. Evidencia anterior conservada.
@@ -60,3 +65,7 @@ Fecha2026-11-25. Plan, no implementación masiva. No R8. Leer reconciliación R7
 6. Dashboard Owner/Platform homologación visual separada, preservando nuevo flujo. R8 sólo por autorización posterior.
 
 R7.6 GO WITH CONDITIONS. 12 candidatos FR;62 recuperados actuales;10 pendientes backend;23 excluidos. Backend fix no cierra pérdida frontend. NO PRODUCT DECISION REQUIRED para resolver este merge; máximos de plan requieren configuración comercial. J/P/K negocio cerrado con límites técnicos documentados.
+
+## R7.7C — QuoteSale / Reporte por Material — 2026-11-25
+
+Tres superficies homologadas: quoteSale.create, quoteSale.edit (cotización79 EDESCE C1) y report.orders.by.materials. Ver REAL-NEXT-QUOTE-SALE-PURCHASE-MATERIAL-REPORT-HOMOLOGATION.md. Permisos auxiliares Create OR Edit y contexto DEV preservados. Exportar del reporte alineado con report_orderPurchaseExpress, reemplazando gate obsoleto por roles; Express no reactivado. JS sólo loading/error no JSON del reporte. 24 checks responsive y12 modales PASS; guardados/export interceptados, cero mutaciones comerciales. Observación preexistente: botón de guardado general de Edit comentado; no se reactivó ni se certifica ese control. Backend/CSS/infraestructura0. Contabilidad sin duplicados: **74 recuperadas +10 bloqueadas +23 excluidas =107**. Persistencia pendiente; no recertificación backend/J/P. R7.7D/R8 no iniciadas. Sin commit/push/merge.

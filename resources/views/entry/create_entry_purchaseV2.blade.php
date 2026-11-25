@@ -150,8 +150,8 @@
                     </div>
                     <div class="card-body next-form-section">
 
-                        <div class="row">
-                            <div class="col-12 col-lg-4">
+                        <div class="form-row">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="form-group">
                                     <label>Buscar material <span class="next-required">*</span></label>
                                     <select id="material_search" class="form-control select2" style="width: 100%;" data-url="{{ route('materials.entry.search') }}">>
@@ -165,14 +165,14 @@
                                 </div>
                             </div>
 
-                            <div class="col-6 col-lg-2">
+                            <div class="col-6 col-md-3 col-xl-1">
                                 <div class="form-group">
                                     <label for="lot">Lote </label>
                                     <input type="text" id="lot" name="lot" class="form-control">
                                 </div>
                             </div>
 
-                            <div class="col-6 col-lg-2">
+                            <div class="col-6 col-md-3 col-xl-2">
                                 <div class="form-group" id="sandbox-container2">
                                     <label for="quantity">F. Vence </label>
                                     <div class="input-daterange" id="datepicker2">
@@ -180,13 +180,13 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6 col-lg-2">
+                            <div class="col-6 col-md-3 col-xl-1">
                                 <div class="form-group">
                                     <label for="quantity">Cantidad </label>
                                     <input type="number" id="quantity" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-6 col-lg-2">
+                            <div class="col-6 col-md-3 col-xl-1">
                                 <div class="form-group">
                                     <label for="price">Precio IGV </label>
                                     <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
@@ -194,7 +194,7 @@
                                     ">
                                 </div>
                             </div>
-                            <div class="col-6 col-lg-2">
+                            <div class="col-6 col-md-3 col-xl-auto">
                                 <label for="btn-grouped2"> Agrupado </label> <br>
                                 <input id="btn-grouped2"
                                        class="col-6 col-lg-22"
@@ -207,7 +207,7 @@
                                        data-on-color="success"
                                        checked>
                             </div>
-                            <div class="col-6 col-lg-2">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <div class="form-group">
                                     <label for="almacen">
                                         Almacén de ingreso
@@ -222,9 +222,9 @@
 
                                 </div>
                             </div>
-                            <div class="col-6 col-lg-2">
-                                <label for="btn-add"> &nbsp; </label>
-                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary" aria-label="Agregar material"> <i class="fas fa-arrow-circle-right"></i></button>
+                            <div class="col-6 col-md-3 col-xl-auto">
+                                <label for="btn-add" class="d-block"> &nbsp; </label>
+                                <button type="button" id="btn-add" class="btn btn-outline-primary" aria-label="Agregar material"> <i class="fas fa-arrow-circle-right"></i></button>
                             </div>
 
                         </div>

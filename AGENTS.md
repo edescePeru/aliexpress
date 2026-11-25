@@ -968,3 +968,10 @@ Current scope supersedes earlier R3 wording without deleting its evidence: Finan
 Orders by Material remains active with report_orderPurchaseExpress. Invoice is NOT Financial Purchase; QuoteSale is NOT industrial Quote. J/P and K are CLOSED BY BUSINESS DECISION — TECHNICAL LIMITATIONS DOCUMENTED; do not reopen excluded certification or claim it ran. New integration regressions are separate.
 
 Owner login deliberately has tenant-only context; dashboard.principal renders dashboard.owner for an Owner even with company/branch selected. Operators retain the operational dashboard; Platform has its exclusive dashboard. Preserve the R7 entry export only with operational context and its existing permissions, without imposing the former dashboard on Owner or introducing bypasses. New DEV surfaces may remain pending Venti Next homologation; merge is not authorization for wholesale redesign.
+
+
+### Desktop-first density for operational field groups
+
+Los controles de una misma operación deben aprovechar el ancho horizontal disponible en escritorio. Cuando la legibilidad y la resolución lo permitan, disponer en una única fila la incorporación de materiales/productos, filtros de reportes, buscadores con parámetros, selectores operativos, cantidades/precios, switches y botones de incorporación. Asignar anchos proporcionales al contenido y su importancia: no usar columnas iguales indiscriminadamente ni dar a un botón/switch el mismo ancho que a un buscador. Mantener labels y alineación de controles; la ayuda no debe provocar saltos innecesarios. Permitir varias filas en tablet/móvil o cuando el contenido lo necesite, sin overflow horizontal del formulario ni inputs ilegibles.
+
+La ausencia de overflow no basta para aprobar visualmente: comprobar densidad, aprovechamiento horizontal, alineación, proporción de controles, saltos innecesarios, espacios vacíos y consistencia Venti Next. Aplicar en futuras homologaciones e incorporar esta comprobación en R8. No iniciar un barrido global en esta fase. Decisión del propietario R7.7A/B, 2026-11-25.

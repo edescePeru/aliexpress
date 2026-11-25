@@ -1,5 +1,10 @@
 # REAL NEXT — Material Edit Contract
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
 ## Backend Sync Notes vigentes — 2026-11-05
 
 POST-MERGE FRONTEND ALIGNED. Precio unit_price/list_price: RESOLVED mediante update con rollback; descuentos: RESOLVED en código y colección conservada (dataset probado sin descuentos; regresión poblada pendiente). Campos ausentes/deshabilitados, jerarquía efectiva, snapshots e impuesto revalidados. PERSISTED VARIANT SIZE/COLOR IMMUTABILITY — QA PASSED con baseline válido y errores específicos; variantes omitidas conservadas. MATERIAL EDIT SAVE STILL BLOCKED FOR PRODUCTION: política histórica SKU/barcode/estado/inventariable, retacería, QA ampliado y granularidad multinivel. El request aún rechaza warehouses repetidos aunque el service trabaja por InventoryLevel. Inventario branch/general implementado, pero el dataset sólo contiene almacenes generales; no se certifica Principal vs Outlet. Se corrigió overflow de inventario expandido reutilizando utilidades y acotando selectores existentes, sin reglas CSS nuevas.

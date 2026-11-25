@@ -98,9 +98,9 @@
                 <div class="col-lg-8">
                     <div class="card">
                         <div class="next-list-toolbar">
-                            <ul class="nav nav-pills">
-                                <li class="nav-item"><a class="nav-link active" href="#settings" data-toggle="tab">Información de usuario</a></li>
-                                <li class="nav-item"><a class="nav-link" href="#passwordReset" data-toggle="tab">Cambiar contraseña</a></li>
+                            <ul class="nav nav-tabs w-100" role="tablist">
+                                <li class="nav-item"><a class="nav-link active" href="#settings" data-toggle="tab" role="tab" aria-controls="settings" aria-selected="true">Información de usuario</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#passwordReset" data-toggle="tab" role="tab" aria-controls="passwordReset" aria-selected="false">Cambiar contraseña</a></li>
                             </ul>
                         </div><!-- /.card-header -->
                         <div class="next-form-section">

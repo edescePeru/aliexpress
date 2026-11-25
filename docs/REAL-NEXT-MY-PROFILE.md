@@ -1,5 +1,10 @@
 # REAL NEXT — My Profile
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
 2026-11-18 — **MY PROFILE — FRONTEND INTEGRATED WITH BACKEND DEPENDENCY**.
 Visual/read path PASS. Mutations SELF enforcement: **BACKEND SYNC OPEN**; mutations/upload QA PENDING. Backend unchanged, CSS nuevo0, sin commit.
 
