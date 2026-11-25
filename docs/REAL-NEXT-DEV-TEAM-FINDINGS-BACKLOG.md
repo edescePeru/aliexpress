@@ -1,5 +1,38 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
+
+Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.
+
+
+## Aclaración vigente R7.6.1 — 2026-11-25
+
+Por decisión del propietario, la observación local DOC-01 no bloquea recuperar controles con lectores DEV. FR049/054/083/088/093/096/097/098 frontend recuperado; protección HTTP directa en despliegue sigue pendiente por separado. Virtual host descartado, ejemplo retirado, entorno8080 intacto. No nuevo finding ni recertificación J/P/K. La exigencia de instalación previa de la sección siguiente es evidencia histórica sustituida por esta decisión. Ver informe R76.
+
+
+## Evidencia focalizada R7.6 — DOC-01 / instalación (2026-11-25)
+
+No finding nuevo ni reapertura global J/P. PHP artisan serve :8080 usa server.php, cuyo file_exists retorna false antes de Laravel; .htaccess de DEV no aplica. HEAD anónimo al placeholder no comercial /images/entries/no_image.png=200 frente a nombre inexistente=302/login; ningún cuerpo/documento real descargado. Mantener ocho recuperaciones documentales pendientes hasta instalación del dispatch protegido. Readers/guards DEV presentes; limitación del servidor local, no resolver con URLs públicas alternativas. Ver REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-R76.md. ENTRY-R75-01/ENTRY-R4-01 intactos.
+
+Cupos: migrate:status Yes batch180 y schema max_active_companies/branches presentes. No alterar planes, no nuevo QA Platform. R7.5 queda como evidencia histórica de la instalación anterior.
+
+
+## Estado vigente R7.5 — 2026-11-25
+
+Esta adenda prevalece sobre estados históricos; no borra evidencia anterior. Ver REAL-NEXT-DEV-DELIVERY-INTEGRATION-2026-11-25.md, REAL-NEXT-DEV-DELIVERY-RECONCILIATION-2026-11-25.md y REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-PLAN.md.
+
+DEV41ed99f/0129133 (origin bf6e834) integrado. PROFILE01/MAT01/03/04/05/CASH02/03/04 con fixes comprobados en tests aislados; QA real mutador separado. C/Q parcial: NormalCreate/Edit y EntryCreate desbloqueados; nuevo ENTRY-R75-01: entry_edit exige edit_entryPurchase mientras ruta/DB usan update_entryPurchase. No seed ni bypass; DEV debe alinear. ENTRY-R4-01, INV01 ajuste/reportes, METRIC01 residual, DASH-R7-01 y FIN03 siguen abiertos. PUR-R3-01/02 fix presente, QA específico pendiente; impresión aún no recuperada. QA02 no cerrado globalmente.
+
+Finanzas/legacysettings/access retirados; Express/FreeSale/industrial/outputlegacy pausados; SupplierCredits y restantes legacy fuera de recuperación. Invoice y QuoteSale vigentes. J/P/K CLOSED BY BUSINESS DECISION — TECHNICAL LIMITATIONS DOCUMENTED; no equivalen a certificación técnica.
+
+107 FR únicos =62 recuperados +12 candidatos R7.6 +10 bloqueados +23 excluidos. Candidatos:017/018/036/046/049/054/083/088/093/096/097/098. Bloqueados:047/048/059/063/064/102/103/105/106/107. No nuevas recuperaciones contabilizadas por un fix backend. Universo197/40/157 permanece; R8 no iniciado.
+
+Owner cambia deliberadamente flujo: login tenant-only, dashboard.owner aun con contexto. Se conserva FR104 Exportar entradas con permisos/contexto, sin ejecutar. Platform instalación PENDING: migración2026_11_21_000001 No, faltan columnas max_active_companies/branches. No migraciones/cupos/roles compartidos modificados. 71tests/832assertions SQLite PASS;9tests renderer PASS;40renders responsive sin overflow/pageerror. ContextPOST interceptado: el real escribe defaults y NO se ejecutó.
+
+R7.6 GO WITH CONDITIONS; ningún reabrir automático GRE/Profile uploads/paquetes cerrados. Nuevo defecto ENTRY-R75-01 separado de hallazgos históricos. Backend propio0; CSS propio0; mutaciones negocio0; sin push.
+
+## Evidencia histórica preservada
+
 > Vigencia actual: ver **R3 scope closure + R4 — decisión vigente 2026-11-25** al final. Las prioridades previas de General/Express/OrderPurchaseFinance quedan sustituidas; no confundir Invoice/SupplierCredit.
 
 

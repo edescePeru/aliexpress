@@ -27,84 +27,18 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-        .letraTabla {
-            font-family: "Calibri", Arial, sans-serif; /* Utiliza Calibri si está instalado, de lo contrario, usa Arial o una fuente sans-serif similar */
-            font-size: 15px; /* Tamaño de fuente 11 */
-        }
-        .normal-title {
-            background-color: #203764; /* Color deseado para el fondo */
-            color: #fff; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .cliente-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .trabajo-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .documentacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .importe-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .facturacion-title {
-            background-color: #FFC000; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .abono-title {
-            background-color: #00B050; /* Color deseado para el fondo */
-            color: #000; /* Color deseado para el texto */
-            text-align: center;
-        }
-        .busqueda-avanzada {
-            display: none;
-        }
 
-        #btnBusquedaAvanzada {
-            display: inline-block;
-            text-decoration: none;
-            color: #007bff;
-            border-bottom: 1px solid transparent;
-            transition: border-bottom 0.3s ease;
-        }
-        #btnBusquedaAvanzada:hover {
-            border-bottom: 2px solid #007bff;
-        }
-        .vertical-center {
-            display: flex;
-            align-items: center;
-        }
-        .datepicker-orient-top {
-            top: 100px !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Reportes de Órdenes de Compra</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Compras · Reportes</span><h1 class="page-title">Órdenes por material</h1><p class="next-page-description">Consulta de compras por material en la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
     <h5 class="card-title">Reportes de Órdenes por Material</h5>
 
-    @hasanyrole('admin|principal|cordinator_operations')
+    @can('report_orderPurchaseExpress')
     <button type="button" id="btn-export" class="btn btn-outline-primary btn-sm float-right mr-2" > <i class="far fa-file-excel"></i> Descargar Excel </button>
-    @endhasanyrole
+    @endcan
 @endsection
 
 @section('page-breadcrumb')
@@ -119,12 +53,12 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <!--begin::Form-->
-    <form action="#">
+    <form action="#" class="next-form-section">
         <!--begin::Card-->
         <!--begin::Input group-->
         <div class="row">
 
-            <div class="col-md-2">
+            <div class="col-12 col-md-3 col-xl-2">
                 <label for="year">Año de la Orden:</label>
                 <select id="year" class="form-control select2" style="width: 100%;">
                     <option value="">TODOS</option>
@@ -134,7 +68,7 @@
                 </select>
             </div>
 
-            <div class="col-md-8">
+            <div class="col-12 col-md-9 col-xl-5">
                 <label for="material">Materiales:</label>
                 <select id="material" name="material" class="form-control select2" style="width: 100%;">
                     <option value="">TODOS</option>
@@ -144,75 +78,59 @@
                 </select>
             </div>
 
-            <div class="col-md-2">
-                <label for="quote">&nbsp;</label><br>
-                <button class="btn btn-primary btn-block" type="button" id="btn-search">Buscar</button>
-            </div>
-
-        </div>
-
-        <div class="row">
-            <div class="col-md-4">
-                <label for="campoExtra">Fechas de Orden:</label>
-                <div class="col-md-12" id="sandbox-container">
+            <div class="col-12 col-md-8 col-xl-4">
+                <label for="start">Fechas de orden:</label>
+                <div id="sandbox-container">
                     <div class="input-daterange input-group" id="datepicker">
                         <input type="text" class="form-control form-control-sm date-range-filter" id="start" name="start" autocomplete="off">
-                        <span class="input-group-addon">&nbsp;&nbsp;&nbsp; al &nbsp;&nbsp;&nbsp; </span>
+                        <span class="input-group-addon"> al </span>
                         <input type="text" class="form-control form-control-sm date-range-filter" id="end" name="end" autocomplete="off">
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-md-4 col-xl-1">
+                <label for="btn-search" class="d-block">&nbsp;</label>
+                <button class="btn btn-primary" type="button" id="btn-search">Buscar</button>
+            </div>
         </div>
-
     </form>
     <!--end::Form-->
 
-    <!--begin::Toolbar-->
-    <div class="d-flex flex-wrap flex-stack pb-7">
-        <!--begin::Title-->
-        <div class="d-flex flex-wrap align-items-center my-1">
-            <h3 class="fw-bolder me-5 my-1"><span id="numberItems"></span> Órdenes de Compra
-                <span class="text-gray-400 fs-6">por fecha de creación ↓ </span>
-            </h3>
-        </div>
-        <!--end::Title-->
-    </div>
-    <!--end::Toolbar-->
-
+    <div class="next-list-summary"><div><strong><span id="numberItems">0</span> Órdenes de Compra</strong><span class="text-muted"> · Fecha de orden, más recientes primero</span></div></div>
     <!--begin::Tab Content-->
     <div class="tab-content">
         <!--begin::Tab pane-->
-        <hr>
+
         <div class="table-responsive">
-            <table class="table table-bordered letraTabla table-hover table-sm mb-5">
+            <table class="table table-bordered table-hover table-sm next-data-table mb-0">
                 <thead>
-                <tr class="normal-title">
+                <tr >
                     <th>N°</th>
                     <th>Año</th>
                     <th>Observación</th>
-                    <th>Fecha de orden</th>
-                    <th>Fecha Llegada</th>
+                    <th class="text-center">Fecha de orden</th>
+                    <th class="text-center">Fecha Llegada</th>
                     <th>Proveedor</th>
                     <th>Aprovado Por</th>
-                    <th>Tipo / Estado</th>
-                    <th>Moneda</th>
+                    <th class="text-center">Tipo / Estado</th>
+                    <th class="text-center">Moneda</th>
                     {{--<th>Material</th>--}}
-                    <th>Cantidad</th>
-                    <th>Precio</th>
-                    <th>Total</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-right">Precio</th>
+                    <th class="text-right">Total</th>
                 </tr>
                 </thead>
-                <tbody id="body-table">
+                <tbody id="body-table"><tr><td colspan="12" class="text-center text-muted">Seleccione un material y pulse Buscar.</td></tr>
 
                 </tbody>
             </table>
         </div>
         <!--end::Tab pane-->
         <!--begin::Pagination-->
-        <div class="d-flex flex-stack flex-wrap pt-1">
+        <div class="next-list-pagination">
             <div class="fs-6 fw-bold text-gray-700" id="textPagination"></div>
             <!--begin::Pages-->
-            <ul class="pagination" style="margin-left: auto;" id="pagination">
+            <ul class="pagination mb-0" id="pagination">
 
             </ul>
             <!--end::Pages-->
@@ -253,19 +171,19 @@
 
     <template id="item-table">
         <tr>
-            <td data-code></td>
-            <td data-year></td>
+            <td data-code class="text-center"></td>
+            <td data-year class="text-center"></td>
             <td data-observation></td>
-            <td data-date_order></td>
-            <td data-date_arrival></td>
+            <td data-date_order class="text-center"></td>
+            <td data-date_arrival class="text-center"></td>
             <td data-supplier></td>
             <td data-approved_user></td>
-            <td data-state></td>
-            <td data-currency></td>
+            <td data-state class="text-center"></td>
+            <td data-currency class="text-center"></td>
             {{--<td data-material></td>--}}
-            <td data-quantity></td>
-            <td data-price></td>
-            <td data-total></td>
+            <td data-quantity class="text-center"></td>
+            <td data-price class="text-right"></td>
+            <td data-total class="text-right"></td>
         </tr>
     </template>
 

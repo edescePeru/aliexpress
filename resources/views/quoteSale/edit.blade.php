@@ -47,7 +47,7 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Cotizaciones</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas</span><h1 class="page-title">Editar cotización</h1><p class="next-page-description">Cotización del local activo.</p></div>
 @endsection
 
 @section('page-title')
@@ -80,7 +80,7 @@
         </div>
     </div>
 
-    <form id="formEdit" class="form-horizontal" data-url="{{ route('quoteSale.update') }}" enctype="multipart/form-data">
+    <form id="formEdit" class="form-horizontal next-form-section" data-url="{{ route('quoteSale.update') }}" enctype="multipart/form-data">
         @include('quoteSale._branchContext')
         @csrf
         <div class="row">
@@ -99,7 +99,7 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row">
                             <div class="col-md-12">
                                 <label for="descriptionQuote">Descripción general de cotización </label>
@@ -205,7 +205,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row">
                             <div class="col-md-12" style="display: none">
                                 <label for="description">Detalles de cotización <span class="right badge badge-danger">(*)</span></label>
@@ -223,7 +223,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
                                 <div class="row">
                                     <div class="col-md-10">
                                         <div class="form-group">
@@ -464,7 +464,7 @@
                                                 <button type="button"
                                                         data-deleteConsumable
                                                         class="btn btn-block btn-outline-danger btn-sm">
-                                                    <i class="fas fa-trash"></i>
+                                                    <i class="fas fa-trash next-row-action-item-icon"></i>
                                                 </button>
                                             </div>
 
@@ -484,7 +484,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="form-group">
@@ -690,7 +690,7 @@
 
                                             <div class="col-md-1">
                                                 <button type="button" data-deleteService class="btn btn-block btn-outline-danger btn-sm">
-                                                    <i class="fas fa-trash"></i>
+                                                    <i class="fas fa-trash next-row-action-item-icon"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -710,7 +710,7 @@
                                 </div>
                             </div>
 
-                            <div class="card-body" id="discountSection"
+                            <div class="card-body next-form-section" id="discountSection"
                                  data-discount_type="{{ $quote->discount_type ?? 'amount' }}"
                                  data-discount_input_mode="{{ $quote->discount_input_mode ?? 'with_igv' }}"
                                  data-discount_value="{{ $quote->discount_input_value ?? 0 }}">
@@ -986,7 +986,7 @@
 
             <div class="col-md-1">
                 <button type="button" data-deleteConsumable class="btn btn-block btn-outline-danger btn-sm">
-                    <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash next-row-action-item-icon"></i>
                 </button>
             </div>
 
@@ -1050,13 +1050,13 @@
 
             <div class="col-md-1">
                 <button type="button" data-deleteService class="btn btn-block btn-outline-danger btn-sm">
-                    <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash next-row-action-item-icon"></i>
                 </button>
             </div>
         </div>
     </template>
 
-    <div id="modalQuantityConsumable" class="modal fade" tabindex="-1">
+    <div id="modalQuantityConsumable" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
 
@@ -1104,7 +1104,7 @@
         </div>
     </div>
 
-    <div id="modalSelectItemeableItems" class="modal fade" tabindex="-1">
+    <div id="modalSelectItemeableItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
@@ -1209,7 +1209,7 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal fade" id="promotionModal" tabindex="-1" role="dialog" aria-labelledby="promotionModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="promotionModal" tabindex="-1" role="dialog" aria-labelledby="promotionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1226,7 +1226,7 @@
     </div>
 
     <!-- Modal Cliente -->
-    <div class="modal fade" id="modalCustomer" tabindex="-1" role="dialog" aria-labelledby="modalCustomerLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalCustomer" tabindex="-1" role="dialog" aria-labelledby="modalCustomerLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 

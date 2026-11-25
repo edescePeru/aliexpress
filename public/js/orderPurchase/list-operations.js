@@ -6,19 +6,20 @@
         return '<' + (attrs.href ? 'a' : 'button type="button"') + ' class="dropdown-item' + (destructive ? ' text-danger' : '') + '" role="menuitem" ' + Object.keys(attrs).map(function (key) { return key + '="' + escape(attrs[key]) + '"'; }).join(' ') + '><i class="fas ' + icon + ' next-row-action-item-icon" aria-hidden="true"></i><span>' + label + '</span></' + (attrs.href ? 'a' : 'button') + '>';
     }
     window.PurchaseListOperations = {
-        render: function (row, permissions, deleted) {
+        render: function (row, permissions, deleted, recoverNormalEdit) {
             var can = function (permission) { return permissions.indexOf(permission) !== -1; };
             var id = encodeURIComponent(row.id), links = '';
             if (deleted) {
                 if (can('list_orderPurchaseNormal') && can('destroy_orderPurchaseNormal')) links += item('Ver detalle histórico', 'fa-eye', {href:'/dashboard/ver/orden/compra/eliminada/' + id, 'data-ver_orden':''});
                 if (can('destroy_orderPurchaseNormal')) links += item('Restaurar', 'fa-trash-restore', {'data-restore':row.id, 'data-name':row.code});
-                // Deleted print is pending DEV: its query excludes soft-deleted orders.
+                if (can('list_orderPurchaseNormal')) links += item('Imprimir orden eliminada', 'fa-print', {href:'/dashboard/imprimir/orden/compra/eliminada/' + id, target:'_blank', rel:'noopener', 'data-imprimir':''});
             } else {
                 if (row.type === 'n' && can('list_orderPurchaseNormal')) links += item('Ver orden', 'fa-eye', {href:'/dashboard/ver/orden/compra/normal/' + id, 'data-ver_orden':''});
+                if (recoverNormalEdit === true && row.type === 'n' && can('update_orderPurchaseNormal')) links += item('Editar orden', 'fa-pen', {href:'/dashboard/editar/orden/compra/normal/' + id, 'data-editar':''});
                 if ((row.type === 'n' || row.type === 'e') && can('list_orderPurchaseNormal')) links += item('Imprimir orden', 'fa-print', {href:'/dashboard/imprimir/orden/compra/' + id, target:'_blank', rel:'noopener', 'data-imprimir':''});
                 if (row.type === 'n' && can('update_orderPurchaseNormal')) links += item('Cambiar estado', 'fa-exchange-alt', {'data-estado':'', 'data-state':row.id, 'data-name':row.code});
                 if (row.type === 'n' && can('destroy_orderPurchaseNormal')) links += item('Anular orden', 'fa-trash', {'data-anular':'', 'data-delete':row.id, 'data-name':row.code}, true);
-                // Create/edit and Express detail/operations remain individually tracked blockers.
+                // Recovery is explicit for the active Normal list, not legacy General/Express.
             }
             if (!links) return '—';
             var trigger = 'purchase-actions-' + (deleted ? 'trash-' : '') + row.id;

@@ -24,7 +24,7 @@ class ProfileMutationClosureTest extends TestCase {
  }
  private function upload($name='qa.png',$body=null){
   $path=tempnam(sys_get_temp_dir(),'pqa');
-  file_put_contents($path,$body===null?base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3ioAAAAASUVORK5CYII='):$body);
+  if($body===null){$image=imagecreatetruecolor(2,2);imagepng($image,$path);imagedestroy($image);}else{file_put_contents($path,$body);}
   return new UploadedFile($path,$name,null,null,true);
  }
  public function test_foreign_and_missing_targets_fail_closed_before_validation(){
@@ -54,22 +54,22 @@ class ProfileMutationClosureTest extends TestCase {
   $payload['current_password']='Temporary-old-123';$this->postJson('/qa-profile/password/1',$payload)->assertOk();
   $u=User::find(1);$this->assertTrue(Hash::check('Temporary-new-123',$u->password));$this->assertFalse(Hash::check('Temporary-old-123',$u->password));$this->assertSame($foreign,User::find(2)->password);$this->assertSame('unchanged',$u->remember_token);$this->assertSame(0,DB::transactionLevel());$this->assertEquals(1,auth()->id());
  }
- public function test_image_success_and_observed_validation_cleanup_debt(){
+ public function test_image_success_reencoding_and_validation_preserve_previous_uncertain_file(){
   $this->postJson('/qa-profile/image/1',[])->assertStatus(422);
   file_put_contents($this->dir.'/images/users/previous.jpg','previous');DB::table('users')->where('id',1)->update(['image'=>'previous.jpg']);
   $this->post('/qa-profile/image/1',['image'=>$this->upload()],['Accept'=>'application/json'])->assertOk();
-  $this->assertSame('1.png',User::find(1)->image);$this->assertFileExists($this->dir.'/images/users/1.png');
-  // Characterization of current defects, NOT acceptance assertions.
+  $name=User::find(1)->image;$this->assertMatchesRegularExpression('/^avatar-1-[a-f0-9]{32}\.png$/',$name);$this->assertFileExists($this->dir.'/images/users/'.$name);
+  // R7.5: historical uncertain names are preserved; invalid bytes must not replace the new avatar.
   $this->assertFileExists($this->dir.'/images/users/previous.jpg');
-  $this->post('/qa-profile/image/1',['image'=>$this->upload('qa.txt','harmless non-image')],['Accept'=>'application/json'])->assertOk();
-  $this->assertSame('1.txt',User::find(1)->image);
+  $this->post('/qa-profile/image/1',['image'=>$this->upload('qa.txt','harmless non-image')],['Accept'=>'application/json'])->assertStatus(422);
+  $this->assertSame($name,User::find(1)->image);
  }
- public function test_observed_save_failure_overwrites_previous_avatar(){
+ public function test_save_failure_preserves_previous_avatar_and_cleans_new_file(){
   file_put_contents($this->dir.'/images/users/1.png','previous-avatar');DB::table('users')->where('id',1)->update(['image'=>'1.png']);
   User::saving(function(){throw new \RuntimeException('QA forced persistence failure');});
   try {$this->post('/qa-profile/image/1',['image'=>$this->upload()],['Accept'=>'application/json'])->assertStatus(500);
-   $this->assertNotSame('previous-avatar',file_get_contents($this->dir.'/images/users/1.png'));
-   $this->assertSame('1.png',DB::table('users')->where('id',1)->value('image'));
+   $this->assertSame('previous-avatar',file_get_contents($this->dir.'/images/users/1.png'));
+   $this->assertSame('1.png',DB::table('users')->where('id',1)->value('image'));$this->assertCount(1,glob($this->dir.'/images/users/*'));
   } finally {User::flushEventListeners();}
  }
 }

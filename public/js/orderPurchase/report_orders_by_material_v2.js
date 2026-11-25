@@ -162,6 +162,7 @@ function getDataOrdersRequest($numberPage) {
 
     if ( material != "" )
     {
+        $('#body-table').html('<tr><td colspan="12" class="text-center text-muted" role="status">Cargando órdenes...</td></tr>');
         $.get('/dashboard/get/data/order/purchase/by/material/'+$numberPage, {
             year: year,
             material: material,
@@ -178,8 +179,12 @@ function getDataOrdersRequest($numberPage) {
         }).fail(function(jqXHR, textStatus, errorThrown) {
             // Función de error, se ejecuta cuando la solicitud GET falla
             console.error(textStatus, errorThrown);
-            if (jqXHR.responseJSON.message && !jqXHR.responseJSON.errors) {
-                toastr.error(jqXHR.responseJSON.message, 'Error', {
+            var response = jqXHR.responseJSON || {};
+            $('#body-table').html('<tr><td colspan="12" class="text-center text-danger" role="alert">No se pudo consultar el reporte. Vuelva a intentar.</td></tr>');
+            $('#pagination, #textPagination, #numberItems').empty();
+            if (!response.message && !response.errors) { toastr.error('No se pudo consultar el reporte.', 'Error'); }
+            if (response.message && !response.errors) {
+                toastr.error(response.message, 'Error', {
                     "closeButton": true,
                     "debug": false,
                     "newestOnTop": false,
@@ -197,8 +202,8 @@ function getDataOrdersRequest($numberPage) {
                     "hideMethod": "fadeOut"
                 });
             }
-            for (var property in jqXHR.responseJSON.errors) {
-                toastr.error(jqXHR.responseJSON.errors[property], 'Error', {
+            for (var property in response.errors) {
+                toastr.error(response.errors[property], 'Error', {
                     "closeButton": true,
                     "debug": false,
                     "newestOnTop": false,

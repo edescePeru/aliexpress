@@ -79,7 +79,7 @@
 @endsection
 
 @section('page-header')
-    <h1 class="page-title">Cotizaciones</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas</span><h1 class="page-title">Crear cotización</h1><p class="next-page-description">Cotización del local activo.</p></div>
 @endsection
 
 @section('page-title')
@@ -116,7 +116,7 @@
 
     <form
             id="formCreate"
-            class="form-horizontal"
+            class="form-horizontal next-form-section"
             data-url="{{ route('quoteSale.store') }}"
             enctype="multipart/form-data"
     >
@@ -150,7 +150,7 @@
                         </div>
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
 
                         <div class="form-group row">
                             <div class="col-md-12">
@@ -390,7 +390,7 @@
 
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
 
                         <div
                                 class="col-md-12"
@@ -439,7 +439,7 @@
 
                             </div>
 
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
 
                                 <div class="row">
 
@@ -549,7 +549,7 @@
 
                             </div>
 
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
 
                                 <div class="row">
 
@@ -842,7 +842,7 @@
                                                         data-deleteService
                                                         class="btn btn-block btn-outline-danger btn-sm"
                                                 >
-                                                    <i class="fas fa-trash"></i>
+                                                    <i class="fas fa-trash next-row-action-item-icon"></i>
                                                 </button>
 
                                             </div>
@@ -883,7 +883,7 @@
                             </div>
 
                             <div
-                                    class="card-body"
+                                    class="card-body next-form-section"
                                     id="discountSection"
                                     data-discount_type="amount"
                                     data-discount_input_mode="with_igv"
@@ -1199,7 +1199,7 @@
                 <button
                         type="button"
                         id="btn-submit"
-                        class="btn btn-outline-success float-right"
+                        class="btn btn-primary float-right"
                 >
                     Guardar cotización
                 </button>
@@ -1352,7 +1352,7 @@
                         data-deleteConsumable
                         class="btn btn-block btn-outline-danger btn-sm"
                 >
-                    <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash next-row-action-item-icon"></i>
                 </button>
 
             </div>
@@ -1500,7 +1500,7 @@
                         data-deleteService
                         class="btn btn-block btn-outline-danger btn-sm"
                 >
-                    <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash next-row-action-item-icon"></i>
                 </button>
 
             </div>
@@ -1514,7 +1514,7 @@
     {{-- ========================================================= --}}
 
     <div
-            class="modal fade"
+            class="modal fade next-aux-modal"
             id="promotionModal"
             tabindex="-1"
             role="dialog"
@@ -1564,7 +1564,7 @@
     {{-- ========================================================= --}}
 
     <div
-            class="modal fade"
+            class="modal fade next-aux-modal"
             id="modalCustomer"
             tabindex="-1"
             role="dialog"
@@ -1738,7 +1738,7 @@
 
     <div
             id="modalQuantityConsumable"
-            class="modal fade"
+            class="modal fade next-aux-modal"
             tabindex="-1"
     >
 
@@ -1862,7 +1862,7 @@
 
     <div
             id="modalSelectItemeableItems"
-            class="modal fade"
+            class="modal fade next-aux-modal"
             tabindex="-1"
     >
 

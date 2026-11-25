@@ -198,7 +198,7 @@ function renderDataTable(data) {
     // Status text and type are supplied by the current backend contract.
     clone.querySelector('[data-type]').innerHTML = data.typeText.replace(/bg-(primary|success|warning)/g, 'badge-$1');
     clone.querySelector('[data-state]').innerHTML = data.stateText.replace(/bg-(primary|success|warning)/g, 'badge-$1');
-    clone.querySelector('[data-buttons]').innerHTML = PurchaseListOperations.render(data, $permissions, false);
+    clone.querySelector('[data-buttons]').innerHTML = PurchaseListOperations.render(data, $permissions, false, true);
     $('#body-table').append(clone);
 }
 

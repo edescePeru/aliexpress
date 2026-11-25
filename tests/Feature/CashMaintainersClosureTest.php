@@ -24,6 +24,10 @@ class CashMaintainersClosureTest extends TestCase
         DB::setDefaultConnection('cash_qa_memory');
         $this->assertSame(':memory:',DB::connection()->getConfig('database'));
         $this->context(1,1,1);
+        Schema::create('companies',function($t){$t->increments('id');$t->integer('tenant_id');$t->boolean('is_active');});
+        Schema::create('company_user',function($t){$t->integer('company_id');$t->integer('user_id');$t->boolean('is_active');});
+        foreach([[1,1],[2,1],[3,3]] as $c){DB::table('companies')->insert(['id'=>$c[0],'tenant_id'=>$c[1],'is_active'=>1]);DB::table('company_user')->insert(['company_id'=>$c[0],'user_id'=>1,'is_active'=>1]);}
+
         Schema::create('branches',function($t){$t->increments('id');$t->integer('company_id');$t->string('name');});
         foreach([[1,1],[8,1],[2,2],[4,3]] as $b) DB::table('branches')->insert(['id'=>$b[0],'company_id'=>$b[1],'name'=>'QA Branch']);
         Schema::create('company_bank_accounts',function($t){$t->increments('id');$t->integer('tenant_id');$t->integer('company_id');$t->boolean('is_active');$t->string('currency');});
@@ -40,9 +44,9 @@ class CashMaintainersClosureTest extends TestCase
         });
         // Synthetic references only: no CashRegister open/close or CashMovement posting.
         Schema::create('cash_registers',function($t){$t->increments('id');$t->integer('tenant_id');$t->integer('company_id');$t->integer('cash_box_id');$t->integer('status');});
-        Schema::create('cash_movements',function($t){$t->increments('id');$t->integer('cash_box_id');$t->integer('cash_box_subtype_id')->nullable();});
+        Schema::create('cash_movements',function($t){$t->increments('id');$t->integer('cash_box_id');$t->integer('cash_box_subtype_id')->nullable();$t->integer('tenant_id')->default(1);$t->integer('company_id')->default(1);$t->string('type')->default('sale');$t->decimal('amount',14,2)->default(1);$t->boolean('regularize')->default(false);$t->timestamp('deferred_cancelled_at')->nullable();});
     }
-    private function context($t,$c,$b): void {session()->put('multitenancy',['tenant_id'=>$t,'company_id'=>$c,'branch_id'=>$b]);}
+    private function context($t,$c,$b): void {session()->put('multitenancy',['tenant_id'=>$t,'company_id'=>$c,'branch_id'=>$b]);$u=new \App\User();$u->forceFill(['id'=>1,'tenant_id'=>$t,'enable'=>1,'is_platform_admin'=>0]);\Illuminate\Support\Facades\Auth::setUser($u);}
     private function request(array $data): Request {return Request::create('/','POST',$data);}
     private function boxPayload(array $data=[]): array {return array_merge(['name'=>'QA CASH BOX','type'=>'cash','branch_id'=>1,'currency'=>'PEN','position'=>0],$data);}
     private function subPayload(array $data=[]): array {return array_merge(['name'=>'QA CASH SUBTYPE','code'=>'qa_immediate','cash_box_id'=>null,'is_deferred'=>0,'requires_commission'=>0],$data);}
@@ -140,18 +144,20 @@ class CashMaintainersClosureTest extends TestCase
         $this->assertSame(0,app(PosCashService::class)->subtypes([])->count());
         $ctl->toggle($this->request(['id'=>$sub->id]));$this->assertTrue($sub->fresh()->is_active);
     }
-    /** Characterization, not safety approval: keep these gaps visible until backend policy is fixed. */
-    public function test_known_gaps_currency_and_historical_semantics_remain_open()
+    /** R7.5: accepted cash history rules, isolated synthetic references only. */
+    public function test_currency_and_historical_semantics_are_immutable()
     {
-        $box=$this->box(['currency'=>'XYZ']);$this->assertSame('XYZ',$box->currency);
+        $this->rejects(function(){return app(CashBoxController::class)->store($this->request($this->boxPayload(['currency'=>'XYZ'])));});
+        $box=$this->box();DB::table('cash_boxes')->where('id',$box->id)->update(['currency'=>'XYZ']);$box->refresh(); // Isolated historical unknown currency.
         DB::table('cash_registers')->insert(['tenant_id'=>1,'company_id'=>1,'cash_box_id'=>$box->id,'status'=>1]);
         $sub=$this->sub(['is_deferred'=>1]);DB::table('cash_movements')->insert(['cash_box_id'=>$box->id,'cash_box_subtype_id'=>$sub->id]);
-        $r=app(CashBoxController::class)->update($this->request($this->boxPayload(['id'=>$box->id,'currency'=>'USD'])));
-        $this->assertSame(200,$r->getStatusCode());$this->assertSame('USD',$box->fresh()->currency);
-        $r=app(CashBoxSubtypeController::class)->update($this->request($this->subPayload(['id'=>$sub->id,'is_deferred'=>0])));
-        $this->assertSame(200,$r->getStatusCode());$this->assertFalse($sub->fresh()->is_deferred);
-        $r=app(CashBoxSubtypeController::class)->toggle($this->request(['id'=>$sub->id]));$this->assertSame(200,$r->getStatusCode());
-        $this->assertFalse($sub->fresh()->is_active);$this->assertSame(1,DB::table('cash_movements')->count());
+        $this->rejects(function()use($box){return app(CashBoxController::class)->update($this->request($this->boxPayload(['id'=>$box->id,'currency'=>'USD'])));});
+        $this->assertSame('XYZ',$box->fresh()->currency);
+        $this->rejects(function()use($sub){return app(CashBoxSubtypeController::class)->update($this->request($this->subPayload(['id'=>$sub->id,'is_deferred'=>0])));});
+        $this->assertTrue($sub->fresh()->is_deferred);
+        DB::table('cash_registers')->update(['status'=>0]);
+        $this->rejects(function()use($sub){return app(CashBoxSubtypeController::class)->toggle($this->request(['id'=>$sub->id]));});
+        $this->assertTrue($sub->fresh()->is_active);$this->assertSame(1,DB::table('cash_movements')->count());
     }
     public function test_validation_errors_render_as_json_422_for_ajax()
     {
@@ -165,12 +171,10 @@ class CashMaintainersClosureTest extends TestCase
             }
         }
     }
-    public function test_known_gap_omitted_nullable_subtype_scope_is_not_handled()
+    public function test_omitted_nullable_subtype_scope_is_handled()
     {
         $data=$this->subPayload();unset($data['cash_box_id']);
-        $this->expectException(\ErrorException::class);
-        $this->expectExceptionMessage('Undefined index: cash_box_id');
-        app(CashBoxSubtypeController::class)->store($this->request($data));
+        $this->assertSame(201,app(CashBoxSubtypeController::class)->store($this->request($data))->getStatusCode());$this->assertNull(CashBoxSubtype::first()->cash_box_id);
     }
     public function test_inactive_and_ineligible_boxes_cannot_receive_specific_subtypes()
     {

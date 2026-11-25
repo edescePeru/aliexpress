@@ -48,7 +48,9 @@
             post($(this), root.attr('data-update-url'), {company_id: company.val(), branch_id: branch.val()});
         });
         $('#tenant-context-clear').on('click', function (event) { event.preventDefault(); event.stopPropagation(); post($(this), root.attr('data-clear-url'), {}); });
-        $('[data-owner-company]').on('click', function () {
+        $('[data-owner-company]').on('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
             company.val(String($(this).attr('data-owner-company'))).trigger('change');
             root.find('[data-toggle="dropdown"]').dropdown('show');
             company.trigger('focus');

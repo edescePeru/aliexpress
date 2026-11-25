@@ -4,6 +4,15 @@
     var invoiceRows = Object.create(null), detailRequest, detailVersion = 0;
     function safe(value) { return $('<span>').text(value == null ? '' : String(value)).html(); }
     function can(permission) { return JSON.parse($('#entry-invoice-permissions').val() || '[]').indexOf(permission) !== -1; }
+    function documentItem(filename, kind, label) {
+        if (typeof filename !== 'string' || !filename || /^no_image\.(png|jpg)$/i.test(filename)
+            || /[\x00-\x1f\x7f\\/]/.test(filename) || !/\.(pdf|jpe?g|png|gif|webp)$/i.test(filename)) return '';
+        var template = $('#entry-document-routes').attr('data-' + kind);
+        if (!template || template.indexOf('__ENTRY_FILE__') === -1) return '';
+        return item(label, /\.pdf$/i.test(filename) ? 'fa-file-pdf' : 'fa-image', {
+            href: template.replace('__ENTRY_FILE__', encodeURIComponent(filename)), target: '_blank', rel: 'noopener', 'data-entry-document': kind
+        });
+    }
     function item(label, icon, attrs, destructive) {
         var tag = attrs.href ? 'a' : 'button';
         return '<' + tag + (tag === 'button' ? ' type="button"' : '') + ' class="dropdown-item' + (destructive ? ' text-danger' : '') + '" role="menuitem" ' + Object.keys(attrs).map(function (key) { return key + '="' + safe(attrs[key]) + '"'; }).join(' ') + '><i class="fas ' + icon + ' next-row-action-item-icon" aria-hidden="true"></i><span>' + label + '</span></' + tag + '>';
@@ -18,7 +27,15 @@
                 }
                 if (row.can_receive === true && can('create_entryPurchase')) links += item('Recibir productos', 'fa-dolly', {href:'/dashboard/crear/entrada/compra/orden/' + id, 'data-crear_entrada':''});
             } else if (mode === 'entry' || mode === 'report') {
-                if (can('list_entryPurchase')) links += item('Ver detalles', 'fa-eye', {'data-detail':row.id});
+                if (can('list_entryPurchase')) {
+                    links += item('Ver detalles', 'fa-eye', {'data-detail':row.id});
+                    links += documentItem(row.image, 'main', 'Ver adjunto');
+                    links += documentItem(row.imageOb, 'observation', 'Ver observación');
+                }
+                if (mode === 'entry' && can('update_entryPurchase')) {
+                    var extras = $('#entry-document-routes').attr('data-extras');
+                    if (extras && extras.indexOf('__ENTRY_ID__') !== -1) links += item('Documentos extras', 'fa-folder-open', {href:extras.replace('__ENTRY_ID__', id), 'data-documentos':''});
+                }
                 // ENTRY-R4-01: purchase deletion lacks an explicit finance=false boundary.
             } else {
                 invoiceRows[row.id] = row;
@@ -26,6 +43,8 @@
                     links += item('Ver factura', 'fa-eye', {href:'/dashboard/factura/compra/ver/' + id});
                     // The scoped list already returns details. No unguarded auxiliary endpoint is needed.
                     links += item('Ver detalles', 'fa-search', {'data-details':row.id, 'data-code':'0'});
+                    links += documentItem(row.image, 'main', 'Ver adjunto');
+                    links += documentItem(row.imageOb, 'observation', 'Ver observación');
                 }
                 if (mode === 'invoice-report' && can('update_invoice') && !Number(row.state_annulled)) links += item('Editar factura', 'fa-pen', {href:'/dashboard/factura/compra/editar/' + id});
                 var reportCondition = row.purchase_order == null || String(row.purchase_order).charAt(0) === '0';
