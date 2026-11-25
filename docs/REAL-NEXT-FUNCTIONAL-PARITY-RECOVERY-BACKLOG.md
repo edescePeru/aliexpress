@@ -1,5 +1,16 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## R8.0/R8.1 — checkpoint de auditoría semántica, 2026-11-25
+
+HEAD auditado6df57e7d73a2546bc283527b166041584bfc708f; R7.7E local preservado. Auditoría global **PARTIAL**, no nueva recuperación. Ver REAL-NEXT-R8-SEMANTIC-SURFACE-INVENTORY.md, REAL-NEXT-R8-FUNCTIONAL-PARITY-AUDIT.md y REAL-NEXT-R8-RECOVERY-PLAN.md. Contabilidad intacta: **74 recuperadas +10 bloqueadas +23 excluidas =107**; no FR108 asignado.
+
+- Se resuelve la observación R7.7C/D de QuoteSale Edit:83dbe6c (DEV,2026-01-23) comenta Guardar generales y agrega esos campos al guardado unificado; HEAD conserva handler/payload y updateEquipmentOfQuote actualiza el encabezado. **INTENTIONAL DEV CHANGE, no pérdida de homologación**. No restaurar botón separado por inferencia.
+- Exportar Órdenes por Material: gate de roles desde d9c21ec, corregido bf14723/R7.7C a report_orderPurchaseExpress. **Gate histórico ya corregido, no pérdida introducida por Next**. No duplica FR028/057/058/063/064/103 y no aumenta las74 recuperadas.
+- Recepción de órdenes sigue vigente: orden2 de EDESCE revalidada en lectura, formulario y Guardar presentes; falta homologación visual. FR050 ya contabilizado, no nuevo FR.
+- Censo provisional379 superficies/variantes, no379 pantallas activas: diferencia de unidad respecto de197 rutas originales.16 superficies con revisión focalizada R8; cola y límites explícitos en inventario. No cerrar auditoría por búsqueda de tokens ni clasificar QA pendiente como retiro.
+
+Sin cambios de implementación en R8, sin mutaciones ni R8.2. Historia y blockers inferiores preservados.
+
 ## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
 
 Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.

@@ -102,8 +102,9 @@
 
                     <div class="modal-body">
                         <input type="hidden" name="id" id="st_id">
+                        <div class="form-row">
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-12">
                             <label for="st_cash_box_id">Alcance</label>
                             <select class="form-control" name="cash_box_id" id="st_cash_box_id">
                                 <option value="global">Toda la empresa</option>
@@ -113,19 +114,19 @@
                             </select>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-6">
                             <label for="st_code">Código</label>
                             <input type="text" class="form-control" name="code" id="st_code" maxlength="50" required placeholder="yape / plin / pos / transfer">
                             <small class="text-muted">Se guardará en minúsculas, sin espacios (se reemplaza por guión bajo).</small>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-6">
                             <label for="st_name">Nombre</label>
                             <input type="text" class="form-control" name="name" id="st_name" maxlength="120" required placeholder="Yape">
                         </div>
 
                         {{-- ✅ NUEVOS FLAGS --}}
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-6">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="st_is_deferred" name="is_deferred">
                                 <label class="custom-control-label" for="st_is_deferred">
@@ -135,7 +136,7 @@
                             <small class="text-muted">Ej: POS/pasarela que deposita después.</small>
                         </div>
 
-                        <div class="form-group" id="wrap_requires_commission" style="display:none;">
+                        <div class="form-group col-12 col-md-6" id="wrap_requires_commission" style="display:none;">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="st_requires_commission" name="requires_commission">
                                 <label class="custom-control-label" for="st_requires_commission">
@@ -144,11 +145,12 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-6">
                             <label for="st_position">Orden (posición)</label>
                             <input type="number" class="form-control" name="position" id="st_position" min="0" value="0">
                         </div>
 
+                        </div>
                     </div>
 
                     <div class="modal-footer">

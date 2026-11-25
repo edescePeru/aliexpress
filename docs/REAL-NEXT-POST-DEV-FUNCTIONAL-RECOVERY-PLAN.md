@@ -75,3 +75,13 @@ Tres superficies homologadas: quoteSale.create, quoteSale.edit (cotización79 ED
 Ver REAL-NEXT-OWNER-PLATFORM-STRUCTURE-LIMITS-HOMOLOGATION.md. Dos dashboards homologados y Create/Edit de Planes reconciliados;12 páginas revisadas,9 páginas relacionadas ya conformes sin cambios. Allowlist existente suficiente. Migración estructural confirmada batch180; máximos empresas/locales reales NULL: pendientes, no ilimitados ni modificados.61 comprobaciones focalizadas Chrome aislado; contexto y export FR104 interceptados. Backend/JS/CSS nuevo/infraestructura/mutaciones0. Contabilidad74+10+23=107 intacta.
 
 Candidato R8 explícito: QuoteSale Edit /dashboard/editar/cotizacion/venta/79, Guardar datos generales comentado; investigar origen/intención/alcanzabilidad/contrato antes de decidir recuperación o retiro. No intervenir aquí. R7.7E/R8 no iniciadas. Sin commit/push/merge; revisión del propietario pendiente.
+
+## R7.7E — Cash Box / Subtype — 2026-11-25
+
+Checkpoint compartido **6df57e7**, rama feature/venti-next-frontend, working tree inicial limpio. Este commit es el baseline de la futura R8; sin fetch/pull/merge. Ver [reconciliación CASH-02/03/04](REAL-NEXT-CASH-BOX-SUBTYPE-POST-DEV-RECONCILIATION.md).
+
+Dos mantenedores reconciliados con los contratos actuales. Crear/editar/activar/desactivar ya estaban disponibles; cero gates obsoletos y cero capacidades nuevas contabilizadas. Restricciones transaccionales DEV preservadas; QA pendiente no oculta controles. Ajuste visual mínimo en dos Blade: grilla Bootstrap en los modales para agrupar campos relacionados y mejorar densidad; cero JS/CSS/backend/infraestructura.
+
+DTO real EDESCE C1:4 cajas (1,2,5,6),5 subtipos (1,2,3,4,6). Lectura con transacción MySQL read-only. Chrome aislado:34 comprobaciones focalizadas,8 POST interceptados con rechazo SIMULATED, cero escrituras comerciales.375/1440/1920/2560 sin overflow global; precarga bancaria/diferida, iconos, modales y recuperación tras error PASS. Blade compile y diff check PASS. Sin recertificar pruebas backend DEV ni concurrencia; mutaciones reales permanecen pendientes.
+
+**R7.7 COMPLETE en alcance frontend. R8 GO WITH CONDITIONS**, a la espera del propietario; R8 no iniciada. Condiciones: conservar10 blockers/23 exclusiones, candidato QuoteSale Edit de R7.7D, límites de evidencia y QA mutadora pendiente. No findings DEV nuevos ni cambios de backlogs. Contabilidad: **74 recuperadas +10 bloqueadas +23 excluidas =107**. No commit/push/merge.

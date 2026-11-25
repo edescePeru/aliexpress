@@ -107,13 +107,14 @@
 
                     <div class="modal-body">
                         <input type="hidden" name="id" id="cb_id">
+                        <div class="form-row">
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-8">
                             <label for="cb_name">Nombre</label>
                             <input type="text" class="form-control" name="name" id="cb_name" required maxlength="120">
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-4">
                             <label for="cb_type">Tipo</label>
                             <select class="form-control" name="type" id="cb_type" required>
                                 <option value="cash">Efectivo</option>
@@ -121,7 +122,7 @@
                             </select>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-12">
 
                             <label for="cb_branch_id">
                                 Alcance
@@ -155,7 +156,7 @@
 
                         </div>
 
-                        <div class="form-group" id="wrap_uses_subtypes">
+                        <div class="form-group col-12 col-md-12" id="wrap_uses_subtypes">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="cb_uses_subtypes" name="uses_subtypes">
                                 <label class="custom-control-label" for="cb_uses_subtypes">
@@ -165,6 +166,7 @@
                         </div>
 
                         <div
+                                class="col-12"
                                 id="wrap_bank_fields"
                                 style="display:none;"
                         >
@@ -216,7 +218,7 @@
 
                         </div>
 
-                        <div class="form-group" id="wrap_currency">
+                        <div class="form-group col-12 col-md-6" id="wrap_currency">
                             <label for="cb_currency">Moneda (opcional)</label>
                             <select class="form-control" name="currency" id="cb_currency">
                                 <option value="">(Sin definir)</option>
@@ -225,11 +227,12 @@
                             </select>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group col-12 col-md-6">
                             <label for="cb_position">Orden (posición)</label>
                             <input type="number" class="form-control" name="position" id="cb_position" min="0" value="0">
                         </div>
 
+                        </div>
                     </div>
 
                     <div class="modal-footer">
