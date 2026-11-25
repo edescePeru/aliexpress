@@ -29,5 +29,5 @@
 <p class="text-muted mb-0">Hay líneas sin snapshot fiscal. El backend aplica su cálculo histórico a esas líneas; estos importes no certifican una tasa fiscal almacenada.</p>
 @endif
 </div>
-<div class="next-form-section"><h2 class="h6">Documento adjunto</h2><p class="text-muted mb-0">{{ $entry->image ? 'Adjunto registrado. Acceso documental pendiente de validación.' : 'Sin adjunto registrado.' }}</p></div>
+<div class="next-form-section"><h2 class="h6">Documento adjunto</h2>@include('entry.partials.document-links', ['documentPermission' => 'list_invoice', 'includeObservation' => false])</div>
 @endsection

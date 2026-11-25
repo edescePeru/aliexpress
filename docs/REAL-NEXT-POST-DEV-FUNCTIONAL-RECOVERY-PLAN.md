@@ -1,5 +1,29 @@
 # REAL NEXT — Post-DEV Functional Recovery Plan (R7.6)
 
+## Estado vigente R7.6.1 — Document Functional Recovery — 2026-11-25
+
+Decisión explícita del propietario: virtual host descartado; mantener http://127.0.0.1:8080 y PHP7.3.33. La limitación de artisan serve no bloquea por sí sola los controles que usan el contrato autorizado DEV. Esta sección sustituye la clasificación de instalación pendiente de R7.6; la evidencia anterior se conserva como historia, no como estado vigente.
+
+**DOCUMENT CAPABILITIES RESTORED: 8/8.** FR-049/054/083/088/093/096/097/098 recuperadas mediante entry.document.main / observation / extra y navegación contextual existente. No asset() para adjuntos ni fallback público. Los paths de los lectores coinciden intencionalmente con /images/entries/... por contrato DEV; usar route() no convierte artisan serve en un servidor que aplique .htaccess.
+
+**107 FR = 74 recuperados + 10 bloqueados backend + 23 excluidos.** R7.6 acumula 12/12 recuperadas (4 anteriores +8 documentales). Permanecen FR047/048/059/063/064/102/103/105/106/107; no nuevos blockers del lector demostrados. DOC-01 conserva observación de entorno y verificación HTTP directa pendiente en despliegue, fuera del conteo de pérdidas frontend. No equivale a certificación integral de seguridad.
+
+Validación propia: 8 tests Node PASS (4 documentales +4 regresión R7.6), Blade compile y sintaxis JS PASS; 16 comprobaciones Chrome headless aislado (8 superficies ×375/1440), 16 navegaciones interceptadas; cero pageerrors y overflow global. Metadatos documentales SIMULADOS sobre render/DTO real leído sin escrituras; ninguna descarga comercial. Permisos negativos simulados en renderer. No se repite certificación backend DEV ni J/P/K. Backend/CSS/infraestructura/mutaciones comerciales:0. Sin commit/push/merge. R7.7/R8 no iniciadas.
+
+Propuesta Apache descartada: retirado docs/environment/aliexpress-apache-local.conf.example, generado exclusivamente para esa propuesta y nunca instalado. URL vigente: http://127.0.0.1:8080. Ver informe R76 para matriz y evidencia.
+
+## Evidencia anterior preservada
+
+## Historia R7.6 — 2026-11-25
+
+Ver REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-R76.md. **4/12 restauradas**: FR017/018/036/046 (navegación crear/editar Normal, print eliminadas y Create Entry). Formularios DEV intactos, sin homologación nueva. **8/12 pendientes de instalación documental**, no de mera QA: FR049/054/083/088/093/096/097/098. PHP builtin :8080 entrega archivos existentes antes de Laravel; .htaccess DEV no aplica. HEAD anónimo placeholder200 frente a inexistente302/login demuestra dispatch; no documentos comerciales descargados. Cierre J/P por negocio preservado; DOC01 limitación local documentada, no nuevo finding.
+
+Migración cupos Yes batch180 y ambas columnas existentes; no planes ni migraciones ejecutados aquí. Platform prerrequisito schema resuelto; UI/configuración fuera de alcance.
+
+Contabilidad107 IDs: **66 recuperados +8 instalación pendiente +10 bloqueados backend +23 excluidos**. Pendientes activos18. No contar backend como UI. R7.7/R8 no iniciadas; no commit/push/merge. Cuatro tests renderer PASS,24 checks responsive PASS, Blade/JS/diffcheck PASS; mutaciones reales0.
+
+## Historia anterior preservada
+
 Fecha2026-11-25. Plan, no implementación masiva. No R8. Leer reconciliación R7.5 primero. SourceDEV41ed99f/0129133; frontend se adapta a permisos actuales, no copia baseline antiguo indiscriminadamente.
 
 | Pantalla | URL local | Capacidad | Blocker anterior | Evidencia DEV | Restricción frontend actual | Trabajo requerido | Estado |

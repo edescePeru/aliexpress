@@ -1,5 +1,17 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+## Aclaración vigente R7.6.1 — 2026-11-25
+
+Por decisión del propietario, la observación local DOC-01 no bloquea recuperar controles con lectores DEV. FR049/054/083/088/093/096/097/098 frontend recuperado; protección HTTP directa en despliegue sigue pendiente por separado. Virtual host descartado, ejemplo retirado, entorno8080 intacto. No nuevo finding ni recertificación J/P/K. La exigencia de instalación previa de la sección siguiente es evidencia histórica sustituida por esta decisión. Ver informe R76.
+
+
+## Evidencia focalizada R7.6 — DOC-01 / instalación (2026-11-25)
+
+No finding nuevo ni reapertura global J/P. PHP artisan serve :8080 usa server.php, cuyo file_exists retorna false antes de Laravel; .htaccess de DEV no aplica. HEAD anónimo al placeholder no comercial /images/entries/no_image.png=200 frente a nombre inexistente=302/login; ningún cuerpo/documento real descargado. Mantener ocho recuperaciones documentales pendientes hasta instalación del dispatch protegido. Readers/guards DEV presentes; limitación del servidor local, no resolver con URLs públicas alternativas. Ver REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-R76.md. ENTRY-R75-01/ENTRY-R4-01 intactos.
+
+Cupos: migrate:status Yes batch180 y schema max_active_companies/branches presentes. No alterar planes, no nuevo QA Platform. R7.5 queda como evidencia histórica de la instalación anterior.
+
+
 ## Estado vigente R7.5 — 2026-11-25
 
 Esta adenda prevalece sobre estados históricos; no borra evidencia anterior. Ver REAL-NEXT-DEV-DELIVERY-INTEGRATION-2026-11-25.md, REAL-NEXT-DEV-DELIVERY-RECONCILIATION-2026-11-25.md y REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-PLAN.md.

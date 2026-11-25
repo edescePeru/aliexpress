@@ -30,7 +30,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Órdenes de compra normales</h1><p class="next-page-description">Consulta de órdenes de la empresa activa.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes normales · Empresa activa.</span></div></div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes normales · Empresa activa.</span></div><div class="next-toolbar-actions">@can('create_orderPurchaseNormal')<a href="{{ route('order.purchase.normal.create') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva compra normal</a>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')

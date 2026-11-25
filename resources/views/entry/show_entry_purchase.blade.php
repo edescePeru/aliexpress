@@ -79,6 +79,6 @@
 </section>
 <section class="next-form-section" aria-labelledby="entry-documents">
     <h2 class="h6" id="entry-documents">Adjuntos</h2>
-    <p class="text-muted mb-0">{{ $entry->image || $entry->imageOb ? 'Adjuntos registrados. Acceso documental pendiente de validación.' : 'Sin adjuntos registrados.' }}</p>
+    @include('entry.partials.document-links', ['documentPermission' => 'list_entryPurchase', 'includeObservation' => true])
 </section>
 @endsection

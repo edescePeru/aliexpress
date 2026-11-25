@@ -31,7 +31,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Inventario · Compras</span><h1 class="page-title">Entradas de compra</h1><p class="next-page-description">Consulta de la empresa activa.</p></div>
 @endsection
 
-@section('page-title')<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta y operaciones autorizadas.</span></div></div>@endsection
+@section('page-title')<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta y operaciones autorizadas.</span></div><div class="next-toolbar-actions">@can('create_entryPurchase')<a href="{{ route('entry.purchase.create') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus mr-1" aria-hidden="true"></i>Nueva entrada de compra</a>@endcan</div></div>@endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">

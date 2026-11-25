@@ -1,5 +1,33 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## Estado vigente R7.6.1 — Document Functional Recovery — 2026-11-25
+
+Decisión explícita del propietario: virtual host descartado; mantener http://127.0.0.1:8080 y PHP7.3.33. La limitación de artisan serve no bloquea por sí sola los controles que usan el contrato autorizado DEV. Esta sección sustituye la clasificación de instalación pendiente de R7.6; la evidencia anterior se conserva como historia, no como estado vigente.
+
+**DOCUMENT CAPABILITIES RESTORED: 8/8.** FR-049/054/083/088/093/096/097/098 recuperadas mediante entry.document.main / observation / extra y navegación contextual existente. No asset() para adjuntos ni fallback público. Los paths de los lectores coinciden intencionalmente con /images/entries/... por contrato DEV; usar route() no convierte artisan serve en un servidor que aplique .htaccess.
+
+**107 FR = 74 recuperados + 10 bloqueados backend + 23 excluidos.** R7.6 acumula 12/12 recuperadas (4 anteriores +8 documentales). Permanecen FR047/048/059/063/064/102/103/105/106/107; no nuevos blockers del lector demostrados. DOC-01 conserva observación de entorno y verificación HTTP directa pendiente en despliegue, fuera del conteo de pérdidas frontend. No equivale a certificación integral de seguridad.
+
+Validación propia: 8 tests Node PASS (4 documentales +4 regresión R7.6), Blade compile y sintaxis JS PASS; 16 comprobaciones Chrome headless aislado (8 superficies ×375/1440), 16 navegaciones interceptadas; cero pageerrors y overflow global. Metadatos documentales SIMULADOS sobre render/DTO real leído sin escrituras; ninguna descarga comercial. Permisos negativos simulados en renderer. No se repite certificación backend DEV ni J/P/K. Backend/CSS/infraestructura/mutaciones comerciales:0. Sin commit/push/merge. R7.7/R8 no iniciadas.
+
+Propuesta Apache descartada: retirado docs/environment/aliexpress-apache-local.conf.example, generado exclusivamente para esa propuesta y nunca instalado. URL vigente: http://127.0.0.1:8080. Ver informe R76 para matriz y evidencia.
+
+## Evidencia anterior preservada
+
+## Historia — Propuesta de entorno descartada por el propietario
+
+Apache Wamp activo en80, PHP global8.4.24 y sin vhost aliexpress. Preparado vhost127.0.0.2 con DocumentRoot public y FastCGI PHP7.3.33 exclusivo; httpd -t/-S PASS usando include de prueba, sin activar ni modificar Apache/.env. Ver sección R7.6.1 en REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-R76.md y docs/environment/aliexpress-apache-local.conf.example. La recarga/inclusión requiere consulta explícita del usuario. FR049/054/083/088/093/096/097/098 siguen pendientes;66 recuperadas+8 instalación+10 backend+23 excluidas=107. URL propuesta http://127.0.0.2/dashboard/principal, todavía no activa para esta aplicación. No backend/CSS/mutaciones/commit/push/merge.
+
+## Historia R7.6 — 2026-11-25
+
+Ver REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-R76.md. **4/12 restauradas**: FR017/018/036/046 (navegación crear/editar Normal, print eliminadas y Create Entry). Formularios DEV intactos, sin homologación nueva. **8/12 pendientes de instalación documental**, no de mera QA: FR049/054/083/088/093/096/097/098. PHP builtin :8080 entrega archivos existentes antes de Laravel; .htaccess DEV no aplica. HEAD anónimo placeholder200 frente a inexistente302/login demuestra dispatch; no documentos comerciales descargados. Cierre J/P por negocio preservado; DOC01 limitación local documentada, no nuevo finding.
+
+Migración cupos Yes batch180 y ambas columnas existentes; no planes ni migraciones ejecutados aquí. Platform prerrequisito schema resuelto; UI/configuración fuera de alcance.
+
+Contabilidad107 IDs: **66 recuperados +8 instalación pendiente +10 bloqueados backend +23 excluidos**. Pendientes activos18. No contar backend como UI. R7.7/R8 no iniciadas; no commit/push/merge. Cuatro tests renderer PASS,24 checks responsive PASS, Blade/JS/diffcheck PASS; mutaciones reales0.
+
+## Historia anterior preservada
+
 ## Estado vigente R7.5 — 2026-11-25
 
 Esta adenda prevalece sobre estados históricos; no borra evidencia anterior. Ver REAL-NEXT-DEV-DELIVERY-INTEGRATION-2026-11-25.md, REAL-NEXT-DEV-DELIVERY-RECONCILIATION-2026-11-25.md y REAL-NEXT-POST-DEV-FUNCTIONAL-RECOVERY-PLAN.md.
@@ -283,6 +311,8 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 
 ### FR-017 — Crear
 
+- **R7.6 vigente:** ACTIVE — RESTORED; navegación y permisos PASS, ejecución mutadora/documental real pendiente. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Módulo/pantalla: `order.purchase.normal.indexV2` / `orderPurchase.normal_v2`. Prioridad: P1.
 - URL local: [http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2](http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Crear. Commit de pérdida: `abc9daa`.
@@ -296,6 +326,8 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-018 — Editar
+
+- **R7.6 vigente:** ACTIVE — RESTORED; navegación y permisos PASS, ejecución mutadora/documental real pendiente. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
 
 - Módulo/pantalla: `order.purchase.normal.indexV2` / `orderPurchase.normal_v2`. Prioridad: P1.
 - URL local: [http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2](http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2). Parámetros requieren registro contextual existente.
@@ -549,6 +581,8 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 
 ### FR-036 — Imprimir
 
+- **R7.6 vigente:** ACTIVE — RESTORED; navegación y permisos PASS, ejecución mutadora/documental real pendiente. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Módulo/pantalla: `order.purchase.delete` / `orderPurchase.deleteGeneral`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/ordenes/compra/eliminadas](http://127.0.0.1:8080/dashboard/ordenes/compra/eliminadas). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Imprimir. Commit de pérdida: `c32352c`.
@@ -689,6 +723,8 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 
 ### FR-046 — Crear
 
+- **R7.6 vigente:** ACTIVE — RESTORED; navegación y permisos PASS, ejecución mutadora/documental real pendiente. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Módulo/pantalla: `entry.purchase.indexV2` / `entry.index_entry_purchasev2`. Prioridad: P1.
 - URL local: [http://127.0.0.1:8080/dashboard/listado/entradas/compra/v2](http://127.0.0.1:8080/dashboard/listado/entradas/compra/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Crear. Commit de pérdida: `2ec61f3`.
@@ -730,6 +766,11 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-049 — Documentos
+
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
 
 - Módulo/pantalla: `entry.purchase.indexV2` / `entry.index_entry_purchasev2`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/listado/entradas/compra/v2](http://127.0.0.1:8080/dashboard/listado/entradas/compra/v2). Parámetros requieren registro contextual existente.
@@ -800,6 +841,11 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-054 — Adjunto
+
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
 
 - Módulo/pantalla: `entry.purchase.report.index` / `entry.index_entry_purchase_report`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/entradas/compra/reporte](http://127.0.0.1:8080/dashboard/entradas/compra/reporte). Parámetros requieren registro contextual existente.
@@ -1380,6 +1426,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 
 ### FR-083 — Adjunto / invoice.index
 
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Pantalla: `invoice.index`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
 - Permiso: `list_invoice`.
@@ -1429,6 +1480,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 - QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
 
 ### FR-088 — Adjunto / report.invoice.finance
+
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
 
 - Pantalla: `report.invoice.finance`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
@@ -1480,6 +1536,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 
 ### FR-093 — Adjunto / report.invoice.finance.sin.orden
 
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Pantalla: `report.invoice.finance.sin.orden`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
 - Permiso: `list_invoice`.
@@ -1510,6 +1571,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 
 ### FR-096 — Adjunto / invoice.index.annulled
 
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Pantalla: `invoice.index.annulled`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
 - Permiso: `list_invoice`.
@@ -1520,6 +1586,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 
 ### FR-097 — Adjunto / entry.purchase.show
 
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
+
 - Pantalla: `entry.purchase.show`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
 - Permiso: `list_entryPurchase`.
@@ -1529,6 +1600,11 @@ Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superfic
 - QA independiente: No ejecutar documentos públicos.
 
 ### FR-098 — Adjunto / invoice.show
+
+- **R7.6.1 vigente: FRONTEND RECOVERED.** Lector autorizado DEV, permiso de familia preservado; QA frontend interceptado PASS. Protección HTTP directa de despliegue PENDING, independiente de recuperación. Detalles anteriores conservados como historia.
+
+
+- **Historia R7.6:** ACTIVE — INSTALLATION REQUIRED; lector DEV presente pero servidor :8080 omite autorización de archivos físicos. DOC-01; no restaurado. Ver informe R76; los estados R4/R7.5 siguientes son evidencia histórica.
 
 - Pantalla: `invoice.show`.
 - Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.

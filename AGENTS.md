@@ -955,6 +955,10 @@ Adapt only what the real contract requires.
 
 ## DEV delivery intent and inherited frontend restrictions (R7.5, 2026-11-25)
 
+### Owner decision R7.6.1: DEV validation and local infrastructure
+
+DEV remains the principal authority for backend contracts, security, permissions, business rules and supplied validation evidence. Distinguish a demonstrated defect, a corrected contract, validation reported by DEV, checks not reproducible locally, pending QA and infrastructure risks. A local inability to reproduce deployment protection is not by itself authorization to hide legitimate frontend controls. Restore controls using current authorized readers only; never add a public fallback or relax guards. Document new proven defects separately and do not claim unperformed tests. Keep deployment HTTP protection verification pending independently of frontend recovery. J/P and K business closures remain respected. This phase retains 127.0.0.1:8080 with PHP7.3.33; no Apache/FastCGI/APP_URL/hosts/port changes. The proposed virtual host is rejected for this phase.
+
 DEV is authoritative for intentional business changes, backend contracts, permissions, security and validation. Absence of a control in multitenancy is NOT proof of intentional retirement: DEV may have inherited our read-only gates, removed buttons/modals, handlers or navigation through earlier merges. Trace origin using Git, owner decisions, delivery documentation and current contracts before preserving or recovering it.
 
 Use together: explicit business decisions; intentional DEV changes; current DEV contracts; operational history before homologation; Git provenance; Venti Next visual standards; R0–R7 recoveries. Never use either multitenancy alone as a functional parity baseline or old frontend as authority over new business rules. Ambiguity requires an owner decision; do not invent intent to obtain a clean merge.

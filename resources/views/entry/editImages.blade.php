@@ -127,9 +127,9 @@
                                             <label for="description">Imagen <span class="right badge badge-danger">(*)</span></label>
                                             <br>
                                             @if ( $image->type_file == 'pdf' )
-                                                <a href="{{ asset('images/entries/extras/'.$image->image) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
+                                                <a href="{{ route('entry.document.extra', ['filename' => $image->image]) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
                                             @else
-                                                <button type="button" data-image="{{ asset('images/entries/extras/'.$image->image) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
+                                                <button type="button" data-image="{{ route('entry.document.extra', ['filename' => $image->image]) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
                                             @endif
 
                                         </div>
@@ -191,9 +191,9 @@
                                                 <label for="description">Imagen <span class="right badge badge-danger">(*)</span></label>
                                                 <br>
                                                 @if ( $image->type_file == 'pdf' )
-                                                    <a href="{{ asset('images/entries/extras/'.$image->image) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
+                                                    <a href="{{ route('entry.document.extra', ['filename' => $image->image]) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
                                                 @else
-                                                    <button type="button" data-image="{{ asset('images/entries/extras/'.$image->image) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
+                                                    <button type="button" data-image="{{ route('entry.document.extra', ['filename' => $image->image]) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
                                                 @endif
 
                                             </div>
@@ -254,9 +254,9 @@
                                                 <label for="description">Imagen <span class="right badge badge-danger">(*)</span></label>
                                                 <br>
                                                 @if ( $image->type_file == 'pdf' )
-                                                    <a href="{{ asset('images/entries/extras/'.$image->image) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
+                                                    <a href="{{ route('entry.document.extra', ['filename' => $image->image]) }}" target="_blank" class="btn btn-outline-success ">Ver PDF</a>
                                                 @else
-                                                    <button type="button" data-image="{{ asset('images/entries/extras/'.$image->image) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
+                                                    <button type="button" data-image="{{ route('entry.document.extra', ['filename' => $image->image]) }}" data-alt="{{ $image->code }}" class="btn btn-outline-primary ">Ver Imagen</button>
                                                 @endif
 
                                             </div>
