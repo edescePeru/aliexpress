@@ -1,5 +1,11 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.2D — COMPLETE (2026-11-25)
+
+S328 Branch y S306 GRE: observaciones visuales R8.1 resueltas mediante Row Actions Dropdown + Font Awesome; una acción conserva botón directo. [Informe R8.2D](REAL-NEXT-R8-BRANCH-GRE-ROW-ACTIONS-HOMOLOGATION.md). Gates, condiciones, contratos y handlers conservados; 960 combinaciones GRE simuladas y 10 combinaciones responsive PASS. Cero mutaciones/proveedores; backend/CSS/allowlist sin cambios.
+
+**76 recuperadas + 11 bloqueadas + 23 excluidas = 110.** R8.2A–D completas en el alcance autorizado; B histórica 2/2 homologada y observaciones Branch/GRE resueltas. R8 global mantiene blockers, dependencia monetaria y decisiones C existentes. No iniciar R8.3; esperar revisión del propietario. Los checkpoints inferiores son historia preservada.
+
 ## R8.2C — COMPLETE (2026-11-25)
 
 S281 homologada: una superficie, Ticket/Boleta/Factura3/3, allowlist exacta `show.register.comprobante`. [Informe](REAL-NEXT-R8-SALES-DOCUMENT-REGISTRATION-HOMOLOGATION.md): controles53/57/58 preservados, JS intacto,30 combinaciones responsive,3 POST422 simulados con recuperación de formulario. Sin emisión/proveedores/mutaciones.

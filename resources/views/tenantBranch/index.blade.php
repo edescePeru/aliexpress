@@ -132,14 +132,21 @@
 
                     <td class="text-center">
 
-                        <div class="next-toolbar-actions flex-wrap justify-content-center">
+                        @php($multipleActions = auth()->user()->can('edit_branch') && auth()->user()->can('enable_branch'))
+                        <div class="{{ $multipleActions ? 'dropdown next-row-actions' : 'next-toolbar-actions justify-content-center' }}">
+                            @if($multipleActions)
+                                <button type="button" class="btn btn-sm next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de {{ $branch->name }}">
+                                    <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right next-row-actions-menu">
+                            @endif
 
                             @can('edit_branch')
                                 <a
                                         href="{{ route('tenantBranch.edit', $branch->id) }}"
-                                        class="btn btn-sm btn-outline-primary mr-1 mb-1"
+                                        class="{{ $multipleActions ? 'dropdown-item' : 'btn btn-sm btn-outline-secondary' }}"
                                 >
-                                    Editar
+                                    <i class="fas fa-pen next-row-action-item-icon" aria-hidden="true"></i><span>Editar</span>
                                 </a>
                             @endcan
 
@@ -147,7 +154,7 @@
                             @can('enable_branch')
                                 <button
                                         type="button"
-                                        class="btn btn-sm {{ $branch->is_active ? 'btn-outline-danger' : 'btn-outline-success' }} mr-1 mb-1"
+                                        class="{{ $multipleActions ? 'dropdown-item'.($branch->is_active ? ' next-row-action-danger' : '') : 'btn btn-sm '.($branch->is_active ? 'btn-outline-danger' : 'btn-outline-success') }}"
                                         data-toggle-branch-status
                                         data-branch-id="{{ $branch->id }}"
                                         data-branch-name="{{ $branch->name }}"
@@ -155,10 +162,13 @@
                                         data-is-main="{{ $branch->is_main ? 1 : 0 }}"
                                         data-url="{{ route('tenantBranch.toggleStatus', $branch->id) }}"
                                 >
-                                    {{ $branch->is_active ? 'Desactivar' : 'Activar' }}
+                                    <i class="fas {{ $branch->is_active ? 'fa-ban' : 'fa-check' }} next-row-action-item-icon" aria-hidden="true"></i><span>{{ $branch->is_active ? 'Desactivar' : 'Activar' }}</span>
                                 </button>
                             @endcan
 
+                            @if($multipleActions)
+                                </div>
+                            @endif
                         </div>
 
                     </td>

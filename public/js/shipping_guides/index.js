@@ -60,18 +60,23 @@
         return '<span class="badge badge-secondary">' + (status || '-') + '</span>';
     }
 
+    function presentActions(parts, id) {
+        if (parts.length === 1) return parts[0].replace('class="dropdown-item"', 'class="btn btn-sm btn-outline-secondary"');
+        return `<div class="dropdown next-row-actions"><button type="button" class="btn btn-sm next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de guía ${id}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">${parts.join(' ')}</div></div>`;
+    }
+
     function buildActions(g) {
         const urlShow = window.routes.showView.replace(':id', g.id);
         const parts = [];
 
         // Ver readonly
-        parts.push(`<a class="btn btn-sm btn-outline-primary" href="${urlShow}">Ver</a>`);
+        parts.push(`<a class="dropdown-item" href="${urlShow}"><i class="fas fa-eye next-row-action-item-icon" aria-hidden="true"></i><span>Ver</span></a>`);
 
-        if (g.identity_conflict) return parts.join(' ');
+        if (g.identity_conflict) return presentActions(parts, g.id);
 
         // Consultar si está pendiente / o no tiene links aún
         if (window.greCanConsult && (['REGISTERED','UNKNOWN','API_ERROR','PENDING_SUNAT'].includes(g.emission_state) || ['PENDING_SUNAT', 'SENT', 'ERROR'].includes(g.status))) {
-            parts.push(`<button class="btn btn-sm btn-outline-warning ml-1 btnConsultar" data-id="${g.id}">Consultar</button>`);
+            parts.push(`<button class="dropdown-item btnConsultar" data-id="${g.id}"><i class="fas fa-sync-alt next-row-action-item-icon" aria-hidden="true"></i><span>Consultar</span></button>`);
         }
 
         // Links si accepted
@@ -80,11 +85,12 @@
             ['pdf', 'xml', 'cdr'].forEach(function (type) {
                 if (!available[type] || !(type === 'pdf' ? window.greCanPdf : window.greCanDocuments)) return;
                 const link = window.routes.document.replace(':id', g.id).replace(':type', type);
-                parts.push(`<a class="btn btn-sm btn-outline-secondary ml-1" target="_blank" rel="noopener noreferrer" href="${link}">${type.toUpperCase()}</a>`);
+                const icon = type === 'pdf' ? 'fa-file-pdf' : (type === 'xml' ? 'fa-file-code' : 'fa-file-archive');
+                parts.push(`<a class="dropdown-item" target="_blank" rel="noopener noreferrer" href="${link}"><i class="fas ${icon} next-row-action-item-icon" aria-hidden="true"></i><span>${type.toUpperCase()}</span></a>`);
             });
         }
 
-        return parts.join(' ');
+        return presentActions(parts, g.id);
     }
 
     function renderRows(paginated) {
