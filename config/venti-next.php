@@ -19,6 +19,7 @@ return [
     'routes' => [
         'order.purchase.normal.create',
         'entry.purchase.create',
+        'order.purchase.create',
         'stockitems.view.variants',
         'order.purchase.delete',
         'entry.purchase.report.index',

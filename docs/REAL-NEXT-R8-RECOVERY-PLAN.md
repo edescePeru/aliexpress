@@ -1,5 +1,11 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.2B — COMPLETE (2026-11-25)
+
+Recepción de compra normal S091 homologada y allowlisted exclusivamente por `order.purchase.create`. [Evidencia y validación](REAL-NEXT-R8-PURCHASE-RECEIPT-HOMOLOGATION.md): orden2 autorizada en DB READ ONLY;25 controles preservados;10 resoluciones; dos reintentos interceptados con clave/contexto/payload iguales; JS intacto; cero mutaciones.
+
+FR050 ya recuperado, esta homologación suma0 FR: **76 recuperadas +11 bloqueadas +23 excluidas =110**. B histórico2: recepción completada, Registrar comprobante pendiente1. Conservar observaciones Branch/GRE, FR110/EXPENSE-01, contrato monetario y decisiones C; no iniciar R8.2C. Esperar revisión del propietario. Historia inferior preservada; ya no interpretar Recepción como homologación pendiente.
+
 ## R8.2A — estado vigente (2026-11-25)
 
 Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
