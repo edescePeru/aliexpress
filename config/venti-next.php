@@ -14,9 +14,11 @@ return [
     'enabled' => true,
 
     // Exact registered URI for the unnamed normal-purchase detail view.
-    'route_uris' => ['dashboard/ver/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/eliminada/{id}', 'dashboard/ver/orden/compra/finanzas/eliminada/{id}', 'dashboard/editar/orden/compra/finanza/{id}'],
+    'route_uris' => ['dashboard/editar/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/normal/{id}', 'dashboard/ver/orden/compra/eliminada/{id}', 'dashboard/ver/orden/compra/finanzas/eliminada/{id}', 'dashboard/editar/orden/compra/finanza/{id}'],
 
     'routes' => [
+        'order.purchase.normal.create',
+        'entry.purchase.create',
         'stockitems.view.variants',
         'order.purchase.delete',
         'entry.purchase.report.index',

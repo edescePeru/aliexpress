@@ -28,16 +28,10 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
+
 
 @section('page-header')
-    <h1 class="page-title">Crear orden de compra</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras · operaciones</span><h1 class="page-title">Crear compra normal</h1><p class="next-page-description">Datos y materiales de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
@@ -57,11 +51,11 @@
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('order.purchase.normal.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal next-form-section" data-url="{{ route('order.purchase.normal.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Datos generales</h3>
 
@@ -70,7 +64,7 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -123,11 +117,11 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <label for="btn-currency"> Moneda <span class="next-required">*</span></label> <br>
                                     <input id="btn-currency" type="checkbox" name="currency_order" data-bootstrap-switch data-off-color="primary" data-on-text="SOLES" data-off-text="DOLARES" data-on-color="success" checked readonly>
                                 </div>
                                 <div class="form-group">
-                                    <label for="btn-regularize"> Regularización <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <label for="btn-regularize"> Regularización <span class="next-required">*</span></label> <br>
                                     <input id="btn-regularize" type="checkbox" name="regularize_order" data-bootstrap-switch data-off-color="primary" data-on-text="SI" data-off-text="NO" data-on-color="success" readonly>
                                 </div>
                                 {{--<div class="form-group">
@@ -151,7 +145,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-warning " id="element_loader">
+                <div class="card " id="element_loader">
                     <div class="card-header">
                         <h3 class="card-title">Detalles de compra</h3>
 
@@ -161,11 +155,11 @@
                             </button>
                         </div>
                     </div>
-                    <div class="card-body ">
+                    <div class="card-body next-form-section">
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="form-group">
-                                    <label for="material_search">Buscar material <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="material_search">Buscar material <span class="next-required">*</span></label>
                                     <select id="material_search" class="form-control select2" style="width: 100%;" data-url="{{ route('materials.order.purchase.search') }}">>
                                         <option></option>
                                     </select>
@@ -178,7 +172,7 @@
                             </div>
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="quantity">Cantidad <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="quantity">Cantidad <span class="next-required">*</span></label>
                                     {{--<input type="number" oninput="this.value = this.value.replace(/[^0-9]/g,'');" step="1" id="quantity" class="form-control">--}}
                                     <input type="number" {{--oninput="this.value = this.value.replace(/[^0-9]/g,'');"--}} step="0.01" id="quantity" class="form-control">
                                 </div>
@@ -192,51 +186,9 @@
 
                         <hr>
 
-                        <div class="row">
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>ID</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Código</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <strong>Material</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Cantidad</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Precio C/Igv</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Precio S/Igv</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <strong>Total C/Igv</strong>
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <div class="form-group">
-                                    <strong>Acción</strong>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="body-materials">
+                        <div class="table-responsive" tabindex="0" aria-label="Detalles de compra; desplazamiento horizontal local"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Código</th><th class="text-left">Material</th><th class="text-center">Cantidad</th><th class="text-right">Precio C/IGV</th><th class="text-right">Precio S/IGV</th><th class="text-right">Total C/IGV</th><th class="text-center">Acción</th></tr></thead><tbody id="body-materials">
 
-                        </div>
+                        </tbody></table></div>
                     </div>
                     <!-- /.card-body -->
                 </div>
@@ -246,11 +198,11 @@
         <!-- /.card-footer -->
         <div class="row">
             <!-- accepted payments column -->
-            <div class="col-6">
+            <div class="col-12 col-md-6">
 
             </div>
             <!-- /.col -->
-            <div class="col-6">
+            <div class="col-12 col-md-6">
                 <p class="lead">Resumen de factura</p>
 
                 {{--<div class="table-responsive">
@@ -289,66 +241,66 @@
             <!-- /.col -->
         </div>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 next-toolbar-actions flex-wrap justify-content-between">
                 <a class="btn btn-outline-secondary" href="{{ route('order.purchase.normal.indexV2') }}">Regresar</a>
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar orden de compra</button>
+                <button type="button" id="btn-submit" class="btn btn-primary">Guardar orden de compra</button>
             </div>
         </div>
     </form>
 
     <template id="materials-selected">
-        <div class="row material-row">
-            <div class="col-md-1">
+        <tr class="material-row">
+            <td class="text-center">
                 <div class="form-group">
                     <input type="text" class="form-control form-control-sm" data-id readonly>
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-1">
+            <td class="text-center">
                 <div class="form-group">
                     <input type="text" class="form-control form-control-sm" data-code readonly>
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-4">
+            <td class="text-left">
                 <div class="form-group">
                     <input type="text" class="form-control form-control-sm" data-description readonly>
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-1">
+            <td class="text-center">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-quantity step="1">
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-1">
+            <td class="text-right">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-price step="0.01">
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-1">
+            <td class="text-right">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-price2 step="0.01">
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-2">
+            <td class="text-right">
                 <div class="form-group">
                     <input type="number" class="form-control form-control-sm" placeholder="0.00" min="0" data-total step="0.01">
                 </div>
-            </div>
+            </td>
 
-            <div class="col-md-1">
-                <button type="button" data-delete class="btn btn-block btn-outline-danger btn-sm">
-                    <i class="fas fa-trash"></i>
+            <td class="text-center">
+                <button type="button" data-delete class="btn btn-block btn-outline-danger btn-sm" aria-label="Eliminar material" title="Eliminar material">
+                    <i class="fas fa-trash next-row-action-item-icon"></i>
                 </button>
-            </div>
-        </div>
+            </td>
+        </tr>
     </template>
 
-    <div class="modal fade" id="modalStockItems" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalStockItems" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
             <div class="modal-content border-0 shadow">
 
@@ -370,7 +322,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered mb-2" id="tableStockItemsVariant">
+                        <table class="table table-sm table-bordered mb-2 next-data-table" id="tableStockItemsVariant">
                             <thead class="thead-light">
                             <tr>
                                 <th style="width: 28%;">Variante</th>
@@ -391,7 +343,7 @@
                         </button>
 
                         <button type="button" class="btn btn-primary" id="btnSaveStockItemsVariant">
-                            <i class="fas fa-save"></i> Guardar
+                            <i class="fas fa-save next-row-action-item-icon"></i> Guardar
                         </button>
                     </div>
 

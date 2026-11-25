@@ -28,25 +28,10 @@
 
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
 
-        /*.modal-dialog {
-            height: 100% !important;
-        }
-
-        .modal-content {
-            height: auto;
-            min-height: 100%;
-        }*/
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Entrada por compra</h1>
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras · operaciones</span><h1 class="page-title">Crear entrada de compra</h1><p class="next-page-description">Datos y materiales de la empresa activa.</p></div>
 @endsection
 
 @section('page-title')
@@ -66,13 +51,13 @@
 @endsection
 
 @section('content')
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('entry.purchase.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal next-form-section" data-url="{{ route('entry.purchase.store') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="entry_context_company_id" value="{{ \App\Support\TenantContext::companyId() }}">
         <input type="hidden" name="entry_context_branch_id" value="{{ \App\Support\TenantContext::branchId() }}">
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Datos generales</h3>
 
@@ -81,7 +66,7 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group " id="sandbox-container">
@@ -111,17 +96,17 @@
                             <div class="col-md-6">
                                 <div class="form-group row">
                                     <div class="col-md-8">
-                                        <label for="invoice">Factura <span class="right badge badge-danger">(*)</span></label>
+                                        <label for="invoice">Factura <span class="next-required">*</span></label>
                                         <input type="text" id="invoice" name="invoice" class="form-control">
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="btn-grouped"> Diferido <span class="right badge badge-danger">(*)</span></label> <br>
+                                        <label for="btn-grouped"> Diferido <span class="next-required">*</span></label> <br>
                                         <input id="btn-grouped" type="checkbox" name="deferred_invoice" data-bootstrap-switch data-off-color="danger" data-on-text="SI" data-off-text="NO" data-on-color="success">
                                     </div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="entry_type">Tipo de Ingreso <span class="right badge badge-danger">(*)</span></label>
+                                    <label for="entry_type">Tipo de Ingreso <span class="next-required">*</span></label>
                                     <input type="text" id="entry_type" value="Por compra" name="entry_type" class="form-control" readonly>
                                 </div>
                                 <div class="form-group">
@@ -129,7 +114,7 @@
                                     <input type="file" id="image" name="image" class="form-control">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="btn-currency"> Moneda <span class="right badge badge-danger">(*)</span></label> <br>
+                                    <label for="btn-currency"> Moneda <span class="next-required">*</span></label> <br>
                                     <input id="btn-currency" type="checkbox" name="currency_invoice" data-bootstrap-switch data-off-color="primary" data-on-text="DOLARES" data-off-text="SOLES" data-on-color="success" readonly="">
                                 </div>
                             </div>
@@ -154,7 +139,7 @@
                 <!-- /.card -->
             </div>
             <div class="col-md-12">
-                <div class="card card-warning">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Materiales</h3>
 
@@ -163,12 +148,12 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
 
                         <div class="row">
-                            <div class="col-md-3">
+                            <div class="col-12 col-lg-4">
                                 <div class="form-group">
-                                    <label>Buscar material <span class="right badge badge-danger">(*)</span></label>
+                                    <label>Buscar material <span class="next-required">*</span></label>
                                     <select id="material_search" class="form-control select2" style="width: 100%;" data-url="{{ route('materials.entry.search') }}">>
                                         <option></option>
                                     </select>
@@ -180,14 +165,14 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-1">
+                            <div class="col-6 col-lg-2">
                                 <div class="form-group">
                                     <label for="lot">Lote </label>
                                     <input type="text" id="lot" name="lot" class="form-control">
                                 </div>
                             </div>
 
-                            <div class="col-md-2">
+                            <div class="col-6 col-lg-2">
                                 <div class="form-group" id="sandbox-container2">
                                     <label for="quantity">F. Vence </label>
                                     <div class="input-daterange" id="datepicker2">
@@ -195,13 +180,13 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-6 col-lg-2">
                                 <div class="form-group">
                                     <label for="quantity">Cantidad </label>
                                     <input type="number" id="quantity" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-6 col-lg-2">
                                 <div class="form-group">
                                     <label for="price">Precio IGV </label>
                                     <input type="number" id="price" class="form-control" placeholder="0.00" min="0" value="" step="0.01" pattern="^\d+(?:\.\d{1,2})?$" onblur="
@@ -209,10 +194,10 @@
                                     ">
                                 </div>
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-6 col-lg-2">
                                 <label for="btn-grouped2"> Agrupado </label> <br>
                                 <input id="btn-grouped2"
-                                       class="col-md-12"
+                                       class="col-6 col-lg-22"
                                        type="checkbox"
                                        name="my-checkbox"
                                        data-bootstrap-switch
@@ -222,7 +207,7 @@
                                        data-on-color="success"
                                        checked>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-6 col-lg-2">
                                 <div class="form-group">
                                     <label for="almacen">
                                         Almacén de ingreso
@@ -237,9 +222,9 @@
 
                                 </div>
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-6 col-lg-2">
                                 <label for="btn-add"> &nbsp; </label>
-                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary"> <i class="fas fa-arrow-circle-right"></i></button>
+                                <button type="button" id="btn-add" class="btn btn-block btn-outline-primary" aria-label="Agregar material"> <i class="fas fa-arrow-circle-right"></i></button>
                             </div>
 
                         </div>
@@ -253,19 +238,19 @@
                                         <h3 class="card-title">Materiales</h3>
                                     </div>
                                     <!-- /.card-header -->
-                                    <div class="card-body table-responsive p-0" style="height: 300px;">
-                                        <table class="table table-head-fixed text-nowrap">
+                                    <div class="card-body table-responsive p-0" tabindex="0" aria-label="Materiales; desplazamiento horizontal local">
+                                        <table class="table table-bordered table-hover table-sm next-data-table">
                                             <thead>
                                             <tr>
-                                                <th>Codigo</th>
-                                                <th>Material</th>
-                                                <th>Cantidad</th>
-                                                <th>Und</th>
-                                                <th>Precio Unit.</th>
-                                                <th>Total sin Imp.</th>
-                                                <th>Total Imp.</th>
-                                                <th>Importe</th>
-                                                <th>Acciones</th>
+                                                <th class="text-center">Codigo</th>
+                                                <th class="text-left">Material</th>
+                                                <th class="text-center">Cantidad</th>
+                                                <th class="text-center">Und</th>
+                                                <th class="text-right">Precio Unit.</th>
+                                                <th class="text-right">Total sin Imp.</th>
+                                                <th class="text-right">Total Imp.</th>
+                                                <th class="text-right">Importe</th>
+                                                <th class="text-center">Acciones</th>
                                             </tr>
                                             </thead>
                                             <tbody id="body-materials">
@@ -273,16 +258,16 @@
                                             </tbody>
                                             <template id="materials-selected">
                                                 <tr>
-                                                    <td data-code>183</td>
-                                                    <td data-description>John Doe</td>
-                                                    <td data-quantity>John Doe</td>
-                                                    <td data-unit>11-7-2014</td>
-                                                    <td data-price>11-7-2014</td>
-                                                    <td data-subtotal>11-7-2014</td>
-                                                    <td data-taxes>11-7-2014</td>
-                                                    <td data-total>11-7-2014</td>
+                                                    <td class="text-center" data-code>183</td>
+                                                    <td class="text-left" data-description>John Doe</td>
+                                                    <td class="text-center" data-quantity>John Doe</td>
+                                                    <td class="text-center" data-unit>11-7-2014</td>
+                                                    <td class="text-right" data-price>11-7-2014</td>
+                                                    <td class="text-right" data-subtotal>11-7-2014</td>
+                                                    <td class="text-right" data-taxes>11-7-2014</td>
+                                                    <td class="text-right" data-total>11-7-2014</td>
                                                     <td>
-                                                        <button type="button" data-delete="" class="btn btn-danger"><i class="fas fa-trash"></i></button>
+                                                        <button type="button" data-delete="" class="btn btn-outline-danger btn-sm" aria-label="Eliminar material" title="Eliminar material"><i class="fas fa-trash next-row-action-item-icon"></i></button>
                                                     </td>
                                                 </tr>
                                             </template>
@@ -296,11 +281,11 @@
                         </div>
                         <div class="row">
                             <!-- accepted payments column -->
-                            <div class="col-6">
+                            <div class="col-12 col-md-6">
 
                             </div>
                             <!-- /.col -->
-                            <div class="col-6">
+                            <div class="col-12 col-md-6">
                                 <p class="lead">Resumen de factura</p>
 
                                 <div class="table-responsive">
@@ -330,15 +315,15 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 next-toolbar-actions flex-wrap justify-content-between">
                 <button type="reset" class="btn btn-outline-secondary">Cancelar</button>
-                <button type="submit" id="btn-submit" class="btn btn-outline-success float-right">Guardar compra</button>
+                <button type="submit" id="btn-submit" class="btn btn-primary">Guardar compra</button>
             </div>
         </div>
         <!-- /.card-footer -->
     </form>
 
-    <div id="modalAddItems" class="modal fade" tabindex="-1">
+    <div id="modalAddItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -430,7 +415,7 @@
         </div>
     </div>
 
-    <div id="modalAddGroupItems" class="modal fade" tabindex="-1">
+    <div id="modalAddGroupItems" class="modal fade next-aux-modal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -493,7 +478,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalStockItems" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalStockItems" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
             <div class="modal-content border-0 shadow">
 
@@ -515,7 +500,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered mb-2" id="tableStockItemsVariant">
+                        <table class="table table-sm table-bordered mb-2 next-data-table" id="tableStockItemsVariant">
                             <thead class="thead-light">
                             <tr>
                                 <th style="width: 25%;">Variante</th>
@@ -537,7 +522,7 @@
                         </button>
 
                         <button type="button" class="btn btn-primary" id="btnSaveStockItemsVariant">
-                            <i class="fas fa-save"></i> Guardar
+                            <i class="fas fa-save next-row-action-item-icon"></i> Guardar
                         </button>
                     </div>
 
@@ -547,7 +532,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalCodigosMaterialSimple" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalCodigosMaterialSimple" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 
@@ -590,7 +575,7 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="modalCodigosVariante" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalCodigosVariante" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
 
