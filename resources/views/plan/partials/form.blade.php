@@ -83,3 +83,10 @@
     ></textarea>
 
 </div>
+@foreach(['max_active_companies' => 'Máximo de empresas activas', 'max_active_branches' => 'Máximo total de locales activos del tenant'] as $field => $label)
+<div class="form-group">
+    <label for="{{ $prefix }}_{{ $field }}">{{ $label }} *</label>
+    <input type="number" id="{{ $prefix }}_{{ $field }}" name="{{ $field }}" class="form-control" min="1" max="10000" step="1" required>
+</div>
+@endforeach
+<p class="text-muted small">El local principal consume un cupo. Los locales se reparten entre todas las empresas del tenant, incluso si una empresa está desactivada. Cambiar un plan afecta a todos sus tenants; no desactiva datos existentes.</p>

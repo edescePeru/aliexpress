@@ -98,9 +98,15 @@ class MaterialInventoryScope
         if ($levels->count() !== count($ids)) {
             throw ValidationException::withMessages(['inventory_levels' => 'Un nivel no pertenece al producto, empresa o local actual, o tiene una ubicación incompatible.']);
         }
+        $positions = [];
         foreach ($rows as $row) {
             $level = $levels->get($row['id']);
-            foreach (['warehouse_id', 'stock_item_id'] as $key) {
+            $position = $level->warehouse_id.':'.$level->location_id;
+            if (isset($positions[$position])) {
+                throw ValidationException::withMessages(['inventory_levels' => 'Una ubicación física está repetida.']);
+            }
+            $positions[$position] = true;
+            foreach (['warehouse_id', 'stock_item_id', 'location_id'] as $key) {
                 if (array_key_exists($key, $row) && (!is_scalar($row[$key]) || (string) $row[$key] !== (string) $level->$key)) {
                     throw ValidationException::withMessages(['inventory_levels' => 'El almacén o producto enviado no corresponde al nivel de inventario.']);
                 }
@@ -118,9 +124,10 @@ class MaterialInventoryScope
             if ($values['min_alert'] > $values['max_alert']) {
                 throw ValidationException::withMessages(['inventory_levels' => 'El stock mínimo no puede ser mayor al stock máximo.']);
             }
-            $level->min_alert = $values['min_alert'];
-            $level->max_alert = $values['max_alert'];
-            if (!$level->save()) { throw new \RuntimeException('No se pudo guardar el nivel de inventario.'); }
+            foreach ($values as $key => $value) {
+                if (array_key_exists($key, $row)) { $level->$key = $value; }
+            }
+            if ($level->isDirty() && !$level->save()) { throw new \RuntimeException('No se pudo guardar el nivel de inventario.'); }
         }
     }
 }

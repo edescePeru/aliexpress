@@ -1,6 +1,7 @@
 $(document).ready(function () {
     initializeNextRowActions();
 
+    if (document.body.getAttribute('data-operational-context') !== '0') {
     $.ajax({
         url: "/api/sunat",
         type: 'GET',
@@ -99,6 +100,7 @@ $(document).ready(function () {
             }
         }
     });
+    }
     $(document).on('click', '[data-read]', readNotification);
     $('#read-all').on('click', readAllNotification);
 

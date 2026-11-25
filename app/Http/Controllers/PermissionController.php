@@ -11,6 +11,11 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':legacy-access');
+    }
+
     public function index()
     {
         $permissions = Permission::all();

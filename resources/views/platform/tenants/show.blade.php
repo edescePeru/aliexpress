@@ -22,6 +22,7 @@
 
 
 @section('content')
+@include('tenantCompany._plan_capacity', ['capacityTenant' => $tenant])
 
     <div
             id="platform-tenant-show-app"

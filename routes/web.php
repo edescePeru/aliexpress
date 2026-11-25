@@ -34,6 +34,14 @@ Route::post('/emailcontact', 'EmailController@sendEmailContact')->name('email.co
 
 Auth::routes();
 
+// Existing entry attachment URLs are private, including files already on disk.
+Route::middleware(['auth', 'check.user.enabled', 'password.changed'])->group(function () {
+    Route::get('/images/entries/observations/{filename}', 'EntryDocumentController@observation')->where('filename', '[^/]+')->name('entry.document.observation');
+    Route::get('/images/entries/extras/{filename}', 'EntryDocumentController@extra')->where('filename', '[^/]+')->name('entry.document.extra');
+    Route::get('/images/entries/{filename}', 'EntryDocumentController@main')->where('filename', '[^/]+')->name('entry.document.main');
+});
+
+
 Route::middleware(['auth','check.user.enabled',])->group(function () {
     Route::get('/password/cambio-obligatorio','RequiredPasswordChangeController@edit')->name('password.required.edit');
     Route::post('/password/cambio-obligatorio','RequiredPasswordChangeController@update')->name('password.required.update');
@@ -385,6 +393,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             '/context/update',
             'TenantContextController@update'
         )->name('tenant.context.update');
+
+        Route::post('/context/clear', 'TenantContextController@clear')->name('tenant.context.clear')->middleware('tenant.owner');
 
         Route::get('/principal', 'HomeController@dashboard')->name('dashboard.principal');
 
@@ -3408,9 +3418,9 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('quoteSale.create')
             ->middleware('permission:create_quoteSale');
         Route::get('/get/quote/sale/materials/totals', 'QuoteSaleController@getMaterialTotals')
-            ->middleware('permission:create_quoteSale');
+            ->middleware('permission:create_quoteSale|edit_quoteSale');
         Route::get('/get/quote/sale/materials', 'QuoteSaleController@getMaterials')
-            ->middleware('permission:create_quoteSale');
+            ->middleware('permission:create_quoteSale|edit_quoteSale');
         Route::post('store/quote/sale', 'QuoteSaleController@store')
             ->name('quoteSale.store')
             ->middleware('permission:create_quoteSale');
@@ -3433,8 +3443,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::get('registrar/comprobante/venta/{type}', 'QuoteSaleController@showRegistrarComprobante')
             ->name('show.register.comprobante')
             ->middleware('permission:edit_quoteSale');
-        Route::get('/quotes/buscar', 'QuoteSaleController@buscar')->name('quotes.buscar');
-        Route::get('/get/data/quotes/sale/{id}', 'QuoteSaleController@getDataIndividual')->name('quotes.getDataIndividual');
+        Route::get('/quotes/buscar', 'QuoteSaleController@buscar')->name('quotes.buscar')->middleware('permission:edit_quoteSale');
+        Route::get('/get/data/quotes/sale/{id}', 'QuoteSaleController@getDataIndividual')->name('quotes.getDataIndividual')->middleware('permission:edit_quoteSale');
         Route::post('/store/sale/from/quote', 'QuoteSaleController@storeFromQuote')
             ->middleware('permission:edit_quoteSale');
         Route::post(
@@ -3457,7 +3467,7 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->middleware('permission:list_quoteSale');
 
         Route::get('/quotes/stock-items/{stockItemId}/available-items', 'QuoteSaleController@getAvailableItemsByStockItem')
-            ->name('quotes.stock-items.available-items');
+            ->name('quotes.stock-items.available-items')->middleware('permission:create_quoteSale|edit_quoteSale');
 
         /*Route::post('/renew/quote/sale/{quote}', 'QuoteSaleController@renewQuote')
             ->middleware('permission:renew_quote');*/

@@ -1,0 +1,1 @@
+Harmless supplier-credit document probe. Anonymous access must return HTTP 403.

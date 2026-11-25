@@ -110,7 +110,7 @@
     <!-- Google Font: Source Sans Pro -->
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
 </head>
-<body class="hold-transition sidebar-mini pace-primary layout-fixed layout-navbar-fixed @yield('body-class')">
+<body data-operational-context="{{ Auth::check() && !Auth::user()->isPlatformAdmin() && \App\Support\TenantContext::hasContext() ? '1' : '0' }}" class="hold-transition sidebar-mini pace-primary layout-fixed layout-navbar-fixed @yield('body-class')">
 <div class="wrapper">
 
     <!-- Navbar -->
@@ -120,6 +120,7 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
+            @if(!Auth::user()->isPlatformAdmin() && \App\Support\TenantContext::hasContext())
             <li class="nav-item dropdown next-exchange-rate">
                 <button
                     type="button"
@@ -154,6 +155,7 @@
                     </dl>
                 </div>
             </li>
+            @endif
             {{--<li class="nav-item d-none d-sm-inline-block">
                 <a href="#" class="nav-link">Contact</a>
             </li>--}}
@@ -204,6 +206,7 @@
                 </div>
             </li>--}}
             <!-- Notifications Dropdown Menu -->
+            @if(!Auth::user()->isPlatformAdmin() && \App\Support\TenantContext::hasContext())
             <li class="nav-item dropdown">
                 <a class="nav-link" data-toggle="dropdown" href="#" id="showNotifications">
                     <i class="far fa-bell"></i>
@@ -252,6 +255,7 @@
                     <a href="#" class="dropdown-item dropdown-footer" id="read-all">Marcar todos como leídos</a>
                 </div>
             </li>
+            @endif
             <li class="nav-item dropdown user-menu">
                 <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">
                     <img src="{{asset('images/users/'.Auth::user()->image)}}" class="user-image img-circle elevation-2" alt="User Image">
@@ -322,7 +326,8 @@
                 </div>
             </div>
 
-            @can('showStoreWeb_dashboard')
+            @if(!Auth::user()->isPlatformAdmin() && \App\Support\TenantContext::hasContext())
+            {{--@can('showStoreWeb_dashboard')
             <div class="user-panel mt-3 pb-3 mb-3 d-flex">
                 <div class="image">
                     <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
@@ -331,17 +336,10 @@
                     <a href="{{ route('store-web.catalog') }}" target="_blank" class="d-block">Tienda Web</a>
                 </div>
             </div>
-            @endcan
+            @endcan--}}
             @php($catalogCompany = \App\Support\TenantContext::companyOrNull())
             @if($catalogCompany && $catalogCompany->is_active && $catalogCompany->catalog_slug)
-                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-                    <div class="image">
-                        <img src="{{asset('images/logo/store-icon.png')}}" class="img-circle elevation-2" alt="User Image">
-                    </div>
-                    <div class="info">
-                        <a href="{{ route('publicCatalog.company', $catalogCompany->catalog_slug) }}" target="_blank" rel="noopener noreferrer" class="d-block">Tienda Web</a>
-                    </div>
-                </div>
+                @include('layouts.partials.public-store-links')
 
             @else
                 <div class="user-panel mt-3 pb-3 mb-3 d-flex">
@@ -353,6 +351,7 @@
                     </div>
                 </div>
 
+            @endif
             @endif
             <!-- Sidebar Menu -->
             <nav class="mt-2">
@@ -506,6 +505,9 @@
                         </li>
                     @endif
 
+                    @if(Auth::user()->isTenantOwner() && !Auth::user()->isPlatformAdmin() && !\App\Support\TenantContext::hasContext())
+                        @include('layouts.partials.owner-administration-menu')
+                    @elseif(!Auth::user()->isPlatformAdmin() && \App\Support\TenantContext::hasContext())
                     @can('enable_puntoVenta')
                     <li class="nav-header">PUNTO DE VENTA</li>
                     <li class="nav-item has-treeview @yield('openPuntoVenta')">
@@ -533,7 +535,8 @@
                                     </a>
                                 </li>
                             @endcan
-                            @can('createFreeSale_puntoVenta')
+                            @if(\App\Support\OperationalModules::enabled('free-sale'))
+@can('createFreeSale_puntoVenta')
                                 <li class="nav-item">
                                     <a href="{{ route('freeSale.create') }}" class="nav-link @yield('activeCreateFreeSale')">
                                         <i class="far fa-circle nav-icon"></i>
@@ -541,6 +544,7 @@
                                     </a>
                                 </li>
                             @endcan
+@endif
                             @can('list_puntoVenta')
                             <li class="nav-item">
                                 <a href="{{ route('puntoVenta.list') }}" class="nav-link @yield('activeListPuntoVenta')">
@@ -749,130 +753,8 @@
                     @endcan
 
 
-                    @can('enable_promotions')
-                    <li class="nav-header">PROMOCIONES</li>
-                    <li class="nav-item has-treeview @yield('openPromotions')">
-
-                        <a href="#" class="nav-link @yield('activePromotions')">
-                            <i class="nav-icon fas fa-eye-slash"></i>
-                            <p>
-                                Promociones
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('showSeasonal_promotions')
-                                
-                            @endcan
-                            @can('showCombo_promotions')
-                                <li class="nav-item">
-                                    <a href="{{ route('index.combos') }}" class="nav-link @yield('activePromotionsCombo')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Por combos</p>
-                                    </a>
-                                </li>
-                            @endcan
-
-                                {{--<li class="nav-item">
-                                    <a href="#" class="nav-link @yield('activePromotionsDiscount')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Por descuento</p>
-                                    </a>
-                                </li>--}}
-
-                            @can('showLimite_promotions')
-                            
-                            @endcan
-                            @can('order_promotions')
-                            
-                            @endcan
-                        </ul>
-                    </li>
-                    @endcan
-                    @canany(['access_permission', 'enable_dataGeneral'])
-                    <li class="nav-header">ADMINISTRADOR</li>
-                    @endcanany
-                    @can('access_permission')
-                    <li class="nav-item has-treeview @yield('openAccess')">
-
-                        <a href="#" class="nav-link @yield('activeAccess')">
-                            <i class="nav-icon fas fa-eye-slash"></i>
-                            <p>
-                                Accesos
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('list_permission')
-                            <li class="nav-item">
-                                <a href="{{ route('permission.index') }}" class="nav-link @yield('activePermissions')">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Permisos</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('list_role')
-                            <li class="nav-item">
-                                <a href="{{ route('role.index') }}" class="nav-link @yield('activeRoles')">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Roles</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('list_user')
-                                <li class="nav-item">
-                                    <a href="{{ route('user.index') }}" class="nav-link @yield('activeUser')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Usuarios Activos</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ route('user.indexEnable') }}" class="nav-link @yield('activeUserEnable')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Usuarios Eliminados</p>
-                                    </a>
-                                </li>
-                            @endcan
-                        </ul>
-                    </li>
-                    @endcan
-                    @can('enable_dataGeneral')
-                    <li class="nav-item has-treeview @yield('openDataGeneral')">
-
-                        <a href="#" class="nav-link @yield('activeDataGeneral')">
-                            <i class="nav-icon fas fa-cogs"></i>
-                            <p>
-                                Datos de Configuración
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('list_dataGeneral')
-                                <li class="nav-item">
-                                    <a href="{{ route('dataGeneral.index') }}" class="nav-link @yield('activeListDataGeneral')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Datos Generales</p>
-                                    </a>
-                                </li>
-                            @endcan
-
-
-
-                            @can('listUser_configUserWeb')
-                                <li class="nav-item">
-                                    <a href="{{ route('configUserWeb.index') }}" class="nav-link @yield('activeConfigUserWeb')">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Usuarios Web</p>
-                                    </a>
-                                </li>
-                            @endcan
-
-                        </ul>
-
-                    </li>
-                    @endcan
-
-                    @canany(['list_company','list_branch','list_companyBankAccount','list_companySetting'])
+                    {{-- Promociones ocultas por decisión del negocio. --}}
+                    @canany(['list_company','list_branch','list_companyBankAccount','list_companySetting','listUser_configUserWeb'])
                         <li class="nav-header">
                             CONFIGURACIÓN EMPRESA
                         </li>
@@ -984,6 +866,17 @@
                             </ul>
                         </li>
                     @endcan
+
+                    @if(Auth::user()->isTenantOwner())
+                        @can('listUser_configUserWeb')
+                            <li class="nav-item">
+                                <a href="{{ route('configUserWeb.index') }}" class="nav-link @yield('activeConfigUserWeb')">
+                                    <i class="nav-icon fas fa-users"></i>
+                                    <p>Usuarios Web</p>
+                                </a>
+                            </li>
+                        @endcan
+                    @endif
 
                     @canany(['list_customer', 'list_contactName', 'list_supplier'])
                     <li class="nav-header">MANTENEDORES</li>
@@ -2011,36 +1904,44 @@
                                     <p>Listar solicitudes</p>
                                 </a>
                             </li>--}}
-                            <li class="nav-item">
+                            @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item">
                                 <a href="{{ route('output.request.indexV2') }}" class="nav-link @yield('activeListOutputRequest')">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Listar solicitudes</p>
                                 </a>
                             </li>
+@endif
                             @endcan
                             @can('create_request')
-                            <li class="nav-item">
+                            @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item">
                                 <a href="{{ route('output.request.create') }}" class="nav-link @yield('activeCreateOutputRequest')">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Crear solicitudes</p>
                                 </a>
                             </li>
+@endif
                             @endcan
                             @can('report_output')
-                                <li class="nav-item">
+                                @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item">
                                     <a href="{{ route('report.materials.outputs') }}" class="nav-link @yield('activeReportMaterialOutput')">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Materiales en salidas</p>
                                     </a>
                                 </li>
+@endif
                             @endcan
                             @can('report_output')
-                                <li class="nav-item">
+                                @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item">
                                     <a href="{{ route('report.outputs.by.quote') }}" class="nav-link @yield('activeReportOutputByQuote')">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Reporte Salidas Cotización</p>
                                     </a>
                                 </li>
+@endif
                             @endcan
                             @can('report_request')
                                 <li class="nav-item">
@@ -2055,7 +1956,8 @@
                     @endcan
                     @can('list_output')
                     <li class="nav-header">SALIDAS</li>
-                    <li class="nav-item has-treeview @yield('openOutputs')">
+                    @if(\App\Support\OperationalModules::enabled('legacy-output-requests'))
+<li class="nav-item has-treeview @yield('openOutputs')">
                         <a href="#" class="nav-link @yield('activeOutputs')">
                             <i class="nav-icon fas fa-share"></i>
                             <p>
@@ -2078,6 +1980,7 @@
                             </li>
                         </ul>
                     </li>
+@endif
                     @endcan
 
                     
@@ -3357,6 +3260,7 @@
                             </ul>
                         </li>
                     @endcan--}}
+                    @endif
                 </ul>
             </nav>
             <!-- /.sidebar-menu -->
@@ -3441,202 +3345,7 @@
 <script src="{{ asset('admin/dist/js/adminlte.min.js') }}"></script>
 <script src="{{ asset('/js/layout/admin2.js') }}"></script>
 
-<script>
-    $('#tenant-context-company').on(
-        'change',
-        function () {
-            let companyId = $(this).val();
-
-            let branchSelect =
-                $('#tenant-context-branch');
-
-            branchSelect
-                .prop('disabled', true)
-                .empty()
-                .append(
-                    $('<option>', {
-                        value: '',
-                        text: 'Cargando locales...'
-                    })
-                );
-
-            $.ajax({
-                url: '{{ route('tenant.context.branches') }}',
-                method: 'GET',
-
-                data: {
-                    company_id: companyId
-                },
-
-                success: function (response) {
-                    branchSelect.empty();
-
-                    if (
-                        !response.branches ||
-                        response.branches.length === 0
-                    ) {
-                        branchSelect.append(
-                            $('<option>', {
-                                value: '',
-                                text: 'Sin locales disponibles'
-                            })
-                        );
-
-                        return;
-                    }
-
-                    $.each(
-                        response.branches,
-                        function (index, branch) {
-                            branchSelect.append(
-                                $('<option>', {
-                                    value: branch.id,
-                                    text: branch.name
-                                })
-                            );
-                        }
-                    );
-                },
-
-                error: function (xhr) {
-                    let message =
-                        'No se pudieron cargar los locales.';
-
-                    if (
-                        xhr.responseJSON &&
-                        xhr.responseJSON.message
-                    ) {
-                        message =
-                            xhr.responseJSON.message;
-                    }
-
-                    toastr.error(message);
-
-                    console.error(
-                        'Error al cargar locales:',
-                        xhr
-                    );
-                },
-
-                complete: function () {
-                    branchSelect.prop(
-                        'disabled',
-                        false
-                    );
-                }
-            });
-        }
-    );
-
-    $('#tenant-context-change').on(
-        'click',
-        function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            let button = $(this);
-
-            let companyId =
-                $('#tenant-context-company').val();
-
-            let branchId =
-                $('#tenant-context-branch').val();
-
-            if (!companyId) {
-                toastr.warning(
-                    'Seleccione una empresa.'
-                );
-
-                return;
-            }
-
-            if (!branchId) {
-                toastr.warning(
-                    'Seleccione un local.'
-                );
-
-                return;
-            }
-
-            button
-                .prop('disabled', true)
-                .html(
-                    '<i class="fas fa-spinner fa-spin mr-1"></i>' +
-                    'Cambiando...'
-                );
-
-            $.ajax({
-                url: '{{ route('tenant.context.update') }}',
-                method: 'POST',
-
-                data: {
-                    _token:
-                        $('meta[name="csrf-token"]')
-                            .attr('content'),
-
-                    company_id: companyId,
-                    branch_id: branchId
-                },
-
-                success: function (response) {
-                    toastr.success(
-                        response.message
-                    );
-
-                    window.location.href =
-                        '{{ route('dashboard.principal') }}';
-                },
-
-                error: function (xhr) {
-                    let message =
-                        'No se pudo cambiar el contexto.';
-
-                    if (
-                        xhr.status === 422 &&
-                        xhr.responseJSON &&
-                        xhr.responseJSON.errors
-                    ) {
-                        let errors =
-                            xhr.responseJSON.errors;
-
-                        let firstError =
-                            Object.values(errors)[0];
-
-                        if (
-                            firstError &&
-                            firstError[0]
-                        ) {
-                            message =
-                                firstError[0];
-                        }
-                    } else if (
-                        xhr.responseJSON &&
-                        xhr.responseJSON.message
-                    ) {
-                        message =
-                            xhr.responseJSON.message;
-                    }
-
-                    toastr.error(message);
-
-                    console.error(
-                        'Error al cambiar contexto:',
-                        xhr
-                    );
-                },
-
-                complete: function () {
-                    button
-                        .prop('disabled', false)
-                        .html(
-                            '<i class="fas fa-sync-alt mr-1"></i>' +
-                            'Cambiar contexto'
-                        );
-                }
-            });
-        }
-    );
-</script>
+<script src="{{ asset('js/layout/tenant-context.js') }}"></script>
 
 @yield('scripts')
 

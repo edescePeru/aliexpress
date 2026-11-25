@@ -32,6 +32,7 @@ class FreeSaleController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':free-sale');
 
         /*$this->middleware('permission:listFreeSale_puntoVenta')
             ->only(['index']);*/

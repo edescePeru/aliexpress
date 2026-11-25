@@ -10,12 +10,16 @@ class Plan extends Model
         'code',
         'name',
         'max_active_users',
+        'max_active_companies',
+        'max_active_branches',
         'description',
         'is_active',
     ];
 
     protected $casts = [
         'max_active_users' => 'integer',
+        'max_active_companies' => 'integer',
+        'max_active_branches' => 'integer',
         'is_active' => 'boolean',
     ];
 

@@ -31,6 +31,12 @@ use Illuminate\Support\Facades\DB;
 
 class OutputController extends Controller
 {
+    public function __construct()
+    {
+        // Area requests are a separate consumer; never pause them by controller-wide accident.
+        $this->middleware(\App\Http\Middleware\OperationalModuleGate::class.':legacy-output-requests')->except(['indexOutputSimple', 'getOutputSimple', 'createOutputSimple', 'createOutputSimpleActivo', 'storeOutputSimpleActivos', 'storeOutputSimple', 'getJsonItemsOutputSimple', 'getJsonItemsOutputSimpleDevolver', 'destroyTotalOutputSimple', 'attendOutputSimple', 'confirmOutputSimple', 'confirmAllOutputSimpleAttend', 'returnItemOutputSimpleDetail', 'getMyOutputSimple', 'indexMyOutputSimple', 'editOutputSimpleDescription', 'reportMaterialOutputsSimple', 'getJsonMaterialsInOutputSimple', 'getJsonOutputsSimpleOfMaterial', 'reportMaterialByAreaOutputsSimple', 'getJsonOutputsSimpleOfMaterialByArea', 'getJsonItemsOutputArea', 'getJsonAreasInOutputSimple', 'esCompleto']);
+    }
+
     public function indexOutputRequestV2()
     {
         $user = Auth::user();

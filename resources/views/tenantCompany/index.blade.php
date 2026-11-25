@@ -13,6 +13,7 @@
 </div></div>
 @endsection
 @section('content')
+@include('tenantCompany._plan_capacity', ['capacityTenant' => auth()->user()->tenant])
 <div class="next-operational-list">
 <div class="next-list-summary"><strong>{{ $companies->count() }} empresas</strong><span>Activas primero · razón social</span></div>
 <div class="table-responsive" tabindex="0" aria-label="Empresas; desplazamiento horizontal">

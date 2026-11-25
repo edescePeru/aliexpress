@@ -1450,6 +1450,12 @@ class MaterialController extends Controller
                     ->firstOrFail();
 
 
+            // Re-resolve omissions from locked current rows, then validate those effective values again.
+            $request->preserveOmittedValues($material, true);
+            $effectiveValidator = app('validator')->make($request->all(), $request->rules(), $request->messages());
+            $request->withValidator($effectiveValidator);
+            $effectiveValidator->validate();
+
             /*
              * ============================================================
              * TIPO DE PRODUCTO
@@ -1495,7 +1501,7 @@ class MaterialController extends Controller
             }
 
 
-            if (count($variantes) === 0) {
+            if (count($variantes) === 0 && $request->materialInputProvided('variantes_json')) {
 
                 throw new \RuntimeException(
                     'Debe enviar al menos un registro.'
@@ -1522,6 +1528,7 @@ class MaterialController extends Controller
              * ============================================================
              */
 
+            app(\App\Services\Materials\MaterialRetaceriaPolicy::class)->assertChange($material, $request, $enabledParameters);
             $materialParameters->apply($material, $request, $enabledParameters);
 
             $material->full_name =
@@ -1595,31 +1602,13 @@ class MaterialController extends Controller
              * Producto con variantes:
              * Material -> Variant -> StockItem
              */
-            $material->quality_id =
-                null;
 
 
             /*
              * Para productos con variantes estos campos
              * legacy no representan al Material padre.
              */
-            if ($tipoVariantes === 1) {
-
-                $material->codigo =
-                    null;
-
-                $material->stock_min =
-                    0;
-
-                $material->stock_max =
-                    0;
-
-                $material->isPack =
-                    0;
-
-                $material->quantityPack =
-                    0;
-            }
+            // Compatibility values omitted by the form are retained.
 
 
             $material->save();
@@ -1660,63 +1649,10 @@ class MaterialController extends Controller
 
                 $material->save();
 
-            } elseif (!$material->image) {
-
-                $material->image =
-                    'no_image.png';
-
-                $material->save();
             }
 
 
-            /*
-             * ============================================================
-             * REGLA LEGACY DE RETACERÍA
-             * ============================================================
-             */
-
-            if (
-                $oldTypescrapId !=
-                $material->typescrap_id &&
-                $material->typescrap_id
-            ) {
-
-                $typeScrap =
-                    Typescrap::findOrFail(
-                        $material->typescrap_id
-                    );
-
-
-                $items =
-                    Item::where(
-                        'material_id',
-                        $material->id
-                    )
-                        ->whereIn(
-                            'state_item',
-                            [
-                                'entered',
-                                'exited',
-                            ]
-                        )
-                        ->get();
-
-
-                foreach ($items as $item) {
-
-                    $item->length =
-                        (float) $typeScrap->length;
-
-                    $item->width =
-                        (float) $typeScrap->width;
-
-                    $item->typescrap_id =
-                        $typeScrap->id;
-
-                    $item->save();
-                }
-            }
-
+            // MAT-03: las piezas existentes conservan medidas y tipo; el cambio solo sirve para futuros ingresos.
 
             /*
              * ============================================================
@@ -1747,6 +1683,7 @@ class MaterialController extends Controller
              * ============================================================
              */
 
+            if ($request->materialInputProvided('variantes_json')) {
             if ($tipoVariantes === 1) {
 
                 /*
@@ -1969,11 +1906,9 @@ class MaterialController extends Controller
                     $variant->color_id =
                         $colorId;
 
-                    $variant->attribute_summary =
-                        $attributeSummary;
+                    if (!$variant->exists || $request->materialRowProvided($index, 'talla_id') || $request->materialRowProvided($index, 'color_id')) { $variant->attribute_summary = $attributeSummary; }
 
-                    $variant->is_active =
-                        $isActive;
+                    if (!$variant->exists || $request->materialRowProvided($index, 'is_active')) { $variant->is_active = $isActive; }
 
 
                     /*
@@ -2047,25 +1982,17 @@ class MaterialController extends Controller
                         !$stockItem->exists;
 
 
-                    $stockItem->sku =
-                        $sku;
+                    if ($isNewStockItem || $request->materialRowProvided($index, 'sku')) { $stockItem->sku = $sku; }
 
-                    $stockItem->barcode =
-                        $barcode !== ''
-                            ? $barcode
-                            : null;
+                    if ($isNewStockItem || $request->materialRowProvided($index, 'codigo_barras')) { $stockItem->barcode = $barcode !== '' ? $barcode : null; }
 
-                    $stockItem->display_name =
-                        $displayName;
+                    if ($isNewStockItem || $request->materialInputProvided('name')) { $stockItem->display_name = $displayName; }
 
-                    $stockItem->unit_measure_id =
-                        $material->unit_measure_id;
+                    if ($isNewStockItem || $request->materialInputProvided('unit_measure')) { $stockItem->unit_measure_id = $material->unit_measure_id; }
 
-                    $stockItem->tracks_inventory =
-                        $tracksInventory;
+                    if ($isNewStockItem || $request->materialRowProvided($index, 'afecto_inventario')) { $stockItem->tracks_inventory = $tracksInventory; }
 
-                    $stockItem->is_active =
-                        $isActive;
+                    if ($isNewStockItem || $request->materialRowProvided($index, 'is_active')) { $stockItem->is_active = $isActive; }
 
 
                     $stockItem->save();
@@ -2119,7 +2046,7 @@ class MaterialController extends Controller
 
                     $this->syncInventoryLevels(
                         $stockItem,
-                        $inventoryLevels
+                        $request->inventoryValuesForWrite($index, $inventoryLevels)
                     );
                 }
 
@@ -2249,13 +2176,7 @@ class MaterialController extends Controller
                  * pueden ser consumidos en partes antiguas.
                  */
 
-                $material->quality_id =
-                    null;
-
-                $material->codigo =
-                    $barcode !== ''
-                        ? $barcode
-                        : null;
+                if ($request->materialRowProvided(0, 'codigo_barras')) { $material->codigo = $barcode !== '' ? $barcode : null; }
 
 
                 /*
@@ -2263,20 +2184,10 @@ class MaterialController extends Controller
                  *
                  * Estos campos quedan solamente por compatibilidad.
                  */
-                $material->stock_min =
-                    0;
-
-                $material->stock_max =
-                    0;
 
 
-                $material->isPack =
-                    $isPack;
-
-                $material->quantityPack =
-                    $isPack
-                        ? $cantidadPack
-                        : 0;
+                if ($request->materialRowProvided(0, 'pack')) { $material->isPack = $isPack; }
+                if ($request->materialRowProvided(0, 'cantidad_pack')) { $material->quantityPack = $cantidadPack; }
 
 
                 $material->save();
@@ -2332,25 +2243,17 @@ class MaterialController extends Controller
                     !$stockItem->exists;
 
 
-                $stockItem->sku =
-                    $sku;
+                if ($isNewStockItem || $request->materialRowProvided(0, 'sku')) { $stockItem->sku = $sku; }
 
-                $stockItem->barcode =
-                    $barcode !== ''
-                        ? $barcode
-                        : null;
+                if ($isNewStockItem || $request->materialRowProvided(0, 'codigo_barras')) { $stockItem->barcode = $barcode !== '' ? $barcode : null; }
 
-                $stockItem->display_name =
-                    $displayName;
+                if ($isNewStockItem || $request->materialInputProvided('name')) { $stockItem->display_name = $displayName; }
 
-                $stockItem->unit_measure_id =
-                    $material->unit_measure_id;
+                if ($isNewStockItem || $request->materialInputProvided('unit_measure')) { $stockItem->unit_measure_id = $material->unit_measure_id; }
 
-                $stockItem->tracks_inventory =
-                    $tracksInventory;
+                if ($isNewStockItem || $request->materialRowProvided(0, 'afecto_inventario')) { $stockItem->tracks_inventory = $tracksInventory; }
 
-                $stockItem->is_active =
-                    $isActive;
+                if ($isNewStockItem || $request->materialRowProvided(0, 'is_active')) { $stockItem->is_active = $isActive; }
 
 
                 $stockItem->save();
@@ -2384,7 +2287,7 @@ class MaterialController extends Controller
 
                 $this->syncInventoryLevels(
                     $stockItem,
-                    $inventoryLevels
+                    $request->inventoryValuesForWrite(0, $inventoryLevels)
                 );
             }
 
@@ -2393,6 +2296,8 @@ class MaterialController extends Controller
              * COMMIT
              * ============================================================
              */
+
+            } // End explicitly supplied row changes.
 
             DB::commit();
 
@@ -2579,7 +2484,7 @@ class MaterialController extends Controller
          */
 
         $query =
-            app(MaterialCompanyCatalog::class)->apply(Material::query())
+            app(MaterialCompanyCatalog::class)->active(Material::query())
                 ->with([
                     'category:id,name',
                     'subcategory:id,name',
@@ -4733,9 +4638,11 @@ class MaterialController extends Controller
         ]);
     }
 
-    public function getJsonMaterialStockItemsEntry()
+    public function getJsonMaterialStockItemsEntry(Request $request)
     {
-        $stockItems = StockItem::with([
+        $access = app(\App\Services\Inventory\PurchaseFormReadAccess::class);
+        $access->authorize($request->input('consumer'));
+        $stockItems = $access->coherentVariants(StockItem::query())->with([
             'material.category',
             'material.materialType',
             'material.unitMeasure',
@@ -4746,8 +4653,13 @@ class MaterialController extends Controller
             'material.warrant',
             'material.quality',
             'material.typeScrap',
-            'inventoryLevels',
+            'inventoryLevels' => function ($query) { app(MaterialInventoryScope::class)->levels($query); },
         ])
+            ->where('stock_items.tenant_id', TenantContext::tenantId())
+            ->whereHas('material', function ($query) { $query->where('materials.tenant_id', TenantContext::tenantId()); })
+            ->whereHas('companyStockItems', function ($query) {
+                $query->where('tenant_id', TenantContext::tenantId())->where('company_id', TenantContext::companyId())->where('is_active', true);
+            })
             ->where('is_active', 1)
             ->get();
 
@@ -4794,6 +4706,8 @@ class MaterialController extends Controller
 
     public function getJsonMaterialsForEntry(Request $request)
     {
+        app(\App\Services\Inventory\PurchaseFormReadAccess::class)->authorize($request->input('consumer'), ['entry_create', 'entry_edit']);
+        $request->validate(['search' => ['nullable', 'string', 'max:191']]);
         $search = trim($request->get('search', ''));
         $companyId = TenantContext::companyId();
 
@@ -4803,11 +4717,12 @@ class MaterialController extends Controller
                 'typeScrap',
 
                 'stockItems' => function ($q) use ($companyId) {
-                    $q->where('is_active', 1)
+                    app(\App\Services\Inventory\PurchaseFormReadAccess::class)->coherentVariants($q);
+                    $q->where('stock_items.tenant_id', TenantContext::tenantId())->where('is_active', 1)
                         ->whereHas(
                             'companyStockItems',
                             function ($companyQuery) use ($companyId) {
-                                $companyQuery
+                                $companyQuery->where('tenant_id', TenantContext::tenantId())
                                     ->where(
                                         'company_id',
                                         $companyId
@@ -4820,10 +4735,7 @@ class MaterialController extends Controller
                         )
                         ->with([
                             'inventoryLevels' => function ($inventoryQuery) use ($companyId) {
-                                $inventoryQuery->where(
-                                    'company_id',
-                                    $companyId
-                                );
+                                app(MaterialInventoryScope::class)->levels($inventoryQuery);
                             }
                         ]);
                 }
@@ -4838,11 +4750,11 @@ class MaterialController extends Controller
             ->whereHas(
                 'stockItems',
                 function ($q) use ($companyId) {
-                    $q->where('is_active', 1)
+                    $q->where('stock_items.tenant_id', TenantContext::tenantId())->where('is_active', 1)
                         ->whereHas(
                             'companyStockItems',
                             function ($companyQuery) use ($companyId) {
-                                $companyQuery
+                                $companyQuery->where('tenant_id', TenantContext::tenantId())
                                     ->where(
                                         'company_id',
                                         $companyId
@@ -4878,7 +4790,7 @@ class MaterialController extends Controller
                                         ->whereHas(
                                             'companyStockItems',
                                             function ($companyQuery) use ($companyId) {
-                                                $companyQuery
+                                                $companyQuery->where('tenant_id', TenantContext::tenantId())
                                                     ->where(
                                                         'company_id',
                                                         $companyId
@@ -5031,6 +4943,8 @@ class MaterialController extends Controller
 
     public function getJsonMaterialsForOrderPurchase(Request $request)
     {
+        app(\App\Services\Inventory\PurchaseFormReadAccess::class)->authorize($request->input('consumer'), ['purchase_create', 'purchase_edit']);
+        $request->validate(['search' => ['nullable', 'string', 'max:191']]);
         $search = trim($request->get('search', ''));
 
         $companyId = TenantContext::companyId();
@@ -5038,19 +4952,17 @@ class MaterialController extends Controller
         /** @var PriceResolverService $priceResolver */
         $priceResolver = app(PriceResolverService::class);
 
-        $materials = Material::with([
+        $materials = app(MaterialCompanyCatalog::class)->apply(Material::query())->with([
             'unitMeasure',
             'typeScrap',
 
             'stockItems' => function ($q) use ($companyId) {
-                $q->where('is_active', 1)
-                    ->enabledForCompany($companyId)
+                app(\App\Services\Inventory\PurchaseFormReadAccess::class)->coherentVariants($q);
+                $q->where('stock_items.tenant_id', TenantContext::tenantId())->where('is_active', 1)
+                    ->enabledForCompany($companyId)->whereHas('companyStockItems', function ($link) use ($companyId) { $link->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)->where('is_active', true); })
                     ->with([
                         'inventoryLevels' => function ($inventoryQuery) use ($companyId) {
-                            $inventoryQuery->where(
-                                'company_id',
-                                $companyId
-                            );
+                            app(MaterialInventoryScope::class)->levels($inventoryQuery);
                         }
                     ]);
             }
@@ -5070,7 +4982,7 @@ class MaterialController extends Controller
                             function ($stockQuery) use ($search, $companyId) {
                                 $stockQuery
                                     ->where('is_active', 1)
-                                    ->enabledForCompany($companyId)
+                                    ->enabledForCompany($companyId)->whereHas('companyStockItems', function ($link) use ($companyId) { $link->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)->where('is_active', true); })
                                     ->where(function ($sq) use ($search) {
                                         $sq->where(
                                             'sku',
@@ -5098,8 +5010,8 @@ class MaterialController extends Controller
              * habilitado para la Company actual.
              */
             ->whereHas('stockItems', function ($q) use ($companyId) {
-                $q->where('is_active', 1)
-                    ->enabledForCompany($companyId);
+                $q->where('stock_items.tenant_id', TenantContext::tenantId())->where('is_active', 1)
+                    ->enabledForCompany($companyId)->whereHas('companyStockItems', function ($link) use ($companyId) { $link->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)->where('is_active', true); });
             })
 
             ->limit(30)
@@ -5243,14 +5155,17 @@ class MaterialController extends Controller
         return response()->json($array);
     }
 
-    public function getStockItemsForEntry($materialId)
+    public function getStockItemsForEntry(Request $request, $materialId)
     {
+        app(\App\Services\Inventory\PurchaseFormReadAccess::class)->authorize($request->input('consumer'));
+        app(MaterialCompanyCatalog::class)->apply(Material::query())->whereKey($materialId)->firstOrFail();
         $companyId = TenantContext::companyId();
 
         /** @var PriceResolverService $priceResolver */
         $priceResolver = app(PriceResolverService::class);
 
-        $stockItems = StockItem::with([
+        $stockItems = StockItem::where('stock_items.tenant_id', TenantContext::tenantId())->whereHas('companyStockItems', function ($link) use ($companyId) { $link->where('tenant_id', TenantContext::tenantId())->where('company_id', $companyId)->where('is_active', true); })
+            ->whereHas('variant', function ($query) use ($materialId) { $query->where('variants.tenant_id', TenantContext::tenantId())->where('material_id', $materialId); })->with([
             'variant'
         ])
             ->where(

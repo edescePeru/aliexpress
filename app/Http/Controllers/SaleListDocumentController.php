@@ -24,9 +24,16 @@ class SaleListDocumentController extends Controller
         }
         list($field, $folder) = $definitions[$kind];
         $filename = $record->$field;
-        abort_unless(is_string($filename) && $filename !== '' && strpos($filename, '/') === false && strpos($filename, '\\') === false && $filename !== '.' && $filename !== '..', 404);
-        $root = realpath(public_path($folder)); $path = $root ? realpath($root.DIRECTORY_SEPARATOR.$filename) : false;
-        abort_unless($root && $path && is_file($path) && strpos($path, $root.DIRECTORY_SEPARATOR) === 0, 404);
-        return response()->file($path);
+        $file = app(\App\Services\Sales\SaleDocumentFile::class)->resolve($folder, $filename);
+        $response = response()->file($file['path'], [
+            'Content-Type' => $file['mime'],
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+        $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $filename);
+        $response->setContentDisposition($file['extension'] === 'pdf' ? 'inline' : 'attachment', $safeName);
+        $response->setPrivate();
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
     }
 }

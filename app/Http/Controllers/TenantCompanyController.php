@@ -92,6 +92,10 @@ class TenantCompanyController extends Controller
                      * ==================================================
                      */
 
+                    $quota = app(\App\Services\TenantPlanService::class);
+                    $lockedTenant = $quota->lockTenant((int) $tenantId);
+                    $quota->ensureStructureCapacity($lockedTenant, 1, 1);
+
                     $company = Company::create([
                         'catalog_slug' => $validated['catalog_slug'] ?? null,
                         'tenant_id' =>
@@ -457,6 +461,8 @@ class TenantCompanyController extends Controller
                      *
                      * Siempre filtramos explícitamente por Tenant.
                      */
+                    $quota = app(\App\Services\TenantPlanService::class);
+                    $lockedTenant = $quota->lockTenant((int) $tenantId);
                     $company = Company::query()
                         ->where('tenant_id', $tenantId)
                         ->where('id', $id)
@@ -471,6 +477,7 @@ class TenantCompanyController extends Controller
                      */
 
                     if (!$company->is_active) {
+                        $quota->ensureStructureCapacity($lockedTenant, 1, 0);
 
                         $company->is_active = true;
                         $company->save();
