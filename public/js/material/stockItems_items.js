@@ -1,4 +1,4 @@
-/* Physical Items read path; no item-code mutation handler is loaded. */
+/* Physical Items with contextual code editing; stock is never changed here. */
 (function ($) {
     'use strict';
     const text = value => $('<div>').text(value === null || value === undefined || value === '' ? '—' : String(value)).html();
@@ -31,7 +31,12 @@
             columns: [
                 {className: 'text-center', orderable: false, searchable: false, data: null, defaultContent: '<button type="button" class="btn btn-outline-secondary btn-sm next-table-cell-action item-detail-toggle" aria-expanded="false" aria-label="Ver detalle del Item"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>'},
                 {data: 'material_description', name: 'material.full_name', render: function (value, type) { return type === 'display' ? text(value) : value; }},
-                {data: 'code', name: 'code', className: 'text-center', render: function (value, type) { return type === 'display' ? text(value) : value; }},
+                {data: 'code', name: 'code', className: 'text-center', render: function (value, type, row) {
+                    if (type !== 'display') return value;
+                    const id = text(row.id).replace(/"/g, '&quot;');
+                    const action = window.canEditItemCode ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del Item ' + id + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu"><button type="button" class="dropdown-item btn-edit-item-code" data-item-id="' + id + '"><i class="fas fa-edit next-row-action-item-icon" aria-hidden="true"></i>Editar código</button></div></div>' : '';
+                    return '<div class="d-flex align-items-center justify-content-between"><span class="text-break">' + text(value) + '</span>' + action + '</div>';
+                }},
                 {data: 'price', name: 'price', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
                 {data: 'percentage', name: 'percentage', className: 'text-right', render: function (value, type) { return type === 'display' ? text(value) : value; }},
                 {data: 'state_item', orderable: false, searchable: false, className: 'text-center', render: function (value, type) { return type === 'display' ? state(value) : value; }}
@@ -45,6 +50,38 @@
             const open = !row.child.isShown();
             if (open) row.child(detail(row.data())).show(); else row.child.hide();
             $(this).attr({'aria-expanded': String(open), 'aria-label': open ? 'Cerrar detalle del Item' : 'Ver detalle del Item'}).find('i').toggleClass('fa-chevron-up', open).toggleClass('fa-chevron-down', !open);
+        });
+        let saving = false, codeTrigger;
+        // The shared dropdown may be portalled outside the table: resolve data by Item ID.
+        $(document).on('click', '.btn-edit-item-code', function () {
+            if (!window.canEditItemCode || saving) return;
+            const id = $(this).data('item-id');
+            const row = table.rows().data().toArray().find(item => String(item.id) === String(id));
+            if (!row) return;
+            const owner = $(this).closest('.next-row-actions-menu').data('nextRowActionsOwner');
+            codeTrigger = owner ? $(owner).find('.next-row-actions-trigger')[0] : $(this).closest('.next-row-actions').find('.next-row-actions-trigger')[0];
+            $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide');
+            $('#edit_item_id').val(id); $('#edit_item_code').val(row.code || '').removeClass('is-invalid');
+            $('#item-code-error').addClass('d-none').empty();
+            $('#modalEditarCodigoItem').modal('show');
+        });
+        $('#modalEditarCodigoItem').on('shown.bs.modal', function () { $('#edit_item_code').trigger('focus'); }).on('hidden.bs.modal', function () {
+            if (codeTrigger && document.contains(codeTrigger)) codeTrigger.focus();
+        });
+        $('#formEditarCodigoItem').on('submit', function (event) {
+            event.preventDefault();
+            if (saving || !window.canEditItemCode) return;
+            const id = $('#edit_item_id').val(), code = $('#edit_item_code').val().trim();
+            if (!id || !code) { $('#edit_item_code').addClass('is-invalid').trigger('focus'); return; }
+            saving = true; $('#btnGuardarCodigoItem').prop('disabled', true);
+            $('#item-code-error').addClass('d-none').empty(); $('#edit_item_code').removeClass('is-invalid');
+            $.ajax({url: window.stockItemCodeUrl.replace(':id', encodeURIComponent(id)), type: 'PUT', data: {code: code, _token: $('#formEditarCodigoItem input[name="_token"]').val()}})
+                .done(function (response) { toastr.success(response.message || 'Código actualizado correctamente.'); $('#modalEditarCodigoItem').modal('hide'); table.ajax.reload(null, false); })
+                .fail(function (xhr) {
+                    const data = xhr.responseJSON || {}, errors = data.errors && Object.values(data.errors);
+                    $('#item-code-error').removeClass('d-none').text(errors && errors.length ? [].concat(errors[0])[0] : data.message || 'No se pudo actualizar el código.');
+                    if (data.errors && data.errors.code) $('#edit_item_code').addClass('is-invalid').trigger('focus');
+                }).always(function () { saving = false; $('#btnGuardarCodigoItem').prop('disabled', false); });
         });
     });
 })(window.jQuery);

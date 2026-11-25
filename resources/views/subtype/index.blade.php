@@ -46,9 +46,7 @@
         <div class="next-toolbar-actions">
             @can('destroy_subType')
                 <button type="button" id="delete-selected" class="btn btn-outline-danger btn-sm"
-                    data-url-bulk="{{ url('/dashboard/subtype/delete-multiple') }}"
-                    data-backend-sync-open="true" aria-disabled="true"
-                    title="Pendiente de autorización backend" disabled>
+                    data-url-bulk="{{ url('/dashboard/subtype/delete-multiple') }}">
                     Eliminar seleccionados
                 </button>
             @endcan
@@ -68,7 +66,7 @@
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+    <input type="hidden" id="permissions" value="{{ json_encode(auth()->user()->getAllPermissions()->pluck('name')->all()) }}">
 
     <section class="next-operational-list" aria-label="Listado de subtipos">
         <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table"

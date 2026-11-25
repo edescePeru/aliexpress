@@ -161,9 +161,68 @@ $(document).ready(function () {
     $('#delete-selected').on('click', function () {
         var $bulkButton = $(this);
 
-        if ($bulkButton.prop('disabled') || $bulkButton.attr('data-backend-sync-open') === 'true') {
+        if ($bulkButton.prop('disabled')) {
             return;
         }
+
+        var ids = [];
+
+        $('.row-checkbox:checked').each(function () {
+            ids.push($(this).val());
+        });
+
+        if (ids.length === 0) {
+            $.alert({
+                title: 'Atención',
+                content: 'No hay elementos seleccionados.',
+                type: 'orange',
+                typeAnimated: true
+            });
+            return;
+        }
+
+        $.confirm({
+            title: '¿Confirmar eliminación?',
+            content: '¿Estás seguro que deseas eliminar los elementos seleccionados?',
+            type: 'red',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, eliminar',
+                    btnClass: 'btn-red',
+                    action: function () {
+                        $.ajax({
+                            url: $bulkButton.attr('data-url-bulk'),
+                            type: 'POST',
+                            data: {
+                                ids: ids,
+                                _token: $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (response) {
+                                $.alert({
+                                    title: 'Éxito',
+                                    content: response.message,
+                                    type: 'green',
+                                    typeAnimated: true
+                                });
+                                dataTable.ajax.reload();
+                            },
+                            error: function (xhr) {
+                                $.alert({
+                                    title: 'Error',
+                                    content: (xhr.responseJSON || {}).message || 'No se pudieron eliminar los registros seleccionados.',
+                                    type: 'red',
+                                    typeAnimated: true
+                                });
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    action: function () {}
+                }
+            }
+        });
     });
 });
 

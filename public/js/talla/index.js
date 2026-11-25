@@ -80,8 +80,12 @@ $(function () {
     });
 
     $('#btnDeleteSelectedTallas').on('click', function () {
-        if ($(this).prop('disabled') || $(this).attr('data-backend-sync-open') === 'true') {
+        if (!canDeleteTalla || $(this).prop('disabled')) {
             return;
+        }
+        var ids = $('.talla-checkbox:checked').map(function () { return $(this).val(); }).get();
+        if (ids.length) {
+            confirmDeleteMultipleTallas(ids);
         }
     });
 });
@@ -311,11 +315,6 @@ function renderTallaPageButton(label, page, disabled, active) {
 function updateBulkSelection() {
     var $button = $('#btnDeleteSelectedTallas');
 
-    if ($button.attr('data-backend-sync-open') === 'true') {
-        $button.prop('disabled', true).attr('aria-disabled', 'true');
-        return;
-    }
-
     $button.prop('disabled', $('.talla-checkbox:checked').length === 0);
 }
 
@@ -380,4 +379,33 @@ function escapeTallaHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function confirmDeleteMultipleTallas(ids) {
+    $.confirm({
+        title: 'Eliminar tallas',
+        content: '¿Está seguro de eliminar los elementos seleccionados?',
+        type: 'red',
+        buttons: {
+            confirm: {
+                text: 'Sí, eliminar',
+                btnClass: 'btn-danger',
+                action: function () {
+                    $.ajax({
+                        url: tallaRoutes.deleteMultiple,
+                        type: 'POST',
+                        data: { ids: ids, _token: $('meta[name="csrf-token"]').attr('content') },
+                        success: function (response) {
+                            $.alert({
+                                title: 'Correcto', content: response.message, type: 'green',
+                                buttons: { ok: { text: 'Aceptar', action: function () { loadTallas(); } } }
+                            });
+                        },
+                        error: function (xhr) { showTallaIndexError(xhr, 'No se pudieron eliminar los elementos seleccionados.'); }
+                    });
+                }
+            },
+            cancel: { text: 'Cancelar' }
+        }
+    });
 }

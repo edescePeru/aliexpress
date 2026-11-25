@@ -49,11 +49,7 @@
                     type="button"
                     id="delete-selected"
                     class="btn btn-outline-danger btn-sm"
-                    data-url-bulk="{{ url('/dashboard/genero/delete-multiple') }}"
-                    data-backend-sync-open="true"
-                    aria-disabled="true"
-                    title="Pendiente de validación y política de dependencias backend"
-                    disabled>
+                    data-url-bulk="{{ url('/dashboard/genero/delete-multiple') }}">
                     Eliminar seleccionados
                 </button>
             @endcan

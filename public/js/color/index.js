@@ -80,8 +80,12 @@ $(function () {
     });
 
     $('#btnDeleteSelectedColors').on('click', function () {
-        if ($(this).prop('disabled') || $(this).attr('data-backend-sync-open') === 'true') {
+        if (!canDeleteColor || $(this).prop('disabled')) {
             return;
+        }
+        var ids = $('.color-checkbox:checked').map(function () { return $(this).val(); }).get();
+        if (ids.length) {
+            deleteMultipleColors(ids);
         }
     });
 });
@@ -319,11 +323,6 @@ function renderColorPageButton(label, page, disabled, active) {
 function updateColorBulkSelection() {
     var $button = $('#btnDeleteSelectedColors');
 
-    if ($button.attr('data-backend-sync-open') === 'true') {
-        $button.prop('disabled', true).attr('aria-disabled', 'true');
-        return;
-    }
-
     $button.prop('disabled', $('.color-checkbox:checked').length === 0);
 }
 
@@ -388,4 +387,33 @@ function escapeColorHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function deleteMultipleColors(ids) {
+    $.confirm({
+        title: 'Eliminar colores',
+        content: '¿Está seguro de eliminar los elementos seleccionados?',
+        type: 'red',
+        buttons: {
+            confirm: {
+                text: 'Sí, eliminar',
+                btnClass: 'btn-danger',
+                action: function () {
+                    $.ajax({
+                        url: colorRoutes.deleteMultiple,
+                        type: 'POST',
+                        data: { ids: ids, _token: $('meta[name="csrf-token"]').attr('content') },
+                        success: function (response) {
+                            $.alert({
+                                title: 'Correcto', content: response.message, type: 'green',
+                                buttons: { ok: { text: 'Aceptar', action: function () { loadColors(); } } }
+                            });
+                        },
+                        error: function (xhr) { showColorIndexError(xhr, 'No se pudieron eliminar los elementos seleccionados.'); }
+                    });
+                }
+            },
+            cancel: { text: 'Cancelar' }
+        }
+    });
 }

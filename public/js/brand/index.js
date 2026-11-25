@@ -4,6 +4,7 @@ var deleteTrigger = null;
 
 $(document).ready(function () {
     var $table = $('#dynamic-table');
+    var selectedIds = new Set();
     var canCreate = $table.attr('data-can-create') === 'true';
     var canUpdate = $table.attr('data-can-update') === 'true';
     var canDestroy = $table.attr('data-can-destroy') === 'true';
@@ -129,6 +130,9 @@ $(document).ready(function () {
         },
         drawCallback: function () {
             $('#select-all').prop('checked', false);
+            $(this.api().rows().nodes()).find('.row-checkbox').each(function () {
+                $(this).prop('checked', selectedIds.has($(this).val()));
+            });
             updateDataTableContext(this.api(), $table.closest('.dataTables_wrapper'));
         }
     });
@@ -150,17 +154,83 @@ $(document).ready(function () {
         deleteTrigger = null;
     });
 
+    $(document).on('change', '.row-checkbox', function () {
+        if (this.checked) { selectedIds.add($(this).val()); }
+        else { selectedIds.delete($(this).val()); }
+    });
+
     $('#select-all').on('click', function () {
         var rows = dataTable.rows({ search: 'applied' }).nodes();
-        $('input[type="checkbox"].row-checkbox', rows).prop('checked', this.checked);
+        var checked = this.checked;
+        $('input[type="checkbox"].row-checkbox', rows).each(function () {
+            $(this).prop('checked', checked);
+            if (checked) { selectedIds.add($(this).val()); }
+            else { selectedIds.delete($(this).val()); }
+        });
     });
 
     $('#delete-selected').on('click', function () {
         var $bulkButton = $(this);
 
-        if ($bulkButton.prop('disabled') || $bulkButton.attr('data-backend-sync-open') === 'true') {
+        if ($bulkButton.prop('disabled')) {
             return;
         }
+
+        var ids = Array.from(selectedIds);
+
+        if (ids.length === 0) {
+            $.alert({
+                title: 'Atención',
+                content: 'No hay elementos seleccionados.',
+                type: 'orange',
+                typeAnimated: true
+            });
+            return;
+        }
+
+        $.confirm({
+            title: '¿Confirmar eliminación?',
+            content: '¿Estás seguro que deseas eliminar los elementos seleccionados?',
+            type: 'red',
+            buttons: {
+                confirmar: {
+                    text: 'Sí, eliminar',
+                    btnClass: 'btn-red',
+                    action: function () {
+                        $.ajax({
+                            url: $bulkButton.attr('data-url-bulk'),
+                            type: 'POST',
+                            data: {
+                                ids: ids,
+                                _token: $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (response) {
+                                $.alert({
+                                    title: 'Éxito',
+                                    content: response.message,
+                                    type: 'green',
+                                    typeAnimated: true
+                                });
+                                selectedIds.clear();
+                                dataTable.ajax.reload();
+                            },
+                            error: function (xhr) {
+                                $.alert({
+                                    title: 'Error',
+                                    content: getErrorMessage(xhr, 'No se pudieron eliminar los registros seleccionados.'),
+                                    type: 'red',
+                                    typeAnimated: true
+                                });
+                            }
+                        });
+                    }
+                },
+                cancelar: {
+                    text: 'Cancelar',
+                    action: function () {}
+                }
+            }
+        });
     });
 });
 

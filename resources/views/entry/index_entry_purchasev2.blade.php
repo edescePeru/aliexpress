@@ -31,7 +31,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Inventario · Compras</span><h1 class="page-title">Entradas de compra</h1><p class="next-page-description">Consulta de la empresa activa.</p></div>
 @endsection
 
-@section('page-title')<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta de solo lectura.</span></div></div>@endsection
+@section('page-title')<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta y operaciones autorizadas.</span></div></div>@endsection
 
 @section('page-breadcrumb')
     <ol class="breadcrumb float-sm-right">
@@ -43,6 +43,7 @@
 @endsection
 
 @section('content')
+@include('entry.partials.list-operations')
 <section class="next-operational-list">
 <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 <div class="next-list-toolbar"><form id="list-filters"><div class="next-list-search-row"><div class="next-list-search-control"><div class="input-group"><input type="text" id="invoice" aria-label="Factura del ingreso" class="form-control" placeholder="Factura del ingreso…" autocomplete="off"><div class="input-group-append"><button class="btn btn-primary" type="button" id="btn-search">Buscar</button></div></div></div><button type="button" id="btnBusquedaAvanzada" class="btn btn-outline-secondary" data-toggle="collapse" data-target="#advanced-filters" aria-expanded="false" aria-controls="advanced-filters">Filtros avanzados</button></div>
@@ -50,7 +51,7 @@
 <div class="form-group col-md-3"><label for="supplier">Proveedor</label><select id="supplier" name="supplier" class="form-control form-control-sm select2"><option value="">TODOS</option>@foreach($arraySuppliers as $supplier)<option value="{{ $supplier['id'] }}">{{ $supplier['business_name'] }}</option>@endforeach</select></div><div class="form-group col-md-3"><label for="guide">Guía de remisión</label><input id="guide" class="form-control form-control-sm" autocomplete="off"></div><div class="form-group col-md-3"><label for="order">Orden de compra</label><input id="order" class="form-control form-control-sm" autocomplete="off"></div><div class="form-group col-md-6"><label for="start">Fechas de entrada</label><div id="sandbox-container"><div class="input-daterange input-group" id="datepicker"><input type="text" id="start" name="start" aria-label="Fecha inicial" class="form-control form-control-sm date-range-filter" autocomplete="off"><div class="input-group-append input-group-prepend"><span class="input-group-text">al</span></div><input type="text" id="end" name="end" aria-label="Fecha final" class="form-control form-control-sm date-range-filter" autocomplete="off"></div></div></div></div></div></div></form></div>
 <div id="list-error" class="alert alert-danger d-none" role="alert"></div>
 <div class="next-list-summary"><span><strong id="numberItems"></strong> entradas de compra</span><span>Fecha de entrada · más recientes primero</span></div>
-<div class="next-list-content"><div class="table-responsive"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Guía de remisión</th><th class="text-center">Orden de compra</th><th class="text-center">Factura</th><th class="text-left">Tipo de entrada</th><th class="text-left">Proveedor</th><th class="text-center">Fecha de entrada</th><th class="text-center">Diferido</th><th class="text-center">Moneda</th><th class="text-right">Total</th></tr></thead><tbody id="body-table"></tbody></table></div></div>
+<div class="next-list-content"><div class="table-responsive"><table class="table table-bordered table-hover table-sm next-data-table"><thead><tr><th class="text-center">ID</th><th class="text-center">Guía de remisión</th><th class="text-center">Orden de compra</th><th class="text-center">Factura</th><th class="text-left">Tipo de entrada</th><th class="text-left">Proveedor</th><th class="text-center">Fecha de entrada</th><th class="text-center">Diferido</th><th class="text-center">Moneda</th><th class="text-right">Total</th><th class="text-center">Acciones</th></tr></thead><tbody id="body-table"></tbody></table></div></div>
 <div class="next-list-pagination"><div id="textPagination"></div><ul class="pagination" id="pagination"></ul></div></section>
     <template id="previous-page">
         <li class="page-item previous">
@@ -83,8 +84,8 @@
     </template>
 
 
-<template id="item-table"><tr><td class="text-center" data-id></td><td class="text-center" data-guide></td><td class="text-center" data-order></td><td class="text-center" data-invoice></td><td class="text-left" data-type></td><td class="text-left" data-supplier></td><td class="text-center" data-date_entry></td><td class="text-center" data-diferidoText></td><td class="text-center" data-currency></td><td class="text-right" data-total></td></tr></template>
-<template id="item-table-empty"><tr><td colspan="10" class="text-left text-muted">Sin entradas para los filtros seleccionados.</td></tr></template>
+<template id="item-table"><tr><td class="text-center" data-id></td><td class="text-center" data-guide></td><td class="text-center" data-order></td><td class="text-center" data-invoice></td><td class="text-left" data-type></td><td class="text-left" data-supplier></td><td class="text-center" data-date_entry></td><td class="text-center" data-diferidoText></td><td class="text-center" data-currency></td><td class="text-right" data-total></td><td class="text-center" data-buttons></td></tr></template>
+<template id="item-table-empty"><tr><td colspan="11" class="text-left text-muted">Sin entradas para los filtros seleccionados.</td></tr></template>
 @endsection
 
 @section('plugins')
@@ -104,6 +105,7 @@
 @endsection
 
 @section('scripts')
+<script src="{{ asset('js/entry/list-operations.js') }}"></script>
     <script>
         $(function () {
             //Initialize Select2 Elements

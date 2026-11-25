@@ -30,7 +30,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Órdenes de compra normales</h1><p class="next-page-description">Consulta de órdenes de la empresa activa.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes normales · solo lectura.</span></div></div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes normales · Empresa activa.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -46,6 +46,7 @@
 @endsection
 
 @section('content')
+    @include('orderPurchase.partials.list-operations')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <section class="next-operational-list" aria-label="Órdenes normales"><div class="next-form-section">
         <div class="row">
@@ -235,6 +236,7 @@
 @endsection
 
 @section('scripts')
+    @include('orderPurchase.partials.list-operations-scripts')
     <script>
         $(function () {
             //Initialize Select2 Elements

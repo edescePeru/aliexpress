@@ -7,7 +7,7 @@
 <h1 class="page-title">StockItems</h1>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Catálogo habilitado por empresa</strong><span>Consulta del local activo y almacenes generales permitidos.</span></div><span class="badge badge-info">Solo lectura</span></div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Catálogo habilitado por empresa</strong><span>Consulta del local activo y almacenes generales permitidos.</span></div></div>
 @endsection
 @section('content')
 @include('material._inventoryContext')
@@ -30,13 +30,18 @@
 <div class="modal fade next-aux-modal" id="modalInventoryLevels" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modalInventoryLevelsLabel">
     <div class="modal-dialog modal-xl" role="document"><div class="modal-content">
         <div class="modal-header"><h2 class="modal-title h5" id="modalInventoryLevelsLabel">Inventario por ubicación</h2><button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button></div>
+        <form id="formInventoryLevels">
+        @csrf
+        <input type="hidden" id="modal_stock_item_id">
         <div class="modal-body">
+            <div id="inventory-levels-error" class="alert alert-danger d-none" role="alert"></div>
             <p id="modal_display_name" class="font-weight-bold"></p><p class="text-muted">SKU: <span id="modal_sku"></span> · Código barras: <span id="modal_barcode"></span></p>
             <div class="table-responsive" tabindex="0" aria-label="Niveles de inventario; desplazamiento horizontal de tabla">
                 <table class="table table-sm table-bordered next-data-table"><thead><tr><th>Almacén / ámbito</th><th>Ubicación</th><th class="text-center">Stock actual</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Mínimo</th><th class="text-center">Máximo</th><th class="text-right">Costo promedio</th><th class="text-right">Último costo</th></tr></thead><tbody id="tbody-modal-inventory-levels"></tbody></table>
             </div>
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button>@can('update_material')<button type="submit" id="btn-save-inventory-levels" class="btn btn-primary" disabled><i class="fas fa-save mr-1" aria-hidden="true"></i>Guardar mínimos y máximos</button>@endcan</div>
+        </form>
     </div></div>
 </div>
 @endsection
@@ -44,6 +49,9 @@
 <script src="{{ asset('js/material/inventory-context.js') }}"></script>
 <script>
 window.stockItemInventoryLevelsUrl = @json(route('stockitems.inventory-levels', ':id'));
+window.stockItemInventoryLevelsUpdateUrl = @json(route('stockitems.inventory-levels.update', ':id'));
+window.stockItemToggleInventoryUrl = @json(url('dashboard/stock-items/:id/toggle-inventory'));
+window.stockItemToggleActiveUrl = @json(url('dashboard/stock-items/:id/toggle-active'));
 window.stockItemItemsUrl = @json(route('material.stock.getItems', ':id'));
 window.APP = {URLS: {STOCK_ITEMS: @json(route('stockitems.list'))}};
 </script>

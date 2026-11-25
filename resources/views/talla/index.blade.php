@@ -44,9 +44,6 @@
                     type="button"
                     id="btnDeleteSelectedTallas"
                     class="btn btn-outline-danger btn-sm"
-                    data-backend-sync-open="true"
-                    aria-disabled="true"
-                    title="Pendiente de validación backend dedicada para eliminación múltiple"
                     disabled>
                     Eliminar seleccionadas
                 </button>

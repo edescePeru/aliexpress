@@ -129,17 +129,7 @@ function renderDataTable(data) {
     clone.querySelector("[data-type]").innerHTML = data.typeText;
     clone.querySelector("[data-state]").innerHTML = data.stateText;
 
-    var botones = clone.querySelector("[data-buttons]");
-
-    if (data.type === 'n' && $.inArray('list_orderPurchaseNormal', $permissions) !== -1) {
-        var action = activateTemplate('#template-normal');
-        action.querySelector('[data-ver_orden]').setAttribute('href', '/dashboard/ver/orden/compra/normal/' + encodeURIComponent(data.id));
-        botones.append(action);
-    } else {
-        botones.textContent = '—';
-        botones.title = data.type === 'e' ? 'Detalle Express fuera del alcance de lectura' : 'Sin acciones disponibles';
-    }
-
+    clone.querySelector('[data-buttons]').innerHTML = PurchaseListOperations.render(data, $permissions, false);
     $("#body-table").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();

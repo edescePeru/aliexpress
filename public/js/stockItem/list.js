@@ -1,7 +1,7 @@
-/* Read-only StockItem screen. Business mutations are intentionally not bound here. */
+/* Contextual StockItems. Stock adjustment remains blocked pending INV-01. */
 (function ($) {
     'use strict';
-    let permissions = [], listRequest, levelsRequest, modalTrigger, listSequence = 0, levelsSequence = 0;
+    let permissions = [], listRequest, levelsRequest, modalTrigger, listSequence = 0, levelsSequence = 0, currentPage = 1, savingLevels = false;
     const present = value => value === null || value === undefined || value === '' ? '—' : String(value);
     const escapeHtml = value => $('<div>').text(present(value)).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const can = permission => permissions.indexOf(permission) !== -1;
@@ -27,6 +27,7 @@
         listRequest = $.ajax({url: window.APP.URLS.STOCK_ITEMS, method: 'GET', data: {search: $('#search-stock-item').val().trim(), page: page}})
             .done(function (response) {
                 if (sequence !== listSequence) return;
+                currentPage = response.current_page;
                 renderStockItemsTable(response.data);
                 renderStockItemsPagination(response);
                 $('#stock-items-count').text(response.total + ' StockItems');
@@ -46,6 +47,8 @@
             const material = item.material || {}, variant = item.variant || {};
             const variantText = variant.attribute_summary || [variant.talla && (variant.talla.short_name || variant.talla.name), variant.color && variant.color.name].filter(Boolean).join(' / ');
             let actions = '';
+            if (can('configInventariable_material')) actions += '<button type="button" class="dropdown-item btn-toggle-inventory" data-id="' + escapeHtml(item.id) + '" data-value="' + Number(item.tracks_inventory) + '"><i class="fas fa-box next-row-action-item-icon" aria-hidden="true"></i>' + (Number(item.tracks_inventory) === 1 ? 'Desactivar inventariable' : 'Activar inventariable') + '</button>';
+            if (can('configActive_material')) actions += '<button type="button" class="dropdown-item btn-toggle-active' + (Number(item.is_active) === 1 ? ' text-danger' : '') + '" data-id="' + escapeHtml(item.id) + '" data-value="' + Number(item.is_active) + '"><i class="fas fa-power-off next-row-action-item-icon" aria-hidden="true"></i>' + (Number(item.is_active) === 1 ? 'Desactivar StockItem' : 'Activar StockItem') + '</button>';
             if (can('verInventario_material')) actions += '<button type="button" class="dropdown-item" data-ver_inventario data-id="' + escapeHtml(item.id) + '"><i class="fas fa-boxes next-row-action-item-icon" aria-hidden="true"></i>Ver inventario</button>';
             if (can('verItems_material') && material.tipo_venta_id == 3) actions += '<a class="dropdown-item" data-ver_items href="' + escapeHtml(window.stockItemItemsUrl.replace(':id', encodeURIComponent(item.id))) + '"><i class="fas fa-list next-row-action-item-icon" aria-hidden="true"></i>Ver Items</a>';
             actions = actions ? '<div class="dropdown next-row-actions"><button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ' + escapeHtml(item.sku) + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu">' + actions + '</div></div>' : '<span class="text-muted">Sin acciones</span>';
@@ -55,6 +58,9 @@
     function openInventoryLevelsModal(id) {
         const sequence = ++levelsSequence;
         if (levelsRequest) levelsRequest.abort();
+        $('#modal_stock_item_id').val('');
+        $('#btn-save-inventory-levels').prop('disabled', true);
+        $('#inventory-levels-error').addClass('d-none').empty();
         $('#modal_sku, #modal_barcode, #modal_display_name').text('—');
         $('#tbody-modal-inventory-levels').html('<tr><td colspan="9" class="next-table-empty">Cargando…</td></tr>');
         $('#modalInventoryLevels').modal('show');
@@ -62,12 +68,20 @@
             .done(function (response) {
                 if (sequence !== levelsSequence) return;
                 const item = response.stock_item || {};
+                $('#modal_stock_item_id').val(item.id || '');
                 $('#modal_sku').text(present(item.sku)); $('#modal_barcode').text(present(item.barcode)); $('#modal_display_name').text(present(item.display_name));
-                const rows = (response.inventory_levels || []).map(function (level) {
+                const rows = (response.inventory_levels || []).map(function (level, index) {
                     const scope = level.warehouse_branch_id === null ? 'General' : 'Local ' + present(level.warehouse_branch_id);
-                    return '<tr><td>' + escapeHtml(level.warehouse_name) + '<small class="d-block text-muted">' + escapeHtml(scope) + '</small></td><td>' + escapeHtml(level.location_name) + '</td>' + ['qty_on_hand', 'qty_reserved', 'qty_available', 'min_alert', 'max_alert', 'average_cost', 'last_cost'].map(function (key) { return '<td class="' + (key.indexOf('cost') !== -1 ? 'text-right' : 'text-center') + '">' + escapeHtml(level[key]) + '</td>'; }).join('') + '</tr>';
+                    return '<tr><td>' + escapeHtml(level.warehouse_name) + '<small class="d-block text-muted">' + escapeHtml(scope) + '</small></td><td>' + escapeHtml(level.location_name) + '</td>' + ['qty_on_hand', 'qty_reserved', 'qty_available', 'min_alert', 'max_alert', 'average_cost', 'last_cost'].map(function (key) {
+                        let value = escapeHtml(level[key]);
+                        if (can('update_material') && (key === 'min_alert' || key === 'max_alert')) {
+                            value = (key === 'min_alert' ? '<input type="hidden" name="inventory_levels[' + index + '][id]" value="' + escapeHtml(level.id) + '">' : '') + '<input type="number" class="form-control form-control-sm" min="0" step="any" name="inventory_levels[' + index + '][' + key + ']" value="' + escapeHtml(level[key] == null ? '' : level[key]) + '" aria-label="' + (key === 'min_alert' ? 'Mínimo' : 'Máximo') + ' nivel ' + escapeHtml(level.id) + '">';
+                        }
+                        return '<td class="' + (key.indexOf('cost') !== -1 ? 'text-right' : 'text-center') + '">' + value + '</td>';
+                    }).join('') + '</tr>';
                 });
                 $('#tbody-modal-inventory-levels').html(rows.join('') || '<tr><td colspan="9" class="next-table-empty">No hay niveles de inventario en este contexto.</td></tr>');
+                $('#btn-save-inventory-levels').prop('disabled', !rows.length || !item.id || savingLevels);
             }).fail(function (xhr, status) {
                 if (status === 'abort' || sequence !== levelsSequence) return;
                 $('#tbody-modal-inventory-levels').html('<tr><td colspan="9" class="next-table-empty text-danger">' + escapeHtml(errorMessage(xhr, 'No se pudo consultar inventario.')) + '</td></tr>');
@@ -146,6 +160,27 @@ function renderStockItemsPagination(response) {
 
     $(function () {
         permissions = JSON.parse($('#permissions').val());
+        $(document).on('click', '.btn-toggle-inventory, .btn-toggle-active', function () {
+            const button = $(this), inventory = button.hasClass('btn-toggle-inventory');
+            if (button.prop('disabled') || !can(inventory ? 'configInventariable_material' : 'configActive_material')) return;
+            button.prop('disabled', true);
+            $.ajax({url: (inventory ? window.stockItemToggleInventoryUrl : window.stockItemToggleActiveUrl).replace(':id', encodeURIComponent(button.data('id'))), method: 'POST', data: {value: Number(button.data('value')) === 1 ? 0 : 1, _token: $('meta[name="csrf-token"]').attr('content')}})
+                .done(function () { toastr.success(inventory ? 'Inventario actualizado' : 'Estado actualizado'); loadStockItems(currentPage); })
+                .fail(function (xhr) { toastr.error(errorMessage(xhr, 'No se pudo actualizar la configuración.')); })
+                .always(function () { button.prop('disabled', false); });
+        });
+        $('#formInventoryLevels').on('submit', function (event) {
+            event.preventDefault();
+            const id = $('#modal_stock_item_id').val(), sequence = levelsSequence;
+            if (savingLevels || !id || !can('update_material') || $('#btn-save-inventory-levels').prop('disabled')) return;
+            savingLevels = true;
+            $('#btn-save-inventory-levels').prop('disabled', true);
+            $('#inventory-levels-error').addClass('d-none').empty();
+            $.ajax({url: window.stockItemInventoryLevelsUpdateUrl.replace(':id', encodeURIComponent(id)), method: 'POST', data: $(this).serialize()})
+                .done(function (response) { toastr.success(response.message || 'Cambios guardados.'); if (sequence === levelsSequence) $('#modalInventoryLevels').modal('hide'); loadStockItems(currentPage); })
+                .fail(function (xhr) { if (sequence === levelsSequence) $('#inventory-levels-error').removeClass('d-none').text(errorMessage(xhr, 'No se pudieron guardar los niveles.')); })
+                .always(function () { savingLevels = false; $('#btn-save-inventory-levels').prop('disabled', !$('#modal_stock_item_id').val() || !$('#tbody-modal-inventory-levels input').length); });
+        });
         $('#stock-items-search-form').on('submit', function (e) { e.preventDefault(); loadStockItems(1); });
         $(document).on('click', '.pagination-stock-item a', function (e) {
             e.preventDefault();

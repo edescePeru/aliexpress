@@ -49,11 +49,7 @@
                     type="button"
                     id="delete-selected"
                     class="btn btn-outline-danger btn-sm"
-                    data-url-bulk="{{ url('/dashboard/subcategory/delete-multiple') }}"
-                    data-backend-sync-open="true"
-                    aria-disabled="true"
-                    title="Pendiente de autorización backend"
-                    disabled>
+                    data-url-bulk="{{ url('/dashboard/subcategory/delete-multiple') }}">
                     Eliminar seleccionadas
                 </button>
             @endcan
@@ -77,7 +73,7 @@
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+    <input type="hidden" id="permissions" value="{{ json_encode(auth()->user()->getAllPermissions()->pluck('name')->all()) }}">
 
     <section class="next-operational-list" aria-label="Listado de subcategorías">
         <table

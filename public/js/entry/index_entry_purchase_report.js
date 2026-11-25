@@ -22,7 +22,8 @@ $(document).ready(function () {
                 return type === 'display' ? '<span class="badge badge-light">' + label + '</span>' : label;
             }},
             {data: 'total', className: 'text-right', render: text},
-            {data: 'currency_invoice', className: 'text-center', render: text}
+            {data: 'currency_invoice', className: 'text-center', render: text},
+            {data: null, className: 'text-center', orderable: false, searchable: false, render: function (row) { return EntryInvoiceOperations.render(row, 'report'); }}
         ],
         language: {
             lengthMenu: 'Mostrar _MENU_', search: 'Buscar en resultados:',

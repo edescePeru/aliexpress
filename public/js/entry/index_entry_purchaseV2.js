@@ -1,4 +1,4 @@
-// Read-only list: detail, documents and receipt actions intentionally excluded.
+// R4: authorized operations use current contracts; unsafe forms/documents remain tracked blockers.
 var listRequestVersion = 0;
 $(document).ready(function () {
     $('#sandbox-container .input-daterange').datepicker({todayBtn: 'linked', clearBtn: true, language: 'es', multidate: false, autoclose: true, orientation: 'bottom auto', container: '.wrapper'});
@@ -138,6 +138,7 @@ function renderDataTable(data) {
     var clone = activateTemplate('#item-table');
     ['id', 'guide', 'order', 'invoice', 'type', 'supplier', 'date_entry', 'currency', 'total'].forEach(function (field) { clone.querySelector('[data-' + field + ']').textContent = data[field] == null ? '' : data[field]; });
     clone.querySelector('[data-diferidoText]').innerHTML = data.diferidoText;
+    clone.querySelector('[data-buttons]').innerHTML = EntryInvoiceOperations.render(data, 'entry');
     $('#body-table').append(clone);
 }
 

@@ -30,7 +30,8 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Órdenes de compra generales</h1><p class="next-page-description">Consulta de órdenes de la empresa activa.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes de la empresa activa · solo lectura.</span></div></div>
+<div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes de la empresa activa.</span></div>
+<div class="next-toolbar-actions">@can('list_orderPurchaseExpress')<button type="button" id="btn-export" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-excel mr-2" aria-hidden="true"></i>Descargar Excel</button>@endcan</div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -46,6 +47,7 @@
 @endsection
 
 @section('content')
+    @include('orderPurchase.partials.list-operations')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <section class="next-operational-list" aria-label="Órdenes generales"><div class="next-form-section">
         <div class="row">
@@ -244,6 +246,7 @@
 @endsection
 
 @section('scripts')
+    @include('orderPurchase.partials.list-operations-scripts')
     <script>
         $(function () {
             //Initialize Select2 Elements

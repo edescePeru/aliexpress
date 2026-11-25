@@ -180,7 +180,7 @@ $(document).ready(function () {
     $('#delete-selected').on('click', function () {
         var $bulkButton = $(this);
 
-        if ($bulkButton.prop('disabled') || $bulkButton.attr('data-backend-sync-open') === 'true') {
+        if ($bulkButton.prop('disabled')) {
             return;
         }
 

@@ -26,7 +26,7 @@
 @endsection
 
 @section('page-header')
-<div class="next-page-heading"><span class="next-page-eyebrow">Compras · Histórico</span><h1 class="page-title">Órdenes normales eliminadas</h1><p class="next-page-description">Papelera de la empresa activa · Solo lectura.</p></div>
+<div class="next-page-heading"><span class="next-page-eyebrow">Compras · Histórico</span><h1 class="page-title">Órdenes normales eliminadas</h1><p class="next-page-description">Papelera de la empresa activa.</p></div>
 @endsection
 @section('page-title')
 <div class="next-page-toolbar"><div class="next-toolbar-context"><strong>Papelera de órdenes normales</strong><span>Consulta de registros eliminados</span></div></div>
@@ -64,6 +64,7 @@
 @endsection
 
 @section('scripts')
+    @include('orderPurchase.partials.list-operations-scripts')
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
     <script src="{{ asset('js/orderPurchase/deleteGeneral.js') }}"></script>
 @endsection

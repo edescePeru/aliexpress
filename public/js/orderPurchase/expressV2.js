@@ -129,11 +129,7 @@ function renderDataTable(data) {
     clone.querySelector("[data-type]").innerHTML = data.typeText;
     clone.querySelector("[data-state]").innerHTML = data.stateText;
 
-    var botones = clone.querySelector("[data-buttons]");
-
-    botones.textContent = '—';
-    botones.title = 'Acciones fuera del alcance de lectura';
-
+    clone.querySelector('[data-buttons]').innerHTML = PurchaseListOperations.render(data, $permissions, false);
     $("#body-table").append(clone);
 
     $('[data-toggle="tooltip"]').tooltip();

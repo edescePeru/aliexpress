@@ -54,6 +54,25 @@ Modernization must preserve every legitimate capability while adapting it to cur
 
 Every integration and subsequent DEV delivery must maintain a before/after functional inventory covering actions, navigation, filters, forms, fields, modals, handlers, permissions, business conditions, HTTP methods, endpoints, payloads, CSRF and context. Record every functional difference explicitly, with implementation status separate from QA status. Revalidate and record recovery evidence after backend deliveries; do not retain obsolete frontend gates without review.
 
+## Owner-confirmed legacy scope (R3 closure, 2026-11-24)
+
+General Purchases, Express Purchases and Financial Purchases (`OrderPurchaseFinance`), including their exclusive screens/operations: **LEGACY — OWNER CONFIRMED — NO FURTHER RECOVERY**. Keep their sidebar links hidden. Preserve existing implementations, routes, permissions, data and shared services; this is not authorization to delete or roll back code.
+
+LEGACY remains in code but receives no further recovery investment. RETIRED means explicitly withdrawn functionality; these statuses are not interchangeable. This exclusion supplements OrderService, Proforma, legacy ReferralGuide, FollowMaterial and legacy Promotions without reclassifying their individual retirement evidence.
+
+Normal Purchases/trash, Entry, purchase Entries, Invoice (purchase/service invoices), SupplierCredit, Inventory and active reports remain active. Do not confuse Invoice/SupplierCredit with OrderPurchaseFinance. Shared dependencies and security/integrity risks on reachable endpoints remain active DEV work. Exclusive legacy functional improvements are DEFERRED — LEGACY PRODUCT SCOPE. Do not silently remove active-to-legacy links: record them for owner review.
+
+## Current functionality versus historical legacy (R3.2)
+
+Functional parity preserves the ERP's current functional universe, not every version ever found in Git. Before restoring a historical capability, verify active routes, menus/navigation, permissions, feature flags, enablement conditions, replacement flows, Git history, retirement documentation and explicit owner decisions.
+
+- A route, Blade or handler alone does not prove current product availability.
+- A hidden menu alone does not prove legitimate retirement either: establish why and since when it was hidden. Distinguish hiding navigation from retiring the capability.
+- Classify each capability as ACTIVE — PRESERVE; ACTIVE — FRONTEND RECOVERY REQUIRED; ACTIVE — MUTATION QA PENDING; ACTIVE — BACKEND BLOCKER; LEGACY — INTENTIONALLY HIDDEN; LEGACY — SUPERSEDED BY MODERN FLOW; RETIRED — EVIDENCE CONFIRMED; HISTORICAL CODE — NOT REACHABLE; or PRODUCT DECISION REQUIRED.
+- Where current status is ambiguous, record PRODUCT DECISION REQUIRED — LEGACY STATUS UNCERTAIN and consult the owner before restoring or permanently retiring it. Continue independent, unambiguous work.
+- Documented hidden, superseded or retired capabilities retain traceability but do not count as current functional losses. QA pending never justifies removing a capability proven current.
+- Do not reactivate OrderService, Proforma, legacy ReferralGuide, FollowMaterial, legacy Promotions or other flows with demonstrated retirement/replacement. Recovery is not authorization to expand visual coverage to their legacy versions.
+
 A surface cannot be declared functionally closed while legitimate capabilities remain withdrawn without explicit approval. A read-path PASS, approved visual parity or zero new CSS is not full functional parity. These rules govern interpretation of all QA/boundary statuses elsewhere in this file without weakening valid security, architecture, design or compatibility rules.
 
 ---

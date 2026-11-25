@@ -49,11 +49,7 @@
                     type="button"
                     id="delete-selected"
                     class="btn btn-outline-danger btn-sm"
-                    data-url-bulk="{{ url('/dashboard/materialtype/delete-multiple') }}"
-                    data-backend-sync-open="true"
-                    aria-disabled="true"
-                    title="Pendiente de autorización backend"
-                    disabled>
+                    data-url-bulk="{{ url('/dashboard/materialtype/delete-multiple') }}">
                     Eliminar seleccionados
                 </button>
             @endcan
@@ -77,7 +73,7 @@
 @endsection
 
 @section('content')
-    <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
+    <input type="hidden" id="permissions" value="{{ json_encode(auth()->user()->getAllPermissions()->pluck('name')->all()) }}">
 
     <section class="next-operational-list" aria-label="Listado de tipos de material">
         <table

@@ -1,5 +1,8 @@
 # REAL NEXT — DEV PARALLEL WORK REPORT
 
+> Vigencia actual: ver **R3 scope closure + R4 — decisión vigente 2026-11-25** al final. Las prioridades previas de General/Express/OrderPurchaseFinance quedan sustituidas; no confundir Invoice/SupplierCredit.
+
+
 Fecha de corte: **2026-11-22**. HEAD: **996a31a**, más integraciones frontend pendientes de commit del workspace. Autoridad: código actual, no tablas históricas aisladas.
 
 ## Resumen ejecutivo
@@ -502,3 +505,69 @@ JS error callback actualmente reutiliza empty state: la próxima integración de
 **Recomendación actualizada:** integrar esta pantalla antes de esperar el fix Financial Lost si se busca trabajo frontend inmediato. Financial Lost sigue siendo el desbloqueo DEV pequeño, pero ya no es necesario esperar un fix para encontrar una siguiente pantalla viable.
 
 Código/allowlist/backend/CSS/JS: sin cambios. Sólo este informe actualizado; sin commit ni mutaciones. QA de render visual/responsive pendiente de la futura fase de integración.
+
+## R3 scope closure + R4 — decisión vigente 2026-11-25
+
+Este addendum reemplaza prioridades antiguas de General/Express/OrderPurchaseFinance; la evidencia previa permanece. LEGACY no equivale a RETIRED. Sin cambios backend, sin retiros técnicos, sin borrar rutas ni datos.
+
+| Finding / paquete previo | Estado vigente | Tratamiento |
+|---|---|---|
+| F — Financial Lost parser OCF | DEFERRED — LEGACY PRODUCT SCOPE | No desbloquear ni priorizar esta pantalla |
+| I — Financial Store/Update/details QA | DEFERRED — LEGACY PRODUCT SCOPE | QA exclusivo de OrderPurchaseFinance; conservar FinancePurchaseCreditGuard compartido con SupplierCredit |
+| O — referencias históricas financieras / Audit | DEFERRED — LEGACY PRODUCT SCOPE | No invertir en selector financiero; Audit técnico no es bug de negocio |
+| Q — cambio de estado Express | DEFERRED — LEGACY PRODUCT SCOPE | No crear nuevo contrato Express de estado |
+| GENERAL-01 — paginación General/Express | DEFERRED — LEGACY PRODUCT SCOPE | No afecta la familia Normal |
+| G — regularización financiera con endpoints Normal | RESIDUAL SECURITY / INTEGRITY RISK — OPEN | Interfaz legacy aún puede apuntar a IDs del dominio activo; no reactivar. Validar ownership/dominio del receptor o proponer bloqueo explícito aprobado |
+| PUR-R3-01 — anulación Express | RESIDUAL SECURITY / INTEGRITY RISK — OPEN | Endpoint vivo sin tipo/atomicidad; puede alcanzar Normal. No cerrar por ocultar menú |
+| Q / USER-01 — Express create/edit/show lookups | RESIDUAL SECURITY / DIRECT ACCESS — OPEN | User::all, referencias y binding siguen accesibles por URL. No priorizar fachada; sí reducir exposición backend |
+| Q — Purchase Material Report | AUTHORIZATION — OPEN | Reporte vigente; fetch carece permiso. No deducir legacy de nombre report_orderPurchaseExpress |
+| INV-01 / paquetes C y Q compartidos | ACTIVE — OPEN | StockItems/inventoryLevels/preload afectan Entry y Normal. Corregir consumer/permiso/company, no filtrar en JS |
+| PUR-R3-02 | ACTIVE — OPEN | Impresión eliminada Normal usa query activa, ID1 no resuelve; no cerrar |
+| DOC-01 / FIN-03 | ACTIVE — OPEN | Adjuntos públicos y auxiliares Invoice no quedan certificados ni retirados; ver R4 |
+| SupplierCredit / Finance Invoice | ACTIVE | Sin retiro, sin confundir con OrderPurchaseFinance; QA mutadora pendiente no es por sí misma bug |
+
+Son **5 líneas de trabajo diferidas**, no 5 nuevos findings ni reducción inventada del inventario histórico de tickets. Las alternativas para endpoints legacy con riesgo son: (A) conservarlos con autorización, discriminador de dominio y transacciones; (B) proponer retirada/bloqueo explícito al propietario después de mapear consumers. Ocultar sidebar no mitiga acceso directo. No se aplicó A ni B en frontend.
+
+### ENTRY-R4-01 — límite financiero ausente en eliminación de Entry
+
+- Estado: OPEN — SECURITY / DOMAIN BOUNDARY; evidencia estática reproducible, no explotación ejecutada.
+- `EntryController::destroyEntryPurchase` → `EntryDeletionService::delete` → `EntryStockReversalService::reverse`: tenant/company y entry_type='Por compra' sí se validan; **finance=false no se exige** en esa cadena.
+- `EntryDeletionService` puede eliminar encabezado aun con colección vacía de detalles; en ese caso no se ejecutan las comprobaciones de identidad/lotes por línea. Una Entry financiera Por compra sin detalles y sin orden/crédito bloqueante puede llegar a delete sin `destroy_invoice` ni la reversión de CashMovement de InvoiceController. La lectura actual muestra facturas con detalles; NO se afirma haber borrado una ni reproducido daño con el dataset compartido.
+- Endpoint `POST /dashboard/entry_purchase/destroy/{entry}` exige destroy_entryPurchase, no destroy_invoice. La UI no es el guard: un ID manipulado debe rechazarse antes de stock/crédito/delete. La ruta de eliminación de detalle comparte servicios y requiere el mismo límite de dominio.
+- Fix DEV mínimo: exigir Entry de compra **no financiera** en la autoridad de eliminación/reversión correspondiente y cubrir también consumidores de eliminación de líneas; conservar guards T/C, trazabilidad, locks y rollback. No convertir facturas en entradas por un filtro JS.
+- Aceptación aislada: finance=true con y sin detalles → rechazo sin cambios (Entry, DetailEntry, CashMovement, crédito, stock); otro tipo/contexto/inexistente → rechazo; Entry Por compra finance=false elegible conserva reversión autorizada/transaccional; errores no dejan cambios parciales.
+- Impacto frontend: FR-048 NO recuperada en R4. Continúan recuperación de detalles, recepción y operaciones Invoice independientes. No ejecutar mutaciones reales. No se modificó backend.
+
+### FIN-03 — precisión R4, sin duplicar finding
+
+`getInvoiceById` filtra T/C pero no exige finance=true ni permiso list_invoice; su ruta no declara permission. No restaurar llamadas a ese auxiliar ni getServiceById (OrderService fuera de alcance). El detalle rápido de Invoice usa `details` ya suministrado por los listados con list_invoice + financeEntries. No amplía datos ni queries; backend sigue siendo autoridad. No cerrar FIN-03 por resolver el frontend.
+
+### Prioridad activa después del cierre R3
+
+Entry/Normal preload compartido, ENTRY-R4-01, PUR-R3-02, DOC-01/FIN-03 y riesgos residuales de endpoints vivos. Financial Lost deja de ser BEST NEXT FRONTEND por decisión explícita. R4 no habilita R5 ni certifica mutaciones reales.
+
+## R5 — Material Catalogs recovery (2026-11-25)
+
+Once bulk gates obsoletos recuperados tras contrastar a8582b9/ec5f6dd contra HEAD. No nuevo finding DEV: autorización destroy, requests tenant-aware y servicios transaccionales ya existen. FR-066…076 +FR-100/101 cerrados como recuperación frontend, no como cierre global QA-02. Cinco índices usan permisos efectivos existentes en Blade; no cambia backend ni crea bypass (deuda role-only previa, relacionada con AUTH-01).
+
+26 tests /325 assertions SQLite aislado: request, referencias, selección mixta, soft/hard, rollback y cuatro cascadas. No deletes reales, no escrituras DB compartida. Concurrencia MySQL y mutaciones HTTP reales siguen pendientes; no son motivo para ocultar capacidad legítima. Ver REAL-NEXT-MATERIAL-CATALOGS-FUNCTIONAL-PARITY-RECOVERY.md. MAT-01/03/04/05, Items/StockItems y R6 fuera de alcance; demás findings permanecen.
+
+
+## Addendum R6 — StockItems / Items — 2026-11-25
+
+INV-01 / FR-059 sigue OPEN: `POST /dashboard/fix/stock-item/output-adjustment`, `InventoryMigrationController::adjustStockItemStockOut` ~891 / Logic ~917; sin permiso específico ni ScreenAccess/snapshot y lotes seleccionados sin company/local. TenantScope no reemplaza ownership company/warehouse/location. La lógica ejecuta salida, locks/transacción, consume disponible descontando reservado, crea Output/OutputDetail y sincroniza niveles. No clave idempotente observada; revisar reintentos/movimientos y dominio `scrapped` frente a `scraped`. No se ejecutó ajuste ni se agregó un finding duplicado.
+
+DEV: capacidad ajustarStock_material en ruta/controller + binding contextual de StockItem/lotes/Items/niveles; negativos foreign company/branch/tenant, reserva, rollback y doble envío con tests aislados. El frontend no recupera el ajuste inseguro. No tratar la ausencia del botón como autorización.
+
+FR-060/061/062/065 recuperados conforme a contratos actuales: min/max, tracks_inventory, is_active (StockItem+Variant), código físico. Flags son maestro tenant habilitado para company, no habilitación CompanyStockItem ni sucursal. MAT-01/03/04/05 no cerrados; AUTH-01 no cerrado globalmente. Sin backend/CSS, cuatro controles recuperados;7 tests/46 assertions SQLite y UI interceptada, mutaciones reales PENDING. Ver `REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md`. Nuevos findings DEV:0.
+
+## R7 Dashboard — 2026-11-25
+
+Revisión focalizada de dbca24e1^/dbca24e1/HEAD3914020. Backend sin cambios. Ver REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md para matriz de8 capacidades, endpoints, líneas y QA.
+
+- **INV-01 / METRIC-01 — evidencia adicional, no nuevos aliases**: FR-063/064/102 usan ReportController amountInWarehouse:27, excelAmountStock:88 y excelBDMaterials:151, inventario legacy sin company y sin permiso granular. FR-103 excelBDMaterialsByWarehouse:296 recibe Warehouse global sin ownership; Home usa Warehouse::all. FR-105 getDataRotations:476 lee RotationMaterial global/user sin permiso. No se recuperan accesos. DEV debe fijar permiso efectivo, scope y authority; tests negativos de tenant/company/warehouse y fail-closed sin contexto. No alterar fórmulas desde frontend.
+- **DASH-R7-01 — NUEVO / HIGH / OPEN — GET REPORT BUSINESS WRITES**. RotationMaterialController@storeRotationMaterial:246 actualiza Material.rotation/rotation_value:450–451, crea RotationMaterial:462 y commit:467. PersonalPaymentController@getPersonalPaymentByMonth:66 actualiza/crea SueldoMensual:314–331; consulta tipo de cambio. Son escrituras de negocio, no Audit técnico. Sin capacidad funcional en rutas GET /store/rotation/material/ y /personal/payments. Scope sigue deuda METRIC-01/INV-01, no duplicada aquí.
+  - Fix DEV: separar lectura de comandos mutadores autorizados, método/CSRF/contexto correctos, contrato de repetición/idempotencia apropiado; no suprimir fórmulas o dominio sin Producto.
+  - Aceptación: GET no modifica tablas; permiso ausente403; ownership/contexto fail closed; comandos testeados en aislamiento con proveedor simulado. Frontend espera contrato antes de recuperar FR-106/107. No se ejecutaron esos GET.
+- **FR-104 es recuperación frontend, NO finding DEV**: exportEntriesAlmacen ya valida permisos tipo1/2/3, tenant/company/finance=false y fechas d/m/Y. Adaptador y modal restaurados;4tests/31assertions aisladas + navegador interceptado PASS. Export real sigue QA-01 PENDING. No generar reporte comercial para comprobar interfaz.
+- Gráficos y exports de rango ya disponibles se preservan; su scope/fórmula mixta no se recertifica. No ampliar el cierre de Goals/FinancialSummary a Dashboard completo. Cero mutaciones, cero backend/CSS, ningún commit.

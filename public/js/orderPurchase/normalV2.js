@@ -198,11 +198,7 @@ function renderDataTable(data) {
     // Status text and type are supplied by the current backend contract.
     clone.querySelector('[data-type]').innerHTML = data.typeText.replace(/bg-(primary|success|warning)/g, 'badge-$1');
     clone.querySelector('[data-state]').innerHTML = data.stateText.replace(/bg-(primary|success|warning)/g, 'badge-$1');
-    if (data.type === 'n' && $.inArray('list_orderPurchaseNormal', $permissions) !== -1) {
-        var actions = activateTemplate('#template-normal');
-        actions.querySelector('[data-ver_orden]').href = '/dashboard/ver/orden/compra/normal/' + data.id;
-        clone.querySelector('[data-buttons]').append(actions);
-    }
+    clone.querySelector('[data-buttons]').innerHTML = PurchaseListOperations.render(data, $permissions, false);
     $('#body-table').append(clone);
 }
 

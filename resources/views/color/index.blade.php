@@ -24,9 +24,7 @@
         </div>
         <div class="next-toolbar-actions">
             @can('destroy_color')
-                <button type="button" id="btnDeleteSelectedColors" class="btn btn-outline-danger btn-sm"
-                    data-backend-sync-open="true" aria-disabled="true"
-                    title="Pendiente de validación backend dedicada para eliminación múltiple" disabled>
+                <button type="button" id="btnDeleteSelectedColors" class="btn btn-outline-danger btn-sm" disabled>
                     Eliminar seleccionados
                 </button>
             @endcan

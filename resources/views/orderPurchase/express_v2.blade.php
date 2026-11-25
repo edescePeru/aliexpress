@@ -30,7 +30,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Compras</span><h1 class="page-title">Órdenes de compra express</h1><p class="next-page-description">Consulta de órdenes de la empresa activa.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes express · solo lectura.</span></div></div>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Órdenes express · Empresa activa.</span></div></div>
 @endsection
 
 @section('page-breadcrumb')
@@ -233,6 +233,7 @@
 @endsection
 
 @section('scripts')
+    @include('orderPurchase.partials.list-operations-scripts')
     <script>
         $(function () {
             //Initialize Select2 Elements

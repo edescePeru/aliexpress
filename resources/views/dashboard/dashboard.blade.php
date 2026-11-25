@@ -3,6 +3,14 @@
 @section('title', 'Dashboard')
 @section('body-class', 'next-dashboard-shell')
 
+@section('styles-plugins')
+    @can('showBoxAlmacen_dashboard')
+        @canany(['list_entryPurchase', 'list_entryInventory'])
+            <link rel="stylesheet" href="{{ asset('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.min.css') }}">
+        @endcanany
+    @endcan
+@endsection
+
 @section('content')
     @php
         $dashboardCompany = \App\Support\TenantContext::company();
@@ -149,6 +157,19 @@
                 </div>
             </section>
         @endcan
+        @can('showBoxAlmacen_dashboard')
+            @canany(['list_entryPurchase', 'list_entryInventory'])
+                <section class="next-dashboard-section" aria-labelledby="dashboard-entry-reports-title">
+                    <div class="next-dashboard-panel">
+                        <header class="next-dashboard-panel-header">
+                            <div><h2 id="dashboard-entry-reports-title">Reportes de almacén</h2><p>Entradas por compra e inventario de la empresa activa.</p></div>
+                            <div class="next-toolbar-actions"><button type="button" class="btn btn-outline-secondary btn-sm" id="btn-downloadEntries" data-toggle="modal" data-target="#modalEntries"><i class="fas fa-file-excel mr-1" aria-hidden="true"></i>Exportar entradas</button></div>
+                        </header>
+                    </div>
+                </section>
+                @include('dashboard.partials.entry-export')
+            @endcanany
+        @endcan
     </main>
 
     @can('showBoxGraficosVentas_dashboard')
@@ -166,6 +187,13 @@
 @endsection
 
 @section('scripts')
+    @can('showBoxAlmacen_dashboard')
+        @canany(['list_entryPurchase', 'list_entryInventory'])
+            <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
+            <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
+            <script src="{{ asset('js/dashboard/entry-export.js') }}?v={{ filemtime(public_path('js/dashboard/entry-export.js')) }}"></script>
+        @endcanany
+    @endcan
     @can('showBoxGraficosVentas_dashboard')
         <script src="{{ asset('admin/plugins/chart.js/Chart.min.js') }}"></script>
         <script src="{{ asset('js/dashboard/ordersChart.js') }}?v={{ filemtime(public_path('js/dashboard/ordersChart.js')) }}"></script>

@@ -2,11 +2,31 @@
 
 Fecha: 2026-11-24. Baseline HEAD 744d28b; R0/R1 sin commit. Registro canónico de recuperación frontend, no duplicado del backlog DEV.
 
-## Inventario y contabilidad
+## Estado vigente R7 (2026-11-25)
+
+R7 autorizado tras R6. R0–R6 preservados; R8 no iniciado. Documento de evidencia: REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+| Métrica canónica | Total |
+|---|---:|
+| Diferencias históricas individuales FR-001…107 |107|
+| Excluidas por decisión legacy FR-022…034,037…045,080 |23|
+| Capacidades activas en el registro de pérdidas |84|
+| Recuperadas activas |62|
+| Pendientes DEV con evidencia actual |22|
+| Pendientes de auditoría semántica de operación dentro del registro |0|
+| Pendientes de decisión de producto |0|
+| Pendientes activas totales |22|
+
+R7:8 pérdidas (2 originales +6 nuevas),1 recuperada FR-104 y7 bloqueadas. FR-063/064 ya auditadas: no retirar ni declarar resueltas. INV-01/METRIC-01 + nuevo DASH-R7-01. Las23 exclusiones no son éxitos. R4 conserva21 recuperadas/11 bloqueadas; R3.2 cerrado por scope legacy.
+
+Reconciliación por197 IDs únicos originales (ledger completo en documento R7):40 revisadas/resueltas por producto =32 activas +8 legacy;157 pendientes semánticas. De32 activas:16 con paridad recuperada +4 ya disponibles +12 con blockers. Original158 UNKNOWN -10 revisadas adicionales +9 paridad sólo estática =157. No sumar destinos auxiliares ni capacidades como pantallas. QA operacional/export/documentos/proveedor separado;62 recuperadas no implica62 certificadas.
+
+## Inventario y contabilidad histórica (no usar como estado actual)
+
 
 - Baseline: 76 pérdidas confirmadas en 30 superficies. IDs FR-001…FR-076 estables: no renumerar al cerrar ni borrar filas.
-- R1: 13 capacidades implementadas (11 General, 2 Error SUNAT). R2: FR-014/015/016 recuperadas. Total16/76 originales implementadas;60 pendientes en otras familias. R2 fue autorizado después de revisar Ventas; no avanzar a R3 sin revisión.
-- Nuevas pruebas de alcanzabilidad: FR-077/078 (rechazo NC y solución SUNAT) recuperadas. R2 añade FR-079 (sesión propia). Universo conocido ahora79; no es definitivo.
+- R1: 13 capacidades implementadas (11 General, 2 Error SUNAT). R2: FR-014/015/016 recuperadas. Al cierre R2:16/76 originales implementadas. R3.1 añade7 completas y2 parciales:23/76 completas,2/76 parciales,51/76 pendientes completas. No avanzar a R3.2 sin revisión.
+- Nuevas pruebas de alcanzabilidad: FR-077/078 (rechazo NC y solución SUNAT) recuperadas. R2 añade FR-079 (sesión propia). R3.1 añade FR-080 (detalle Express desde General, pendiente DEV). Universo conocido ahora80; no es definitivo.
 - 9 superficies con paridad estática parcial; 158 pendientes de contraste semántico. Ninguna se promociona por un token scan.
 - Implementación y QA son estados distintos. IMPLEMENTED no significa mutación certificada. Documentos/proveedores y mutaciones reales no se ejecutaron.
 - Los campos PENDING EXACT / PENDING HEAD OPERATION AUDIT son huecos de evidencia explícitos del inventario previo; no contratos inferidos ni capacidades cerradas. Se conservan para completar en la fase correspondiente, sin reabrir ahora otros módulos.
@@ -253,10 +273,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_orderPurchaseNormal`. Condición: Acceso autorizado; lookups/GET requieren su contrato actual.
 - Endpoint: `GET /dashboard/crear/orden/compra/normal`. Handler: `Enlace toolbar; route order.purchase.normal.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: BACKEND BLOCKER — R3.1; usuario eligió documentar pendiente DEV, no retiro.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-018 — Editar
@@ -267,10 +287,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_orderPurchaseNormal`. Condición: Orden propia editable; credit lock si Finance.
 - Endpoint: `GET /dashboard/editar/orden/compra/normal/{id}`. Handler: `data-editar / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: BACKEND BLOCKER — R3.1; usuario eligió documentar pendiente DEV, no retiro.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-019 — Anular
@@ -281,10 +301,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_orderPurchaseNormal`. Condición: Orden propia; estado admitido por backend.
 - Endpoint: `POST /dashboard/destroy/order/purchase/normal/{id}`. Handler: `data-delete / data-anular → cancelOrden`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R3.1.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-020 — Cambiar estado
@@ -293,12 +313,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2](http://127.0.0.1:8080/dashboard/listado/ordenes/compra/normal/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Cambiar estado. Commit de pérdida: `abc9daa`.
 - Permiso: `update_orderPurchaseNormal (ruta compartida; revisar permiso Express)`. Condición: Estado actual admite transición.
-- Endpoint: `POST /dashboard/order_purchase/change/status/{order_id}/{status}`. Handler: `data-state → changeStatusOrder`.
+- Endpoint: `GET /dashboard/get/state/order/purchase/{id}` + `POST /dashboard/change/state/order/purchase`; payload `orderPurchase_id,stateOrder`. Handler: `data-estado → modalState → btn-changeState`. HEAD sólo admite Normal.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R3.1.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-021 — Imprimir
@@ -309,10 +329,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseNormal`. Condición: Documento propio; DOC-01 pendiente.
 - Endpoint: `GET /dashboard/imprimir/orden/compra/{id}`. Handler: `data-imprimir / enlace documental`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R3.1.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-022 — Crear normal
@@ -323,10 +343,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_orderPurchaseNormal`. Condición: Acceso autorizado; lookups/GET requieren su contrato actual.
 - Endpoint: `GET /dashboard/crear/orden/compra/normal`. Handler: `Enlace toolbar; route order.purchase.normal.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-023 — Crear express
@@ -337,10 +357,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_orderPurchaseExpress`. Condición: Acceso autorizado; lookups/GET requieren su contrato actual.
 - Endpoint: `GET /dashboard/crear/orden/compra/express`. Handler: `Enlace toolbar; route order.purchase.express.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-024 — Editar
@@ -351,10 +371,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_orderPurchaseNormal`. Condición: Orden propia editable; credit lock si Finance.
 - Endpoint: `GET /dashboard/editar/orden/compra/normal/{id}`. Handler: `data-editar / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-025 — Anular
@@ -365,10 +385,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_orderPurchaseNormal`. Condición: Orden propia; estado admitido por backend.
 - Endpoint: `POST /dashboard/destroy/order/purchase/normal/{id}`. Handler: `data-delete / data-anular → cancelOrden`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-026 — Cambiar estado
@@ -377,12 +397,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/listado/general/ordenes/compra/v2](http://127.0.0.1:8080/dashboard/listado/general/ordenes/compra/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Cambiar estado. Commit de pérdida: `b1fa9d5`.
 - Permiso: `update_orderPurchaseNormal (ruta compartida; revisar permiso Express)`. Condición: Estado actual admite transición.
-- Endpoint: `POST /dashboard/order_purchase/change/status/{order_id}/{status}`. Handler: `data-state → changeStatusOrder`.
+- Endpoint: `GET /dashboard/get/state/order/purchase/{id}` + `POST /dashboard/change/state/order/purchase`; payload `orderPurchase_id,stateOrder`. Handler: `data-estado → modalState → btn-changeState`. HEAD sólo admite Normal.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-027 — Imprimir
@@ -393,10 +413,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseNormal`. Condición: Documento propio; DOC-01 pendiente.
 - Endpoint: `GET /dashboard/imprimir/orden/compra/{id}`. Handler: `data-imprimir / enlace documental`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-028 — Exportar
@@ -407,10 +427,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseExpress en ruta compartida HEAD; revisar correspondencia con listado General antes de recuperar`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/exportar/reporte/ordenes/compra/v2/`. Handler: `btn-export → exportExcel (baseline 2ec61f3^)`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-029 — Crear
@@ -421,10 +441,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_orderPurchaseExpress`. Condición: Acceso autorizado; lookups/GET requieren su contrato actual.
 - Endpoint: `GET /dashboard/crear/orden/compra/express`. Handler: `Enlace toolbar; route order.purchase.express.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-030 — Editar
@@ -435,10 +455,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_orderPurchaseExpress`. Condición: Orden propia editable; credit lock si Finance.
 - Endpoint: `GET /dashboard/editar/orden/compra/express/{id}`. Handler: `data-editar / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-031 — Anular
@@ -447,12 +467,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/listado/ordenes/compra/express/v2](http://127.0.0.1:8080/dashboard/listado/ordenes/compra/express/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Anular. Commit de pérdida: `3ed0b46`.
 - Permiso: `destroy_orderPurchaseExpress`. Condición: Orden propia; estado admitido por backend.
-- Endpoint: `POST /dashboard/destroy/order/purchase/express/{id}`. Handler: `data-delete / data-anular → cancelOrden`.
+- Endpoint vigente Express: `POST /dashboard/destroy/order/purchase/express/{id}`, permiso ruta `update_orderPurchaseExpress`; legacy UI usaba `destroy_orderPurchaseExpress` y enviaba erróneamente a Normal. No reconectado por PUR-R3-01.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-032 — Cambiar estado
@@ -461,12 +481,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/listado/ordenes/compra/express/v2](http://127.0.0.1:8080/dashboard/listado/ordenes/compra/express/v2). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Cambiar estado. Commit de pérdida: `3ed0b46`.
 - Permiso: `update_orderPurchaseNormal (ruta compartida; revisar permiso Express)`. Condición: Estado actual admite transición.
-- Endpoint: `POST /dashboard/order_purchase/change/status/{order_id}/{status}`. Handler: `data-state → changeStatusOrder`.
+- Endpoint: `GET /dashboard/get/state/order/purchase/{id}` + `POST /dashboard/change/state/order/purchase`; payload `orderPurchase_id,stateOrder`. Handler: `data-estado → modalState → btn-changeState`. HEAD sólo admite Normal.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-033 — Imprimir
@@ -477,10 +497,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseExpress`. Condición: Documento propio; DOC-01 pendiente.
 - Endpoint: `GET /dashboard/imprimir/orden/compra/{id}`. Handler: `data-imprimir / enlace documental`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-034 — Detalle
@@ -491,10 +511,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseExpress`. Condición: Orden visible en contexto.
 - Endpoint: `GET /dashboard/ver/orden/compra/express/{id}`. Handler: `data-ver_orden / enlace detalle`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-035 — Restaurar
@@ -505,10 +525,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_orderPurchaseNormal`. Condición: Orden eliminada propia; referencias y restauración backend.
 - Endpoint: `POST /dashboard/restore/order/purchase/delete/{id}`. Handler: `data-restore → restoreOrden`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; ejecución real mutadora/documental pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R3.1.
+- QA independiente: Renderer/cableado aislado PASS; mutaciones/documentos reales PENDING.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-036 — Imprimir
@@ -519,10 +539,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseNormal`. Condición: Documento propio; DOC-01 pendiente.
 - Endpoint: `GET /dashboard/imprimir/orden/compra/eliminada/{id}`. Handler: `data-imprimir / enlace documental`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Ver matriz R3.1 y paquete Q; FR-025/031: PUR-R3-01; FR-036: PUR-R3-02; Express estado sin contrato propio vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: BACKEND BLOCKER — R3.1; usuario eligió documentar pendiente DEV, no retiro.
+- QA independiente: Auditoría estática HEAD; destino inseguro no ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-037 — Crear
@@ -533,9 +553,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_orderPurchaseFinance`. Condición: Acceso autorizado; lookups/GET requieren su contrato actual.
 - Endpoint: `GET /dashboard/crear/orden/compra/finanzas`. Handler: `Enlace toolbar; route order.purchase.finance.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -547,9 +567,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseFinance`. Condición: Orden visible en contexto.
 - Endpoint: `GET /dashboard/ver/orden/compra/finanzas/{id}`. Handler: `data-ver_orden / enlace detalle`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -561,9 +581,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_orderPurchaseFinance`. Condición: Orden propia editable; credit lock si Finance.
 - Endpoint: `GET /dashboard/editar/orden/compra/finanza/{id}`. Handler: `data-editar / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -575,9 +595,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_orderPurchaseFinance`. Condición: Orden propia; estado admitido por backend.
 - Endpoint: `POST /dashboard/destroy/order/purchase/finance/{id}`. Handler: `data-delete / data-anular → cancelOrden`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -591,7 +611,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
 - Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -603,9 +623,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_orderPurchaseFinance`. Condición: Orden eliminada propia; referencias y restauración backend.
 - Endpoint: `POST /dashboard/restore/order/purchase/finance/delete/{id}`. Handler: `data-restore → restoreOrden`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -619,7 +639,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
 - Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -631,9 +651,9 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseFinance`. Condición: Orden visible en contexto.
 - Endpoint: `GET /dashboard/ver/orden/compra/finanzas/{id}`. Handler: `data-ver_orden / enlace detalle`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: No blocker backend nuevo demostrado para el control; vigencia de producto pendiente por ocultación histórica del sidebar. Ver informe R3.2, guard financiero/contexto y límites documentales.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -647,7 +667,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
 - Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED. Evidencia/implementación histórica preservada; no cuenta como recuperación activa.
 - QA independiente: PENDING — no operación ejecutada.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
@@ -659,10 +679,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_entryPurchase`. Condición: Entry propia; guard/backend y estado de recepción.
 - Endpoint: `GET /dashboard/crear/entrada/compra`. Handler: `Enlace toolbar`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: INV-01: preload StockItems/inventoryLevels sin company/permiso
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: Static contract evidence; unsafe operation not executed.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-047 — Editar
@@ -673,10 +693,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_entryPurchase`. Condición: Entry propia; guard/backend y estado de recepción.
 - Endpoint: `GET /dashboard/entrada/compra/editar/{entry}`. Handler: `data-edit / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: INV-01: preload; edit no restringe finance/entry_type
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: Static contract evidence; unsafe operation not executed.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-048 — Anular
@@ -687,10 +707,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_entryPurchase`. Condición: Entry propia; guard/backend y estado de recepción.
 - Endpoint: `POST /dashboard/entry_purchase/destroy/{entry}`. Handler: `data-delete / handler de anulación`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: ENTRY-R4-01: falta exclusión explícita finance=true
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: Static contract evidence; unsafe operation not executed.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-049 — Documentos
@@ -701,10 +721,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_entryPurchase para documentos extras; adjuntos públicos pendientes DOC-01`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/agregar/documentos/extras/entrada/{id}; legacy /images/entries/{image}`. Handler: `data-documentos; data-pdf; data-image → showImage`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: DOC-01
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: Static contract evidence; unsafe operation not executed.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-050 — Recibir entrada
@@ -715,10 +735,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_entryPurchase; can_receive=true`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/crear/entrada/compra/orden/{id}`. Handler: `data-crear_entrada → enlace`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-051 — Ver orden
@@ -729,10 +749,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseNormal`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/ver/orden/compra/normal/{id}`. Handler: `data-ver_orden → enlace`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-052 — Imprimir
@@ -743,10 +763,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_orderPurchaseNormal`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/imprimir/orden/compra/{id}`. Handler: `data-imprimir → enlace`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-053 — Detalle de ítems
@@ -757,10 +777,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `Sin permission middleware específico en get/json/items; revisar guard ItemController antes de recuperar (INV-01)`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/get/json/items/{entry_id}`. Handler: `showItems; confirmar trigger efectivo al recuperar reporte`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-054 — Adjunto
@@ -771,10 +791,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `Sin autorización de archivo demostrada; DOC-01`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /images/entries/{image} (legacy público; NO recuperar como fallback)`. Handler: `data-image → showImage; enlace adjunto`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: DOC-01; sólo rutas protegidas, nunca fallback público; apertura QA pendiente.
+- Blocker actual: DOC-01
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: Static contract evidence; unsafe operation not executed.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-055 — Crear
@@ -785,10 +805,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `create_invoice`. Condición: FinanceInvoiceContext y validación backend.
 - Endpoint: `GET /dashboard/crear/factura/compra`. Handler: `Enlace invoice.create`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-056 — Anular
@@ -799,10 +819,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `destroy_invoice`. Condición: FinanceInvoiceContext y validación backend.
 - Endpoint: `POST /dashboard/destroy/total/invoice/{id}`. Handler: `data-delete → deleteItem`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-057 — Exportar
@@ -813,10 +833,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_invoice`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/exportar/reporte/factura`. Handler: `btn-export → exportExcel`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-058 — Exportar
@@ -827,10 +847,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `list_invoice`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `GET /dashboard/exportar/reporte/factura`. Handler: `btn-export → exportExcel`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Sin blocker para el control recuperado; QA mutadora/documental separada.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: HEAD contract + isolated UI wiring; no real mutation/document/export.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-059 — Ajustar stock
@@ -841,10 +861,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `MISSING EXPLICIT PERMISSION (INV-01 familia; evidencia en auditoría global)`. Condición: NO reactivar sin ownership y autorización demostrados.
 - Endpoint: `POST /dashboard/fix/stock-item/output-adjustment`. Handler: `modalAdjustStock / handler ajuste legacy`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: INV-01 / evidencia ajuste en auditoría global: permiso/ownership no demostrados; requiere DEV/Producto.
+- Blocker actual: INV-01 confirmado R6: falta permiso explícito y selección company/local de StockItem/lotes/Items; ajuste no idempotente certificado.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: BACKEND BLOCKER — R6; no restaurar ajuste inseguro.
+- QA independiente: Auditoría estática HEAD; no POST ejecutado.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-060 — Mínimo/máximo
@@ -855,10 +875,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_material + MaterialInventoryGuard`. Condición: Permiso efectivo y estado del registro; cierre semántico individual pendiente.
 - Endpoint: `POST /dashboard/stock-items/{stockItem}/inventory-levels`. Handler: `btn-save-inventory-levels / inventory-context.js`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ninguno para reconectar contrato HEAD. Mutación real pendiente; MAT-01 global no se cierra por flags.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R6 — FRONTEND GATE OBSOLETE removido; contrato actual preservado.
+- QA independiente: R6 SQLite + Chrome headless interceptado; cero mutaciones DB real. Ver REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-061 — Inventariable
@@ -869,10 +889,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `configInventariable_material + StockItemScreenGuard`. Condición: MaterialInventoryGuard / contexto actual.
 - Endpoint: `POST /dashboard/stock-items/{id}/toggle-inventory`. Handler: `updateInventoryToggle`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ninguno para reconectar contrato HEAD. Mutación real pendiente; MAT-01 global no se cierra por flags.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R6 — FRONTEND GATE OBSOLETE removido; contrato actual preservado.
+- QA independiente: R6 SQLite + Chrome headless interceptado; cero mutaciones DB real. Ver REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-062 — Activo
@@ -883,10 +903,10 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `configActive_material + StockItemScreenGuard`. Condición: MaterialInventoryGuard / contexto actual.
 - Endpoint: `POST /dashboard/stock-items/{id}/toggle-active`. Handler: `updateActiveToggle`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ninguno para reconectar contrato HEAD. Mutación real pendiente; MAT-01 global no se cierra por flags.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R6 — FRONTEND GATE OBSOLETE removido; contrato actual preservado.
+- QA independiente: R6 SQLite + Chrome headless interceptado; cero mutaciones DB real. Ver REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-063 — Exportar importes
@@ -894,13 +914,13 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Módulo/pantalla: `dashboard.principal` / `dashboard.dashboard`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/principal](http://127.0.0.1:8080/dashboard/principal). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Exportar importes. Commit de pérdida: `dbca24e1`.
-- Permiso: `PENDING EFFECTIVE EXPORT PERMISSION`. Condición: Filtros/contexto del reporte; QA-01/DOC-01.
+- Permiso: showBoxAlmacen_dashboard sólo visual; endpoint sin capacidad funcional explícita. No Owner bypass.
 - Endpoint: `GET /dashboard/report/excel/amount/stock`. Handler: `Enlace report.excel.amount`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: INV-01 / METRIC-01; ReportController conserva inventario legacy sin company explícita y sin guard granular. Contrato completo auditado en R7.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER (R7).
+- QA independiente: STATIC CONTRACT REVIEW PASS; export real no ejecutado; no disponible hasta fix.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-064 — Exportar materiales
@@ -908,27 +928,27 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Módulo/pantalla: `dashboard.principal` / `dashboard.dashboard`. Prioridad: P2.
 - URL local: [http://127.0.0.1:8080/dashboard/principal](http://127.0.0.1:8080/dashboard/principal). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Exportar materiales. Commit de pérdida: `dbca24e1`.
-- Permiso: `PENDING EFFECTIVE EXPORT PERMISSION`. Condición: Filtros/contexto del reporte; QA-01/DOC-01.
+- Permiso: showBoxAlmacen_dashboard sólo visual; endpoint sin capacidad funcional explícita. No Owner bypass.
 - Endpoint: `GET /dashboard/report/excel/bd/materials`. Handler: `Enlace report.excel.materials`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: INV-01 / METRIC-01; ReportController conserva inventario legacy sin company explícita y sin guard granular. Contrato completo auditado en R7.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — BACKEND BLOCKER (R7).
+- QA independiente: STATIC CONTRACT REVIEW PASS; export real no ejecutado; no disponible hasta fix.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-065 — Editar código ítem
 
 - Módulo/pantalla: `material.stock.getItems` / `material.stockItems_items`. Prioridad: P1.
-- URL local: [http://127.0.0.1:8080/dashboard/view/stock/material/items/{id}](http://127.0.0.1:8080/dashboard/view/stock/material/items/{id}). Parámetros requieren registro contextual existente.
+- URL local: [http://127.0.0.1:8080/dashboard/view/stock/material/items/81](http://127.0.0.1:8080/dashboard/view/stock/material/items/81). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Editar código ítem. Commit de pérdida: `6de4406`.
 - Permiso: `editarCodeItems_material`. Condición: StockItemScreenGuard; Item propio.
-- Endpoint: `PUT /dashboard/stock/material/item/{item}/code`. Handler: `Editor código legacy en vista material.items; reconectar con items.update.code`.
+- Endpoint: `PUT /dashboard/stock/material/item/{item}/code`. Handler: `btn-edit-item-code / modalEditarCodigoItem / btnGuardarCodigoItem; items.update.code`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: Contrato de operación HEAD pendiente de cerrar antes de recuperar; no afirmar seguridad por existencia de ruta.
+- Blocker actual: Ninguno para reconectar contrato HEAD. Mutación real pendiente; MAT-01 global no se cierra por flags.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: RESTORED R6 — FRONTEND GATE OBSOLETE removido; contrato actual preservado.
+- QA independiente: R6 SQLite + Chrome headless interceptado; cero mutaciones DB real. Ver REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-066 — Eliminar selección
@@ -937,12 +957,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/TiposMateriales](http://127.0.0.1:8080/dashboard/TiposMateriales). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_materialtype`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/materialtype/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/materialtype/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/materialtype/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/materialtype/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-067 — Eliminar selección
@@ -951,12 +971,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Subtipos](http://127.0.0.1:8080/dashboard/Subtipos). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_subtype`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/subtype/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/subtype/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/subtype/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/subtype/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-068 — Eliminar selección
@@ -965,12 +985,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Categorias](http://127.0.0.1:8080/dashboard/Categorias). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_category`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/category/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/category/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/category/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/Category/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-069 — Eliminar selección
@@ -979,12 +999,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Subcategorias](http://127.0.0.1:8080/dashboard/Subcategorias). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_subcategory`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/subcategory/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/subcategory/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/subcategory/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/subcategory/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-070 — Eliminar selección
@@ -993,12 +1013,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Modelos](http://127.0.0.1:8080/dashboard/Modelos). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_exampler`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/exampler/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/exampler/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/exampler/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/exampler/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-071 — Eliminar selección
@@ -1007,12 +1027,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Marcas](http://127.0.0.1:8080/dashboard/Marcas). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_brand`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/brand/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/brand/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/brand/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/brand/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-072 — Eliminar selección
@@ -1021,12 +1041,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Retacerías](http://127.0.0.1:8080/dashboard/Retacerías). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_typescrap`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/typescrap/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/typescrap/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/typescrap/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/typescrap/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-073 — Eliminar selección
@@ -1035,12 +1055,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/Unidades](http://127.0.0.1:8080/dashboard/Unidades). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_unitmeasure`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/unitmeasure/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/unitmeasure/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/unitmeasure/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/unitmeasure/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-074 — Eliminar selección
@@ -1049,12 +1069,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/generos](http://127.0.0.1:8080/dashboard/generos). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_genero`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/genero/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/genero/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/genero/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/genero/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-075 — Eliminar selección
@@ -1063,12 +1083,12 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/tallas](http://127.0.0.1:8080/dashboard/tallas). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_talla`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/talla/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/talla/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/talla/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/talla/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-076 — Eliminar selección
@@ -1077,16 +1097,17 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - URL local: [http://127.0.0.1:8080/dashboard/colors](http://127.0.0.1:8080/dashboard/colors). Parámetros requieren registro contextual existente.
 - Funcionalidad original: Eliminar selección. Commit de pérdida: `8faf1ef`.
 - Permiso: `destroy_color`. Condición: Selección no vacía; ownership/referencias del servicio; no levantar gate sin revisión individual.
-- Endpoint: `POST /dashboard/color/delete-multiple`. Handler: `data-backend-sync-open; handler delete-multiple en public/js/color/index.js (confirmar alias antes de implementar)`.
+- Endpoint: `POST /dashboard/color/delete-multiple`. Handler: `gate retirado R5; handler delete-multiple en public/js/color/index.js`.
 - Motivo de exclusión: BACKEND SYNC gate frontend; no retiro permanente aprobado.
-- Blocker actual: Revisar gate obsoleto individualmente; QA-02. No reactivar en R1.
+- Blocker actual: Ninguno demostrado para bulk en HEAD. a8582b9/ec5f6dd implementan autorización, request y servicio; QA-02 no bloquea visibilidad.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
-- Recuperación: PENDING RECOVERY — fuera de R1.
-- QA independiente: PENDING — no operación ejecutada.
+- Recuperación: ACTIVE — RESTORED (R5); gate obsoleto retirado. Ver matriz individual R5.
+- QA independiente: SQLite aislado + Chrome interceptado; sin deletes DB compartida. Mutación real pendiente.
 - Condición de cierre: trigger/DOM/handler vigente, permisos y estados probados; diferencias resueltas; certificación mutadora/documental separada sin ocultar la capacidad.
 
 ### FR-077 — Diagnóstico de NC rechazada
 
+- Recuperación: IMPLEMENTED R1.
 - Módulo/pantalla: puntoVenta.list. URL: [Ventas](http://127.0.0.1:8080/dashboard/listado/ventas).
 - Original: trigger generado por renderDataTable y handler `ver_error_nota_credito` en `ffe0974^:public/js/puntoVenta/list.js`; pérdida ffe0974.
 - Permiso: list_puntoVenta + objeto visible. Condición: `has_rejected_credit_note`.
@@ -1097,6 +1118,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 
 ### FR-078 — Solución de error SUNAT
 
+- Recuperación: IMPLEMENTED R1.
 - Módulo/pantalla: puntoVenta.list. URL: [Ventas](http://127.0.0.1:8080/dashboard/listado/ventas).
 - Original: trigger generado por renderDataTable y handler `ver_solucion_sunat_error` en `ffe0974^:public/js/puntoVenta/list.js`; pérdida ffe0974.
 - Permiso: list_puntoVenta + objeto visible. Condición: `sunat_error_is_discarded`.
@@ -1107,6 +1129,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 
 ### FR-079 — Navegar a sesión propia desde Admin
 
+- Recuperación: IMPLEMENTED R2.
 - Módulo/pantalla: cashMovement.admin.index / cashBox.admin_index.
 - URL local: http://127.0.0.1:8080/dashboard/cash-movements/admin.
 - Funcionalidad original: caja abierta del actor permite ir a su sesión. Evidencia: 744d28b^ dispatcher → _admin_legacy; admin_index.js rama isOpen de data-cashbox-btn. Pérdida: 744d28b.
@@ -1298,3 +1321,314 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 | platformNubefact.index | [http://127.0.0.1:8080/dashboard/plataforma/nubefact](http://127.0.0.1:8080/dashboard/plataforma/nubefact) | EVIDENCE REQUIRED — no PASS por comparación estructural |
 | platformNubefact.edit | [http://127.0.0.1:8080/dashboard/plataforma/tenants/{tenantId}/companies/{companyId}/nubefact](http://127.0.0.1:8080/dashboard/plataforma/tenants/{tenantId}/companies/{companyId}/nubefact) | EVIDENCE REQUIRED — no PASS por comparación estructural |
 | platformShippingCatalogs.index | [http://127.0.0.1:8080/dashboard/plataforma/catalogos-guias/{catalog?}](http://127.0.0.1:8080/dashboard/plataforma/catalogos-guias/{catalog?}) | EVIDENCE REQUIRED — no PASS por comparación estructural |
+
+
+### FR-080 — Detalle Express desde General V2
+
+- Recuperación: LEGACY — OWNER CONFIRMED — RECOVERY NOT REQUIRED.
+- Pantalla: `order.purchase.general.indexV2` / orderPurchase.general_v2.
+- Original: b1fa9d5^ renderDataTable rama type=e, data-ver_orden; perdido en b1fa9d5. No estaba contabilizado entre FR017–036.
+- Endpoint: GET /dashboard/ver/orden/compra/express/{id}; ruta list_orderPurchaseExpress (UI legacy list_orderPurchaseNormal).
+- Estado histórico previo a la decisión: BACKEND BLOCKER. Mismo destino de FR034: User::all y binding sin tipo; paquete Q existente, no duplicar finding.
+- Decisión del usuario R3.1: documentar pendiente DEV, sin control informativo, sin retiro aprobado.
+- QA: estática; sin ejecutar destino. Recuperar después del fix, sin confundir pendiente de homologación con inseguridad.
+
+## R3.1 — cierre parcial histórico (sustituido por reconciliación de alcance)
+
+Ver `REAL-NEXT-NORMAL-EXPRESS-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md`:6 superficies revisadas/4 modificadas;34 capacidades agrupadas=13 disponibles+21 pérdidas.7 completas restauradas,2 parciales Normal/Express,12 sin recuperar;14 no cerradas incluyendo parciales. Mutaciones reales/documentos/export pendientes. Backend0/CSS0. Dataset activo2,3,4 y eliminado1 en T1/C1. Nuevos findings PUR-R3-01/02; no duplicar INV-01/paqueteQ. Usuario aprobó documentar pendientes de DEV. No declarar paridad total ni avanzar R3.2.
+
+
+## R3.2 — revisión histórica anterior a la decisión explícita
+
+2026-11-24: ver REAL-NEXT-FINANCIAL-PURCHASE-FUNCTIONAL-PARITY-RECOVERY.md. FR037–045 son9 pérdidas históricas internas, todavía NO declaradas pérdidas vigentes ni retiradas: PRODUCT DECISION REQUIRED — LEGACY STATUS UNCERTAIN. Los enlaces sidebar ya estaban comentados antes de df5c53f; se consultó si siguen vigentes las acciones al acceder por URL. No se recuperaron controles financieros mientras falta esa decisión. Dataset financiero0, tests read-only2/10PASS; backend/CSS0. No se reactivan OrderService ni handlers residuales; no nuevas pérdidas activas confirmadas. La autorización general de R3.2 no se interpreta como autorización para ignorar la aclaración de vigencia del propietario.
+
+### FR-081 — Detalle de ítems / entry.purchase.indexV2
+
+- Pantalla: `entry.purchase.indexV2`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_entryPurchase`.
+- Endpoint/contrato: `GET /dashboard/get/json/items/{entry_id}`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-082 — Detalle rápido / invoice.index
+
+- Pantalla: `invoice.index`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `DTO details del listado autorizado`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-083 — Adjunto / invoice.index
+
+- Pantalla: `invoice.index`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-084 — Crear factura / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `create_invoice`.
+- Endpoint/contrato: `GET /dashboard/crear/factura/compra`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-085 — Editar factura / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `update_invoice`.
+- Endpoint/contrato: `GET /dashboard/factura/compra/editar/{entry}`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-086 — Anular factura / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `destroy_invoice`.
+- Endpoint/contrato: `POST /dashboard/destroy/total/invoice/{id}`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-087 — Detalle rápido / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `DTO details del listado autorizado`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-088 — Adjunto / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-089 — Crear factura / report.invoice.finance.sin.orden
+
+- Pantalla: `report.invoice.finance.sin.orden`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `create_invoice`.
+- Endpoint/contrato: `GET /dashboard/crear/factura/compra`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-090 — Editar factura / report.invoice.finance.sin.orden
+
+- Pantalla: `report.invoice.finance.sin.orden`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `update_invoice`.
+- Endpoint/contrato: `GET /dashboard/factura/compra/editar/{entry}`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-091 — Anular factura / report.invoice.finance.sin.orden
+
+- Pantalla: `report.invoice.finance.sin.orden`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `destroy_invoice`.
+- Endpoint/contrato: `POST /dashboard/destroy/total/invoice/{id}`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-092 — Detalle rápido / report.invoice.finance.sin.orden
+
+- Pantalla: `report.invoice.finance.sin.orden`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `DTO details del listado autorizado`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-093 — Adjunto / report.invoice.finance.sin.orden
+
+- Pantalla: `report.invoice.finance.sin.orden`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-094 — Crear factura / invoice.index.annulled
+
+- Pantalla: `invoice.index.annulled`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `create_invoice`.
+- Endpoint/contrato: `GET /dashboard/crear/factura/compra`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-095 — Detalle rápido / invoice.index.annulled
+
+- Pantalla: `invoice.index.annulled`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `DTO details del listado autorizado`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+### FR-096 — Adjunto / invoice.index.annulled
+
+- Pantalla: `invoice.index.annulled`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-097 — Adjunto / entry.purchase.show
+
+- Pantalla: `entry.purchase.show`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_entryPurchase`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-098 — Adjunto / invoice.show
+
+- Pantalla: `invoice.show`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `/images/entries/*`.
+- Blocker actual: DOC-01
+- Recuperación: ACTIVE — BACKEND BLOCKER R4.
+- QA independiente: No ejecutar documentos públicos.
+
+### FR-099 — Totales PEN, USD y equivalente PEN / report.invoice.finance
+
+- Pantalla: `report.invoice.finance`.
+- Evidencia: R4, comparación 2ec61f3^/fa8f7ed^/483a785^ con integración y HEAD; matriz completa en REAL-NEXT-ENTRY-INVOICE-FUNCTIONAL-PARITY-RECOVERY.md.
+- Permiso: `list_invoice`.
+- Endpoint/contrato: `DTO total/currency_invoice/currency_venta; búsqueda aplicada`.
+- Blocker actual: Ninguno para esta recuperación; mutaciones reales separadas.
+- Recuperación: IMPLEMENTED R4.
+- QA independiente: ISOLATED UI / READ CONTRACT; MUTATION/DOCUMENT/EXPORT QA PENDING cuando corresponde.
+
+## R5 — cierre focalizado
+
+11 pérdidas originales +2 nuevas (selección acumulada),13 recuperadas. 11 catálogos modificados;0 backend/CSS; QA-02 global abierto. Ver REAL-NEXT-MATERIAL-CATALOGS-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-100 — Selección acumulada entre páginas
+
+- Módulo/pantalla: `exampler.index`. Prioridad P1.
+- Evidencia: `8faf1ef^` usa selectedIds Set y Array.from; `8faf1ef` retira eventos/Set junto al handler bulk.
+- Vigencia: ACTIVE; no retiro autorizado.
+- Endpoint: `POST /dashboard/exampler/delete-multiple`, ids[] + CSRF; destroy_exampler, tenant.
+- Recuperación: ACTIVE — RESTORED R5. Mantiene alcance histórico de nodos filtrados; no selección implícita.
+- QA independiente: fixtures 12 registros, navegación/payload interceptados; rollback servicio aislado. Sin mutación compartida.
+- Blocker actual: ninguno demostrado en esta capacidad. QA mutadora real separada.
+
+### FR-101 — Selección acumulada entre páginas
+
+- Módulo/pantalla: `brand.index`. Prioridad P1.
+- Evidencia: `8faf1ef^` usa selectedIds Set y Array.from; `8faf1ef` retira eventos/Set junto al handler bulk.
+- Vigencia: ACTIVE; no retiro autorizado.
+- Endpoint: `POST /dashboard/brand/delete-multiple`, ids[] + CSRF; destroy_brand, tenant.
+- Recuperación: ACTIVE — RESTORED R5. Mantiene alcance histórico de nodos filtrados; no selección implícita.
+- QA independiente: fixtures 12 registros, navegación/payload interceptados; rollback servicio aislado. Sin mutación compartida.
+- Blocker actual: ninguno demostrado en esta capacidad. QA mutadora real separada.
+
+
+## R6 — StockItems / Items (2026-11-25)
+
+Dos superficies revisadas/modificadas. Cinco pérdidas activas originales, ninguna nueva; cuatro recuperadas (FR-060/061/062/065), una bloqueada (FR-059 → INV-01). Cuatro gates read-only obsoletos; no exclusión legacy nueva. `btn-resumen-stock`/Nuevo material eran comentarios históricos; colvis sin controles y exports Dashboard no se cuentan como pérdidas nuevas R6. FR-063/064 siguen pendientes fuera de alcance.
+
+QA: 7 tests /46 assertions SQLite; 16 combinaciones responsive +6 cargas de contexto en Chrome headless, 16 POST/PUT interceptados,0 reales; backend0/CSS0. Contratos de lectura EDESCE C1/B1,C1/B8,C2/B2,Gamarra revalidados. Paridad parcial, mutación real PENDING, no R7. Documento canónico: `REAL-NEXT-STOCKITEMS-ITEMS-FUNCTIONAL-PARITY-RECOVERY.md`.
+
+### FR-102 — Importes/cantidad de almacén + refrescar
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET report/amount/items` (prefijo /dashboard/).
+- Blocker: INV-01 / METRIC-01.
+- Recuperación: ACTIVE — BACKEND BLOCKER.
+- QA: Contrato estático; endpoint no ejecutado.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-103 — Exportar materiales por almacén
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET report/excel/bd/materials/warehouse/{id}` (prefijo /dashboard/).
+- Blocker: INV-01.
+- Recuperación: ACTIVE — BACKEND BLOCKER.
+- QA: Contrato estático; endpoint no ejecutado.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-104 — Exportar entradas por compra/inventario
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET exportar/entradas/almacen/v2/` (prefijo /dashboard/).
+- Blocker: Ninguno demostrado para restaurar; QA real de export pendiente.
+- Recuperación: ACTIVE — RESTORED.
+- QA: 4 tests/31 assertions SQLite, Chrome interceptado8 anchos PASS; export real PENDING.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-105 — Historial de cortes de rotación
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET get/data/rotations/v2/{page}` (prefijo /dashboard/).
+- Blocker: METRIC-01.
+- Recuperación: ACTIVE — BACKEND BLOCKER.
+- QA: Contrato estático; endpoint no ejecutado.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-106 — Nuevo corte de rotación
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET store/rotation/material/` (prefijo /dashboard/).
+- Blocker: DASH-R7-01 / INV-01 / METRIC-01.
+- Recuperación: ACTIVE — BACKEND BLOCKER.
+- QA: Contrato estático; endpoint no ejecutado.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+### FR-107 — Personal mensual: tabla y proyección
+
+- Superficie: dashboard.principal / dashboard.dashboard; http://127.0.0.1:8080/dashboard/principal.
+- Evidencia: control/handler alcanzable en dbca24e1^, retirado por dbca24e1; contrato HEAD contrastado R7.
+- Vigencia: ACTIVE. No existía en el registro FR previo. No duplicar modal/filtros como pérdidas.
+- Endpoint: `GET personal/payments?year&month` (prefijo /dashboard/).
+- Blocker: DASH-R7-01 / METRIC-01.
+- Recuperación: ACTIVE — BACKEND BLOCKER.
+- QA: Contrato estático; endpoint no ejecutado.
+- Permisos/scope/payload y aceptación DEV: matriz/contratos de REAL-NEXT-DASHBOARD-FUNCTIONAL-PARITY-RECOVERY.md.
+
+## R7 — cierre de revisión, no cierre de todos los blockers
+
+Una superficie modificada;1 capacidad recuperada y7 pendientes. Backend0, CSS0, sin writes comerciales ni exports reales. R8 requiere revisión del propietario; quedan157 superficies por contraste semántico, ledger único en documento R7.

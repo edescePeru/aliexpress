@@ -48,6 +48,7 @@
 @endsection
 
 @section('content')
+@include('entry.partials.list-operations')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
     <section class="next-operational-list" aria-label="Reporte de entradas por compra">
         @can('searchReportEntries_entryPurchase')
@@ -76,7 +77,7 @@
         <div id="element_loader">
             <table class="table table-bordered table-hover table-sm next-data-table" id="dynamic-table">
                 <thead><tr>
-                    <th class="text-center">Guía de remisión</th><th class="text-center">Orden de compra</th><th class="text-center">Factura</th><th>Tipo de entrada</th><th>Proveedor</th><th class="text-center">Fecha</th><th class="text-center">Diferido</th><th class="text-right">Total</th><th class="text-center">Moneda</th>
+                    <th class="text-center">Guía de remisión</th><th class="text-center">Orden de compra</th><th class="text-center">Factura</th><th>Tipo de entrada</th><th>Proveedor</th><th class="text-center">Fecha</th><th class="text-center">Diferido</th><th class="text-right">Total</th><th class="text-center">Moneda</th><th class="text-center">Acciones</th>
                 </tr></thead><tbody></tbody>
             </table>
         </div>
@@ -94,6 +95,7 @@
 @endsection
 
 @section('scripts')
+<script src="{{ asset('js/entry/list-operations.js') }}"></script>
     <script src="{{ asset('admin/plugins/moment/moment.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>

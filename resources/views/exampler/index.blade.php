@@ -49,11 +49,7 @@
                     type="button"
                     id="delete-selected"
                     class="btn btn-outline-danger btn-sm"
-                    data-url-bulk="{{ url('/dashboard/exampler/delete-multiple') }}"
-                    data-backend-sync-open="true"
-                    aria-disabled="true"
-                    title="Pendiente de permiso explícito y validación backend"
-                    disabled>
+                    data-url-bulk="{{ url('/dashboard/exampler/delete-multiple') }}">
                     Eliminar seleccionados
                 </button>
             @endcan
