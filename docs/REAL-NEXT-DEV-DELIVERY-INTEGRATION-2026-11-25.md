@@ -11,7 +11,7 @@ Fecha: 2026-11-25. Rama destino: feature/venti-next-frontend. Código integrado;
 - Merge base: `744d28b81aee93167cf1f5b5bcd72477d005bd0b`.
 - Tres commits entrantes: 41ed99f (paquetes/cupos/Owner),0129133 (Platform),bf6e834 (merge remoto).
 - Merge controlado --no-commit --no-ff: 123 archivos automáticos; cero conflictos de contenido/modify-delete/rename. No ours/theirs global.
-- SHA final de merge: PENDING_LOCAL_MERGE_SHA (se registra después del commit mediante actualización documental; no se puede almacenar el hash de un commit dentro de sí mismo).
+- SHA final de merge: `98619bc33a0c45e4032266cf26b298d9965bf432`. Registrado en commit documental posterior para evitar autorreferencia de hash. Parents: a0ca809b07dbe0911ab7449a3db862a68a0ceb87 y bf6e834badf7b9d186f1465861d7bdcff591fd4b.
 - multitenancy local se conserva en `a0ca809b07dbe0911ab7449a3db862a68a0ceb87`. Sin push.
 
 ## Reconciliación semántica, aunque no hubo conflictos textuales
@@ -109,7 +109,7 @@ AGENTS.md; dashboard/dashboard.blade.php; dashboard/owner.blade.php; dashboard/p
 
 Sintaxis: 63 archivos PHP y13 JS PASS. Blade view:cache PASS. git diff --check y --cached --check PASS; sin archivos unmerged ni marcadores residuales. Backend app/routes/database idéntico al parent DEV. CSS Venti Next, allowlist y renderer Sales idénticos al parent R0–R7. No secretos, env, locks, logs ni artefactos QA añadidos al índice. La diferencia frente al parent DEV incluye deliberadamente las recuperaciones R0–R7 ya comprometidas, no sólo los ajustes R7.5.
 
-CODE MERGE listo para commit local; INSTALLATION PENDING; R7.5 COMPLETE WITH CONDITIONS; R7.6 GO WITH CONDITIONS; R8 NOT STARTED. No confundir el test de caracterización ENTRY-R75-01 con corrección del defecto.
+CODE MERGE COMPLETE (commit local realizado); INSTALLATION PENDING; R7.5 COMPLETE WITH CONDITIONS; R7.6 GO WITH CONDITIONS; R8 NOT STARTED. No confundir el test de caracterización ENTRY-R75-01 con corrección del defecto.
 
 ## Inventario de archivos DEV automáticos
 
