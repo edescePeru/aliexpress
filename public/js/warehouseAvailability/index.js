@@ -27,9 +27,9 @@
                 section.append(header);
                 var scroll = $('<div class="table-responsive" tabindex="0">').attr('aria-label', group.title + '; desplazamiento horizontal');
                 var table = $('<table class="table table-bordered table-hover table-sm next-data-table">');
-                table.append('<thead><tr><th>Almacén</th><th class="text-center">Existencias</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Por recibir</th><th class="text-center">Enviado en tránsito</th><th class="text-center">Trazabilidad</th></tr></thead>');
+                table.append('<thead><tr><th>Almacén</th><th class="text-center">Existencias</th><th class="text-center">Reservado</th><th class="text-center">Disponible</th><th class="text-center">Por recibir</th><th class="text-center">Enviado en tránsito</th><th class="text-center">Trazabilidad</th><th class="text-center">Acciones</th></tr></thead>');
                 var body = $('<tbody>');
-                if (!group.warehouses.length) body.append('<tr><td colspan="7" class="next-table-empty">Sin almacenes visibles en este grupo.</td></tr>');
+                if (!group.warehouses.length) body.append('<tr><td colspan="8" class="next-table-empty">Sin almacenes visibles en este grupo.</td></tr>');
                 group.warehouses.forEach(function (warehouse) {
                     var row = $('<tr>').attr('data-warehouse-id', warehouse.id).attr('data-stock-item-id', data.product.id);
                     row.append($('<td>').text(warehouse.name));
@@ -37,6 +37,15 @@
                         row.append($('<td class="text-center">').toggleClass('font-weight-bold', field === 'available').text(quantity(warehouse[field])));
                     });
                     row.append($('<td class="text-center">').append($('<span class="badge">').addClass(warehouse.requires_review ? 'badge-warning' : 'badge-success').text(warehouse.requires_review ? 'Requiere revisión' : 'Consistente')));
+                    var actions = $('<td class="text-center" data-buttons>');
+                    if (warehouse.request_url) {
+                        var dropdown = $('<div class="dropdown next-row-actions">');
+                        dropdown.append($('<button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>').attr('aria-label', 'Acciones de ' + warehouse.name));
+                        var menu = $('<div class="dropdown-menu dropdown-menu-right next-row-actions-menu">');
+                        menu.append($('<a class="dropdown-item"><i class="fas fa-exchange-alt next-row-action-item-icon" aria-hidden="true"></i><span>Solicitar traslado</span></a>').attr('href', warehouse.request_url));
+                        dropdown.append(menu); actions.append(dropdown);
+                    }
+                    row.append(actions);
                     body.append(row);
                 });
                 table.append(body); scroll.append(table); section.append(scroll); target.append(section);

@@ -1,5 +1,106 @@
 # R8.0 / R8.1 — Global Semantic Functional Parity Audit
 
+## R8.2A — estado vigente (2026-11-25)
+
+Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
+
+A194/194 auditadas: **187 con paridad /5 con pérdidas /2 dependencias monetarias** después de recuperar3 superficies mediante2 capacidades. B2 y C125 sin cambios. Nuevos findings DEV0. R8.2A COMPLETE — FRONTEND RECOVERY; R8 global sigue parcial por alcance/contratos; R8.2B no iniciada.
+
+Evidencia: [informe R8.2A](REAL-NEXT-R8-FUNCTIONAL-PARITY-RECOVERY.md), test `tests/Frontend/r82a-recovery.cjs` PASS (8 casos de paginación +2 navegaciones numéricas; menú375/1440; cero pageerrors/overflow). Chrome headless aislado y requests interceptados, no certificación HTTP autenticada ni mutaciones. Ruta destino verificada con PHP7.3.33 y contrato actual. Backend0 / Blade0 / CSS0 / infraestructura0 / mutaciones0; runtime sólo2 JS. `git diff --check` PASS.
+
+Plan restante: FR110 espera EXPENSE-01; mantener los10 bloqueos anteriores, aclaración monetaria, B y decisiones C. No recuperar gasto ni iniciar nuevas fases. Esperar revisión del propietario.
+
+## Historia preservada anterior a R8.2A
+
+## Estado vigente — continuación final R8 (2026-11-25)
+
+HEAD `079aea9b25fa5fe9591fd5607a1801640e5108e4`; baseline compartido `6df57e7`. Se preservaron los tres documentos R8 ya modificados al inicio; no se incorporaron commits ni cambios DEV. Esta sección prevalece sobre los checkpoints históricos inferiores.
+
+**Inventario379: A194 / B2 / C125 / excluidas58. Auditoría A194/194: anteriores139 + adicionales55; pendientes0. Evidencia acumulada PREVIOUS42 / NEW152 (esta continuación2 /53).** Son superficies/variantes renderizadas, no194 URLs independientes. S172 es fallback409 de Create/Edit, sin ruta propia nueva ni duplicación de capacidad.
+
+**Paridad semántica confirmada184; auditadas con pérdidas8** (4 superficies con pérdidas anteriores bloqueadas y4 con nuevas pérdidas); **2 con dependencia contractual monetaria**, sin paridad certificada. Auditoría cerrada NO equivale a implementación completa, seguridad integral o QA mutadora PASS.
+
+Nuevas capacidades perdidas acumuladas en R8: **2 completas de navegación +1 parcial de paginación**; de ellas, en esta continuación se añade sólo R8-F01 (retorno desde Crear gasto, bloqueado por EXPENSE-01 ya existente). Nuevos gates obsoletos0; nuevas raíces/blockers DEV0. Dos recuperaciones frontend directas propuestas y una dependiente del fix DEV existente. S201/S203 no inflan el conteo.
+
+Baseline FR intacto: **74 recuperadas +10 bloqueadas +23 excluidas =107**. Propuestas deduplicadas: FR-108/R8-B02, FR-109/R8-E02 y FR-110/R8-F01; no incorporadas como restauradas ni renumeradas. Conciliación prospectiva, si se aprueban: **110 =74 recuperadas +2 pendientes frontend +11 bloqueadas DEV +23 excluidas**. Candidato monetario1 compartido por2 vistas permanece fuera de los110.
+
+**R8.1: AUDIT COMPLETE FOR UNIVERSE A — FINDINGS OPEN. R8.0/global: PARTIAL — PRODUCT SCOPE DECISIONS OPEN (C125). R8.2: PLAN PREPARED / NOT STARTED / OWNER AUTHORIZATION REQUIRED.** B2 pendientes (Recepción y Registrar comprobante); observaciones visuales receipt/Branch/GRE preservadas. `frmGreRecovery` existe mediante partial incluido: no formulario huérfano.
+
+Backend/Blade/JS/CSS/rutas/allowlist/infraestructura y mutaciones comerciales: **0 cambios/ejecuciones**. Ningún HTTP/GET escritor, export, documento ni proveedor invocado; sin navegador/escritorio ni QA responsive repetida. Verificación nueva estática Git/contratos; simulación previa de paginación identificada como tal, no dato real. Sin commit/push/fetch/pull/merge/rebase.
+
+### Cierre individual agrupado de las55 superficies
+
+Método: comparación padre de homologación → homologación → HEAD, lectura de handlers/contratos y reutilización de los informes citados. El inventario automático de names/routes/hooks sólo orienta; no se usa por sí solo como PASS. No se atribuye a esta ejecución el QA runtime de los informes anteriores. Los diffs íntegros de los paths de estas55 vistas y scripts quedan en `r8-final-historical-evidence.json` junto al ledger externo.
+
+| IDs | Familia | Evidencia | Interpretación semántica |
+|---|---|---|---|
+| S157 | Material Create | aa2ded06; Material Create Contract + Post-Merge QA + diff hasta HEAD | Guardar FormData, reset, imagen, variantes, clasificación dependiente y altas auxiliares conservados. Contexto/version, unidad obligatoria, tipo fiscal, permisos de talla/color/género y Option segura son adaptaciones DEV; no restaurar defaults/IDs antiguos. |
+| S163 | Material List V2 | 8faf1ef3^/8faf1ef3/HEAD; Material List Contract; presentations-branch.js | Búsqueda, 15 columnas, paginación, ocho acciones de fila, imagen/inventario, stock y resumen preservados. Cédula/calidad eran parámetros no-op del endpoint getDataMaterials, no confundir con getDataMaterialsPack/Store. Presentaciones migradas a adapter por local, no eliminadas; cantidad fija y precio local siguen contrato DEV. |
+| S171, S172 | Material parameters / required state | 8faf1ef3^/HEAD; MaterialController:90,819; Material Parameters Contract | Guardar enabled_sections[] + CSRF, reset, grupos y extraKeys preservados; _context/version y unidad obligatoria alineados a DEV. S172 es vista completa fallback 409 de Create/Edit, NO partial ni URL nueva: unidad del inventario es variante renderizada, no página independiente. |
+| S118 | Stock file import | 8faf1ef3^/HEAD; Material Stock Import Contract; files/stockFiles.js | Seleccionar archivo, FormData, plantilla, submit/reset y errores preservados; submit sin archivo deshabilitado no retira una capacidad válida. No importación ni descarga ejecutada. |
+| S062 | Company Stock Items | 4b0ac964^/HEAD; Company Stock Items report; index.js | URI dashboard/dashboard/company-stock-items confirmada. Selectores company/brand/category/status/search, paginación y toggle company_stock_items preservados; abort/version evita respuestas del contexto anterior. No se altera stock físico. |
+| S058, S059, S060 | Company bank accounts | 1f972a7c^/HEAD; REAL-NEXT-COMPANY-BANK-ACCOUNTS | Crear/editar/toggle conservan permisos, métodos, partial de campos, default/moneda, CSRF y handlers intactos. Cambio a dropdown sólo presentación. No búsqueda/paginación inventada; no certificar mutaciones ni deuda default por auditoría estática. |
+| S061 | Company Settings | 58a7841a^/HEAD; REAL-NEXT-COMPANY-SETTINGS-BRANDING | Definiciones dinámicas, tipos, hidden boolean0, enum vacío, imágenes/previews, snapshots y Guardar FormData conservados; cambio JS limita etiqueta del switch sin tocar label principal. No secreto/override real leído ni upload. |
+| S319 | Supplier accounts | 4b546d4c^/HEAD; REAL-NEXT-SUPPLIER-ACCOUNTS | Agregar, guardar inline, eliminar y volver a proveedores conservados. closest(data-account-row) sustituye traversals; value corrige selección, permisos y CSRF intactos. No confundir con SupplierCredit; scope del parent y permiso list_supplierAccount actuales son autoridad. |
+| S066, S067, S068, S069 | Contacts | 3883302a^/HEAD; REAL-NEXT-CONTACTS | Create/edit names, FormData, reset y validaciones preservados; DataTables list/restore conservan endpoint, búsqueda, página, edición, delete/restore y parent. Escapado y guard null no cambian IDs; nuevas rutas de retorno no eliminan acciones. |
+| S077, S078, S079, S080 | Customers | 5242c73f^/HEAD; REAL-NEXT-CUSTOMERS | Forms create/edit y handlers intactos; index/restore cambian sólo composición, badge y escapado. Mantienen consulta documental existente, modal delete/restore, payload e IDs. Restore batch DEV no se reemplaza por reglas JS; sin llamada externa ni GET search-or-create. |
+| S315, S316, S317, S318 | Suppliers | cffac49e^/HEAD; REAL-NEXT-SUPPLIERS | Create/edit y FormData intactos; list/restore conservan búsqueda/paginación, edit/delete/restore, acceso y visualización de cuentas con list_supplierAccount. No confundir controles de cuentas con créditos. |
+| S364, S365, S366, S367 | Workers | 5a79bc83^/HEAD y 996a31a4^/HEAD; REAL-NEXT-WORKERS | Create/edit sin delta JS. Index conserva export, 29 columnas, editar/deshabilitar/cuentas/crear-renovar-terminar contrato y edición/eliminación del término con condiciones originales; dropdown no filtra capacidades adicionales. IndexEnable conserva habilitar y have_contract histórico determinista, no vigencia; columna21 inicialmente visible, sin añadir columna. |
+| S228, S229, S238, S243, S244, S245, S300, S301, S302, S332, S333, S334 | Platform administration | 673cb064^/HEAD; REAL-NEXT-PLATFORM-ADMIN-CONTRACT | Parámetros laborales edit/update; ActivityLog filtros/página/detalle; Tenants create/show/update/toggle/resetOwnerPassword; RoleTemplate y TenantRole create/edit/toggle + catálogo/selección permisos preservados. JS mutador/form sin delta; renderers sólo dropdown/alineación. Breadcrumb platform.dashboard corrige ámbito; cupos añadidos por partial R77D, no sustituyen formularios. |
+| S240, S241 | Platform Nubefact | d2592207^/HEAD; REAL-NEXT-PLATFORM-NUBEFACT | Listado/filtros/Configurar y formulario POST CSRF/version, credenciales, enabled y series preservados. configurationVersion reemplaza updated_at por contrato DEV; serie GRE/correlativo añadidos. No prueba de conexión ni proveedor. |
+| S242 | Platform shipping catalogs | b951afdc^/HEAD; REAL-NEXT-PLATFORM-SHIPPING-CATALOGS | Pestañas y alta con availableCodes/supportedCodes preservadas. Edición inline trasladada a modal por registro; mismo PUT, record_id, old(), validación, nombre/orden/estado/código readonly; modal de error se reabre. No ejecutar. |
+| S345 | Platform tax types | 4c2b1989^/HEAD; REAL-NEXT-PLATFORM-TAX-TYPES | Crear/editar y flags estado/default mantienen handlers y validación backend; JS sólo cambia wrapper/IDs/escape. Código readonly en edit preservado; no duplicación de reglas fiscales. |
+| S044, S045, S369 | Quotation auxiliary catalogs | 3636c1f1^/HEAD; categoryEquipment y workforce diffs | Categorías: búsqueda/sugerencias/paginación, equipos hijos, crear/editar/delete/restore e imagen conservados; URLs relativas sustituidas por routes exactas en data-url. Workforce: búsqueda/tabla/modal/guardar/delete, precio/unidad/facturable y manage_workforce intactos; JS sin delta. Sin reactivar cotización industrial. |
+| S361, S362, S363 | Warrants | b898890a^/HEAD; REAL-NEXT-WARRANTS | Listado y CRUD legítimo Warrant conservados/corregidos. Original consultaba y mutaba Género; bulk enviaba a genero/delete-multiple, NO capacidad Warrant válida. No recuperar operación del dominio equivocado; WARRANT-01 no es nueva pérdida. |
+| S249 | Price List | b898890a^/HEAD; REAL-NEXT-PRICE-LISTS-GENERAL | Maestro crear/editar/estado/default y tabla nueva; editor de productos/variantes permanece en details con selector, filtros y guardar. manage_priceListMaterial coincide con endpoints; NO eliminar editor por alcance QA. Cache/error/diálogos conservan payload y moneda. |
+| S081 | Operational dashboard | R7 audit dbca24e1^/HEAD + entry-export.js; R76 evidence | Reutiliza matriz R7 de ocho pérdidas: FR104 recuperada; siete bloqueadas FR063/064/102/103/105/106/107. Cards/ranking/gráficos actuales conservados; no reactivar handlers históricamente comentados ni GET escritores. |
+| S095 | Purchase Entry Edit | R4/R75/R76; PurchaseFormReadAccess:13,32; routes/web.php:1150-1170 | Superficie fuera de allowlist incluida por navegación FR047 retirada. Formulario DEV permanece; permiso entry_edit=edit_entryPurchase distinto de update_entryPurchase de ruta. Auditoría cerrada con blocker conocido, no paridad ni nueva homologación. |
+| S201, S203 | Normal purchase monetary detail | abc9daa0^ y c32352c5^/HEAD; OrderPurchaseController:2151-2179,2238-2240,2345-2356; NormalPurchaseGuard:103 | DEPENDENCIA CONTRACTUAL DEV: contrato GET entrega price/igv/total_detail y order.total/igv/currency, no bases ni tax_type snapshot. Retiro de precio sin IGV y subtotal visible confirmado, legitimidad del cálculo histórico 1.18 no certificada. No contar como pérdida recuperable hasta respuesta DEV. |
+| S109 | Expense Create | d43ca2f7^/HEAD; REAL-NEXT-EXPENSES; ExpenseController y Expense model | Formulario/guardar/reset intactos; navegación expense.index eliminada de toolbar y breadcrumb. Destino activo en código/menu pero bloqueado por EXPENSE-01 (sin ownership), no decisión de retiro. Pérdida de navegación con dependencia DEV conocida, no restaurar inseguramente. |
+
+### R8-A13 — resolución de S201/S203: DEPENDENCIA CONTRACTUAL DEV
+
+El padre de abc9daa0 (showNormal) y c32352c5 (showDelete) mostraba precio sin IGV calculado `round(price/1.18,2)`, subtotal de cabecera `total-igv` y fallback de total de línea `quantity*price`. HEAD muestra price, igv, total_detail almacenados y moneda/IGV/total de cabecera; null se presenta como No registrado. `fillItems` no sustituía automáticamente el subtotal inicial: updateSummaryInvoice estaba comentado. No se halló decisión DEV explícita que ordenara retirar esa información; la motivación del informe frontend no equivale a aprobación fiscal.
+
+GET showOrderPurchaseNormal/showOrderPurchaseDelete carga modelos/details con scopes y relaciones; no entrega net_unit_price, taxable/exempt/unaffected bases ni tasa snapshot por línea. OrderPurchaseDetail fillable: quantity, price, igv, total_detail (más IDs). No aparece distinción de bases gravada/exonerada/inafecta en este contrato. La presencia de TypeTax en Material no garantiza el impuesto histórico de la compra.
+
+El código actual de creación/edición de líneas trata total_detail como importe inclusivo para derivar IGV mediante total-total/1.18 (Controller2238-2240 y2345-2356); guarda price desde payload, y NormalPurchaseGuard::recalculate suma total_detail/igv. Esto evidencia la convención del writer actual, NO una garantía universal sobre históricos/migraciones, precios unitarios nulos, descuentos o líneas a otra tasa. La resta total-igv evita una tasa fija pero sigue necesitando definición de qué representa el subtotal contractual. Por tanto no se inventa una fórmula fiscal ni se declara sustitución equivalente/cambio intencional.
+
+**Pregunta DEV exacta:** ¿Para todas las órdenes normales vigentes y eliminadas, incluidos históricos, `price` y `total_detail` incluyen IGV y `igv` es el impuesto final de esa línea? ¿Es `order.total-order.igv` el subtotal neto autorizado aun con descuentos, exoneradas/inafectas y datos null? Si no es universal, entregar campos autoritativos net_unit_price/subtotal y snapshot fiscal (o una regla explícita de indisponibilidad); definir también el fallback de total_detail null. No recuperar división1.18 a partir del Material actual. Es una aclaración contractual, no nuevo bug backend demostrado; candidato fuera del conteo FR.
+
+### R8-B02 / FR-108 propuesto — solicitar traslado contextual (P1)
+
+En a90d322a se retiró el enlace renderizado cuando `warehouse.request_url` existía. WarehouseAvailabilityService:67-75 sigue entregándolo sólo con disponible positivo/no null, producto trazable, list_transfer+create_transfer y almacén destino de branch actual distinto del origen. Usa warehouseTransfer.create con source_warehouse_id, stock_item_id y snapshots form_tenant_id/company_id/branch_id. WarehouseTransferController::create valida snapshots, ownership del origen, disponibilidad y prefill. Recuperación propuesta: consumir exclusivamente request_url entregado; no reconstruir URLs ni reactivar transfer legacy. Una capacidad contextual, no pérdida de todo Transfers.
+
+### R8-E02 / FR-109 propuesto — paginación Ganancia Diaria (P2)
+
+bd413c65 cambió el argumento del bucle de `i` a `pagination.totalPages` en public/js/ganancias/index.js:144; el atajo final de153 sí debe usar totalPages. Afecta S120/S121 que comparten JS; Prev/Next subsisten. Simulación aislada previa `r8-daily-pagination-isolated.json`: con10 páginas, página1 devuelve [10,10,10,10] frente a [1,2,3,4]; página4 devuelve [1,10,10,10,10,10,10] frente a [1,2,3,4,5,6,7]. No se ejecutó reporte real.
+
+Barrido focal `renderItemPage(totalPages/lastPage)` en public/js:8 coincidencias/7 archivos. Ganancias/index.js:144 es el único bucle defectuoso de esas coincidencias. indexTrabajador:382 usa i y391 atajo final; quoteSale/general:555 y facturadas:554 usan i,564/563 atajos; orderPurchase/normalV2:168, generalV2:93 y expressV2:93 usan i,177/102/102 atajos. Estos seis no reproducen la raíz. Es búsqueda focal, NO certificación de todos los paginadores del ERP ni reauditoría de módulos excluidos.
+
+### R8-F01 / FR-110 propuesto — retorno Crear gasto → Rendición (P2, bloqueado)
+
+d43ca2f7 retira route(expense.index) de toolbar y breadcrumb en expense.create. Antes era navegación ejecutable; Guardar/reset/CSRF/campos siguen presentes. REAL-NEXT-EXPENSES reconoce retirada por lista fuera del rollout. HEAD Expense continúa sin BelongsToTenant/ownership; getAllExpenses filtra fecha, no tenant/company. Root cause **EXPENSE-01** ya documentado (backlog DEV), no defecto nuevo. No hay aprobación de retiro funcional; ocultar enlace no elimina la capacidad ni arregla endpoint. Clasificación: pérdida completa de ese acceso contextual, dependiente de DEV, no recuperar inseguramente. Criterio: primero lista/JSON contextual y permisos; luego enlace de retorno según permiso, sin cambiar el formulario ni alcance de Expense por inferencia.
+
+### Conciliación y límites
+
+184 conformes al contrato funcional actual;8 auditadas con pérdidas: S081/095/100/308 conocidas, S109/120/121/357 nuevas. S201/203: incertidumbre contractual, no conforme ni pérdida FR nueva confirmada. Se conserva separación de implementación y QA: los controles de escritura existentes no fueron ejecutados y no se ocultan por eso.
+
+No duplicados FR:108 es navegación desde Availability, no ajuste StockItems FR059;109 es paginación DailyProfit, no historial rotación/export de dashboard FR063/064/105;110 es retorno desde ExpenseCreate, no Bill CRUD ni Cash ni FR de Entry. Los IDs son propuestas para aprobación; baseline107 no cambia silenciosamente.
+
+## Evidencia histórica preservada — checkpoints anteriores
+
+## Estado vigente - continuacion sobre HEAD 079aea9 (2026-11-25)
+
+Baseline compartido 6df57e7; HEAD observado 079aea9b25fa5fe9591fd5607a1801640e5108e4. El delta contiene el checkpoint R8 y R7.7E previamente aprobados; no se incorporaron cambios remotos. Working tree limpio al inicio. Los estados siguientes prevalecen sobre los checkpoints historicos conservados.
+
+Inventario 379: A194 / B2 / C125 / excluidas58. Cierres anteriores80; adicionales59; acumulado139/194 (71.65%), pendientes55. Evidencia acumulada: PREVIOUS40 / NEW99; esta ejecucion1 reutilizado y58 nuevas comparaciones. Cierre de auditoria NO significa recuperacion: S357 queda auditada con perdida confirmada R8-B02.
+
+Nuevas perdidas confirmadas1 (navegacion contextual Disponibilidad -> Solicitar traslado); parciales confirmadas1 (R8-E02 paginacion numerica Daily Profit); blockers DEV nuevos0. R8-A13 mantiene dos detalles pendientes por representacion monetaria retirada, sin atribuir una decision fiscal a DEV. FR canonicos74 recuperados +10 bloqueados +23 excluidos=107; R8-B02 se registra separado como hallazgo nuevo pendiente de plan R8.2, sin reutilizar/renumerar IDs FR.
+
+R8.0 PARTIAL; R8.1 PARTIAL; R8.2 NO INICIADO, requiere revision del propietario. Implementacion/backend/Blade/JS/CSS/rutas/allowlist/infraestructura/mutaciones0. No QA runtime nuevo ni llamadas a proveedores.
+
+
 Fecha: 2026-11-25. Shared baseline **6df57e7**. Audited HEAD **6df57e7d73a2546bc283527b166041584bfc708f**. Rama feature/venti-next-frontend. PHP 7.3.33; entorno127.0.0.1:8080 intacto.
 
 ## Estado vigente — continuación optimizada R8 (2026-11-25)
@@ -207,3 +308,73 @@ R2 matriz + contratos + cuatro POST simulados previos explican apertura, sesión
 - S035/039/040: My/Session incorporan `deferred_cancelled` y origen de apertura; comparar esas diferencias con el contrato DEV y la matriz previa. Summary conserva C01 read-only. No heredar el cierre de Cash Admin.
 
 Estas observaciones de trabajo no son nuevos findings ni pérdidas confirmadas. No alteran80 cierres /114 pendientes. Continuación exacta: terminar S201/203, luego S305–307, S035/039/040 y restantes familias A; después resolver vigencia C por familias.
+
+## Continuacion 079aea9 - bloques comercial, inventario, caja y RRHH
+
+### R8-A13 - Normal detalle S201/S203: representacion monetaria pendiente
+
+abc9daa^ y c32352c5^ muestran Precio S/IGV como price/1.18 y Subtotal como order.total-order.igv. abc9daa/c32352c5 los retiraron. showNormal.js fillItems NO recalcula el subtotal al cargar: updateSummaryInvoice esta comentado alli. Por tanto, no justificar el retiro del subtotal diciendo que siempre era sobrescrito por JS. Los templates mutadores Express carecian de trigger alcanzable desde estas filas readonly; R3.1 demuestra ausencia de restore/print propios del detalle. Navegacion de retorno y campos persistidos preservados.
+
+La documentacion de homologacion explica el retiro como rechazo de derivados no entregados por backend, pero eso no demuestra decision de producto/DEV de retirar la lectura monetaria. Separar: (1) subtotal derivado de snapshots; (2) precio neto basado en18% fijo; (3) fallback quantity*price cuando total_detail es null. No restaurar formulas fiscales por analogia. Mantener ambas superficies PENDING hasta resolver representacion autorizada; no clasificar como backend roto ni declarar paridad plena. URLs historicas de evidencia R3.1: http://127.0.0.1:8080/dashboard/ver/orden/compra/normal/4 y http://127.0.0.1:8080/dashboard/ver/orden/compra/eliminada/1. IDs no revalidados en DB en esta ejecucion.
+
+### GRE S305/306/307 - cierre de paridad
+
+Create reutiliza informe completo y correccion UX con12 checks aislados; 9c26f05a..HEAD sin cambios runtime. No repetir QA emision/idempotencia. List/Show se contrastaron eb5ebbc3^/eb5ebbc3/HEAD: filtro/paginacion/export/consulta/documentos/navegacion permanecen. Cambios DEV ede0552/d9efd28 reemplazan payload/respuesta crudos por diagnostico seguro, fases de emision y guarda identity_conflict; lectores internos reemplazan links externos. Gates consult edit_referralGuide, PDF print/download y documentos download corresponden a rutas actuales, no QA gates.
+
+Correccion explicita del checkpoint anterior: frmGreRecovery SI existe en shipping_guides._recovery, incluido por show linea46. No es handler huerfano. Conserva preview backend, permisos list+create+edit, estados REGISTERED/UNKNOWN/API_ERROR sin conflicto, version/CSRF, confirm_account y confirm_send opcional. Handler serialize->POST shipping_guides.recover con doble-envio protegido y recarga; no se ejecuto. La frase documental sobre un paquete anterior no instalado no prueba ausencia del contrato actual. No reabrir J/P. Observacion visual estatica: listado GRE aun usa botones individuales por fila; no perdida funcional.
+
+### Caja S035/S039/S040 - cierre de paridad
+
+My/Session: matriz anterior de apertura/sesion/ingreso/egreso/arqueo/cierre/regularizacion/documentos + diff80b240ae..HEAD. Origen consolidated/external, procedencia/observacion de apertura son campos DEV entregados y serializados; errores validation se muestran. deferred_cancelled impide regularizar solo movimientos cancelados; coincide con CashRegularizationService y respuesta controller. Sin otro cambio de permisos/endpoints/payloads operativos. Summary: diff483a7858^/483a7858 es presentacion; filtros GET branch/period/fechas, tabs/saldos/actividad/drilldown preservados. No hay mutadores historicos que restaurar en esa superficie (C01).
+
+### R8-B02 - perdida confirmada: Solicitar traslado desde Disponibilidad
+
+Superficie S357: http://127.0.0.1:8080/dashboard/disponibilidad/almacenes. a90d322a elimina del renderer el anchor construido con warehouse.request_url; informe original dice deliberadamente no renderizarlo por TRANSFER MUTATION OUT OF SCOPE. Es navegacion GET, no ejecucion de traslado. No hay evidencia de retiro de producto. HEAD mantiene request_url y el formulario destino activo.
+
+Autoridad actual: app/Services/Inventory/WarehouseAvailabilityService.php:65-75. URL solo si available>0, traceable, permisos list_transfer+create_transfer y destino del local distinto del origen. Incluye source_warehouse_id, stock_item_id, form_tenant_id/company_id/branch_id. No replicar condiciones en JS; no fabricar URL cuando backend devuelve null. Create consume prefill y valida snapshots. No se pierde el CRUD de traslados completo: se pierde el acceso contextual con producto/origen preseleccionados.
+
+Clasificacion: ACTIVE - FRONTEND RECOVERY REQUIRED; causa Next/read-only QA mal interpretado; backend blocker nuevo NO. Una capacidad confirmada, no dos por enlace/prefill. S357 audit COMPLETE WITH FINDING, no functional parity PASS. Recuperacion solo tras revision del propietario en R8.2. No ejecutar solicitud/reserva/preparacion/despacho/recepcion. Los FR107 existentes permanecen sin renumerar; este candidato R8-B02 aun no se incorpora como FR recuperado.
+
+### Inventario S135/S170/S358-360
+
+Kardex y Variants: informes especificos + diff historico; diez columnas/query StockItem+warehouse y seis columnas/imagen/modal/search/paginacion respectivamente preservadas. Escapado, errores y anulacion de respuestas antiguas no retiran capacidades; cero monetario ahora visible, sin recalculo. No nuevo export/operacion historica demostrada. Runtime sin cambios posteriores. No reabrir provision/certificacion backend Kardex.
+
+Transfers: diff087f9311^/HEAD y matriz estado/acciones. Create mantiene request_key, contexto, productos, cantidades, notes y prefill; disabled sin destinos ya existia antes de Next. Index q/status/paginacion y Ver. Show preserva prepare/dispatch/receive/cancel, predicates actions+estado, receiptKey, limites de recepcion, notes/reason e historial; agrega trazabilidad. JS solo adapta Escape/portal de menu. No cambios posteriores. No homologar ni ejecutar operaciones.
+
+### RRHH - 24 cierres por familia
+
+S008-010,049-052,129-131,224-227,283-285,290-292,370-373. Comparacion6d8652a9^/6d8652a9/HEAD y HR BASIC MAINTAINERS. Artefacto r8-hr-semantic-diff.txt preserva diff completo; extraccion de atributos es apoyo, no criterio de cierre aislado. Se interpretaron campos, defaults/old(), CSRF/hidden/form/data-url, registros de eventos y FormData. Sin cambios posteriores.
+
+Forms conservan descripcion/nombre, fechas d/m/Y+year, percentage, reason/days; old conserva default original. Datatables cambia renderer/escape/menu, no rutas/payloads/busqueda/paginacion. Habilitar usa data-delete existente; semantica enable distinta de SoftDeletes preservada. Generar feriados permanece POST, sin ejecutarlo. Nuevos @can corresponden a permisos reales de rutas. Link Crear en Pension inhabilitados antes apuntaba erroneamente a WorkFunction; ahora apunta a Pension, no se cuenta como perdida de Cargos. Relationship deleted sigue C/HR-02; no se hereda cierre del CRUD. Global legacy y QA mutadora pendiente no se confunden con aislamiento ni perdida Next.
+
+### Catalogos de finanzas/compras - 15 cierres adicionales
+
+Bill, CategoryInvoice, PaymentDeadline, PorcentagesQuote y Quality: respectivos commits9670a98b/651667fa/b3a670b6/06533c55/d287d4ca, padre/homologacion/HEAD, informes individuales y artefacto r8-finance-catalog-diffs.json. Sin cambios runtime posteriores. No se cerraron por numero de controles: diferencias de permisos, campos y semantica interpretadas.
+
+Bill conserva description, cancel reset, hidden bill_id, FormData y hard delete protegido; CategoryInvoice name/description/category_id y modal individual. PaymentDeadline conserva description/days/type/credit/is_active, seleccion false0 correcta y update que permite activar; desactivar solo activos sigue contrato previo. Texto de plazo ya utilizado informa restriccion backend, sin disabled adicional. Porcentajes mantiene name/value y min/step, reserva de nombres utility/rent/letter/igv exactamente como antes. No convertirlo en regla fiscal nueva.
+
+Quality exige distinguir correccion de cross-domain de perdida legitima: baseline SI tenia checkboxes/seleccionar todos y boton bulk, pero enviaba IDs Quality a talla/delete-multiple. No era un bulk Quality autorizado. La homologacion corrige create/edit/back que apuntaban a Talla y conserva eliminacion individual quality_id. No reactivar endpoint ajeno ni inventar bulk Quality. Si Producto requiere bulk propio, sera contrato nuevo, no recuperacion segura de ese cableado. Formularios no agregan reglas fiscales ni ocultan guardado por QA pendiente. Gate crear/modal Bill corresponde a permiso existente; acciones index preservan permisos entregados. Deudas global legacy, invalid-ID y mutaciones no se certifican de nuevo.
+
+Estado tras este bloque:131/194 auditadas,63 pendientes;51 cierres adicionales (1 PREVIOUS/50 NEW). R8-B02 sigue unica perdida funcional nueva confirmada. R8-A13 queda pendiente de decision sobre representacion, no se suma como perdida legitimada ni como cierre.
+
+### R8-E02 - perdida parcial confirmada: paginacion Daily Profit
+
+S120 ganancia.index y S121 ganancia.indexDetail comparten public/js/ganancias/index.js. bd413c65 intento corregir el acceso a ultima pagina, pero tambien sustituyo el argumento i DENTRO del bucle de paginas por pagination.totalPages (linea144 actual). HEAD lo conserva. Con10 paginas, currentPage4: baseline emitia [1,2,3,4,5,6,7] (ultimo atajo historico tambien tenia bug); HEAD emite [1,10,10,10,10,10,10]. No declarar baseline perfecto: se perdieron los enlaces locales validos mientras se corregia el atajo final. Anterior/Siguiente siguen intactos; perdida parcial, una raiz compartida, no dos findings ni backend blocker.
+
+Reproduccion aislada: se evalua el JS real baseline/HEAD con Node vm; renderItemPage captura argumentos, jQuery/DOM minimo simulado, sin ejecutar ready ni requests. Casos pagina1/4/8 y totalPages10. Resultado en r8-daily-pagination-isolated.json, identificado SIMULATED ISOLATED RENDER; NO HTTP/DB. No se fabricaron summaries ni se recalculo nada. Afecta listado y detalle cuando exista mas de una pagina; se valida algoritmo, no disponibilidad del dataset actual.
+
+URL principal http://127.0.0.1:8080/dashboard/listado/ganancias/diarias. Detalle historico documentado http://127.0.0.1:8080/dashboard/listado/ganancia/detalles/2 (ID no revalidado ahora). Listado conserva datos/paginacion API y navegacion detalle; detalle fue creado durante homologacion porque Blade faltaba. Cierre de auditoria con finding, NO paridad funcional PASS. Recuperacion candidata exclusivamente frontend en R8.2, no corregida ahora.
+
+### User Profit y Metas - seis cierres sin perdida
+
+S122/123: informe USER-PROFIT y diff8349ba11^/HEAD. creator/startDate/endDate, Excel normal/detallado y sus gates/handlers, print_url/detail_url, null cost y actor separado de Worker permanecen. Cambio a menu no elimina acciones. Totales vacios ahora muestran contrato backend; formateo no recalcula utilidad. Detalle agrega cantidad/worker y conserva report->line/costo/ganancia, no formulario mutador historico. No repetir certificacion documental/export.
+
+S179-182: informe GOALS y4a8e796a^/HEAD. Nombres/importe/frecuencia/periodo/users[], agregar todos/quitar, snapshots y CSRF, PUT y navegacion/ranking/progreso preservados; IDs worker-* siguen transportando User por contrato. Cambios de labels/layout no alteran JS inline. Runtime sin diferencias posteriores. No reejecutar las6 pruebas/62 assertions ni QA Metas: evidencia previa reutilizada como soporte y nueva comparacion estatica solamente.
+
+## Checkpoint final de esta ejecucion
+
+A139/194 (71.65%), adicionales59;55 pendientes. Acumulado40 PREVIOUS/99 NEW. Findings nuevos: R8-B02 perdida de navegacion completa1; R8-E02 perdida parcial de paginacion1; ambos frontend, blockers DEV nuevos0. No sumarlos como FR recuperados; FR107 mantiene74/10/23 y hay2 candidatos R8 separados. R8-A13 requiere decision sobre representacion, aun pendiente en S201/203.
+
+Continuar por S157/S163/S171/S172/S118/S062 (Material/catalogo/configuracion y habilitacion company), luego S058-061/S319 (cuentas/settings), S081/S095/S109 y restantes administracion/plataforma/usuarios segun ledger. No repetir las59 filas cerradas ni ejecutar sus mutaciones. Para S201/203 obtener decision/contrato autorizado de subtotal/precio neto antes de cerrar; no bloquear otras familias. R8.0/R8.1 PARTIAL; R8.2 requiere revision del propietario, NO INICIADO.
+
+Verificacion final de esta continuacion: git diff --check PASS;379 IDs/orden/universos preservados; tabla canonica379 filas y11 columnas consistente con ledger;80 cierres anteriores preservados. Solo estos3 documentos cambian en Git; artefactos de auditoria externos actualizados. Backend/Blade/JS/CSS/rutas/allowlist/infraestructura y mutaciones comerciales0. Sin commit, push, fetch, pull ni merge. Evidencia reproducible: r8-continuation-079aea9-verification.json y r8-daily-pagination-isolated.json.

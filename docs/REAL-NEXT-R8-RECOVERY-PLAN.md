@@ -1,5 +1,60 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.2A — estado vigente (2026-11-25)
+
+Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
+
+A194/194 auditadas: **187 con paridad /5 con pérdidas /2 dependencias monetarias** después de recuperar3 superficies mediante2 capacidades. B2 y C125 sin cambios. Nuevos findings DEV0. R8.2A COMPLETE — FRONTEND RECOVERY; R8 global sigue parcial por alcance/contratos; R8.2B no iniciada.
+
+Evidencia: [informe R8.2A](REAL-NEXT-R8-FUNCTIONAL-PARITY-RECOVERY.md), test `tests/Frontend/r82a-recovery.cjs` PASS (8 casos de paginación +2 navegaciones numéricas; menú375/1440; cero pageerrors/overflow). Chrome headless aislado y requests interceptados, no certificación HTTP autenticada ni mutaciones. Ruta destino verificada con PHP7.3.33 y contrato actual. Backend0 / Blade0 / CSS0 / infraestructura0 / mutaciones0; runtime sólo2 JS. `git diff --check` PASS.
+
+Plan restante: FR110 espera EXPENSE-01; mantener los10 bloqueos anteriores, aclaración monetaria, B y decisiones C. No recuperar gasto ni iniciar nuevas fases. Esperar revisión del propietario.
+
+## Historia preservada anterior a R8.2A
+
+## Estado vigente — continuación final R8 (2026-11-25)
+
+HEAD `079aea9b25fa5fe9591fd5607a1801640e5108e4`; baseline compartido `6df57e7`. Se preservaron los tres documentos R8 ya modificados al inicio; no se incorporaron commits ni cambios DEV. Esta sección prevalece sobre los checkpoints históricos inferiores.
+
+**Inventario379: A194 / B2 / C125 / excluidas58. Auditoría A194/194: anteriores139 + adicionales55; pendientes0. Evidencia acumulada PREVIOUS42 / NEW152 (esta continuación2 /53).** Son superficies/variantes renderizadas, no194 URLs independientes. S172 es fallback409 de Create/Edit, sin ruta propia nueva ni duplicación de capacidad.
+
+**Paridad semántica confirmada184; auditadas con pérdidas8** (4 superficies con pérdidas anteriores bloqueadas y4 con nuevas pérdidas); **2 con dependencia contractual monetaria**, sin paridad certificada. Auditoría cerrada NO equivale a implementación completa, seguridad integral o QA mutadora PASS.
+
+Nuevas capacidades perdidas acumuladas en R8: **2 completas de navegación +1 parcial de paginación**; de ellas, en esta continuación se añade sólo R8-F01 (retorno desde Crear gasto, bloqueado por EXPENSE-01 ya existente). Nuevos gates obsoletos0; nuevas raíces/blockers DEV0. Dos recuperaciones frontend directas propuestas y una dependiente del fix DEV existente. S201/S203 no inflan el conteo.
+
+Baseline FR intacto: **74 recuperadas +10 bloqueadas +23 excluidas =107**. Propuestas deduplicadas: FR-108/R8-B02, FR-109/R8-E02 y FR-110/R8-F01; no incorporadas como restauradas ni renumeradas. Conciliación prospectiva, si se aprueban: **110 =74 recuperadas +2 pendientes frontend +11 bloqueadas DEV +23 excluidas**. Candidato monetario1 compartido por2 vistas permanece fuera de los110.
+
+**R8.1: AUDIT COMPLETE FOR UNIVERSE A — FINDINGS OPEN. R8.0/global: PARTIAL — PRODUCT SCOPE DECISIONS OPEN (C125). R8.2: PLAN PREPARED / NOT STARTED / OWNER AUTHORIZATION REQUIRED.** B2 pendientes (Recepción y Registrar comprobante); observaciones visuales receipt/Branch/GRE preservadas. `frmGreRecovery` existe mediante partial incluido: no formulario huérfano.
+
+Backend/Blade/JS/CSS/rutas/allowlist/infraestructura y mutaciones comerciales: **0 cambios/ejecuciones**. Ningún HTTP/GET escritor, export, documento ni proveedor invocado; sin navegador/escritorio ni QA responsive repetida. Verificación nueva estática Git/contratos; simulación previa de paginación identificada como tal, no dato real. Sin commit/push/fetch/pull/merge/rebase.
+
+### Plan R8.2 consolidado propuesto — no implementar sin autorización
+
+| Orden | Capacidad / alcance | Dependencia | Aceptación focal |
+|---|---|---|---|
+| P1 /1 | FR-108 propuesto, Availability → Solicitar traslado | Ningún blocker nuevo del contrato request_url demostrado | Render según URL/permiso DEV; click interceptado confirma origen/producto/snapshots; absent URL sin alternativa; no POST de traslado |
+| P2 /2 | FR-109 propuesto, numeración DailyProfit S120/S121 | Frontend aislado | Loop usa índice; simulación10p en1/4/8; Prev/Next/atajo final preservados; no ejecutar GET writer ni exports |
+| P2 /3 | FR-110 propuesto, retorno Crear gasto | EXPENSE-01 existente | DEV resuelve ownership de lista/JSON; después link según permiso. No recuperar una navegación insegura ni declarar retiro por QA |
+| DEV /4 | FR047/048/059 y063/064/102/103/105/106/107 | ENTRY-R75-01/ENTRY-R4-01, INV-01, METRIC-01/DASH-R7-01 | Guard/permisos/contexto/GET read y contratos actuales; no repetir certificación completa DEV ni reactivar excluidos |
+| Contrato /5 | S201/S203 monetarios | Respuesta DEV exacta en informe, no nuevo FR confirmado | Definir importes netos/impuesto/históricos antes de recuperación; nada de 1.18 supuesto |
+| Producto /6 | C125 en37 submódulos | Decisiones agrupadas del propietario | Confirmar continuidad/sustitución/pausa sin retirar dependencias compartidas |
+| Visual /7 | B2 + receipt/Branch/GRE | Fase autorizada independiente | Recepción /dashboard/crear/entrada/compra/orden/2; Registrar /dashboard/registrar/comprobante/venta/Ticket, Boleta, Factura. Conservar contratos; no emisión/recepción real |
+
+No existe autorización implícita de R8.2 por terminar las194 auditorías. Auditoría global no cerrada mientras C y el contrato monetario sigan inciertos. Checkpoint siguiente: revisión del propietario de FR108–110 y decisiones C; respuesta DEV de R8-A13. No queda cola semántica A pendiente; no repetir Metas/GRE ni matrices responsive ya válidas. Corrección GRE preservada: frmGreRecovery está incluido, no requiere recreación.
+
+## Evidencia histórica preservada — checkpoints anteriores
+
+## Estado vigente - continuacion sobre HEAD 079aea9 (2026-11-25)
+
+Baseline compartido 6df57e7; HEAD observado 079aea9b25fa5fe9591fd5607a1801640e5108e4. El delta contiene el checkpoint R8 y R7.7E previamente aprobados; no se incorporaron cambios remotos. Working tree limpio al inicio. Los estados siguientes prevalecen sobre los checkpoints historicos conservados.
+
+Inventario 379: A194 / B2 / C125 / excluidas58. Cierres anteriores80; adicionales59; acumulado139/194 (71.65%), pendientes55. Evidencia acumulada: PREVIOUS40 / NEW99; esta ejecucion1 reutilizado y58 nuevas comparaciones. Cierre de auditoria NO significa recuperacion: S357 queda auditada con perdida confirmada R8-B02.
+
+Nuevas perdidas confirmadas1 (navegacion contextual Disponibilidad -> Solicitar traslado); parciales confirmadas1 (R8-E02 paginacion numerica Daily Profit); blockers DEV nuevos0. R8-A13 mantiene dos detalles pendientes por representacion monetaria retirada, sin atribuir una decision fiscal a DEV. FR canonicos74 recuperados +10 bloqueados +23 excluidos=107; R8-B02 se registra separado como hallazgo nuevo pendiente de plan R8.2, sin reutilizar/renumerar IDs FR.
+
+R8.0 PARTIAL; R8.1 PARTIAL; R8.2 NO INICIADO, requiere revision del propietario. Implementacion/backend/Blade/JS/CSS/rutas/allowlist/infraestructura/mutaciones0. No QA runtime nuevo ni llamadas a proveedores.
+
+
 2026-11-25. Baseline compartido6df57e7; HEAD6df57e7d73a2546bc283527b166041584bfc708f. **No iniciar R8.2.** Este plan separa hallazgos de auditoría, homologación y capacidades ya contabilizadas.
 
 ## Estado vigente — continuación optimizada R8 (2026-11-25)
@@ -87,3 +142,33 @@ Contadores vigentes:194 A /2 B /125 C /58 excluidas =379. A cerradas80 (39 evide
 ### Checkpoint vigente tras segundo avance
 
 A10 resuelve los dos residuos Sales como históricos sin conexión ejecutable en baseline. A11 cierra cinco páginas QuoteSale por evidencia/diff, A12 dos índices Normal y C02 Admin Cash. Ya no repetir esos residuales. **Siguiente: S201/203, S305–307, S035/039/040**, luego resto A por familias. Conteo vigente80/194 cerrado;114 pendientes;39 PREVIOUS/41 NEW. Nuevas recuperaciones listas0; no iniciar R8.2. El conteo histórico inicial311 no es el alcance actual.
+
+## Plan vigente de hallazgos - continuacion079aea9
+
+1. R8-B02: restauracion frontend candidata de request_url en Disponibilidad, solo despues de revision. Backend ya proporciona autorizacion/contexto/prefill. No iniciar R8.2 ahora.
+2. R8-A13: decision de representacion monetaria en detalle Normal/Eliminado. No interpretar la falta de campos derivados como autorizacion de retiro, ni restaurar18% fijo. Dos filas pendientes, no cierre artificial.
+3. Cierres de esta ejecucion36: GRE3, Cash3, Inventario6 (incluye1con finding), RRHH24. Continuar los78 restantes por familias. No volver a auditar B receipt/Registrar.
+4. Observaciones visuales separadas: receipt legacy, acciones individuales Branch y GRE. Sin QA visual nuevo ni autorizacion de redisenio.
+5. FR74+10+23=107 conservados. R8-B02 es hallazgo nuevo pendiente de plan, no FR recuperado. No duplicar INV-01/HR-01/HR-02 ni bloqueos anteriores.
+
+## Universo C - decisiones de vigencia agrupadas (sin retiro automatico)
+
+| Familia | Filas C | Decision pendiente / evidencia requerida |
+|---|---:|---|
+| RRHH personal/nomina/contratos | 59 | Confirmar alcance operativo de transacciones personales frente a maestros HR integrados; HR-01/HR-02 no prueban retiro. No auditar nomina ni reactivar Parentescos deleted roto. |
+| Inventario/material/estructura legacy | 27 | Identificar sustitucion efectiva por InventoryLevel/StockItems/ManagedWarehouse; una ruta legacy o ausencia de allowlist no confirma vigencia ni retiro. |
+| Entradas/salidas legacy | 14 | Separar entradas/salidas operativas sustituidas de vistas historicas aun utilizadas; menus y llamadas internas antes de homologar. |
+| Ordenes/ejecucion/cronogramas | 15 | Confirmar familias de ejecucion/cronograma vigentes y versiones historicas; mantener pausas/exclusiones explicitas, no trasladar automaticamente a A. |
+| Caja/gastos/devoluciones/auxiliares | 10 | Definir vigencia del registro admin/cuentas y auxiliares historicos; no inferir alcance por ruta registrada ni ausencia de datos. |
+
+Son cinco decisiones por familia con125 filas de respaldo, no125 nuevas tareas de backend. No cambio de universo por evidencia insuficiente. Recepcion y Registrar siguen B2. R8-A13 es una decision separada dentro de A sobre lectura monetaria, no vigencia de C.
+
+## Checkpoint final vigente - 139/194
+
+59 cierres adicionales: GRE3 + Cash3 + Inventario6 + HR24 + catalogos15 + Daily/User Profit4 + Metas4. Esta ejecucion1 PREVIOUS/58 NEW; acumulado40/99. Quedan55. Dos hallazgos frontend nuevos independientes: R8-B02 (navegacion traslado desde disponibilidad) y R8-E02 (paginacion numerica Daily Profit). S357/S120/S121 estan auditadas con finding, no recuperadas ni certificadas funcionalmente. R8-A13 sigue pendiente en S201/203. No otros blockers DEV nuevos.
+
+Candidatos R8.2: usar request_url autorizado en S357; corregir argumento del bucle numerico Daily Profit sin romper atajo ultima pagina. No implementar sin revision. URLs: http://127.0.0.1:8080/dashboard/disponibilidad/almacenes y http://127.0.0.1:8080/dashboard/listado/ganancias/diarias. FR107 intactos (74/10/23) +2 hallazgos R8 no incorporados como recuperaciones.
+
+Siguiente bloque exacto S157/S163/S171/S172/S118/S062; despues S058-061/S319, S081/S095/S109 y familias pendientes del ledger. Cinco familias C125 requieren vigencia; no se reclasifican por ausencia de allowlist. B2 permanece sin nueva homologacion. Observaciones visuales estaticas: receipt legacy, Branch acciones individuales y GRE acciones individuales. Sin QA visual nuevo. R8.0/R8.1 PARTIAL; R8.2 NO INICIADO.
+
+Verificacion final de esta continuacion: git diff --check PASS;379 IDs/orden/universos preservados; tabla canonica379 filas y11 columnas consistente con ledger;80 cierres anteriores preservados. Solo estos3 documentos cambian en Git; artefactos de auditoria externos actualizados. Backend/Blade/JS/CSS/rutas/allowlist/infraestructura y mutaciones comerciales0. Sin commit, push, fetch, pull ni merge. Evidencia reproducible: r8-continuation-079aea9-verification.json y r8-daily-pagination-isolated.json.

@@ -1,5 +1,31 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+## R8.2A — estado vigente (2026-11-25)
+
+Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
+
+A194/194 auditadas: **187 con paridad /5 con pérdidas /2 dependencias monetarias** después de recuperar3 superficies mediante2 capacidades. B2 y C125 sin cambios. Nuevos findings DEV0. R8.2A COMPLETE — FRONTEND RECOVERY; R8 global sigue parcial por alcance/contratos; R8.2B no iniciada.
+
+Evidencia: [informe R8.2A](REAL-NEXT-R8-FUNCTIONAL-PARITY-RECOVERY.md), test `tests/Frontend/r82a-recovery.cjs` PASS (8 casos de paginación +2 navegaciones numéricas; menú375/1440; cero pageerrors/overflow). Chrome headless aislado y requests interceptados, no certificación HTTP autenticada ni mutaciones. Ruta destino verificada con PHP7.3.33 y contrato actual. Backend0 / Blade0 / CSS0 / infraestructura0 / mutaciones0; runtime sólo2 JS. `git diff --check` PASS.
+
+Plan restante: FR110 espera EXPENSE-01; mantener los10 bloqueos anteriores, aclaración monetaria, B y decisiones C. No recuperar gasto ni iniciar nuevas fases. Esperar revisión del propietario.
+
+**EXPENSE-01 sigue OPEN**: FR-110 formaliza su impacto de navegación. Resolver ownership/permisos del listado/JSON antes de recuperar el enlace; no finding duplicado. FR108/109 resueltas exclusivamente en frontend, sin petición de cambios backend.
+
+## Historia preservada anterior a R8.2A
+
+## R8 final — aclaración contractual y dependencia existente (2026-11-25)
+
+No nuevos bugs/root causes DEV demostrados; no reabrir MAT/INV resueltos. Auditoría A194/194 estática, no certificación de persistencia.
+
+- **R8-A13, pregunta contractual (no BUG nuevo):** showNormal/showDelete retiraron precio sin IGV/subtotal derivados. GET expone price/igv/total_detail y total/igv/currency, sin bases gravada/exonerada/inafecta ni tasa snapshot. Writers actuales usan total-total/1.18 y recalculate suma importes; eso no acredita históricos. DEV debe confirmar si price/total_detail incluyen impuesto universalmente, si total-igv es subtotal autorizado con descuentos/exoneradas/inafectas/null, o entregar campos netos/snapshot/regla de indisponibilidad. No calcular con tasa del Material actual. Dos superficies auditadas, paridad monetaria incierta; fuera del nuevo conteo FR.
+- **EXPENSE-01 OPEN, sin duplicar:** d43ca2f7 retiró enlace expense.index desde Crear gasto. Expense model/lectura siguen sin ownership contextual. Propuesta FR110 registra impacto frontend; no restaurar hasta resolver lista/JSON contextual con permisos. No se ejecutaron Expense ni escrituras.
+- R8-B02 y R8-E02 son recuperaciones frontend propuestas FR108/109, no solicitudes de cambiar backend. Conservar contrato request_url y corregir únicamente numeración del loop cuando el propietario autorice R8.2.
+
+Se preservan ENTRY-R75-01/ENTRY-R4-01, INV-01 ajuste/reportes, METRIC-01/DASH-R7-01 y límites documentales de despliegue. No reproducir J/P/K ni cerrar pendientes mutadores por esta auditoría. Evidencia completa en los tres informes R8.
+
+## Evidencia histórica preservada — checkpoints anteriores
+
 ## R7.7B — reconciliación Perfil / Material Edit — 2026-11-25
 
 Ver [informe focalizado](REAL-NEXT-PROFILE-MATERIAL-POST-DEV-RECONCILIATION.md). Avatar y Guardar material ya disponibles: FRONTEND PARITY PASS, sin gates obsoletos encontrados ni cambios runtime. Chrome aislado, payloads/errores/éxitos interceptados; 24 checks responsive sin overflow y cero pageerrors. Persistencia real no ejecutada, QA mutadora pendiente. MAT-01 permite historia/stock/shared-master; MAT-03 preserva Items y ownership sin prohibición general shared-master. IDs canónicos: MAT-04 multinivel, MAT-05 flags (la tabla R7.5 invirtió los títulos). PROFILE-01 fix DEV preservado, no nuevo cierre USER-01. No se repite certificación backend. Sin nuevos findings ni FR: **74 recuperadas +10 bloqueadas +23 excluidas =107**. R7.7C/R8 no iniciadas. Historia anterior conservada.

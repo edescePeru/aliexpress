@@ -1,5 +1,39 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## R8.2A — estado vigente (2026-11-25)
+
+Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
+
+A194/194 auditadas: **187 con paridad /5 con pérdidas /2 dependencias monetarias** después de recuperar3 superficies mediante2 capacidades. B2 y C125 sin cambios. Nuevos findings DEV0. R8.2A COMPLETE — FRONTEND RECOVERY; R8 global sigue parcial por alcance/contratos; R8.2B no iniciada.
+
+Evidencia: [informe R8.2A](REAL-NEXT-R8-FUNCTIONAL-PARITY-RECOVERY.md), test `tests/Frontend/r82a-recovery.cjs` PASS (8 casos de paginación +2 navegaciones numéricas; menú375/1440; cero pageerrors/overflow). Chrome headless aislado y requests interceptados, no certificación HTTP autenticada ni mutaciones. Ruta destino verificada con PHP7.3.33 y contrato actual. Backend0 / Blade0 / CSS0 / infraestructura0 / mutaciones0; runtime sólo2 JS. `git diff --check` PASS.
+
+Plan restante: FR110 espera EXPENSE-01; mantener los10 bloqueos anteriores, aclaración monetaria, B y decisiones C. No recuperar gasto ni iniciar nuevas fases. Esperar revisión del propietario.
+
+| ID formal | Prioridad | Capacidad | Estado vigente |
+|---|---|---|---|
+| FR-108 | P1 | Disponibilidad → Solicitar traslado | RESTORED; URL backend exclusiva |
+| FR-109 | P2 | Numeración Ganancia Diaria / detalle | RESTORED; regresión real JS PASS |
+| FR-110 | P2 | Retorno Crear gasto | BLOCKED / EXPENSE-01; no recuperar destino inseguro |
+
+## Historia preservada anterior a R8.2A
+
+## R8 final — propuestas adicionales deduplicadas (2026-11-25)
+
+La tabla FR histórica107 conserva sus IDs y estados:74 recuperadas +10 bloqueadas +23 excluidas. La adenda prevalece sobre «no FR108 asignado» del checkpoint anterior: ahora se **proponen**, sin implementar ni contabilizar restauración, los siguientes IDs. Auditoría A194/194 cerrada; alcance global C125 pendiente.
+
+| ID propuesto | Raíz | Capacidad | Estado | No duplica |
+|---|---|---|---|---|
+| FR-108 | R8-B02 / P1 | Availability → Solicitar traslado contextual | PENDING FRONTEND RECOVERY; request_url autorizado DEV vigente | FR059 ajuste StockItems ni CRUD Transfers |
+| FR-109 | R8-E02 / P2 | Paginación numérica Ganancia Diaria,2 vistas/1 JS | PENDING FRONTEND RECOVERY; pérdida parcial | FR105 historial rotación / exports dashboard |
+| FR-110 | R8-F01 / P2 | Crear gasto → regreso al listado Rendición | BLOCKED BY EXISTING EXPENSE-01; pérdida de navegación | Bill, Cash, Entry; ninguna FR previa Expense hallada |
+
+Conciliación prospectiva tras aprobación:110 =74 recuperadas +2 pendientes frontend +11 bloqueadas DEV +23 excluidas. No sumar una recuperación por terminar auditoría. R8-A13/S201/S203:1 candidato monetario compartido, DEPENDENCIA CONTRACTUAL DEV, fuera de los110 hasta definir contrato. Observaciones visuales3 y B2 no son nuevas pérdidas FR. Raíces DEV nuevas0; EXPENSE-01 ya OPEN.
+
+Evidencia de commits, handlers, permisos, semántica y plan: REAL-NEXT-R8-FUNCTIONAL-PARITY-AUDIT.md y REAL-NEXT-R8-RECOVERY-PLAN.md. Sin implementación R8.2, mutaciones ni commit. QA pendiente no autoriza ocultar capacidades; bloqueo demostrado exige resolución segura, no recuperación unilateral.
+
+## Evidencia histórica preservada — checkpoints anteriores
+
 ## R8.0/R8.1 — checkpoint de auditoría semántica, 2026-11-25
 
 HEAD auditado6df57e7d73a2546bc283527b166041584bfc708f; R7.7E local preservado. Auditoría global **PARTIAL**, no nueva recuperación. Ver REAL-NEXT-R8-SEMANTIC-SURFACE-INVENTORY.md, REAL-NEXT-R8-FUNCTIONAL-PARITY-AUDIT.md y REAL-NEXT-R8-RECOVERY-PLAN.md. Contabilidad intacta: **74 recuperadas +10 bloqueadas +23 excluidas =107**; no FR108 asignado.

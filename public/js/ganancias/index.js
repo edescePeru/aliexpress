@@ -141,7 +141,7 @@ function renderDataGanancias(data) {
 
         for (var i = Math.max(1, pagination.currentPage - 2); i <= Math.min(pagination.totalPages, pagination.currentPage + 2); i++)
         {
-            renderItemPage(pagination.totalPages, pagination.currentPage);
+            renderItemPage(i, pagination.currentPage);
         }
 
         if (pagination.currentPage < pagination.totalPages - 2)
