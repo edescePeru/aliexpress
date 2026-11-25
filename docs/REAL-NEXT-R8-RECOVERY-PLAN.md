@@ -1,5 +1,23 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.5 — FINAL FRONTEND CLOSURE — COMPLETE (2026-11-25)
+
+El propietario aprobó R8.4 y autorizó el cierre definitivo de la intervención frontend actual. [Documento de cierre](REAL-NEXT-R8-FINAL-FRONTEND-CLOSURE.md): HEAD `4201a3ea36b6d592acfa21bd4bbc26b01759a63d`, working tree inicial limpio; siete commits locales posteriores al checkpoint compartido `6df57e7`, sin consulta remota ni integración.
+
+**FRONTEND RECOVERY AND HOMOLOGATION: CLOSED FOR AUTHORIZED SCOPE.**
+
+**DEV BLOCKERS: TRANSFERRED / OPEN.**
+
+**UNIVERSE C: DOCUMENTED / DEFERRED TO FUNCTIONAL TEAM.**
+
+**PRODUCTION READINESS: NOT CERTIFIED BY THIS CLOSURE.**
+
+A: 194/194 auditadas, 187 con paridad / 5 con pérdidas bloqueadas / 2 dependencias monetarias. B: 2/2 homologadas. C: 125/125 documentadas, 37 submódulos / cinco familias; sin certificar, retirar ni homologar. Exclusiones: 58 superficies, separadas de las 23 capacidades FR excluidas. Recuperación directa frontend pendiente: 0. Branch/GRE completadas.
+
+**76 recuperadas + 11 bloqueadas + 23 excluidas = 110.** Handoff R8.3 completado: 84 findings revisados, 27 resueltos DEV y uno sustituido; 12 raíces técnicas abiertas, seis relacionadas con los 11 FR bloqueados. S201/S203 continúa como consulta independiente. Blockers DEV, QA mutadora/concurrencia, despliegue y decisiones C quedan transferidos a sus responsables según el cierre y handoff; no condicionan este cierre autorizado.
+
+Sólo documentación y verificación estática Git; sin QA nueva ni implementación. No iniciar R9, nuevas homologaciones ni auditorías. Esperar autorización del propietario para cualquier integración Git. Este checkpoint prevalece sobre los estados de espera históricos inferiores, que se preservan como evidencia.
+
 ## R8.4 — DOCUMENTATION COMPLETE (2026-11-25)
 
 Estado vigente para preparar el cierre, por decisión del propietario: [Resumen ejecutivo Universo C](REAL-NEXT-R8-PRODUCT-SCOPE-DECISIONS.md). Las secciones inferiores conservan evidencia histórica; sus instrucciones de espera y estados anteriores no sustituyen este checkpoint.
