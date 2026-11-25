@@ -20,6 +20,7 @@ return [
         'order.purchase.normal.create',
         'entry.purchase.create',
         'order.purchase.create',
+        'show.register.comprobante',
         'stockitems.view.variants',
         'order.purchase.delete',
         'entry.purchase.report.index',

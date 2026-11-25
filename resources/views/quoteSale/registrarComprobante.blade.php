@@ -30,16 +30,9 @@
     <!-- Images -->
 @endsection
 
-@section('styles')
-    <style>
-        .select2-search__field{
-            width: 100% !important;
-        }
-    </style>
-@endsection
 
 @section('page-header')
-    <h1 class="page-title">Cotizaciones</h1>
+    <div class="next-page-heading"><span class="next-page-eyebrow">Ventas · cotizaciones</span><h1 class="page-title">Registrar {{ $typeComprobante }}</h1><p class="next-page-description">Selecciona una cotización y revisa los datos del comprobante.</p></div>
 @endsection
 
 @section('page-title')
@@ -61,11 +54,11 @@
 @section('content')
     <input type="hidden" id="permissions" value="{{ json_encode($permissions) }}">
 
-    <form id="formCreate" class="form-horizontal" data-url="{{ route('quoteSale.store') }}" enctype="multipart/form-data">
+    <form id="formCreate" class="form-horizontal next-form-section" data-url="{{ route('quoteSale.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="row">
             <div class="col-md-12">
-                <div class="card card-success">
+                <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">DATOS GENERALES</h3>
 
@@ -74,8 +67,8 @@
                                 <i class="fas fa-minus"></i></button>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="form-group row">
+                    <div class="card-body next-form-section">
+                        <div class="form-group row align-items-end">
 
                             <input type="hidden" id="quote_id" name="quote_id">
 
@@ -84,19 +77,19 @@
                                    id="negocio_acepta_pagos_parciales"
                                    value="{{ $pagos_parciales }}">
 
-                            <div class="col-md-2">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="typeComprobante">Tipo Comprobante</label>
                                 <input type="text" id="typeComprobante" name="typeComprobante" value="{{ $typeComprobante }}" class="form-control form-control-sm" readonly>
                             </div>
-                            <div class="col-md-1" style="display: none">
+                            <div class="col-sm-6 col-lg-1 mb-3" style="display: none">
                                 <label for="numDocumento">Documento </label>
                                 <input type="text" id="numDocumento" name="numDocumento" class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-sm-6 col-lg-1 mb-3">
                                 <label for="moneda">Moneda </label>
                                 <input type="text" id="moneda" name="moneda" value="{{ ($currency === 'PEN') ? 'SOLES':'DOLARES' }}" class="form-control form-control-sm" readonly>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="fechaDocumento">Fecha <span class="right badge badge-danger">(*)</span></label>
                                 <input type="date"
                                        id="fechaDocumento"
@@ -106,7 +99,7 @@
                             </div>
 
                             @if ($pagos_parciales == 's')
-                                <div class="col-md-1">
+                                <div class="col-sm-6 col-lg-1 mb-3">
                                     <label>Parcial</label><br>
 
                                     <input type="checkbox"
@@ -122,7 +115,7 @@
                                 </div>
                             @endif
 
-                            <div class="col-md-2" id="wrap_pv_cash_box">
+                            <div class="col-sm-6 col-lg-2 mb-3" id="wrap_pv_cash_box">
                                 <label for="pv_cash_box_id">
                                     Caja <span class="right badge badge-danger">(*)</span>
                                 </label>
@@ -144,7 +137,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-2" id="pv_cash_box_subtype_wrap" style="display:none;">
+                            <div class="col-sm-6 col-lg-2 mb-3" id="pv_cash_box_subtype_wrap" style="display:none;">
                                 <label for="pv_cash_box_subtype_id">
                                     Canal / Subtipo <span class="right badge badge-danger">(*)</span>
                                 </label>
@@ -159,10 +152,10 @@
                                     Solo aplica cuando la caja es bancaria y usa subtipos.
                                 </small>
                             </div>
-                            <div class="col-md-2 text-center">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="fechaDocumento">&nbsp;</label>
-                                <button type="button" class="btn btn-warning btn-block btn-sm" data-toggle="modal" data-target="#modalBuscarComprobante">
-                                    RECUPERAR COTIZACIÓN
+                                <button type="button" class="btn btn-outline-primary btn-block btn-sm" data-toggle="modal" data-target="#modalBuscarComprobante">
+                                    Seleccionar cotización
                                 </button>
                             </div>
                         </div>
@@ -265,27 +258,27 @@
                             </div>
                         </div>
                         <div class="form-group row">
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="description">Código de cotización </label>
                                 <input type="text" id="codeQuote" readonly value="" onkeyup="mayus(this);" name="code_quote" class="form-control form-control-sm">
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="date_quote">Fecha de cotización </label>
                                 <input type="text" class="form-control form-control-sm" id="date_quote" name="date_quote" readonly>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="date_validate">Válido hasta </label>
                                 <input type="text" class="form-control form-control-sm" id="date_validate" name="date_validate" readonly>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="paymentQuote">Forma de pago </label>
                                 <input type="text" id="paymentQuote" name="payment_deadline" class="form-control form-control-sm" readonly>
 
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="description">Tiempo de entrega </label>
                                 <div class="input-group input-group-sm mb-3">
                                     <input type="number" id="timeQuote" step="1" min="0" name="delivery_time" class="form-control form-control-sm" readonly>
@@ -295,16 +288,16 @@
                                 </div>
 
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-sm-6 col-lg-2 mb-3">
                                 <label for="customer_id">Cliente </label>
                                 <input type="text" id="customer_id" name="customer_id" class="form-control form-control-sm" readonly>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 mb-3">
                                 <label for="contact_id">Contacto </label>
                                 <input type="text" id="contact_id" name="contact_id" class="form-control form-control-sm" readonly>
 
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-8 mb-3">
                                 <label for="observations">Observaciones </label>
                                 <textarea class="textarea_observations" id="observations" name="observations" placeholder="Place some text here"
                                           style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;"></textarea>
@@ -317,8 +310,8 @@
         </div>
 
         <div class="row" id="body-equipment">
-            <div class="col-md-12">
-                <div class="card card-success" data-equip="asd">
+            <div class="col-xl-12">
+                <div class="card" data-equip="asd">
                     <div class="card-header">
                         <h3 class="card-title">COTIZACIÓN</h3>
 
@@ -329,17 +322,17 @@
 
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body next-form-section">
                         <div class="form-group row" style="display: none">
 
-                            <div class="col-md-12">
+                            <div class="col-xl-12">
                                 <label for="description">Detalles de la cotización</label>
                                 <textarea class="textarea_edit" data-detailequipment placeholder="Place some text here"
                                           style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;"></textarea>
                             </div>
                         </div>
 
-                        <div class="card card-warning">
+                        <div class="card">
                             <div class="card-header">
                                 <h3 class="card-title">PRODUCTOS</h3>
 
@@ -348,40 +341,40 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
                                 <div data-bodyConsumable>
-                                    <div class="row">
-                                        <div class="col-md-5">
+                                    <div class="row d-none d-xl-flex">
+                                        <div class="col-xl-5">
                                             <div class="form-group">
                                                 <strong>Descripción</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-xl-1">
                                             <div class="form-group">
                                                 <strong>Present.</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-xl-1">
                                             <div class="form-group">
                                                 <strong>Unidad</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-xl-1">
                                             <div class="form-group">
                                                 <strong>Cantidad</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-xl-1">
                                             <div class="form-group">
                                                 <strong>V/U</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-1">
+                                        <div class="col-xl-1">
                                             <div class="form-group">
                                                 <strong>P/U</strong>
                                             </div>
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-xl-2">
                                             <div class="form-group">
                                                 <strong>IMPORTE</strong>
                                             </div>
@@ -393,7 +386,7 @@
                             </div>
                         </div>
 
-                        <div class="card card-cyan ">
+                        <div class="card">
                             <div class="card-header">
                                 <h3 class="card-title">SERVICIOS ADICIONALES</h3>
 
@@ -402,41 +395,41 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body next-form-section">
 
-                                <div class="row">
-                                    <div class="col-md-5">
+                                <div class="row d-none d-xl-flex">
+                                    <div class="col-xl-5">
                                         <div class="form-group">
                                             <strong>Descripción</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-1">
+                                    <div class="col-xl-1">
                                         <div class="form-group">
                                             <strong>Unidad</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-1">
+                                    <div class="col-xl-1">
                                         <div class="form-group">
                                             <strong>Cantidad</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-1">
+                                    <div class="col-xl-1">
                                         <div class="form-group">
                                             <strong>V/U</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-1">
+                                    <div class="col-xl-1">
                                         <div class="form-group">
                                             <strong>P/U</strong>
                                         </div>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-xl-2">
                                         <div class="form-group">
                                             <strong>Importe</strong>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-1">
+                                    <div class="col-xl-1">
                                         <div class="form-group">
                                             <strong>Facturar</strong>
                                         </div>
@@ -450,7 +443,7 @@
                         </div>
                         <!-- /.card -->
 
-                        <div class="card card-purple">
+                        <div class="card">
                             <div class="card-header">
                                 <h3 class="card-title">DESCUENTO GLOBAL</h3>
                                 <div class="card-tools">
@@ -460,7 +453,7 @@
                                 </div>
                             </div>
 
-                            <div class="card-body" id="discountSection"
+                            <div class="card-body next-form-section" id="discountSection"
                                  data-discount_type=""
                                  data-discount_input_mode=""
                                  data-discount_value="">
@@ -534,30 +527,28 @@
         @can('showPrices_quote')
         <div class="row">
             <!-- accepted payments column -->
-            <div class="col-6">
 
-            </div>
             <!-- /.col -->
-            <div class="col-6">
+            <div class="col-12 col-md-8 col-xl-5 ml-auto">
                 <p class="lead">Resumen de Cotización</p>
 
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table table-sm">
                         <tr>
                             <th style="width:50%">DESCUENTO (-): </th>
-                            <td>{{ $currency}} <span id="descuento" class="align-right">0.00</span></td>
+                            <td class="text-right">{{ $currency}} <span id="descuento" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">GRAVADA: </th>
-                            <td>{{ $currency}} <span id="gravada" class="align-right">0.00</span></td>
+                            <td class="text-right">{{ $currency}} <span id="gravada" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">IGV {{ $igv }}%: </th>
-                            <td>{{ $currency}} <span id="igv_total" class="align-right">0.00</span></td>
+                            <td class="text-right">{{ $currency}} <span id="igv_total" class="align-right">0.00</span></td>
                         </tr>
                         <tr>
                             <th style="width:50%">TOTAL: </th>
-                            <td>{{ $currency}} <span id="total_importe" class="align-right">0.00</span></td>
+                            <td class="text-right">{{ $currency}} <span id="total_importe" class="align-right">0.00</span></td>
                         </tr>
                     </table>
                 </div>
@@ -569,7 +560,7 @@
 
         <div class="row">
             <div class="col-12">
-                <button type="button" id="btn-submit" class="btn btn-outline-success float-right">Guardar comprobante</button>
+                <button type="button" id="btn-submit" class="btn btn-primary float-right">Guardar comprobante</button>
             </div>
         </div>
         <!-- /.card-footer -->
@@ -579,9 +570,10 @@
         <div class="row" data-consumableRow>
 
             {{-- Descripción --}}
-            <div class="col-md-5">
+            <div class="col-12 col-xl-5">
                 <div class="form-group">
-                    <input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
+                    <span class="d-block d-xl-none small text-muted">Descripción</span>
+<input type="text" class="form-control form-control-sm" data-consumableDescription readonly>
 
                     <small
                             data-selected_items
@@ -602,46 +594,52 @@
             </div>
 
             {{-- Presentación --}}
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="text" class="form-control form-control-sm" data-presentation_text readonly>
+                    <span class="d-block d-xl-none small text-muted">Presentación</span>
+<input type="text" class="form-control form-control-sm" data-presentation_text readonly>
                 </div>
             </div>
 
             {{-- Unidad --}}
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="text" class="form-control form-control-sm" data-consumableUnit readonly>
+                    <span class="d-block d-xl-none small text-muted">Unidad</span>
+<input type="text" class="form-control form-control-sm" data-consumableUnit readonly>
                 </div>
             </div>
 
             {{-- Cantidad (packs o unidades) --}}
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm"
+                    <span class="d-block d-xl-none small text-muted">Cantidad</span>
+<input type="number" class="form-control form-control-sm"
                            min="0" step="0.01" data-consumableQuantity
                            oninput="calculateTotalC(this);" readonly>
                 </div>
             </div>
 
             {{-- V/U (sin IGV) --}}
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumableValor readonly>
+                    <span class="d-block d-xl-none small text-muted">V/U</span>
+<input type="number" class="form-control form-control-sm" data-consumableValor readonly>
                 </div>
             </div>
 
             {{-- P/U (con IGV) --}}
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
+                    <span class="d-block d-xl-none small text-muted">P/U</span>
+<input type="number" class="form-control form-control-sm" data-consumablePrice readonly>
                 </div>
             </div>
 
             {{-- Importe --}}
-            <div class="col-md-2">
+            <div class="col-6 col-sm-4 col-xl-2">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm" data-consumableImporte readonly>
+                    <span class="d-block d-xl-none small text-muted">Importe</span>
+<input type="number" class="form-control form-control-sm text-right" data-consumableImporte readonly>
                 </div>
             </div>
 
@@ -650,54 +648,61 @@
 
     <template id="template-service">
         <div class="row" data-serviceRow>
-            <div class="col-md-5">
+            <div class="col-12 col-xl-5">
                 <div class="form-group">
-                    <input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-serviceDescription>
+                    <span class="d-block d-xl-none small text-muted">Descripción</span>
+<input type="text" onkeyup="mayus(this);" class="form-control form-control-sm" data-serviceDescription>
                     <input type="hidden" data-serviceId>
                 </div>
             </div>
 
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="text" class="form-control form-control-sm" data-serviceUnit readonly>
+                    <span class="d-block d-xl-none small text-muted">Unidad</span>
+<input type="text" class="form-control form-control-sm" data-serviceUnit readonly>
                 </div>
             </div>
 
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm"
+                    <span class="d-block d-xl-none small text-muted">Cantidad</span>
+<input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" step="0.01" data-serviceQuantity>
                 </div>
             </div>
 
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm"
+                    <span class="d-block d-xl-none small text-muted">V/U</span>
+<input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" data-serviceVU readonly
                            @cannot('showPrices_quote') style="display:none" @endcannot>
                 </div>
             </div>
 
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm"
+                    <span class="d-block d-xl-none small text-muted">P/U</span>
+<input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" step="0.01" data-servicePU
                            @cannot('showPrices_quote') style="display:none" @endcannot>
                 </div>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-6 col-sm-4 col-xl-2">
                 <div class="form-group">
-                    <input type="number" class="form-control form-control-sm"
+                    <span class="d-block d-xl-none small text-muted">Importe</span>
+<input type="number" class="form-control form-control-sm"
                            placeholder="0.00" min="0" data-serviceImporte readonly
                            @cannot('showPrices_quote') style="display:none" @endcannot>
                 </div>
             </div>
 
-            <div class="col-md-1">
+            <div class="col-6 col-sm-4 col-xl-1">
                 <div class="form-group text-center">
                     <div class="icheck-primary d-inline">
-                        <input type="checkbox" data-serviceBillable data-billable-id>
+                        <span class="d-block d-xl-none small text-muted">Facturar</span>
+<input type="checkbox" data-serviceBillable data-billable-id>
                         <label data-billable-label></label>
                     </div>
                 </div>
@@ -707,7 +712,7 @@
     </template>
 
     <!-- Modal -->
-    <div class="modal fade" id="promotionModal" tabindex="-1" role="dialog" aria-labelledby="promotionModalLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="promotionModal" tabindex="-1" role="dialog" aria-labelledby="promotionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -724,7 +729,7 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal fade" id="modalBuscarComprobante" tabindex="-1" role="dialog" aria-labelledby="modalBuscarComprobanteLabel" aria-hidden="true">
+    <div class="modal fade next-aux-modal" id="modalBuscarComprobante" tabindex="-1" role="dialog" aria-labelledby="modalBuscarComprobanteLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
 
@@ -753,7 +758,7 @@
 
 
                     <hr>
-                    <div id="resultadosCotizacion">
+                    <div id="resultadosCotizacion" class="table-responsive" tabindex="0" aria-label="Resultados de cotizaciones; desplazamiento horizontal">
                         <!-- Aquí se pintan los resultados por AJAX -->
                     </div>
                 </div>

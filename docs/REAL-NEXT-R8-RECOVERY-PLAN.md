@@ -1,5 +1,11 @@
 # R8 — Recovery Plan (checkpoint R8.0/R8.1)
 
+## R8.2C — COMPLETE (2026-11-25)
+
+S281 homologada: una superficie, Ticket/Boleta/Factura3/3, allowlist exacta `show.register.comprobante`. [Informe](REAL-NEXT-R8-SALES-DOCUMENT-REGISTRATION-HOMOLOGATION.md): controles53/57/58 preservados, JS intacto,30 combinaciones responsive,3 POST422 simulados con recuperación de formulario. Sin emisión/proveedores/mutaciones.
+
+**76 recuperadas +11 bloqueadas +23 excluidas =110**, sin nuevo FR. Cohorte B histórica2: ambas homologadas,0 pendientes. No reabrir recepción ni alterar A/C, FR110, contrato monetario o Branch/GRE. R8.2D no iniciada; esperar revisión. Estados anteriores se conservan como historia.
+
 ## R8.2B — COMPLETE (2026-11-25)
 
 Recepción de compra normal S091 homologada y allowlisted exclusivamente por `order.purchase.create`. [Evidencia y validación](REAL-NEXT-R8-PURCHASE-RECEIPT-HOMOLOGATION.md): orden2 autorizada en DB READ ONLY;25 controles preservados;10 resoluciones; dos reintentos interceptados con clave/contexto/payload iguales; JS intacto; cero mutaciones.
