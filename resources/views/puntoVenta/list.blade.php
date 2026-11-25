@@ -12,7 +12,7 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Ventas</span><h1 class="page-title">{{ $saleScopeLabel }}</h1><p class="next-page-description">Consulta ventas, comprobantes y despacho del local activo.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta de ventas · Solo lectura</span></div></div>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Consulta de ventas</span></div></div>
 @endsection
 @section('page-breadcrumb')
 <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li><li class="breadcrumb-item active" aria-current="page">Ventas</li></ol>
@@ -162,6 +162,7 @@
 <div class="modal-body"><div id="sales-detail-summary" class="row"></div><div id="order-details-content" aria-live="polite"></div></div>
 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button></div>
 </div></div></div>
+@include('puntoVenta._operations')
 @endsection
 @section('plugins')
 <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
@@ -169,6 +170,7 @@
 <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
 @endsection
 @section('scripts')
-{{-- Read adapter only: financial handlers remain outside this phase. --}}
+{{-- Render and operational handlers are separate; backend guards remain authoritative. --}}
+<script src="{{ asset('js/puntoVenta/list-operations.js') }}?v={{ filemtime(public_path('js/puntoVenta/list-operations.js')) }}"></script>
 <script src="{{ asset('js/puntoVenta/list-readonly.js') }}?v={{ filemtime(public_path('js/puntoVenta/list-readonly.js')) }}"></script>
 @endsection

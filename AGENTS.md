@@ -41,6 +41,23 @@ This is NOT a continuation of the Venti Next experimentation phase.
 
 ---
 
+# Functional parity and QA scope (R0)
+
+Modernization must preserve every legitimate capability while adapting it to current backend contracts. Visual integration is not permission to reduce the ERP.
+
+- READ PATH describes QA coverage, not a permanently read-only product.
+- MUTATION QA PENDING, OUT OF SCOPE and missing datasets do not authorize removing or disabling existing actions, navigation, forms, modals or handlers.
+- Do not invent business restrictions or retire capabilities without explicit product-owner approval.
+- Never relax permissions, guards, ownership, CSRF or tenant/company/branch isolation.
+- For a demonstrated security blocker, do not restore unsafe execution. Record evidence, impact, alternatives, responsible party and the capability pending recovery; escalate for an explicit product decision. Continue safe independent recovery.
+- Existing read-mostly database and provider restrictions govern test execution; they do not authorize loss of product functionality.
+
+Every integration and subsequent DEV delivery must maintain a before/after functional inventory covering actions, navigation, filters, forms, fields, modals, handlers, permissions, business conditions, HTTP methods, endpoints, payloads, CSRF and context. Record every functional difference explicitly, with implementation status separate from QA status. Revalidate and record recovery evidence after backend deliveries; do not retain obsolete frontend gates without review.
+
+A surface cannot be declared functionally closed while legitimate capabilities remain withdrawn without explicit approval. A read-path PASS, approved visual parity or zero new CSS is not full functional parity. These rules govern interpretation of all QA/boundary statuses elsewhere in this file without weakening valid security, architecture, design or compatibility rules.
+
+---
+
 # Core principle
 
 ## Real backend contract + approved visual baseline
@@ -285,6 +302,8 @@ Frontend can continue: Yes / No
 Point:
 Final contract:
 Date / commit if available:
+```
+
 Do not convert backend uncertainty into frontend assumptions.
 
 Visual reuse strategy

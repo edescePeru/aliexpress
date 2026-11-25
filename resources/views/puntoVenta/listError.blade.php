@@ -12,14 +12,14 @@
 <div class="next-page-heading"><span class="next-page-eyebrow">Ventas</span><h1 class="page-title">Ventas con error SUNAT</h1><p class="next-page-description">{{ $saleScopeLabel }} · Comprobantes con error reportado.</p></div>
 @endsection
 @section('page-title')
-<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Bandeja de errores SUNAT · Solo lectura</span></div></div>
+<div class="next-page-toolbar next-page-toolbar-context-only"><div class="next-toolbar-context"><strong>Listado operativo</strong><span>Bandeja de errores SUNAT</span></div></div>
 @endsection
 @section('page-breadcrumb')
 <ol class="breadcrumb float-sm-right"><li class="breadcrumb-item"><a href="{{ route('dashboard.principal') }}">Dashboard</a></li><li class="breadcrumb-item active" aria-current="page">Ventas con error SUNAT</li></ol>
 @endsection
 @section('content')
 <div id="sale-list-context" data-list-mode="errors" hidden data-tenant="{{ \App\Support\TenantContext::tenantId() }}" data-company="{{ \App\Support\TenantContext::companyId() }}" data-branch="{{ \App\Support\TenantContext::branchId() }}" data-permissions="{{ json_encode($salePermissions) }}"></div>
-<p class="text-muted px-3 pt-3 mb-0">Sólo se muestran comprobantes autorizados con error SUNAT. Esta vista no emite, descarta ni recupera documentos.</p>
+<p class="text-muted px-3 pt-3 mb-0">Sólo se muestran comprobantes autorizados con error SUNAT. Las operaciones disponibles dependen de los permisos y del estado de cada venta.</p>
 <section class="next-operational-list next-advanced-operational-list" aria-label="Listado de ventas">
 <form class="next-list-toolbar" action="#">
     <div class="next-list-search-row">
@@ -122,6 +122,7 @@
 <div class="modal-body"><div id="sales-detail-summary" class="row"></div><div id="order-details-content" aria-live="polite"></div></div>
 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button></div>
 </div></div></div>
+@include('puntoVenta._operations')
 @endsection
 @section('plugins')
 <script src="{{ asset('admin/plugins/select2/js/select2.full.min.js') }}"></script>
@@ -129,6 +130,7 @@
 <script src="{{ asset('admin/plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js') }}"></script>
 @endsection
 @section('scripts')
-{{-- Read adapter only: financial handlers remain outside this phase. --}}
+{{-- Render and operational handlers are separate; backend guards remain authoritative. --}}
+<script src="{{ asset('js/puntoVenta/list-operations.js') }}?v={{ filemtime(public_path('js/puntoVenta/list-operations.js')) }}"></script>
 <script src="{{ asset('js/puntoVenta/list-readonly.js') }}?v={{ filemtime(public_path('js/puntoVenta/list-readonly.js')) }}"></script>
 @endsection

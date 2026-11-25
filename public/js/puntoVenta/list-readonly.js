@@ -1,7 +1,7 @@
-/* Current Sales List read contract. No financial handlers or synthetic data. */
+/* Sales list rendering and read requests. Operations are owned by list-operations.js. */
 (function ($) {
     'use strict';
-    let request, detailRequest, sequence = 0, detailSequence = 0, rows = new Map(), detailTrigger;
+    let request, detailRequest, sequence = 0, detailSequence = 0, currentPage = 1, rows = new Map(), detailTrigger;
     const filterIds = {code: 'code', year: 'year', startDate: 'start', endDate: 'end',
         customer_id: 'filter_customer_id', payment_status: 'filter_payment_status',
         dispatch_status: 'filter_dispatch_status', cash_box_id: 'filter_cash_box_id',
@@ -24,6 +24,7 @@
     }
     function closeMenus() { $('.next-row-actions-trigger[aria-expanded="true"]').dropdown('hide'); }
     function load(page) {
+        currentPage = page;
         const token = ++sequence;
         if (request) request.abort();
         closeMenus(); rows.clear();
@@ -69,16 +70,19 @@
         const id = String(row.id), trigger = 'sales-actions-' + id;
         let links = '<button type="button" class="dropdown-item" role="menuitem" data-ver_detalles data-id="' + escape(id) + '"><i class="fas fa-eye next-row-action-item-icon" aria-hidden="true"></i>Ver detalle</button>';
         const permissions = JSON.parse(document.getElementById('sale-list-context').dataset.permissions || '{}');
-        if (!errorsMode && permissions.print) {
+        if (permissions.print) {
             const docs = [['print_url', row.print_label || 'Ver comprobante'], ['annulment_pdf_url_local', 'PDF anulación'],
                 ['annulment_xml_url_local', 'XML anulación'], ['annulment_cdr_url_local', 'CDR anulación'],
                 ['credit_note_pdf_url_local', 'PDF nota de crédito'], ['credit_note_xml_url_local', 'XML nota de crédito'],
                 ['credit_note_cdr_url_local', 'CDR nota de crédito'], ['partial_credit_note_pdf_url_local', 'PDF nota de crédito parcial']];
             docs.forEach(function (doc) {
                 const url = safeDocument(row[doc[0]], id);
-                if (url) links += '<a class="dropdown-item" role="menuitem" href="' + escape(url) + '" target="_blank" rel="noopener">' + escape(doc[1]) + '</a>';
+                const icon = doc[0] === 'print_url' ? (/pdf/i.test(doc[1]) ? 'fa-file-pdf' : 'fa-print') :
+                    (doc[0].includes('_xml_') ? 'fa-file-code' : doc[0].includes('_cdr_') ? 'fa-file-archive' : 'fa-file-pdf');
+                if (url) links += '<a class="dropdown-item" role="menuitem" href="' + escape(url) + '" target="_blank" rel="noopener"><i class="fas ' + icon + ' next-row-action-item-icon" aria-hidden="true"></i><span>' + escape(doc[1]) + '</span></a>';
             });
         }
+        if (window.SaleListOperations) links += window.SaleListOperations.menu(row, errorsMode);
         return '<div class="dropdown next-row-actions"><button type="button" id="' + escape(trigger) + '" class="btn btn-sm next-row-actions-trigger" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ' + escape(row.code) + '"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button><div class="dropdown-menu dropdown-menu-right next-row-actions-menu" role="menu" aria-labelledby="' + escape(trigger) + '">' + links + '</div></div>';
     }
     function render(response) {
@@ -179,7 +183,8 @@
             });
     }
     $(function () {
-        $('.select2').select2({width: '100%', theme: 'bootstrap4'});
+        if (window.SaleListOperations) window.SaleListOperations.attach({row: id => rows.get(String(id)), reload: () => load(currentPage)});
+        $('.select2').each(function () { const modal = $(this).closest('.modal'); $(this).select2({width: '100%', theme: 'bootstrap4', dropdownParent: modal.length ? modal : $(document.body)}); });
         $('#sandbox-container .input-daterange').datepicker({format: 'dd/mm/yyyy', language: 'es', clearBtn: true, autoclose: true});
         $('.next-list-toolbar').on('submit', function (event) { event.preventDefault(); load(1); });
         $('#btnBusquedaAvanzada').on('click', function () {
