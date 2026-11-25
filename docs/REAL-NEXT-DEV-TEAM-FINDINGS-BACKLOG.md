@@ -1,5 +1,16 @@
 # REAL NEXT — DEV TEAM FINDINGS BACKLOG
 
+## R8.3 — Conciliación documental vigente (2026-11-25)
+
+Ver [handoff consolidado](REAL-NEXT-DEV-HANDOFF-R8-CONSOLIDATED.md): HEAD local `af0c127032e9f143e16032f650dfb5beb06c5f50`, checkpoint compartido `6df57e7`, working tree inicial limpio. No fetch ni revisión de desarrollos paralelos. Matriz individual reconciliada contra evidencia integrada; las tablas inferiores conservan historia y no sustituyen ese corte.
+
+**76 recuperadas + 11 bloqueadas + 23 excluidas = 110; pendientes directos frontend 0.** Once FR → seis raíces: ENTRY-R75-01, ENTRY-R4-01, INV-01, METRIC-01, DASH-R7-01, EXPENSE-01. FIN-03 es el auxiliar Invoice, no OrderPurchaseFinance ni un nuevo defecto de lector documental. DOC-01 despliegue sigue separado de recuperación frontend/J-P-K. MAT04=posiciones y MAT05=flags; correctivos ya reconciliados, no reabrirlos.
+
+Precisión de evidencia: PUR-R3-01 designa originalmente anulación Express; la fila R7.5 sobre missingCodes Normal no demuestra arreglo de esa anulación. Express permanece excluido/pausado, sin nuevo ticket ni cambio de conteo. FR047: parent financiero/tipo/preload ya corregidos; bloqueo vigente es discrepancia `edit_entryPurchase` vs `update_entryPurchase`. Las once capacidades y sus condiciones de desbloqueo figuran individualmente en R8.3.
+
+Sin implementación, pruebas nuevas, DB/HTTP/mutaciones ni infraestructura. R8.2A–D concluidas; R8.3 documental completo. No decisiones C125 ni R8.4; esperar revisión del propietario.
+
+
 ## R8.2A — estado vigente (2026-11-25)
 
 Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.

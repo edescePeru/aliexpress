@@ -1,5 +1,16 @@
 # REAL NEXT — FUNCTIONAL PARITY RECOVERY BACKLOG
 
+## R8.3 — Conciliación documental vigente (2026-11-25)
+
+Ver [handoff consolidado](REAL-NEXT-DEV-HANDOFF-R8-CONSOLIDATED.md): HEAD local `af0c127032e9f143e16032f650dfb5beb06c5f50`, checkpoint compartido `6df57e7`, working tree inicial limpio. No fetch ni revisión de desarrollos paralelos. Matriz individual reconciliada contra evidencia integrada; las tablas inferiores conservan historia y no sustituyen ese corte.
+
+**76 recuperadas + 11 bloqueadas + 23 excluidas = 110; pendientes directos frontend 0.** Once FR → seis raíces: ENTRY-R75-01, ENTRY-R4-01, INV-01, METRIC-01, DASH-R7-01, EXPENSE-01. FIN-03 es el auxiliar Invoice, no OrderPurchaseFinance ni un nuevo defecto de lector documental. DOC-01 despliegue sigue separado de recuperación frontend/J-P-K. MAT04=posiciones y MAT05=flags; correctivos ya reconciliados, no reabrirlos.
+
+Precisión de evidencia: PUR-R3-01 designa originalmente anulación Express; la fila R7.5 sobre missingCodes Normal no demuestra arreglo de esa anulación. Express permanece excluido/pausado, sin nuevo ticket ni cambio de conteo. FR047: parent financiero/tipo/preload ya corregidos; bloqueo vigente es discrepancia `edit_entryPurchase` vs `update_entryPurchase`. Las once capacidades y sus condiciones de desbloqueo figuran individualmente en R8.3.
+
+Sin implementación, pruebas nuevas, DB/HTTP/mutaciones ni infraestructura. R8.2A–D concluidas; R8.3 documental completo. No decisiones C125 ni R8.4; esperar revisión del propietario.
+
+
 ## R8.2A — estado vigente (2026-11-25)
 
 Autorización del propietario: FR-108/109/110 quedan formalizados. **FR-108 RESTORED; FR-109 RESTORED; FR-110 BLOCKED / EXPENSE-01**. Conciliación: **76 recuperadas +11 bloqueadas +23 excluidas =110**; pendientes frontend confirmados0. Los107 anteriores y propuestas inferiores se conservan como historia, no son el total vigente. S201/S203 no se suman sin contrato DEV.
@@ -800,7 +811,7 @@ DOC-01 (documentos/infra), EXT-01 (proveedor), QA-01 (exports), QA-02 (mantenedo
 - Permiso: `update_entryPurchase`. Condición: Entry propia; guard/backend y estado de recepción.
 - Endpoint: `GET /dashboard/entrada/compra/editar/{entry}`. Handler: `data-edit / enlace edición`.
 - Motivo de exclusión: INTENTIONAL READ-ONLY EXCLUSION; no retiro permanente aprobado.
-- Blocker actual: INV-01: preload; edit no restringe finance/entry_type
+- Blocker actual R8.3: ENTRY-R75-01; consumer entry_edit exige edit_entryPurchase, ruta/catálogo usan update_entryPurchase. Preload/contexto/finance=false/entry_type ya corregidos por DEV. La descripción anterior INV-01 se conserva como evidencia histórica en R4/R7.5, no como causa vigente.
 - Responsable: Frontend recuperación; Backend por guards/contratos o finding vinculado; Producto por retiro o tratamiento de riesgo explícito.
 - Recuperación: ACTIVE — BACKEND BLOCKER R4.
 - QA independiente: Static contract evidence; unsafe operation not executed.
