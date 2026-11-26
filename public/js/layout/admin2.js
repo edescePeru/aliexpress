@@ -1,5 +1,6 @@
 $(document).ready(function () {
     initializeNextRowActions();
+    initializeNextStickyTableActions();
 
     if (document.body.getAttribute('data-operational-context') !== '0') {
     $.ajax({
@@ -130,6 +131,53 @@ function formatExchangeRateDate(value) {
     }
 
     return 'Actualizado: ' + dateMatch[3] + '/' + dateMatch[2] + '/' + dateMatch[1];
+}
+
+/* Presentation only. The allowlisted Next stylesheet is the rollout boundary.
+ * Resolve logical cells instead of :last-child so colspan/empty/detail rows and
+ * DataTables column visibility keep their existing contracts. */
+function initializeNextStickyTableActions() {
+    if (!document.querySelector('link[href*="/venti-next.css"]')) return;
+    var scheduled = false;
+    function refresh() {
+        scheduled = false;
+        document.querySelectorAll('table').forEach(function (table) {
+            if (table.closest('.DTFC_Cloned, .DTFC_LeftWrapper, .DTFC_RightWrapper') ||
+                table.querySelector('.dtfc-fixed-left, .dtfc-fixed-right') ||
+                ($.fn.dataTable && $.fn.dataTable.isDataTable(table) &&
+                    $(table).DataTable().settings()[0]._fixedColumns)) return;
+            var headers = table.tHead && table.tHead.rows;
+            if (!headers || headers.length !== 1) return;
+            var cells = Array.prototype.slice.call(headers[0].cells);
+            if (cells.some(function (cell) { return cell.colSpan !== 1 || cell.rowSpan !== 1; })) return;
+            var action = cells.findIndex(function (cell, index) {
+                // "Acción" can be descriptive audit data, not a row control.
+                return index === cells.length - 1 && (cell.hasAttribute('data-buttons') ||
+                    cell.classList.contains('next-action-column') || /^(accion|acciones|opciones)$/i.test(cell.textContent.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+            });
+            table.querySelectorAll('.next-sticky-action-cell').forEach(function (cell) {
+                if (cell.closest('table') === table) cell.classList.remove('next-sticky-action-cell');
+            });
+            // Some approved forms become cards on mobile instead of scrolling tables.
+            if (action < 0 || window.getComputedStyle(table).display !== 'table') return;
+            headers[0].cells[action].classList.add('next-sticky-action-cell');
+            Array.prototype.forEach.call(table.tBodies, function (body) {
+                Array.prototype.forEach.call(body.rows, function (row) {
+                    if (row.cells.length !== cells.length || Array.prototype.some.call(row.cells, function (cell) {
+                        return cell.colSpan !== 1 || cell.rowSpan !== 1;
+                    })) return;
+                    row.cells[action].classList.add('next-sticky-action-cell');
+                });
+            });
+        });
+    }
+    function schedule() {
+        if (!scheduled) { scheduled = true; window.requestAnimationFrame(refresh); }
+    }
+    refresh();
+    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    $(document).on('draw.dt column-visibility.dt column-reorder.dt', schedule);
+    window.addEventListener('resize', schedule);
 }
 
 function initializeNextRowActions() {

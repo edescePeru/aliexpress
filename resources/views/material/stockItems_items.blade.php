@@ -23,7 +23,7 @@
     <div id="items-read-error" class="alert alert-danger m-3 d-none" role="alert"></div>
     <div class="next-list-content">
         <table id="dynamic-table" class="table table-bordered table-hover table-sm next-data-table w-100">
-            <thead><tr><th class="text-center">Detalle</th><th>Material</th><th class="text-center">Código</th><th class="text-right">Precio</th><th class="text-right">Porcentaje</th><th class="text-center">Estado</th></tr></thead><tbody></tbody>
+            <thead><tr><th>Material</th><th class="text-center">Código</th><th class="text-right">Precio</th><th class="text-right">Porcentaje</th><th class="text-center">Estado</th><th class="text-center" data-buttons>Acciones</th></tr></thead><tbody></tbody>
         </table>
     </div>
 </section>

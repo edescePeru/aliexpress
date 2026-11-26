@@ -1491,7 +1491,8 @@ table.next-data-table [data-estado_comprobante] {
   min-width: 10rem;
 }
 
-table.next-data-table [data-buttons] {
+table.next-data-table [data-buttons],
+table .next-sticky-action-cell {
   width: 4.25rem;
   min-width: 4.25rem;
   text-align: center;
@@ -1607,7 +1608,9 @@ table.next-materials-table [data-rotation] {
   text-align: center;
 }
 
-table.next-materials-table [data-buttons] {
+/* Shared Material V2 action-column surface; admin2 tags actual action cells. */
+table.next-materials-table [data-buttons],
+table .next-sticky-action-cell {
   position: sticky;
   right: 0;
   z-index: 2;
@@ -1616,12 +1619,31 @@ table.next-materials-table [data-buttons] {
   box-shadow: -1px 0 0 var(--next-border);
 }
 
-table.next-materials-table thead [data-buttons] {
+table.next-materials-table thead [data-buttons],
+table thead .next-sticky-action-cell {
   z-index: 3;
   background-color: var(--next-surface-strong);
 }
 
-table.next-materials-table.table-hover tbody tr:hover [data-buttons] {
+table.table-striped tbody tr:nth-of-type(odd) .next-sticky-action-cell {
+  background-color: var(--next-surface-soft);
+}
+
+table tbody tr.table-active .next-sticky-action-cell,
+table tbody tr.selected .next-sticky-action-cell {
+  background-color: var(--next-brand-soft);
+}
+
+table tbody tr.table-success .next-sticky-action-cell {
+  background-color: var(--next-success-soft);
+}
+
+table tbody tr.table-danger .next-sticky-action-cell {
+  background-color: var(--next-danger-soft);
+}
+
+table.next-materials-table.table-hover tbody tr:hover [data-buttons],
+table.table-hover tbody tr:hover .next-sticky-action-cell {
   background-color: var(--next-brand-soft);
 }
 
