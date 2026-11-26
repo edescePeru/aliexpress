@@ -2,8 +2,9 @@
 (function ($) {
     'use strict';
     let adapter, paymentSequence = 0, ncSequence = 0, paymentRequest, ncRequest;
+    let annulmentData = null, annulmentRow = null, annulmentConsult = false, annulmentIsTotal = false, annulmentSequence = 0;
     let ncPartialData = null, ncPartialSelectedItems = {}, operationTrigger, activePaymentRow;
-    const pending = new Set();
+    const pending = new Set(), disabledBeforeMutation = new Map();
     function context() { return document.getElementById('sale-list-context'); }
     function permissions() { return JSON.parse(context().dataset.permissions || '{}'); }
     function flag(value) { return value === true || value === 1 || value === '1'; }
@@ -29,8 +30,17 @@
     function mutate(url, method, data, callback, json) {
         if (pending.has(url)) return;
         pending.add(url);
-        const controls = $('.sale-operation-submit, #btnGuardarPagoParcial, #btnConfirmarGenerarComprobante, #btn-submit-nc-partial, #btn-confirm-nc-partial-items');
-        controls.prop('disabled', true);
+        const controls = $('.sale-operation-submit, #btnGuardarPagoParcial, #btnConfirmarGenerarComprobante, #btn-submit-nc-partial, #btn-confirm-nc-partial-items, #btnConfirmAnnulment');
+        const annulButton = $('#btnConfirmAnnulment'), annulHtml = annulButton.html();
+        if (url.indexOf('/anular/order/') !== -1 || url.indexOf('/consultar/anulacion/') !== -1 || url.indexOf('/generar/nota-credito/total/') !== -1 || (url.indexOf('/consultar/nota-credito/') !== -1 && annulmentIsTotal)) annulButton.text('Procesando…').attr('aria-busy','true');
+        const ncButton = $('#btn-submit-nc-partial'), originalNcText = ncButton.text();
+        const invoiceButton = $('#btnConfirmarGenerarComprobante'), originalInvoiceHtml = invoiceButton.html();
+        if (url.indexOf('/sale/generate-invoice') !== -1) {
+            invoiceButton.text('Generando…').attr('aria-busy', 'true');
+            $('#modalGenerarComprobante').attr('aria-busy', 'true');
+        }
+        if (url.indexOf('/generar/nota-credito/parcial/') !== -1) ncButton.text('Procesando…');
+        controls.each(function(){if(!disabledBeforeMutation.has(this))disabledBeforeMutation.set(this,this.disabled);this.disabled=true;});
         request(url, method, data, json).done(function (res) {
             if (res.success === false || res.error) { notice(res.message || res.error, 'Operación no completada'); return; }
             if (callback) callback(res);
@@ -38,7 +48,7 @@
             // Never open url_print/pdf_url returned by legacy mutations: refresh guarded DTO links instead.
             reloadCurrentPageOrders();
         }).fail(function (xhr) { notice(message(xhr), 'Operación no completada'); reloadCurrentPageOrders(); })
-            .always(function () { pending.delete(url); if (!pending.size) controls.prop('disabled', false); });
+            .always(function () { pending.delete(url); annulButton.html(annulHtml).removeAttr('aria-busy'); ncButton.text(originalNcText); invoiceButton.html(originalInvoiceHtml).removeAttr('aria-busy'); $('#modalGenerarComprobante').removeAttr('aria-busy'); if (!pending.size) { disabledBeforeMutation.forEach((disabled,element)=>$(element).prop('disabled',disabled)); disabledBeforeMutation.clear(); } });
     }
     function confirm(title, text, action) {
         $.confirm({title: title, content: escapeHtml(text), buttons: {
@@ -46,32 +56,39 @@
     }
     function choices(row, errors) {
         const p = permissions(), active = !flag(row.is_annulled), electronic = ['01', '03'].includes(String(row.type_document));
-        const valid = electronic && row.sunat_status !== 'Error';
+        const fiscal = row.invoice_info || {};
+        const valid = electronic && row.sunat_status !== 'Error' && flag(fiscal.invoice_has_identity) && !flag(fiscal.invoice_emission_review) && row.internal_reversal_status !== 'reversed';
         const items = [];
         const add = (hook, label, destructive) => items.push({hook, label, destructive: !!destructive});
         if (errors) {
+            if (p.documents && flag((row.invoice_info || {}).invoice_emission_review)) add('revisar_emision', 'Revisar emisión de comprobante');
             if (p.annul && flag(row.can_discard_error)) add('descartar_error_comprobante', 'Descartar error de comprobante', true);
             add('ver_error_sunat', 'Ver diagnóstico SUNAT');
             return items;
         }
         if (row.has_rejected_credit_note) add('ver_error_nota_credito', 'Ver rechazo de nota de crédito');
         if (row.sunat_error_is_discarded) add('ver_solucion_sunat_error', 'Ver solución del error SUNAT');
+        const totalNote = row.total_credit_note_info || {};
+        if (p.annul && flag(totalNote.can_consult)) add('consultar_nota_credito','Consultar NC total / recuperar archivos');
+        if (p.annul && row.annulment_status === 'accepted' && !totalNote.id) add('consultar_anulacion', 'Revisar anulación / recuperar archivos');
         if (!active) return items;
-        if (p.emit && !valid) add('generar_comprobante', 'Generar comprobante');
-        if (p.annul && flag(row.can_annul) && !['pending', 'waiting_sunat_process', 'accepted'].includes(row.annulment_status)) add('anular', 'Anular venta', true);
+        const invoice = row.invoice_info || {};
+        if (p.emit && flag(invoice.can_generate_invoice)) add('generar_comprobante', 'Generar comprobante');
+        if (p.documents && flag(invoice.invoice_emission_review)) add('revisar_emision', 'Revisar emisión de comprobante');
+        if (p.annul && flag(row.can_annul) && !['pending', 'waiting_sunat_process', 'unknown', 'processing', 'rejected', 'accepted'].includes(row.annulment_status)) add('anular', 'Anular venta', true);
         // History is a read permission, even when amount due is zero or payments permission is absent.
         if (row.pagos_parciales_venta === 's') add('pagos_parciales', p.payments ? 'Pagos parciales / historial' : 'Historial de pagos');
-        if (p.dispatch) add('cambiar_despacho', row.dispatch_status === 'despachado' ? 'Marcar despacho pendiente' : 'Marcar como despachado');
-        if (p.annul && ['pending', 'waiting_sunat_process'].includes(row.annulment_status)) add('consultar_anulacion', 'Consultar anulación');
-        if (p.annul && row.has_pending_credit_note) add('consultar_nota_credito', 'Consultar nota de crédito');
-        else if (p.annul && !row.has_rejected_credit_note && flag(row.can_generate_credit_note)) add('generar_nota_credito', 'Generar nota de crédito total');
-        if (p.annul && !flag(row.free_sale) && valid && !row.has_pending_credit_note && !row.has_rejected_credit_note) add('generar_nota_credito_parcial', 'Generar nota de crédito parcial');
+        if (p.dispatch && row.internal_reversal_status !== 'reversed') add('cambiar_despacho', row.dispatch_status === 'despachado' ? 'Marcar despacho pendiente' : 'Marcar como despachado');
+        if (p.annul && !totalNote.id && ['pending', 'waiting_sunat_process', 'unknown', 'processing', 'rejected'].includes(row.annulment_status)) add('consultar_anulacion', 'Consultar anulación');
+        if (p.annul && row.has_pending_credit_note && !totalNote.id) add('consultar_nota_credito', 'Consultar nota de crédito');
+        else if (p.annul && !totalNote.id && !row.has_rejected_credit_note && flag(row.can_generate_credit_note)) add('generar_nota_credito', 'Generar nota de crédito total');
+        if (p.annul && !flag(row.free_sale) && valid && !['pending', 'waiting_sunat_process', 'accepted'].includes(row.annulment_status) && !row.has_pending_credit_note && !row.has_rejected_credit_note) add('generar_nota_credito_parcial', 'Generar nota de crédito parcial');
         if (p.documents && flag(row.can_retry_nubefact_files)) add('recuperar_archivos_nubefact', 'Recuperar archivos Nubefact');
         return items;
     }
     function menu(row, errors) {
         const icons = {
-            generar_comprobante: 'fa-file-invoice', anular: 'fa-trash-alt',
+            revisar_emision: 'fa-search', generar_comprobante: 'fa-file-invoice', anular: 'fa-trash-alt',
             pagos_parciales: 'fa-money-bill-wave', cambiar_despacho: 'fa-truck',
             consultar_anulacion: 'fa-search', generar_nota_credito: 'fa-file-invoice-dollar',
             generar_nota_credito_parcial: 'fa-file-invoice', consultar_nota_credito: 'fa-search',
@@ -86,6 +103,7 @@
     function rowFor(element) { return adapter && adapter.row(String($(element).attr('data-sale_id'))); }
     function showPayments(row) {
         activePaymentRow = row;
+        $('#btnGuardarPagoParcial').prop('disabled',row.internal_reversal_status==='reversed');
         $('#pp_sale_id').val(row.id); $('#pp_monto').val('');
         const now = new Date(); $('#pp_fecha_pago').val(now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
         $('#pp_cash_box_id, #pp_cash_box_subtype_id').val('').trigger('change');
@@ -101,18 +119,23 @@
             if (token !== paymentSequence) return;
             const currency = activePaymentRow.currency || '';
             $('#pp_total_venta').val(currency + ' ' + res.total_venta); $('#pp_total_abonado').val(currency + ' ' + res.total_abonado);
-            $('#pp_progress_text').text('Saldo pendiente: ' + currency + ' ' + res.saldo_pendiente);
+            $('#pp_progress_text').text(res.operation_reversed ? 'Venta revertida · Deuda cancelada: '+currency+' '+res.debt_cancelled+' · Devuelto: '+currency+' '+res.refunded+(Number(res.pending_cancelled)>0?' · Diferidos cancelados: '+currency+' '+res.pending_cancelled:'') : 'Saldo pendiente: ' + currency + ' ' + res.saldo_pendiente);
             res.pagos.forEach(function (payment) {
                 const tr = $('<tr>');
                 [['payment_date','center'],['amount','right'],['cash_box_label','left']].forEach(c => $('<td>').addClass('text-'+c[1]).text(payment[c[0]]).appendTo(tr));
                 const td = $('<td class="text-center">');
-                if (permissions().payments) $('<button type="button" class="btn btn-outline-danger btn-sm" data-eliminar_pago_parcial><i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Eliminar</button>').attr('data-id',payment.id).appendTo(td);
+                if (permissions().payments && payment.active !== false && activePaymentRow.internal_reversal_status !== 'reversed') $('<button type="button" class="btn btn-outline-danger btn-sm" data-eliminar_pago_parcial><i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Eliminar</button>').attr('data-id',payment.id).appendTo(td);
                 tr.append(td); $('#pp_body_pagos').append(tr);
             });
             if (!res.pagos.length) $('#pp_body_pagos').append('<tr><td colspan="4" class="text-center">Sin pagos registrados</td></tr>');
         }).fail(function (xhr,status) { if (status !== 'abort' && token === paymentSequence) { $('#pp_feedback').removeClass('d-none').text(message(xhr)); $('#pp_progress_text').text('Consulta no disponible'); } });
     }
     function openInvoice(row) {
+        lookupSequence.dni++; lookupSequence.ruc++;
+        if (!flag((row.invoice_info || {}).can_generate_invoice)) { notice('Recargue el listado y revise el estado de emisión.'); return; }
+        $('#gc_summary_sale').text(row.code || row.id);
+        const fiscal = row.invoice_info || {};
+        $('#gc_summary_amount').text((fiscal.invoice_currency || '') + ' ' + (fiscal.invoice_original_amount || ''));
         $('#gc_sale_id').val(row.id); $('#gc_free_sale').val(flag(row.free_sale) ? '1' : '0');
         $('#modalGenerarComprobante input:not([type="hidden"])').val('');
         $('#gc_name, #gc_razon_social, #gc_direccion_fiscal').prop('readonly', true);
@@ -136,6 +159,16 @@
             notice((msg || 'Consulta sin resultado.')+' Puede ingresarlo manualmente.');
         }
     }
+    function reviewInvoice(row) {
+        request('/dashboard/sale/'+encodeURIComponent(row.id)+'/emission-status', 'GET').done(function(res) {
+            const detail = (res.message || '') + (res.reference ? ' Referencia: '+res.reference+'.' : '');
+            if (res.can_recover_locally) {
+                confirm('Recuperar datos guardados', detail+' No se realizará otro envío.', function() {
+                    mutate('/dashboard/sale/'+encodeURIComponent(row.id)+'/recover-emission', 'POST', {attempt_id:res.attempt_id});
+                });
+            } else notice(detail, 'Revisión de emisión');
+        }).fail(function(xhr) { notice(message(xhr)); });
+    }
     function prepareInvoice() {
         if (!permissions().emit) return;
         const type = $('#gc_tabs .nav-link.active').attr('href') === '#gc_factura' ? 'factura' : 'boleta';
@@ -145,7 +178,7 @@
             ruc: $('#gc_ruc').val(), razon_social: $('#gc_razon_social').val(), direccion_fiscal: $('#gc_direccion_fiscal').val(), email_factura: $('#gc_email_factura').val()};
         if (type === 'boleta' ? !/^\d{8}$/.test(data.dni) || !data.name : !/^\d{11}$/.test(data.ruc) || !data.razon_social || !data.direccion_fiscal) { notice('Complete los datos obligatorios del comprobante.'); return; }
         const url = $('#gc_free_sale').val()==='1' ? '/dashboard/ventas-libres/generate-invoice' : '/dashboard/sale/generate-invoice';
-        confirm('Generar comprobante', 'Se emitirá el comprobante seleccionado mediante el proveedor. ¿Desea continuar?', function(){ mutate(url,'POST',data,function(){ $('#modalGenerarComprobante').modal('hide'); }); });
+        confirm('Generar comprobante', 'Se emitirá por el importe completo guardado de la venta, con fecha de emisión de hoy. No se registrará otro cobro ni se descontará stock. ¿Desea continuar?', function(){ mutate(url,'POST',data,function(){ $('#modalGenerarComprobante').modal('hide'); }); });
     }
     function openPartial(row) {
         const token=++ncSequence;
@@ -163,17 +196,50 @@
                     .attr({'aria-label':'Cantidad a devolver: '+item.description,'data-sale_detail_id':item.sale_detail_id,'data-price':item.price,'data-max':item.available_quantity,'data-is_itemable':item.is_itemable?1:0,max:item.available_quantity,step:item.is_itemable?1:0.01});
                 $('<td>').append(input).appendTo(tr); $('<td class="text-right"><span class="nc-partial-line-total">0.00</span></td>').appendTo(tr); $('#body-nc-partial-items').append(tr);
             });
-            $('#nc_partial_total').text('0.00'); $('#modalNotaCreditoParcial').modal('show');
+            $('#nc_partial_total').text('0.00');
+            $('#nc_refund_box').empty().append($('<option>').val('').text('Seleccione una caja'));
+            (data.refund_channels || []).forEach(c => $('#nc_refund_box').append($('<option>').val(c.id).text(c.name)));
+            $('#nc_refund_subtype_wrap').prop('hidden', true); $('#nc_refund_subtype').empty();
+            updateCreditPreview(); $('#modalNotaCreditoParcial').modal('show');
         }).fail(function(xhr,status){ if(status!=='abort' && token===ncSequence) notice(message(xhr)); });
+    }
+    function creditLineCents(input, quantity) {
+        if (!(quantity > 0) || !ncPartialData) return 0;
+        const item = ncPartialData.items.find(i => String(i.sale_detail_id) === String(input.attr('data-sale_detail_id')));
+        if (!item || !(Number(item.sold_quantity) > 0)) return 0;
+        return Math.round(Number(item.original_total_cents) * (Number(item.credited_quantity) + quantity) / Number(item.sold_quantity)) - Number(item.credited_total_cents);
+    }
+    function selectedRefundChannel() {
+        return ncPartialData && (ncPartialData.refund_channels || []).find(c => String(c.id) === String($('#nc_refund_box').val()));
+    }
+    function updateCreditPreview() {
+        const financial = (ncPartialData && ncPartialData.financial) || {};
+        const amount = Math.round(Number($('#nc_partial_total').text()) * 100) || 0;
+        const debt = Number(financial.debt_cents) || 0;
+        const reduction = Math.min(amount, debt), refund = amount - reduction;
+        $('#nc_debt_before').text((debt / 100).toFixed(2));
+        $('#nc_debt_reduction').text((reduction / 100).toFixed(2));
+        $('#nc_debt_after').text(((debt - reduction) / 100).toFixed(2));
+        $('#nc_refund_amount').text((refund / 100).toFixed(2));
+        $('#nc_refund_wrap').prop('hidden', refund <= 0); $('#nc_no_refund').prop('hidden', refund > 0);
+        return {refund:refund};
     }
     function prepararEnvioNotaCreditoParcial() {
         if(!permissions().annul || !ncPartialData) return;
         const items=[];
         $('.nc-partial-qty').each(function(){ const quantity=Number($(this).val()), id=Number($(this).attr('data-sale_detail_id')); if(quantity>0) items.push({sale_detail_id:id,quantity:quantity,selected_item_ids:ncPartialSelectedItems[id] || []}); });
         if(!items.length) { notice('Seleccione al menos un producto a devolver.'); return; }
+        const plan = updateCreditPreview(), channel = selectedRefundChannel();
+        if (plan.refund > 0 && (!channel || (channel.uses_subtypes && !$('#nc_refund_subtype').val()))) {
+            notice('Seleccione el canal y subtipo para la devolución. Necesita una sesión propia abierta en esa caja.'); return;
+        }
+        const payload = {reason_code:'07', reason_description:'Devolución parcial', items:items,
+            partial_request_key:ncPartialData.partial_request_key, financial_token:ncPartialData.financial_token,
+            refund_cash_box_id:plan.refund > 0 ? Number(channel.id) : null,
+            refund_subtype_id:plan.refund > 0 && channel.uses_subtypes ? Number($('#nc_refund_subtype').val()) : null};
         const url='/dashboard/generar/nota-credito/parcial/'+$('#nc_partial_sale_id').val();
-        confirm('Generar nota de crédito parcial','Se enviará al proveedor y se devolverán los Items seleccionados. ¿Desea continuar?',function(){
-            mutate(url,'POST',{reason_code:'07',reason_description:'Devolución parcial',items:items},function(){ $('#modalNotaCreditoParcial, #modalNcPartialItems').modal('hide'); ncPartialData=null; ncPartialSelectedItems={}; },true);
+        confirm('Generar nota de crédito parcial','Se enviará al proveedor. Al quedar aceptada por SUNAT, se reingresarán los productos, se reducirá la deuda y se devolverá únicamente el excedente indicado. Mientras siga pendiente no se moverán stock ni dinero. ¿Desea continuar?',function(){
+            mutate(url,'POST',payload,function(){ $('#modalNotaCreditoParcial, #modalNcPartialItems').modal('hide'); ncPartialData=null; ncPartialSelectedItems={}; },true);
         });
     }
     function discard(row) {
@@ -182,8 +248,37 @@
             mutate('/dashboard/sales/errors/'+row.id+'/discard','POST',{reason:$('#discard_reason_select').val()+(extra?' - '+extra:'')});
         }},cancelar:{text:'Cancelar'}}});
     }
+    function openAnnulment(row, consult, total) {
+        const seq = ++annulmentSequence; annulmentData = null;
+        request('/dashboard/sale/'+encodeURIComponent(row.id)+(total?'/total-credit-note-preview':'/annulment-preview'),'GET').done(function(data){
+            if (seq !== annulmentSequence) return;
+            annulmentData=data; annulmentRow=row; annulmentConsult=consult; annulmentIsTotal=!!total;
+            $('#ann_title').text(total?'Nota de crédito total · '+data.currency+' '+data.original_total:'Anulación de venta');
+            $('#ann_sale').text((row.code || data.code)+(total&&data.original_document?' · '+data.original_document:'')); $('#ann_debt').text(data.currency+' '+((data.debt_cents || 0)/100).toFixed(2));
+            $('#ann_refund').text(data.currency+' '+((data.refund_cents || 0)/100).toFixed(2));
+            $('#ann_refund_wrap').prop('hidden',!(data.refund_cents>0));
+            $('#ann_box').empty().append($('<option>').val('').text('Seleccione una caja'));
+            (data.channels || []).forEach(c=>$('#ann_box').append($('<option>').val(c.id).text(c.name)));
+            $('#ann_subtype_wrap').prop('hidden',true); $('#ann_subtype').empty();
+            $('#ann_policy').text(data.requires_credit_note ? 'El comprobante requiere una nota de crédito. Esta operación solo actualizará esa indicación; no devolverá dinero ni productos.' : data.already_reversed ? 'La reversión operativa ya fue aplicada. Se consultará la situación electrónica sin volver a devolver dinero ni productos.' : 'Por política del negocio, la reversión de stock y dinero es inmediata. Si hay comprobante, su anulación electrónica puede quedar pendiente o ser rechazada.');
+            const pendingAmount=(data.evidence || []).filter(e=>flag(e.pending)).reduce((sum,e)=>sum+Number(e.amount_cents || 0),0);
+            if(pendingAmount>0)$('#ann_policy').append(document.createTextNode(' También se cancelan '+data.currency+' '+(pendingAmount/100).toFixed(2)+' de cobros pendientes de abono; no generan una devolución de dinero.'));
+            $('#modalAnularVenta').modal('show');
+        }).fail(function(xhr){if(seq===annulmentSequence)notice(message(xhr));});
+    }
+    function submitAnnulment() {
+        if (!annulmentData || !permissions().annul) return;
+        const channel=(annulmentData.channels || []).find(c=>String(c.id)===String($('#ann_box').val()));
+        if(annulmentData.refund_cents>0 && (!channel || (channel.uses_subtypes && !$('#ann_subtype').val()))){notice('Seleccione el canal y subtipo. Se necesita una sesión propia abierta en esa caja.');return;}
+        const data={total_request_key:annulmentData.total_request_key || null,financial_token:annulmentData.financial_token,refund_cash_box_id:channel?channel.id:null,refund_subtype_id:channel&&channel.uses_subtypes?$('#ann_subtype').val():null};
+        const url=(annulmentIsTotal?(annulmentConsult?'/dashboard/consultar/nota-credito/':'/dashboard/generar/nota-credito/total/'):(annulmentConsult?'/dashboard/consultar/anulacion/':'/dashboard/anular/order/'))+encodeURIComponent(annulmentRow.id);
+        mutate(url,'POST',data,function(){ $('#modalAnularVenta').modal('hide');annulmentData=null; });
+    }
     function act(hook,row) {
         const free=flag(row.free_sale), id=encodeURIComponent(row.id);
+        if (!free && hook==='generar_nota_credito') return openAnnulment(row,false,true);
+        if (!free && hook==='consultar_nota_credito' && (row.total_credit_note_info || {}).id) return openAnnulment(row,true,true);
+        if (!free && (hook==='anular' || hook==='consultar_anulacion')) return openAnnulment(row,hook==='consultar_anulacion');
         const simple={
             anular:[free?'/dashboard/ventas-libres/'+id+'/anular':'/dashboard/anular/order/'+id,'Anular venta','Esta operación puede revertir pagos y movimientos y comunicarse con SUNAT. Verifique la venta antes de confirmar.'],
             consultar_anulacion:[free?'/dashboard/ventas-libres/'+id+'/consultar-anulacion':'/dashboard/consultar/anulacion/'+id,'Consultar anulación','Se consultará al proveedor y se actualizará el estado de anulación.'],
@@ -194,6 +289,7 @@
         if(simple[hook]) { const op=simple[hook]; confirm(op[1],op[2],function(){mutate(op[0],'POST',{});}); return; }
         if(hook==='pagos_parciales') return showPayments(row);
         if(hook==='generar_comprobante') return openInvoice(row);
+        if(hook==='revisar_emision') return reviewInvoice(row);
         if(hook==='generar_nota_credito_parcial') return openPartial(row);
         if(hook==='descartar_error_comprobante') return discard(row);
         if(hook==='cambiar_despacho') {
@@ -206,6 +302,14 @@
     }
     window.SaleListOperations={menu:menu,choices:choices,attach:function(value){adapter=value;}};
     $(function(){
+        $('#btnConfirmAnnulment').on('click',submitAnnulment);
+        $('#ann_box').on('change',function(){
+            const c=annulmentData&&(annulmentData.channels || []).find(c=>String(c.id)===String($(this).val()));
+            $('#ann_subtype').empty().append($('<option>').val('').text('Seleccione un subtipo'));
+            $('#ann_subtype_wrap').prop('hidden',!c || !c.uses_subtypes);
+            if(c)(c.subtypes || []).forEach(t=>$('#ann_subtype').append($('<option>').val(t.id).text(t.name)));
+        });
+        $('#modalAnularVenta').on('hidden.bs.modal',function(){++annulmentSequence;annulmentData=null;annulmentIsTotal=false;if(operationTrigger&&document.contains(operationTrigger))operationTrigger.focus();});
         $(document).on('click','[data-sale-operation]',function(){
             const row=rowFor(this), hook=$(this).attr('data-sale-operation');
             if(!row || !choices(row,context().dataset.listMode==='errors').some(a=>a.hook===hook)) return;
@@ -220,21 +324,27 @@
             $('#pp_cash_box_subtype_id option').each(function(){const parent=$(this).attr('data-cash-box'); $(this).prop('disabled',!!parent && parent!==String(opt.val()));});
         });
         $('#btnGuardarPagoParcial').on('click',function(){
-            if(!permissions().payments) return;
+            if(!permissions().payments || (activePaymentRow && activePaymentRow.internal_reversal_status==='reversed')) return;
             const opt=$('#pp_cash_box_id :selected'), uses=opt.attr('data-type')==='bank' && opt.attr('data-uses_subtypes')==='1';
             const data={sale_id:$('#pp_sale_id').val(),payment_date:$('#pp_fecha_pago').val(),amount:$('#pp_monto').val(),cash_box_id:$('#pp_cash_box_id').val(),cash_box_subtype_id:uses?$('#pp_cash_box_subtype_id').val():null};
             if(!data.payment_date || !(Number(data.amount)>0) || !data.cash_box_id || (uses&&!data.cash_box_subtype_id)) {notice('Complete fecha, monto, caja y subtipo cuando corresponda.');return;}
             confirm('Registrar pago parcial','Se registrará el pago y su movimiento de caja. ¿Desea continuar?',function(){mutate('/dashboard/sale/partial-payment/store','POST',data,function(){ $('#pp_monto').val(''); cargarPagosParciales(data.sale_id); });});
         });
         $(document).on('click','[data-eliminar_pago_parcial]',function(){
-            if(!permissions().payments) return;
+            if(!permissions().payments || (activePaymentRow && activePaymentRow.internal_reversal_status==='reversed')) return;
             const paymentId=$(this).attr('data-id'), saleId=$('#pp_sale_id').val();
             confirm('Eliminar pago parcial','Se revertirá el movimiento de caja asociado. ¿Desea continuar?',function(){mutate('/dashboard/sale/partial-payment/'+encodeURIComponent(paymentId),'DELETE',{},function(){cargarPagosParciales(saleId);});});
+        });
+        $('#nc_refund_box').on('change',function(){
+            const channel = selectedRefundChannel();
+            $('#nc_refund_subtype').empty().append($('<option>').val('').text('Seleccione un subtipo'));
+            $('#nc_refund_subtype_wrap').prop('hidden',!channel || !channel.uses_subtypes);
+            if(channel) (channel.subtypes || []).forEach(t => $('#nc_refund_subtype').append($('<option>').val(t.id).text(t.name)));
         });
         $('#btnConfirmarGenerarComprobante').on('click',prepareInvoice);
         ['dni','ruc'].forEach(function(type){
             $('#btnBuscarGc'+(type==='dni'?'Dni':'Ruc')).on('click',()=>lookup(type));
-            $('#gc_'+type).on('keydown',function(e){if(e.key==='Enter'){e.preventDefault();lookup(type);}}).on('input',function(){ ++lookupSequence[type]; $(type==='dni'?'#gc_name':'#gc_razon_social, #gc_direccion_fiscal').val(''); });
+            $('#gc_'+type).on('keydown',function(e){if(e.key==='Enter'){e.preventDefault();lookup(type);}}).on('input',function(){ ++lookupSequence[type]; $(type==='dni'?'#gc_name':'#gc_razon_social, #gc_direccion_fiscal').val('').prop('readonly',true); });
         });
         $('#modalPagosParciales').on('hidden.bs.modal',function(){++paymentSequence;if(paymentRequest)paymentRequest.abort();});
         $('#modalGenerarComprobante').on('hidden.bs.modal',function(){++lookupSequence.dni;++lookupSequence.ruc;});
@@ -256,7 +366,7 @@
             input.val(0);
         }
 
-        let totalLine = qty * price;
+        let totalLine = creditLineCents(input, qty) / 100;
 
         input.closest('tr').find('.nc-partial-line-total').text(totalLine.toFixed(2));
 
@@ -265,10 +375,10 @@
         $('.nc-partial-qty').each(function () {
             let q = parseFloat($(this).val()) || 0;
             let p = parseFloat($(this).data('price')) || 0;
-            total += q * p;
+            total += creditLineCents($(this), q) / 100;
         });
 
-        $('#nc_partial_total').text(total.toFixed(2));
+        $('#nc_partial_total').text(total.toFixed(2)); updateCreditPreview();
     });
 
     $(document).on('click', '#btn-submit-nc-partial', function () {

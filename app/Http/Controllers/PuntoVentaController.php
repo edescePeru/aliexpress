@@ -1647,52 +1647,19 @@ class PuntoVentaController extends Controller
             }
         }
 
-        // Cumplimiento de pago
-        if ($paymentStatus != "") {
+        // The same effective balance drives filters and the displayed payment state.
+        if (in_array($paymentStatus, ['verde', 'naranja', 'rojo'], true)) {
+            $net = \App\Services\Sales\PartialCreditSettlement::netSql();
+            $retained = \App\Services\Sales\PartialCreditSettlement::retainedSql();
             if ($paymentStatus === 'verde') {
-                $query->where(function ($q) {
-                    $q->where('pagos_parciales_venta', 'n')
-                        ->orWhereRaw("
-                    (
-                        SELECT COALESCE(SUM(spp.amount), 0)
-                        FROM sale_partial_payments spp
-                        WHERE spp.sale_id = sales.id
-                        AND spp.state = 1
-                    ) >= sales.importe_total
-                ");
+                $query->where(function ($q) use ($net, $retained) {
+                    $q->where('pagos_parciales_venta', 'n')->orWhereRaw("($retained) >= ($net)");
                 });
-            }
-
-            if ($paymentStatus === 'naranja') {
-                $query->where('pagos_parciales_venta', 's')
-                    ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) >= (sales.importe_total * 0.5)
-            ")
-                    ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) < sales.importe_total
-            ");
-            }
-
-            if ($paymentStatus === 'rojo') {
-                $query->where('pagos_parciales_venta', 's')
-                    ->whereRaw("
-                (
-                    SELECT COALESCE(SUM(spp.amount), 0)
-                    FROM sale_partial_payments spp
-                    WHERE spp.sale_id = sales.id
-                    AND spp.state = 1
-                ) < (sales.importe_total * 0.5)
-            ");
+            } else {
+                $query->where('pagos_parciales_venta', 's')->whereRaw("($net) > 0");
+                if ($paymentStatus === 'naranja') {
+                    $query->whereRaw("($retained) >= (($net) * 0.5)")->whereRaw("($retained) < ($net)");
+                } else { $query->whereRaw("($retained) < (($net) * 0.5)"); }
             }
         }
 
@@ -1867,18 +1834,16 @@ class PuntoVentaController extends Controller
                 }
             }
 
-            $totalVenta = (float) $sale->importe_total;
+            $balance = app(\App\Services\Sales\PartialCreditSettlement::class)->snapshot($sale);
+            $totalVenta = $balance['net_cents'] / 100;
             $totalAbonado = null;
             $estadoPagoParcial = null;
-
             if ($sale->pagos_parciales_venta === 's') {
-                $totalAbonado = SalePartialPayment::where('sale_id', $sale->id)
-                    ->where('state', 1)
-                    ->sum('amount');
+                $totalAbonado = $balance['retained_cents'] / 100;
 
                 $porcentaje = $totalVenta > 0
                     ? (($totalAbonado / $totalVenta) * 100)
-                    : 0;
+                    : 100;
 
                 if ($porcentaje >= 100) {
                     $estadoPagoParcial = 'verde';
@@ -1893,8 +1858,9 @@ class PuntoVentaController extends Controller
                 $totalTexto = number_format($totalVenta, 2, '.', '');
             }
 
-            $pendingCreditNote = $sale->creditNotes()
-                ->where('status', 'pending')
+            if ($balance['credited_cents'] > 0 && !empty($balance['reconciliation_required'])) { $totalTexto = 'Requiere conciliación de devolución histórica'; }
+
+            $pendingCreditNote = app(\App\Services\Sales\PartialCreditSettlement::class)->pending($sale)
                 ->latest()
                 ->first();
 
@@ -2075,14 +2041,19 @@ class PuntoVentaController extends Controller
                 "total" => $totalTexto,
                 "total_abonado" => $totalAbonado,
                 "estado_pago_parcial" => $estadoPagoParcial,
+                'invoice_info' => app(\App\Services\Sales\ExistingSaleInvoice::class)->flags($sale),
+                'total_credit_note_info' => app(\App\Services\Sales\TotalCreditNoteService::class)->flags($sale),
 
                 "annulment_status" => $sale->annulment_status,
+                "internal_reversal_status" => $sale->internal_reversal_status,
                 "annulment_type" => $sale->annulment_type,
                 "estado_anulacion" => $estadoAnulacion,
                 "estado_comprobante" => $estadoComprobante,
-                "can_annul" => (int) $sale->state_annulled !== 1,
+                "can_annul" => (int) $sale->state_annulled !== 1 && !app(\App\Services\Sales\PartialCreditSettlement::class)->hasPartialReturn($sale),
                 /*"can_generate_credit_note" => $sale->annulment_status === 'requires_credit_note',*/
-                "can_generate_credit_note" => $sale->annulment_status === 'requires_credit_note' && !$hasAnyCreditNote,
+                "can_generate_credit_note" => !$hasAnyCreditNote && !$sale->free_sale && !$sale->state_annulled
+                    && $sale->hasElectronicDocument() && $sale->serie_sunat && $sale->numero && !$sale->requiresEmissionReview()
+                    && ($sale->annulment_type === 'credit_note' || !in_array($sale->annulment_status,['pending','waiting_sunat_process','unknown'],true)),
                 "can_retry_annulment" => in_array($sale->annulment_status, ['waiting_sunat_process', 'rejected']),
 
                 "is_annulled" => (int) $sale->state_annulled,
@@ -2104,6 +2075,7 @@ class PuntoVentaController extends Controller
 
                 'has_pending_credit_note' => !is_null($pendingCreditNote),
                 'pending_credit_note_id' => optional($pendingCreditNote)->id,
+                'pending_credit_note_type' => optional($pendingCreditNote)->credit_note_type,
 
                 /*"has_rejected_credit_note" => !is_null($rejectedCreditNote),
                 "rejected_credit_note_message" => optional($rejectedCreditNote)->sunat_message,*/
@@ -2614,202 +2586,84 @@ class PuntoVentaController extends Controller
         }
     }
 
-    public function anularOrder($id)
+    public function annulmentPreview($id)
     {
-        DB::beginTransaction();
-
-        try {
-            $sale = Sale::with([
-                'details',
-            ])->lockForUpdate()->find($id);
-
-            if (!$sale) {
-                return response()->json([
-                    'message' => 'Orden no encontrada'
-                ], 422);
-            }
-
-            if ($sale->requiresEmissionReview()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'sale_id' =>
-                        'La emisión requiere conciliación antes de emitir, '
-                        . 'anular o descartar el comprobante.',
-                ]);
-            }
-
-            if ((int) $sale->state_annulled === 1) {
-                return response()->json([
-                    'message' => 'La orden ya ha sido anulada previamente'
-                ], 422);
-            }
-
-            if (in_array($sale->annulment_status, ['pending', 'waiting_sunat_process'], true)) {
-                return response()->json([
-                    'message' => 'Esta venta ya tiene una anulación pendiente. Consulte el estado de la anulación antes de intentar nuevamente.',
-                    'annulment_status' => $sale->annulment_status,
-                    'pending_annulment' => true,
-                ], 422);
-            }
-
-            /*
-             * ============================================================
-             * 1) VENTA SIN COMPROBANTE ELECTRÓNICO
-             * ============================================================
-             */
-            if ($sale->hasNoElectronicDocument()) {
-
-                $sale->annulment_requested_by = auth()->id();
-                $sale->annulment_requested_at = now();
-                $sale->save();
-
-                $this->reverseSaleInternally(
-                    $sale,
-                    'Anulación interna de venta sin comprobante electrónico',
-                    true
-                );
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'Orden anulada con éxito',
-                    'annulment_status' => 'accepted',
-                    'pending_annulment' => false,
-                    'internal_reversal_status' => 'reversed',
-                ], 200);
-            }
-
-            /*
-             * ============================================================
-             * 2) COMPROBANTE CON ERROR SUNAT
-             * ============================================================
-             */
-            if ($sale->hasSunatError()) {
-
-                $sale->annulment_requested_by = auth()->id();
-                $sale->annulment_requested_at = now();
-                $sale->save();
-
-                $this->reverseSaleInternally(
-                    $sale,
-                    'Anulación interna de venta con comprobante en Error SUNAT',
-                    true
-                );
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'Orden anulada internamente. El comprobante tenía estado Error SUNAT.',
-                    'annulment_status' => 'accepted',
-                    'pending_annulment' => false,
-                    'internal_reversal_status' => 'reversed',
-                ], 200);
-            }
-
-            /*
-             * ============================================================
-             * 3) BOLETA EMITIDA HOY
-             * ============================================================
-             */
-            if ($sale->isReceiptFromToday()) {
-                $sale->annulment_status = 'waiting_sunat_process';
-                $sale->annulment_type = 'nubefact_baja';
-                $sale->annulment_reason = 'Boleta emitida hoy. Esperando procesamiento de Nubefact/SUNAT.';
-                $sale->annulment_requested_at = now();
-                $sale->annulment_requested_by = auth()->id();
-                $sale->save();
-
-                $this->reverseSaleInternally(
-                    $sale,
-                    'Anulación interna de venta sin comprobante electrónico',
-                    false
-                );
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'La boleta fue emitida hoy. Nubefact la procesa al día siguiente. Intente anularla mañana o genere una nota de crédito cuando corresponda.',
-                    'annulment_status' => 'waiting_sunat_process',
-                    'waiting_sunat_process' => true,
-                    'pending_annulment' => true,
-                ], 422);
-            }
-
-            /*
-             * ============================================================
-             * 4) COMPROBANTE FUERA DE PLAZO DE BAJA
-             * ============================================================
-             */
-            if (!$sale->isWithinAnnulmentDeadline()) {
-                $sale->annulment_status = 'requires_credit_note';
-                $sale->annulment_type = 'credit_note';
-                $sale->annulment_reason = 'Comprobante fuera de plazo para baja/anulación. Requiere Nota de Crédito.';
-                $sale->annulment_requested_at = now();
-                $sale->annulment_requested_by = auth()->id();
-                $sale->save();
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'El comprobante ya no puede anularse por baja. Debe generar una Nota de Crédito.',
-                    'annulment_status' => 'requires_credit_note',
-                    'requires_credit_note' => true,
-                    'pending_annulment' => false,
-                ], 422);
-            }
-
-            /*
-             * ============================================================
-             * 5) COMPROBANTE VÁLIDO DENTRO DE PLAZO
-             * ============================================================
-             */
-            $motivo = 'Anulación de comprobante solicitada por el usuario';
-
-            $sale->annulment_status = 'pending';
-            $sale->annulment_type = 'nubefact_baja';
-            $sale->annulment_reason = $motivo;
-            $sale->annulment_requested_at = now();
-            $sale->annulment_requested_by = auth()->id();
-            $sale->save();
-
-            $result = $this->anularComprobanteNubefact($sale, $motivo);
-
-            $this->persistNubefactAnnulmentResult($sale, $result, $motivo);
-
-            $sale->refresh();
-
-            /*
-             * Reversión operativa inmediata:
-             * aunque SUNAT quede pendiente, liberamos stock/caja.
-             * state_annulled queda en 0 hasta confirmación SUNAT.
-             */
-            if ($sale->internal_reversal_status !== 'reversed') {
-                $this->reverseSaleInternally(
-                    $sale,
-                    'Anulación enviada a Nubefact. Reversión interna aplicada.',
-                    false
-                );
-
-                $sale->refresh();
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'La anulación fue enviada a Nubefact y la reversión operativa fue aplicada. La confirmación SUNAT puede quedar pendiente.',
-                'annulment_status' => $sale->annulment_status,
-                'pending_annulment' => in_array($sale->annulment_status, ['pending', 'waiting_sunat_process'], true),
-                'internal_reversal_status' => $sale->internal_reversal_status,
-            ], 200);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-            ], 422);
+        app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('annul_puntoVenta');
+        try { return response()->json(app(\App\Services\Sales\SaleAnnulmentService::class)->preview($id)); }
+        catch (\DomainException $e) { return response()->json(['message'=>$e->getMessage()],422); }
+        catch (\Throwable $e) {
+            $reference=bin2hex(random_bytes(12));
+            \Illuminate\Support\Facades\Log::warning('Sale annulment preview needs review',['sale_id'=>$id,'reference'=>$reference,'exception'=>get_class($e)]);
+            return response()->json(['message'=>'No se pudo preparar la anulación. Referencia: '.$reference,'diagnostic_reference'=>$reference],422);
         }
+    }
+
+    public function anularOrder(Request $request, $id)
+    {
+        return $this->runSaleAnnulment($request, $id, false);
+    }
+
+    private function runSaleAnnulment(Request $request, $id, bool $consult)
+    {
+        $data=$request->validate(['financial_token'=>'nullable|string|size:64','refund_cash_box_id'=>'nullable|integer|min:1','refund_subtype_id'=>'nullable|integer|min:1']);
+        // Authorization is checked before the safe-error boundary as well as by the route guard.
+        app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('annul_puntoVenta');
+        try {
+            return response()->json(app(\App\Services\Sales\SaleAnnulmentService::class)->execute($id,$data,$consult,function($sale,$result){$this->saveAnnulmentFiles($sale,$result);}));
+        } catch (\DomainException $e) { return response()->json(['message'=>$e->getMessage()],422); }
+        catch (\Illuminate\Validation\ValidationException $e) { throw $e; }
+        catch (\Throwable $e) {
+            $reference=bin2hex(random_bytes(12));
+            \Illuminate\Support\Facades\Log::warning('Sale annulment needs review',['sale_id'=>$id,'reference'=>$reference,'exception'=>get_class($e)]);
+            return response()->json(['message'=>'No se confirmó el resultado. Recargue y consulte la anulación antes de intentar otra operación. Referencia: '.$reference,'diagnostic_reference'=>$reference],422);
+        }
+    }
+
+    private function saveAnnulmentFiles(Sale $sale, array $result): void
+    {
+        $updates=[];$failed=false;
+        foreach(['pdf'=>'pdfs','xml'=>'xmls','cdr'=>'cdrs']as$type=>$folder){
+            $url=$result['enlace_del_'.$type]??null;if(!$url)continue;
+            $name='ANULACION_ORD'.$sale->id.'.'.($type==='cdr'?'cdr':$type);
+            $dir=public_path('comprobantes/anulaciones/'.$folder);
+            try { if(!is_dir($dir)&&!mkdir($dir,0755,true)&&!is_dir($dir))throw new \RuntimeException();
+                $parts=parse_url($url);$host=strtolower($parts['host']??'');
+                if(($parts['scheme']??'')!=='https'||isset($parts['user'])||isset($parts['pass'])||isset($parts['port'])&&$parts['port']!==443||!($host==='nubefact.com'||substr($host,-13)==='.nubefact.com'))throw new \RuntimeException('Untrusted file host');
+                $response=\Illuminate\Support\Facades\Http::withOptions(['allow_redirects'=>false])->timeout(60)->get($url);$bytes=$response->body();
+                if(!$response->successful()||!$this->contenidoNubefactEsValido($bytes,$type==='cdr'?'zip':$type,$response->header('Content-Type')))throw new \RuntimeException('Invalid file');
+                $temp=$dir.'/'.$name.'.'.bin2hex(random_bytes(6)).'.tmp';
+                if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);throw new \RuntimeException('File write failed');}
+                if(!rename($temp,$dir.'/'.$name)){@unlink($temp);throw new \RuntimeException('File replacement failed');}
+                $updates['annulment_'.$type.'_path']=$name;
+            } catch (\Throwable $ignored) { $failed=true; }
+        }
+        if($updates)Sale::where('tenant_id',$sale->tenant_id)->where('company_id',$sale->company_id)->where('branch_id',$sale->branch_id)->whereKey($sale->id)->update($updates);
+        if($failed)throw new \RuntimeException('Annulment files pending');
+    }
+
+    private function saveTotalCreditFiles(CreditNote $note, array $result): void
+    {
+        $sale=app(\App\Services\Sales\SaleListAccess::class)->sale($note->sale_id);
+        $updates=[];$failed=false;
+        foreach(['pdf'=>'pdfs','xml'=>'xmls','cdr'=>'cdrs']as$type=>$folder){
+            $url=$result['enlace_del_'.$type]??null;if(!$url)continue;
+            $name='NC_'.$note->id.'.'.($type==='cdr'?'zip':$type);
+            $dir=public_path('comprobantes/notas_credito/'.$folder);
+            try { if(!is_dir($dir)&&!mkdir($dir,0755,true)&&!is_dir($dir))throw new \RuntimeException();
+                $parts=parse_url($url);$host=strtolower($parts['host']??'');
+                if(($parts['scheme']??'')!=='https'||isset($parts['user'])||isset($parts['pass'])||isset($parts['port'])&&$parts['port']!==443||!($host==='nubefact.com'||substr($host,-13)==='.nubefact.com'))throw new \RuntimeException('Untrusted file host');
+                $response=\Illuminate\Support\Facades\Http::withOptions(['allow_redirects'=>false])->timeout(60)->get($url);$bytes=$response->body();
+                if(!$response->successful()||!$this->contenidoNubefactEsValido($bytes,$type==='cdr'?'zip':$type,$response->header('Content-Type')))throw new \RuntimeException('Invalid file');
+                $temp=$dir.'/'.$name.'.'.bin2hex(random_bytes(6)).'.tmp';
+                if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);throw new \RuntimeException('File write failed');}
+                if(!rename($temp,$dir.'/'.$name)){@unlink($temp);throw new \RuntimeException('File replacement failed');}
+                $updates[$type.'_path']=$name;
+            } catch (\Throwable $ignored) { $failed=true; }
+        }
+        if($updates)CreditNote::where('sale_id',$sale->id)->whereKey($note->id)->update($updates);
+        if($failed)throw new \RuntimeException('Annulment files pending');
     }
 
     private function reverseSaleInternallyO(
@@ -3163,6 +3017,9 @@ class PuntoVentaController extends Controller
          * Debemos detectarlo antes de eliminar los OutputDetail,
          * porque después ya no tendremos esa información operativa.
          */
+        if ($sale->creditNotes()->where('credit_note_type', 'partial')->where(function ($q) {
+            $q->whereIn('status', ['pending', 'accepted'])->orWhere('internal_reversal_status', 'reversed');
+        })->exists()) { throw new \DomainException('Esta venta tiene devoluciones parciales. Devuelva únicamente las cantidades restantes mediante notas parciales.'); }
         $refundService = app(\App\Services\Sales\DeferredSaleRefund::class);
         $deferredRefunds = $refundService->plan($sale);
 
@@ -3499,7 +3356,19 @@ class PuntoVentaController extends Controller
         $sale->save();
     }
 
-    private function reverseCreditNoteStockPartially(CreditNote $creditNote): void
+    private function assertPartialCreditLot($detail, $output, $lot): void
+    {
+        foreach (['stock_item_id', 'warehouse_id', 'location_id'] as $field) {
+            if (!$output->$field || (int) $lot->$field !== (int) $output->$field) {
+                throw new \DomainException('El lote no coincide con el producto y la ubicación de la salida original.');
+            }
+        }
+        if ((int) $detail->stock_item_id !== (int) $lot->stock_item_id) {
+            throw new \DomainException('El lote no corresponde al producto vendido.');
+        }
+    }
+
+    private function reverseCreditNoteStockPartially(CreditNote $creditNote, bool $preflight = false): void
     {
         if (
             $creditNote->internal_reversal_status === 'reversed'
@@ -3513,12 +3382,16 @@ class PuntoVentaController extends Controller
         ]);
 
         $inventoryKeysToSync = [];
+        $sale = $creditNote->sale;
+        $returnLedger = app(\App\Services\Inventory\CreditNoteReturnLedger::class);
+        $returnDate = now();
+
 
         foreach ($creditNote->details as $creditNoteDetail) {
             $saleDetail = $creditNoteDetail->saleDetail;
 
-            if (!$saleDetail) {
-                continue;
+            if (!$saleDetail || (int) $saleDetail->sale_id !== (int) $sale->id || (int) $saleDetail->tenant_id !== (int) $sale->tenant_id || (int) $saleDetail->company_id !== (int) $sale->company_id) {
+                throw new \DomainException('No se identificó un producto de esta venta y empresa.');
             }
 
             /*
@@ -3531,7 +3404,7 @@ class PuntoVentaController extends Controller
              */
             if ($creditNoteDetail->items->isNotEmpty()) {
                 foreach ($creditNoteDetail->items as $selectedItem) {
-                    $outputDetail = OutputDetail::where(
+                    $outputDetail = OutputDetail::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                         'id',
                         $selectedItem->output_detail_id
                     )
@@ -3565,9 +3438,10 @@ class PuntoVentaController extends Controller
                     $stockLotId =
                         $selectedItem->stock_lot_id
                             ?: $outputDetail->stock_lot_id;
+                    if (!$stockLotId || (int) $stockLotId !== (int) $outputDetail->stock_lot_id) { throw new \DomainException('El item no conserva su lote original.'); }
 
                     if (!empty($stockLotId)) {
-                        $lot = StockLot::where(
+                        $lot = StockLot::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                             'id',
                             $stockLotId
                         )
@@ -3582,11 +3456,17 @@ class PuntoVentaController extends Controller
                             );
                         }
 
-                        $lot->qty_on_hand =
-                            (float) $lot->qty_on_hand
-                            + $qtyToApply;
+                        $this->assertPartialCreditLot($saleDetail, $outputDetail, $lot);
+                        $ledgerRow = $returnLedger->row($creditNote, $creditNoteDetail, $outputDetail, $lot, $qtyToApply, $returnDate);
+                        if (!$preflight) { $returnLedger->record($ledgerRow, $creditNote); }
 
+                        $expectedLotQuantity = bcadd((string) $lot->qty_on_hand, (string) $qtyToApply, 6);
+                        $lot->qty_on_hand = $expectedLotQuantity;
                         $lot->save();
+                        $lot->refresh();
+                        if (bccomp((string) $lot->qty_on_hand, $expectedLotQuantity, 6) !== 0) {
+                            throw new \DomainException('La cantidad devuelta supera la precisión física del lote. Revise las unidades antes de emitir la nota.');
+                        }
 
                         $inventoryKeysToSync[] = [
                             'stock_item_id' =>
@@ -3598,7 +3478,7 @@ class PuntoVentaController extends Controller
                         ];
                     }
 
-                    $item = Item::where(
+                    $item = Item::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                         'id',
                         $selectedItem->item_id
                     )
@@ -3638,19 +3518,19 @@ class PuntoVentaController extends Controller
                 continue;
             }
 
-            $outputDetails = OutputDetail::where(
+            $outputDetails = OutputDetail::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                 'sale_detail_id',
                 $saleDetail->id
             )
-                ->whereNull('item_id')
-                ->lockForUpdate()
+                ->where(function ($q) { $q->whereNull('item_id')->orWhere('item_id', 0); })
+                ->orderBy('id')->lockForUpdate()
                 ->get();
 
             /*
              * Compatibilidad por si existen salidas antiguas con item_id = 0.
              */
             if ($outputDetails->isEmpty()) {
-                $outputDetails = OutputDetail::where(
+                $outputDetails = OutputDetail::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                     'sale_detail_id',
                     $saleDetail->id
                 )
@@ -3662,6 +3542,14 @@ class PuntoVentaController extends Controller
                     ->get();
             }
 
+            $previous = \App\CreditNoteDetail::where('sale_detail_id', $saleDetail->id)
+                ->whereHas('creditNote', function ($q) use ($creditNote) {
+                    $q->where('sale_id', $creditNote->sale_id)->where('id', '!=', $creditNote->id)->where('internal_reversal_status', 'reversed');
+                })->get();
+            foreach ($previous as $prior) {
+                if ((int) $prior->creditNote->settlement_version !== 1) { throw new \DomainException('Las devoluciones históricas de este producto requieren conciliar sus lotes.'); }
+            }
+            $skipReturned = (float) $previous->sum('quantity');
             foreach ($outputDetails as $outputDetail) {
                 if ($qtyToReturn <= 0) {
                     break;
@@ -3671,30 +3559,39 @@ class PuntoVentaController extends Controller
                     $outputDetail->percentage ?? 0
                 );
 
+                if ($qtyFromOutput <= 0 && $outputDetails->count() > 1) { throw new \DomainException('No se conserva la distribución de cantidades entre los lotes originales. Requiere conciliación.'); }
                 if ($qtyFromOutput <= 0) {
                     $qtyFromOutput =
                         (float) $saleDetail->quantity;
                 }
 
-                $qtyToApply = min(
-                    $qtyToReturn,
-                    $qtyFromOutput
-                );
+                $skip = min($skipReturned, $qtyFromOutput);
+                $skipReturned -= $skip;
+                $qtyToApply = min($qtyToReturn, $qtyFromOutput - $skip);
+                if ($qtyToApply <= 0) { continue; }
+                if (!$outputDetail->stock_lot_id) { throw new \DomainException('La salida no conserva el lote de origen. Requiere conciliación.'); }
 
                 if (!empty($outputDetail->stock_lot_id)) {
-                    $lot = StockLot::where(
+                    $lot = StockLot::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)->where(
                         'id',
                         $outputDetail->stock_lot_id
                     )
                         ->lockForUpdate()
                         ->first();
 
+                    if (!$lot) { throw new \DomainException('El lote original no pertenece a la empresa de la venta.'); }
                     if ($lot) {
-                        $lot->qty_on_hand =
-                            (float) $lot->qty_on_hand
-                            + $qtyToApply;
+                        $this->assertPartialCreditLot($saleDetail, $outputDetail, $lot);
+                        $ledgerRow = $returnLedger->row($creditNote, $creditNoteDetail, $outputDetail, $lot, $qtyToApply, $returnDate);
+                        if (!$preflight) { $returnLedger->record($ledgerRow, $creditNote); }
 
+                        $expectedLotQuantity = bcadd((string) $lot->qty_on_hand, (string) $qtyToApply, 6);
+                        $lot->qty_on_hand = $expectedLotQuantity;
                         $lot->save();
+                        $lot->refresh();
+                        if (bccomp((string) $lot->qty_on_hand, $expectedLotQuantity, 6) !== 0) {
+                            throw new \DomainException('La cantidad devuelta supera la precisión física del lote. Revise las unidades antes de emitir la nota.');
+                        }
 
                         $inventoryKeysToSync[] = [
                             'stock_item_id' =>
@@ -3742,471 +3639,86 @@ class PuntoVentaController extends Controller
                 $key['warehouse_id'],
                 $key['location_id']
             );
+            $lotQuantity = StockLot::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)
+                ->where('stock_item_id', $key['stock_item_id'])->where('warehouse_id', $key['warehouse_id'])
+                ->where('location_id', $key['location_id'])->sum('qty_on_hand');
+            $levelQuantity = InventoryLevel::where('tenant_id', $sale->tenant_id)->where('company_id', $sale->company_id)
+                ->where('stock_item_id', $key['stock_item_id'])->where('warehouse_id', $key['warehouse_id'])
+                ->where('location_id', $key['location_id'])->sum('qty_on_hand');
+            if (bccomp(number_format((float) $lotQuantity, 6, '.', ''), number_format((float) $levelQuantity, 6, '.', ''), 6) !== 0) {
+                throw new \DomainException('La precisión del nivel físico no permite registrar esta devolución sin diferencias.');
+            }
+
         }
+        if (!$preflight) {
+            $creditNote->stock_return_version = 1;
+            $creditNote->save();
+        }
+
     }
 
-    public function consultarAnulacion($id)
+    public function consultarAnulacion(Request $request, $id)
     {
-        DB::beginTransaction();
-
-        try {
-
-            $sale = Sale::with([
-                'details',
-            ])->lockForUpdate()->find($id);
-
-            if (!$sale) {
-                return response()->json([
-                    'message' => 'Venta no encontrada.',
-                ], 422);
-            }
-
-            if ((int) $sale->state_annulled === 1) {
-                return response()->json([
-                    'message' => 'La venta ya se encuentra anulada internamente.',
-                    'annulment_status' => 'accepted',
-                ], 200);
-            }
-
-            if (!in_array($sale->annulment_status, [
-                'pending',
-                'waiting_sunat_process'
-            ], true)) {
-
-                return response()->json([
-                    'message' => 'Esta venta no tiene una anulación pendiente para consultar.',
-                    'annulment_status' => $sale->annulment_status,
-                ], 422);
-            }
-
-            /*
-             * ============================================================
-             * BOLETA EMITIDA HOY
-             * waiting_sunat_process
-             * ============================================================
-             */
-            if ($sale->annulment_status === 'waiting_sunat_process') {
-
-                if ($sale->isReceiptFromToday()) {
-
-                    DB::commit();
-
-                    return response()->json([
-                        'message' => 'La boleta aún está dentro del día de emisión. Vuelva a consultar mañana.',
-                        'annulment_status' => 'waiting_sunat_process',
-                    ], 200);
-                }
-
-                if (!$sale->isWithinAnnulmentDeadline()) {
-
-                    $sale->annulment_status = 'requires_credit_note';
-                    $sale->annulment_type = 'credit_note';
-                    $sale->annulment_reason = 'Boleta fuera de plazo para baja. Requiere Nota de Crédito.';
-
-                    if (empty($sale->annulment_requested_by)) {
-                        $sale->annulment_requested_by = auth()->id();
-                    }
-
-                    $sale->save();
-
-                    DB::commit();
-
-                    return response()->json([
-                        'message' => 'La boleta ya no puede anularse por baja. Debe generar una Nota de Crédito.',
-                        'annulment_status' => 'requires_credit_note',
-                        'requires_credit_note' => true,
-                    ], 422);
-                }
-
-                $motivo = $sale->annulment_reason
-                    ?: 'Anulación de comprobante solicitada por el usuario';
-
-                $sale->annulment_status = 'pending';
-                $sale->annulment_type = 'nubefact_baja';
-                $sale->annulment_requested_at = now();
-
-                if (empty($sale->annulment_requested_by)) {
-                    $sale->annulment_requested_by = auth()->id();
-                }
-
-                $sale->save();
-
-                $result = $this->anularComprobanteNubefact(
-                    $sale,
-                    $motivo
-                );
-
-                $this->persistNubefactAnnulmentResult(
-                    $sale,
-                    $result,
-                    $motivo
-                );
-
-                $sale->refresh();
-
-                /*
-                 * Reversión operativa inmediata:
-                 * si ya se pudo enviar la baja a Nubefact, liberamos stock/caja
-                 * aunque SUNAT todavía quede pendiente.
-                 */
-                if ($sale->internal_reversal_status !== 'reversed') {
-                    $this->reverseSaleInternally(
-                        $sale,
-                        'Anulación enviada a Nubefact. Reversión interna aplicada.',
-                        false
-                    );
-
-                    $sale->refresh();
-                }
-
-                if ($sale->annulment_status === 'accepted') {
-
-                    $sale->state_annulled = 1;
-                    $sale->annulment_status = 'accepted';
-                    $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
-                    $sale->annulled_by = $sale->annulled_by ?: auth()->id();
-                    $sale->save();
-
-                    DB::commit();
-
-                    return response()->json([
-                        'message' => 'La anulación fue aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
-                        'annulment_status' => 'accepted',
-                    ], 200);
-                }
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'La solicitud de anulación fue enviada a Nubefact. Stock y caja fueron revertidos internamente. Pendiente de aceptación SUNAT.',
-                    'annulment_status' => $sale->annulment_status,
-                    'pending_annulment' => true,
-                    'internal_reversal_status' => 'reversed',
-                ], 200);
-            }
-
-            /*
-             * ============================================================
-             * ANULACIÓN YA ENVIADA A NUBEFACT
-             * pending
-             * ============================================================
-             */
-            $motivo = $sale->annulment_reason
-                ?: 'Consulta de anulación en Nubefact';
-
-            $result = $this->consultarAnulacionNubefact($sale);
-
-            $this->persistNubefactAnnulmentResult(
-                $sale,
-                $result,
-                $motivo
-            );
-
-            $sale->refresh();
-
-            if ($sale->annulment_status === 'accepted') {
-
-                if ($sale->internal_reversal_status !== 'reversed') {
-                    $this->reverseSaleInternally(
-                        $sale,
-                        'Anulación aceptada por SUNAT/Nubefact',
-                        true
-                    );
-
-                    $sale->refresh();
-                }
-
-                $sale->state_annulled = 1;
-                $sale->annulment_status = 'accepted';
-                $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
-                $sale->annulled_by = $sale->annulled_by ?: auth()->id();
-                $sale->save();
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'La anulación fue aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
-                    'annulment_status' => 'accepted',
-                ], 200);
-            }
-
-            if ($sale->annulment_status === 'rejected') {
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => $sale->annulment_error
-                        ?: 'La anulación fue rechazada por SUNAT.',
-                    'annulment_status' => 'rejected',
-                ], 422);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'La anulación todavía está pendiente de aceptación por SUNAT.',
-                'annulment_status' => 'pending',
-            ], 200);
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 422);
-        }
+        return $this->runSaleAnnulment($request, $id, true);
     }
 
-    public function generarNotaCreditoTotal($id)
+    public function totalCreditPreview($id)
     {
-        DB::beginTransaction();
+        app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('annul_puntoVenta');
+        try { return response()->json(app(\App\Services\Sales\TotalCreditNoteService::class)->preview($id)); }
+        catch (\Illuminate\Validation\ValidationException $e) { throw $e; }
+        catch (\DomainException $e) { return response()->json(['message'=>$e->getMessage()],422); }
+        catch (\Throwable $e) { return $this->totalCreditError($id,$e); }
+    }
 
+    public function generarNotaCreditoTotal(Request $request, $id)
+    {
+        return $this->runTotalCreditNote($request,$id,false);
+    }
+
+    private function runTotalCreditNote(Request $request, $id, bool $consult)
+    {
+        $data=$request->validate(['financial_token'=>'nullable|string|size:64','refund_cash_box_id'=>'nullable|integer|min:1',
+            'refund_subtype_id'=>'nullable|integer|min:1','total_request_key'=>'nullable|string|max:64|regex:/^[A-Za-z0-9_-]+$/D']);
+        app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('annul_puntoVenta');
         try {
-            $sale = Sale::with([
-                'details.material',
-                'details.stockItem',
-            ])
-                ->lockForUpdate()
-                ->find($id);
+            return response()->json(app(\App\Services\Sales\TotalCreditNoteService::class)->execute($id,$data,$consult,
+                function($note,$result){$this->saveTotalCreditFiles($note,$result);}));
+        } catch (\DomainException $e) { return response()->json(['message'=>$e->getMessage()],422); }
+        catch (\Illuminate\Validation\ValidationException $e) { throw $e; }
+        catch (\Throwable $e) { return $this->totalCreditError($id,$e); }
+    }
 
-            if (!$sale) {
-                return response()->json([
-                    'message' => 'Venta no encontrada.'
-                ], 422);
-            }
-
-            if ((int) $sale->state_annulled === 1) {
-                return response()->json([
-                    'message' => 'La venta ya está anulada.'
-                ], 422);
-            }
-
-            if (!$sale->hasElectronicDocument()) {
-                return response()->json([
-                    'message' => 'La venta no tiene comprobante electrónico válido.'
-                ], 422);
-            }
-
-            $existing = CreditNote::query()
-                ->where('sale_id', $sale->id)
-                ->whereIn(
-                    'status',
-                    [
-                        'pending',
-                        'accepted',
-                        'rejected',
-                    ]
-                )
-                ->latest('id')
-                ->lockForUpdate()
-                ->first();
-
-            if ($existing) {
-                $statusLabels = [
-                    'pending' => 'pendiente',
-                    'accepted' => 'aceptada',
-                    'rejected' => 'rechazada',
-                ];
-
-                $statusLabel =
-                    $statusLabels[$existing->status]
-                    ?? $existing->status;
-
-                $message =
-                    'Esta venta ya tiene una Nota de Crédito ' .
-                    $statusLabel .
-                    ' registrada con el código interno #' .
-                    $existing->id .
-                    '.';
-
-                if (
-                    $existing->status === 'rejected' &&
-                    !empty($existing->sunat_responsecode)
-                ) {
-                    $message .=
-                        ' Código SUNAT: ' .
-                        $existing->sunat_responsecode .
-                        '.';
-                }
-
-                if (
-                    $existing->status === 'rejected' &&
-                    !empty($existing->sunat_message)
-                ) {
-                    $message .=
-                        ' Motivo: ' .
-                        $existing->sunat_message;
-                }
-
-                return response()->json([
-                    'message' => $message,
-
-                    'credit_note_id' =>
-                        $existing->id,
-
-                    'credit_note_status' =>
-                        $existing->status,
-
-                    'sunat_responsecode' =>
-                        $existing->sunat_responsecode,
-
-                    'sunat_message' =>
-                        $existing->sunat_message,
-                ], 422);
-            }
-
-            $creditNote = CreditNote::create([
-                'sale_id' => $sale->id,
-                'type_document' => '07',
-                'reason_code' => '01',
-                'reason_description' => 'Anulación de la operación',
-                'op_gravada' => $sale->op_gravada,
-                'op_exonerada' => $sale->op_exonerada,
-                'op_inafecta' => $sale->op_inafecta,
-                'igv' => $sale->igv,
-                'total_descuentos' => $sale->total_descuentos,
-                'importe_total' => $sale->importe_total,
-                'credit_note_type' => 'total',
-                'generation_key' => (string) Str::uuid(),
-                'status' => 'pending',
-                'created_by' => auth()->id(),
-            ]);
-
-            /*foreach ($sale->details as $detail) {
-                $quantity = (float) $detail->quantity;
-                $price = (float) $detail->price;
-                $valorUnitario = (float) $detail->valor_unitario;
-                $total = (float) $detail->total;
-
-                $subtotal = $valorUnitario * $quantity;
-                $igv = $total - $subtotal;
-
-                CreditNoteDetail::create([
-                    'credit_note_id' => $creditNote->id,
-                    'sale_detail_id' => $detail->id,
-                    'description' => $detail->description ?? '',
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'valor_unitario' => $valorUnitario,
-                    'subtotal' => round($subtotal, 2),
-                    'igv' => round($igv, 2),
-                    'total' => round($total, 2),
-                ]);
-            }*/
-            foreach ($sale->details as $detail) {
-                $quantity = (float) $detail->quantity;
-                $price = (float) $detail->price;
-                $valorUnitario = (float) $detail->valor_unitario;
-                $total = (float) $detail->total;
-
-                $subtotal = $valorUnitario * $quantity;
-
-                /*
-                 * Venta Libre:
-                 * utilizar el IGV explícito guardado en SaleDetail.
-                 *
-                 * Venta normal:
-                 * conservar el cálculo histórico.
-                 */
-                if (
-                    (bool) $sale->free_sale &&
-                    !is_null($detail->tax_amount)
-                ) {
-                    $igv = (float) $detail->tax_amount;
-                } else {
-                    $igv = $total - $subtotal;
-                }
-
-                $description = trim(
-                    (string) $detail->description
-                );
-
-                if ($description === '') {
-                    $description =
-                        optional($detail->stockItem)->display_name
-                        ?? optional($detail->material)->full_name
-                        ?? 'Producto';
-                }
-
-                CreditNoteDetail::create([
-                    'credit_note_id' => $creditNote->id,
-                    'sale_detail_id' => $detail->id,
-
-                    'description' => $description,
-
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'valor_unitario' => $valorUnitario,
-
-                    'subtotal' => round($subtotal, 2),
-                    'igv' => round($igv, 2),
-                    'total' => round($total, 2),
-                ]);
-            }
-
-            $result = $this->generarNotaCreditoNubefact($sale, $creditNote);
-
-            $this->persistNubefactCreditNoteResult($creditNote, $result);
-
-            $creditNote->refresh();
-
-            /*
-             * Reversión operativa inmediata:
-             * aunque SUNAT quede pendiente, liberamos stock/caja.
-             * state_annulled queda en 0 hasta aceptación SUNAT.
-             */
-            $this->applyTotalCreditNoteReversal(
-                $sale,
-                $creditNote
-            );
-
-            $sale->refresh();
-            $creditNote->refresh();
-
-            if ($creditNote->status === 'accepted') {
-                $sale->state_annulled = 1;
-                $sale->annulment_status = 'accepted';
-                $sale->annulment_type = 'credit_note';
-                $sale->credit_note_status = 'total';
-                $sale->annulment_accepted_at = $sale->annulment_accepted_at ?: now();
-                $sale->annulled_by = $sale->annulled_by ?: auth()->id();
-                $sale->save();
-
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'Nota de Crédito aceptada por SUNAT. La venta fue marcada como anulada definitivamente.',
-                    'credit_note_status' => 'accepted',
-                    'credit_note_type' => 'total',
-                    'internal_reversal_status' => $creditNote->internal_reversal_status,
-                ], 200);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Nota de Crédito generada y enviada a Nubefact. La reversión operativa fue aplicada. Pendiente de aceptación SUNAT.',
-                'credit_note_status' => $creditNote->status,
-                'credit_note_type' => 'total',
-                'internal_reversal_status' => $creditNote->internal_reversal_status,
-            ], 200);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 422);
-        }
+    private function totalCreditError($id, \Throwable $error)
+    {
+        $reference=bin2hex(random_bytes(12));
+        \Illuminate\Support\Facades\Log::warning('Total credit note requires review',['sale_id'=>$id,'reference'=>$reference,'exception'=>get_class($error)]);
+        return response()->json(['message'=>'No se confirmó el resultado de la NC total. Consulte su estado antes de otra operación. Referencia: '.$reference,
+            'diagnostic_reference'=>$reference],422);
     }
 
     public function consultarNotaCredito($id)
     {
+        $scopedSale=app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        $latestNote=$scopedSale->creditNotes()->latest('id')->first();
+        if($latestNote&&$latestNote->credit_note_type==='total'){
+            return $this->runTotalCreditNote(app('request'),$id,true);
+        }
+
+        $scopedSale = app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        $newPartial = app(\App\Services\Sales\PartialCreditSettlement::class)->pending($scopedSale)
+            ->where('settlement_version', 1)->latest('id')->first();
+        if ($newPartial) { return $this->consultPartialCreditNote($newPartial); }
+        if (!$scopedSale->creditNotes()->where('status', 'pending')->exists()) {
+            $alreadyAppliedPartial = $scopedSale->creditNotes()->where('settlement_version', 1)
+                ->where('credit_note_type', 'partial')->where('status', 'accepted')
+                ->where('internal_reversal_status', 'reversed')->latest('id')->first();
+            if ($alreadyAppliedPartial) { return $this->completePartialCreditNote($alreadyAppliedPartial->id); }
+        }
+
+
         DB::beginTransaction();
 
         try {
@@ -4348,6 +3860,10 @@ class PuntoVentaController extends Controller
     public function getCreditNotePartialData($id)
     {
         try {
+            $scoped = app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+            $settlement = app(\App\Services\Sales\PartialCreditSettlement::class);
+            if ($settlement->pending($scoped)->exists()) { throw new \DomainException('Consulte primero la nota de crédito pendiente.'); }
+
             $sale = Sale::with([
                 'details.material',
                 'details.stockItem',
@@ -4366,6 +3882,9 @@ class PuntoVentaController extends Controller
                 ], 422);
             }
 
+            if (in_array($sale->annulment_status, ['pending', 'waiting_sunat_process', 'accepted'], true) || $sale->internal_reversal_status === 'reversed') {
+                throw new \DomainException('La venta tiene una anulación en curso o aplicada. No puede iniciar una devolución parcial.');
+            }
             if (!$sale->hasElectronicDocument()) {
                 return response()->json([
                     'message' => 'La venta no tiene comprobante electrónico válido.',
@@ -4521,7 +4040,7 @@ class PuntoVentaController extends Controller
                     continue;
                 }
 
-                $price = (float) $detail->price;
+                $price = $this->partialCreditUnitPrice($detail);
                 $valorUnitario = (float) $detail->valor_unitario;
 
                 $items[] = [
@@ -4531,6 +4050,8 @@ class PuntoVentaController extends Controller
                     'credited_quantity' => (float) $creditedQty,
                     'available_quantity' => $availableQty,
                     'price' => $price,
+                    'original_total_cents' => $settlement::cents((float) $detail->total - (float) $detail->discount),
+                    'credited_total_cents' => $settlement::cents(CreditNoteDetail::where('sale_detail_id', $detail->id)->whereHas('creditNote', function ($q) { $q->whereIn('status', ['pending', 'accepted']); })->sum('total')),
                     'valor_unitario' => $valorUnitario,
                     'percentage_tax' => (float) $detail->percentage_tax,
                     'max_total' => round($availableQty * $price, 2),
@@ -4543,6 +4064,8 @@ class PuntoVentaController extends Controller
                 ];
             }
 
+            $financial = $settlement->snapshot($sale);
+            if (!empty($financial['reconciliation_required'])) { throw new \DomainException('Los cobros o devoluciones históricos de esta venta requieren conciliación antes de emitir la nota.'); }
             return response()->json([
                 'sale_id' => $sale->id,
                 'code' => 'VENTA - ' . $sale->id,
@@ -4552,19 +4075,33 @@ class PuntoVentaController extends Controller
                 'cliente' => $sale->nombre_cliente,
                 'total' => (float) $sale->importe_total,
                 'items' => $items,
+                'financial' => $financial,
+                'financial_token' => hash('sha256', json_encode($financial)),
+                'refund_channels' => $settlement->channels($sale),
+                'partial_request_key' => (string) \Illuminate\Support\Str::uuid(),
             ], 200);
 
         } catch (\Throwable $e) {
             return response()->json([
                 'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
             ], 422);
         }
     }
 
     public function generarNotaCreditoParcial(Request $request, $id)
     {
+        $durable = false;
+        $creditNote = null;
+        $request->validate([
+            'financial_token' => 'required|string|size:64',
+            'partial_request_key' => 'required|uuid', 'items' => 'required|array|min:1',
+            'items.*.sale_detail_id' => 'required|integer|min:1', 'items.*.quantity' => 'required|numeric|min:0.000001',
+            'items.*.selected_item_ids' => 'nullable|array', 'items.*.selected_item_ids.*' => 'integer|min:1',
+            'refund_cash_box_id' => 'nullable|integer|min:1', 'refund_subtype_id' => 'nullable|integer|min:1',
+        ]);
+        app(\App\Services\Sales\SaleListAccess::class)->sale($id);
+        $settlement = app(\App\Services\Sales\PartialCreditSettlement::class);
+        $payloadHash = hash('sha256', json_encode($request->only(['items', 'refund_cash_box_id', 'refund_subtype_id'])));
         DB::beginTransaction();
 
         try {
@@ -4576,29 +4113,43 @@ class PuntoVentaController extends Controller
                 ->find($id);
 
             if (!$sale) {
-                return response()->json([
-                    'message' => 'Venta no encontrada.',
-                ], 422);
+                throw new \DomainException('Venta no encontrada.');
             }
 
             if ((int) $sale->state_annulled === 1) {
-                return response()->json([
-                    'message' => 'La venta ya está anulada.',
-                ], 422);
+                throw new \DomainException('La venta ya está anulada.');
             }
 
+            if (in_array($sale->annulment_status, ['pending', 'waiting_sunat_process', 'accepted'], true) || $sale->internal_reversal_status === 'reversed') {
+                throw new \DomainException('La venta tiene una anulación en curso o aplicada. No puede iniciar una devolución parcial.');
+            }
             if (!$sale->hasElectronicDocument()) {
-                return response()->json([
-                    'message' => 'La venta no tiene comprobante electrónico válido.',
-                ], 422);
+                throw new \DomainException('La venta no tiene comprobante electrónico válido.');
             }
 
+            $existing = $sale->creditNotes()->where('partial_request_key', $request->partial_request_key)->first();
+            if ($existing) {
+                if (!hash_equals((string) $existing->partial_request_hash, $payloadHash)) {
+                    throw new \DomainException('Esta solicitud ya fue utilizada con otros datos. Recargue el listado.');
+                }
+                DB::commit();
+                return response()->json(['message' => 'La solicitud ya está registrada como NC #' . $existing->id . '. Consulte su estado; no se realizó otro envío.',
+                    'credit_note_status' => $existing->status], 200);
+            }
+            $financial = $settlement->snapshot($sale);
+            if (!hash_equals(hash('sha256', json_encode($financial)), $request->financial_token)) {
+                throw new \DomainException('Cambió la deuda o los cobros desde que abrió el modal. Ciérrelo y vuelva a abrirlo para revisar los importes.');
+            }
+            if ($settlement->pending($sale)->exists()) {
+                throw new \DomainException('Consulte la nota de crédito pendiente antes de iniciar otra devolución.');
+            }
+            if ($sale->creditNotes()->where('status', 'rejected')->where('internal_reversal_status', 'reversed')->exists()) {
+                throw new \DomainException('Existe una nota rechazada con movimientos aplicados. Requiere conciliación.');
+            }
             $itemsRequest = $request->input('items', []);
 
             if (empty($itemsRequest)) {
-                return response()->json([
-                    'message' => 'Debe enviar al menos un producto.',
-                ], 422);
+                throw new \DomainException('Debe enviar al menos un producto.');
             }
 
             /*
@@ -4616,7 +4167,7 @@ class PuntoVentaController extends Controller
                 $requestedSaleDetailIds->count() !==
                 $requestedSaleDetailIds->unique()->count()
             ) {
-                throw new \Exception(
+                throw new \DomainException(
                     'Existen productos repetidos en la solicitud de devolución.'
                 );
             }
@@ -4624,7 +4175,11 @@ class PuntoVentaController extends Controller
             $creditNote = CreditNote::create([
                 'sale_id' => $sale->id,
                 'type_document' => '07',
-                'reason_code' => $request->input('reason_code', '07'),
+                'reason_code' => '07',
+                'settlement_version' => 1,
+                'partial_request_key' => $request->partial_request_key,
+                'partial_request_hash' => $payloadHash,
+                'generation_key' => 'NC-PARCIAL-' . $sale->id . '-' . $request->partial_request_key,
                 'reason_description' => $request->input(
                     'reason_description',
                     'Devolución parcial'
@@ -4635,6 +4190,8 @@ class PuntoVentaController extends Controller
             ]);
 
             $totalGravada = 0;
+            $totalExonerada = 0;
+            $totalInafecta = 0;
             $totalIgv = 0;
             $total = 0;
             $validDetailsCreated = 0;
@@ -4644,7 +4201,11 @@ class PuntoVentaController extends Controller
                     ? (int) $itemReq['sale_detail_id']
                     : null;
 
+                if (!preg_match('/^\d{1,8}(?:\.\d{1,4})?$/D', (string) ($itemReq['quantity'] ?? ''))) {
+                    throw new \DomainException('La cantidad excede la precisión admitida para una devolución. Use hasta cuatro decimales.');
+                }
                 $qtyToCredit = (float) ($itemReq['quantity'] ?? 0);
+                if (!is_finite($qtyToCredit)) { throw new \DomainException('Cantidad inválida.'); }
 
                 $selectedItemIds = collect(
                     $itemReq['selected_item_ids'] ?? []
@@ -4667,11 +4228,14 @@ class PuntoVentaController extends Controller
                 );
 
                 if (!$detail) {
-                    throw new \Exception(
+                    throw new \DomainException(
                         'Detalle de venta inválido.'
                     );
                 }
 
+                if ((int) $detail->tenant_id !== (int) $sale->tenant_id || (int) $detail->company_id !== (int) $sale->company_id) {
+                    throw new \DomainException('El producto no pertenece al contexto de la venta.');
+                }
                 $soldQty = (float) $detail->quantity;
 
                 /*
@@ -4694,7 +4258,7 @@ class PuntoVentaController extends Controller
                     $soldQty - (float) $creditedQty;
 
                 if ($qtyToCredit > $availableQty) {
-                    throw new \Exception(
+                    throw new \DomainException(
                         'La cantidad a devolver supera la cantidad disponible para '
                         . ($detail->description ?: 'el detalle #' . $detail->id)
                         . '.'
@@ -4720,7 +4284,7 @@ class PuntoVentaController extends Controller
                     if (
                         $qtyToCredit != floor($qtyToCredit)
                     ) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'La cantidad de un producto itemeable debe ser entera.'
                         );
                     }
@@ -4729,7 +4293,7 @@ class PuntoVentaController extends Controller
                         $selectedItemIds->count() !==
                         $selectedItemIds->unique()->count()
                     ) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'La selección contiene items repetidos.'
                         );
                     }
@@ -4738,7 +4302,7 @@ class PuntoVentaController extends Controller
                         $selectedItemIds->count() !==
                         (int) $qtyToCredit
                     ) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'Debe seleccionar exactamente '
                             . (int) $qtyToCredit
                             . ' item(s) para '
@@ -4766,7 +4330,7 @@ class PuntoVentaController extends Controller
                         $selectedOutputDetails->count() !==
                         $selectedItemIds->count()
                     ) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'Uno o más items seleccionados no pertenecen '
                             . 'al producto o a la venta.'
                         );
@@ -4797,7 +4361,7 @@ class PuntoVentaController extends Controller
                         ->all();
 
                     if (!empty($alreadyUsedItemIds)) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'Uno o más items seleccionados ya están '
                             . 'incluidos en otra Nota de Crédito.'
                         );
@@ -4807,7 +4371,7 @@ class PuntoVentaController extends Controller
                      * Un producto normal no debe recibir IDs de items.
                      */
                     if ($selectedItemIds->isNotEmpty()) {
-                        throw new \Exception(
+                        throw new \DomainException(
                             'Se enviaron items para un producto no itemeable.'
                         );
                     }
@@ -4815,17 +4379,26 @@ class PuntoVentaController extends Controller
                     $selectedOutputDetails = collect();
                 }
 
-                $valorUnitario = (float) $detail->valor_unitario;
-                $price = (float) $detail->price;
+                $price = $this->partialCreditUnitPrice($detail);
+                $ratio = (float) $detail->price > 0 ? (float) $detail->valor_unitario / (float) $detail->price : 0;
+                $valorUnitario = $price * $ratio;
 
                 $lineSubtotal =
                     $valorUnitario * $qtyToCredit;
 
-                $lineTotal =
-                    $price * $qtyToCredit;
+                $creditedAmount = CreditNoteDetail::where('sale_detail_id', $detail->id)->whereHas('creditNote', function ($q) {
+                    $q->whereIn('status', ['pending', 'accepted']);
+                })->sum('total');
+                $lineCents = (int) round($settlement::cents((float) $detail->total - (float) $detail->discount)
+                    * ((float) $creditedQty + $qtyToCredit) / $soldQty) - $settlement::cents($creditedAmount);
+                if ($lineCents <= 0) { throw new \DomainException('La cantidad seleccionada no genera un importe monetario válido.'); }
+                $lineTotal = $lineCents / 100;
+                $price = $lineTotal / $qtyToCredit;
+                $valorUnitario = $price * $ratio;
+                $lineSubtotal = $valorUnitario * $qtyToCredit;
 
                 $lineIgv =
-                    $lineTotal - $lineSubtotal;
+                    round($lineTotal, 2) - round($lineSubtotal, 2);
 
                 $description = $detail->description ?: '';
 
@@ -4872,7 +4445,7 @@ class PuntoVentaController extends Controller
                             ->first();
 
                         if (!$item) {
-                            throw new \Exception(
+                            throw new \DomainException(
                                 'No se encontró uno de los items seleccionados.'
                             );
                         }
@@ -4891,20 +4464,25 @@ class PuntoVentaController extends Controller
                     }
                 }
 
-                $totalGravada += $lineSubtotal;
-                $totalIgv += $lineIgv;
-                $total += $lineTotal;
+                $taxCode = $this->partialCreditTaxCode($detail);
+                if ($taxCode === 1) { $totalGravada += round($lineSubtotal, 2); }
+                elseif ($taxCode === 8) { $totalExonerada += round($lineSubtotal, 2); }
+                else { $totalInafecta += round($lineSubtotal, 2); }
+                $totalIgv += round($lineIgv, 2);
+                $total += round($lineTotal, 2);
                 $validDetailsCreated++;
             }
 
             if ($validDetailsCreated <= 0 || $total <= 0) {
-                throw new \Exception(
+                throw new \DomainException(
                     'El total de la Nota de Crédito debe ser mayor a cero.'
                 );
             }
 
             $creditNote->update([
                 'op_gravada' => round($totalGravada, 2),
+                'op_exonerada' => round($totalExonerada, 2),
+                'op_inafecta' => round($totalInafecta, 2),
                 'igv' => round($totalIgv, 2),
                 'importe_total' => round($total, 2),
             ]);
@@ -4917,50 +4495,87 @@ class PuntoVentaController extends Controller
                 'details.saleDetail',
             ]);
 
-            $result = $this->generarNotaCreditoParcialNubefact(
-                $sale,
-                $creditNote
-            );
-
-            $this->persistNubefactCreditNoteResult(
-                $creditNote,
-                $result
-            );
-
-            $creditNote->refresh();
-
-            /*
-             * Stock parcial + devolución de caja.
-             */
-            $this->applyCreditNoteInternalReversal(
-                $creditNote
-            );
-
-            $creditNote->refresh();
-
+            $plan = $settlement->plan($financial, $settlement::cents($creditNote->importe_total));
+            $creditNote->forceFill($plan);
+            if ($settlement::cents($plan['cash_refund_amount']) > 0) {
+                $settlement->destination($sale, $request->refund_cash_box_id, $request->refund_subtype_id);
+                $creditNote->refund_cash_box_id = $request->refund_cash_box_id;
+                $creditNote->refund_subtype_id = $request->refund_subtype_id ?: null;
+            }
+            $creditNote->save();
+            // Validate the fiscal payload and company configuration before reserving a send.
+            $this->buildNubefactCreditNotePartialData($sale, $creditNote);
+            // Validate inventory provenance before contacting the provider, then roll back the rehearsal.
+            DB::beginTransaction();
+            try { $this->reverseCreditNoteStockPartially($creditNote, true); }
+            finally { DB::rollBack(); }
             DB::commit();
+            $durable = true;
 
-            return response()->json([
-                'message' =>
-                    'Nota de Crédito parcial generada y enviada a Nubefact. '
-                    . 'Los productos e items fueron devueltos y la caja fue actualizada. '
-                    . 'Pendiente de aceptación SUNAT.',
-                'credit_note_status' => $creditNote->status,
-                'credit_note_type' => 'partial',
-                'internal_reversal_status' =>
-                    $creditNote->internal_reversal_status,
-                'cash_refund_status' =>
-                    $creditNote->cash_refund_status,
-            ], 200);
-
+            // The reserved request survives timeouts: repeating this POST never emits another document.
+            $result = $this->generarNotaCreditoParcialNubefact($sale, $creditNote);
+            $this->persistNubefactCreditNoteResult($creditNote, $result);
+            return $this->completePartialCreditNote($creditNote->id);
         } catch (\Throwable $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) { DB::rollBack(); }
+            if ($durable) {
+                \Illuminate\Support\Facades\Log::warning('Partial NC requires review', ['credit_note_id' => $creditNote->id, 'exception' => get_class($e)]);
+                return response()->json(['message' => 'La NC #' . $creditNote->id . ' quedó registrada y requiere consultar su estado. No vuelva a emitirla. Si no tiene número confirmado, concilie el envío con Nubefact. Referencia: ' . $creditNote->generation_key,
+                    'credit_note_id' => $creditNote->id, 'credit_note_status' => $creditNote->fresh()->status], 202);
+            }
+            if (!$e instanceof \DomainException && !$e instanceof \Illuminate\Validation\ValidationException) {
+                \Illuminate\Support\Facades\Log::warning('Partial NC validation failure', ['sale_id' => $id, 'exception' => get_class($e)]);
+            }
+            return response()->json(['message' => $e instanceof \DomainException ? $e->getMessage() : 'No se pudo preparar la devolución. Revise las cantidades, el canal y su sesión abierta.'], 422);
+        }
+    }
 
-            return response()->json([
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 422);
+    private function partialCreditTaxCode($detail): int
+    {
+        $saved = (int) $detail->tax_provider_code;
+        if (in_array($saved, [1, 8, 9], true)) { return $saved; }
+        // Older taxable sales retain the original pre-tax and tax-inclusive unit prices.
+        if ((float) $detail->percentage_tax > 0 || ((float) $detail->price > 0 && (float) $detail->valor_unitario > 0 && (float) $detail->valor_unitario < (float) $detail->price)) { return 1; }
+        throw new \DomainException('El detalle no conserva una identidad tributaria suficiente para emitir la nota. Requiere revisión.');
+    }
+
+    private function partialCreditUnitPrice($detail): float
+    {
+        if ((float) $detail->quantity <= 0) { throw new \DomainException('El detalle no tiene cantidad vendida válida.'); }
+        return max(0, (float) $detail->total - (float) $detail->discount) / (float) $detail->quantity;
+    }
+
+    private function completePartialCreditNote($noteId)
+    {
+        DB::transaction(function () use ($noteId) {
+            $reference = CreditNote::findOrFail($noteId);
+            $sale = Sale::where('id', $reference->sale_id)->lockForUpdate()->firstOrFail();
+            $note = CreditNote::where('sale_id', $sale->id)->lockForUpdate()->findOrFail($noteId);
+            if ($note->status === 'accepted' && $note->serie && $note->numero && $note->nubefact_response && $note->internal_reversal_status !== 'reversed') {
+                $this->applyCreditNoteInternalReversal($note);
+            }
+        }, 3);
+        $note = CreditNote::findOrFail($noteId);
+        $applied = $note->internal_reversal_status === 'reversed';
+        $message = $note->status === 'rejected' ? 'La nota fue rechazada. No se aplicaron nuevos movimientos.'
+            : ($applied ? 'Nota aceptada. Productos reingresados; deuda reducida en ' . number_format($note->debt_reduction_amount, 2) . ' y devolución de ' . number_format($note->cash_refund_amount, 2) . ' registrada.'
+            : 'Nota pendiente de aceptación o de confirmación de sus datos. Todavía no se modificaron stock ni dinero. Consulte su estado. Referencia: ' . $note->generation_key);
+        return response()->json(['message' => $message, 'credit_note_status' => $note->status,
+            'internal_reversal_status' => $note->internal_reversal_status, 'cash_refund_amount' => $note->cash_refund_amount,
+            'debt_reduction_amount' => $note->debt_reduction_amount], $note->status === 'rejected' ? 422 : 200);
+    }
+
+    private function consultPartialCreditNote($note)
+    {
+        try {
+            if ($note->status !== 'accepted') {
+                $result = $this->consultarNotaCreditoNubefact($note);
+                $this->persistNubefactCreditNoteResult($note, $result);
+            }
+            return $this->completePartialCreditNote($note->id);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Partial NC consultation requires review', ['credit_note_id' => $note->id, 'exception' => get_class($e)]);
+            return response()->json(['message' => ($e instanceof \DomainException ? $e->getMessage() . ' ' : '') . 'No se completó la consulta o la aplicación de la NC #' . $note->id . '. Se conserva el documento. Verifique una sesión propia abierta en el canal elegido y vuelva a consultar; no genere otra nota.'], 422);
         }
     }
 
@@ -5037,6 +4652,11 @@ class PuntoVentaController extends Controller
 
     private function registerCreditNoteCashRefund(CreditNote $creditNote): void
     {
+        if ((int) $creditNote->settlement_version === 1) {
+            app(\App\Services\Sales\PartialCreditSettlement::class)->refund($creditNote);
+            return;
+        }
+
         if ($creditNote->cash_refund_status === 'refunded') {
             return;
         }
@@ -5448,6 +5068,8 @@ class PuntoVentaController extends Controller
                 'importe_total' => number_format((float) $sale->importe_total, 2, '.', ''),
                 'total_abonado' => $totalAbonado,
                 'estado_pago_parcial' => $estadoPagoParcial,
+                'invoice_info' => app(\App\Services\Sales\ExistingSaleInvoice::class)->flags($sale),
+                'total_credit_note_info' => app(\App\Services\Sales\TotalCreditNoteService::class)->flags($sale),
 
                 'tipo_pago' => mb_strtoupper($this->cleanUtf8($tipoPagoLabel), 'UTF-8'),
                 'dispatch_status' => $sale->dispatch_status ?? 'despachado',

@@ -87,13 +87,17 @@ class PosInventoryService
     }
     private function output($output,$detail,$line,$lot,$quantity,$cost,$physicalItem): void
     {
-        OutputDetail::create(['tenant_id'=>Context::tenantId(),'company_id'=>Context::companyId(),'output_id'=>$output->id,'sale_detail_id'=>$detail->id,
+        $costCurrency = strtoupper((string) app(\App\Services\SettingService::class)->get('finance.base_currency'));
+        if (!in_array($costCurrency, ['PEN', 'USD'], true)) { $this->fail('La moneda base del costo no es válida.'); }
+        $outputRow = new OutputDetail(['tenant_id'=>Context::tenantId(),'company_id'=>Context::companyId(),'output_id'=>$output->id,'sale_detail_id'=>$detail->id,
             'item_id'=>$physicalItem?$physicalItem->id:null,'material_id'=>$line['item']->material_id,'stock_item_id'=>$line['item']->id,'stock_lot_id'=>$lot->id,
             'warehouse_id'=>$lot->warehouse_id,'location_id'=>$lot->location_id,'custom'=>0,
             // Existing output convention: percentage stores consumed units for normal lots.
             'percentage'=>$physicalItem?1:$quantity,'price'=>$line['price'],
             'length'=>$physicalItem?$physicalItem->length:null,'width'=>$physicalItem?$physicalItem->width:null,
             'unit_cost'=>$cost,'total_cost'=>bcmul($cost,$quantity,8)]);
+        $outputRow->cost_currency = $costCurrency;
+        $outputRow->save();
     }
     private function cost($value): string
     {

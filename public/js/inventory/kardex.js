@@ -118,6 +118,10 @@ function loadKardex(stockItemId, warehouseId = null) {
                     origen = r.receipt_id ? transfer + ' · Recepción #' + r.receipt_id : transfer + ' · Despacho';
                 }
 
+                if (r.source_type === 'credit_note_total_return') { origen = 'Devolución · NC total #' + r.source_id; }
+                if (r.source_type === 'sale_annulment_return') { origen = 'Anulación · Venta #' + r.source_id; }
+                if (r.source_type === 'credit_note_return') { origen = 'Devolución · NC #' + r.source_id; }
+
                 let tr = $('<tr>');
                 tr.append($('<td>', {class: 'text-center text-nowrap'}).text(r.date || ''));
                 tr.append($('<td>', {class: 'text-center'}).append(

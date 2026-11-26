@@ -2387,10 +2387,19 @@ trait NubefactTrait
         $response = Http::withHeaders([
             'Authorization' => 'Token token=' . $token,
             'Content-Type'  => 'application/json',
-        ])->post($url, $data);
+        ])->timeout(60)->post($url, $data);
 
         $result = $response->json();
 
+        if (!$response->ok() || (is_array($result) && isset($result['errors']))) {
+            $code = is_array($result) ? ($result['codigo'] ?? null) : null;
+            Log::warning('Partial NC provider response', [
+                'credit_note_id' => $creditNote->id, 'sale_id' => $sale->id,
+                'tenant_id' => $sale->tenant_id, 'company_id' => $sale->company_id,
+                'http_status' => $response->status(),
+                'provider_code' => is_scalar($code) && preg_match('/^[A-Za-z0-9_-]{1,20}$/D', (string) $code) ? (string) $code : null,
+            ]);
+        }
         if (!$response->ok()) {
             $msg = is_array($result)
                 ? json_encode($result, JSON_UNESCAPED_UNICODE)
@@ -2413,7 +2422,7 @@ trait NubefactTrait
     private function buildNubefactCreditNotePartialData(Sale $sale, CreditNote $creditNote, ?NubefactCompanyConnection $connection = null): array
     {
         $connection = $connection ?: $this->nubefactConnectionForCreditNote($creditNote, $sale);
-        $creditNote->loadMissing(['details']);
+        $creditNote->loadMissing(['details.saleDetail']);
 
         if ($creditNote->details->isEmpty()) {
             throw new \Exception('La Nota de Crédito parcial no tiene detalles.');
@@ -2432,18 +2441,21 @@ trait NubefactTrait
                 "valor_unitario" => (float) $detail->valor_unitario,
                 "precio_unitario" => (float) $detail->price,
                 "subtotal" => (float) $detail->subtotal,
-                "tipo_de_igv" => "1",
+                "tipo_de_igv" => $this->partialCreditTaxCode($detail->saleDetail),
                 "igv" => (float) $detail->igv,
                 "total" => (float) $detail->total,
             ];
         })->toArray();
 
+        $rates = $creditNote->details->filter(function ($d) { return $this->partialCreditTaxCode($d->saleDetail) === 1; })
+            ->map(function ($d) { return (float) ($d->saleDetail->tax_rate_snapshot ?: $d->saleDetail->percentage_tax ?: 18); })->unique()->values();
+        if ($rates->count() > 1) { throw new \DomainException('Esta nota contiene tasas de IGV distintas. Requiere revisión antes de emitir.'); }
         return [
             "operacion" => "generar_comprobante",
             "tipo_de_comprobante" => "3",
             "serie" => $serieNotaCredito,
             "numero" => "",
-            "codigo_unico" => 'NC-PARCIAL-' . $sale->id . '-' . now()->timestamp . '-' . Str::random(8),
+            "codigo_unico" => $creditNote->generation_key,
 
             "sunat_transaction" => "1",
 
@@ -2454,8 +2466,8 @@ trait NubefactTrait
             "cliente_email" => $sale->email_cliente ?: "",
 
             "fecha_de_emision" => now()->format('d-m-Y'),
-            "moneda" => "1",
-            "porcentaje_de_igv" => 18.00,
+            "moneda" => $sale->currency === 'USD' ? "2" : "1",
+            "porcentaje_de_igv" => $rates->first() ?: 0,
 
             "tipo_de_nota_de_credito" => $creditNote->reason_code ?: "07",
             "motivo_o_sustento_de_nota_de_credito" => $creditNote->reason_description ?: "Devolución parcial",
@@ -2465,6 +2477,8 @@ trait NubefactTrait
             "documento_que_se_modifica_numero" => $sale->numero,
 
             "total_gravada" => (float) $creditNote->op_gravada,
+            "total_exonerada" => (float) $creditNote->op_exonerada,
+            "total_inafecta" => (float) $creditNote->op_inafecta,
             "total_igv" => (float) $creditNote->igv,
             "total" => (float) $creditNote->importe_total,
             "total_a_pagar" => (float) $creditNote->importe_total,

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class CreditNote extends Model
 {
     protected $fillable = [
+        'settlement_version', 'debt_reduction_amount', 'cash_refund_amount', 'refund_cash_box_id',
+        'refund_subtype_id', 'partial_request_key', 'partial_request_hash',
         'sale_id',
         'type_document',
         'serie',

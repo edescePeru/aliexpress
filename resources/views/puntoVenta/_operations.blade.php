@@ -126,6 +126,11 @@
 
                     <input type="hidden" id="gc_sale_id">
                     <input type="hidden" id="gc_free_sale" value="0">
+                    <div class="mb-3" role="status">
+                        <div><strong>Venta:</strong> <span id="gc_summary_sale"></span></div>
+                        <div><strong>Importe del comprobante:</strong> <span id="gc_summary_amount"></span></div>
+                        <p class="small text-muted mb-0">Se emitirá con fecha de hoy por el total original de la venta, aunque tenga pagos pendientes. Esta operación no registra otro cobro ni descuenta stock.</p>
+                    </div>
 
                     <ul class="nav nav-tabs" id="gc_tabs" role="tablist" data-boleta="{{ auth()->user()->can('generarBoleta_puntoVenta') ? 1 : 0 }}" data-factura="{{ auth()->user()->can('generarFactura_puntoVenta') ? 1 : 0 }}">
                         <li class="nav-item">
@@ -252,6 +257,8 @@
 
                 <div class="modal-body next-aux-modal-form">
                     <input type="hidden" id="nc_partial_sale_id">
+                    <div class="alert alert-info mt-2">Devuelve cantidades en unidades de inventario. Primero se reduce la deuda y solo se devuelve el excedente cobrado.</div>
+
 
                     <div class="mb-2">
                         <strong>Venta:</strong> <span id="nc_partial_sale_code"></span><br>
@@ -276,6 +283,24 @@
                     <div class="text-right">
                         <strong>Total Nota de Crédito: <span id="nc_partial_currency"></span> <span id="nc_partial_total">0.00</span></strong>
                     </div>
+                    <div class="border rounded p-3 mt-3" aria-live="polite">
+                        <div>Deuda antes de esta devolución: <strong id="nc_debt_before">0.00</strong></div>
+                        <div>Se reduce la deuda en: <strong id="nc_debt_reduction">0.00</strong></div>
+                        <div>Deuda restante: <strong id="nc_debt_after">0.00</strong></div>
+                        <div>Dinero a devolver: <strong id="nc_refund_amount">0.00</strong></div>
+                        <small>Vista previa. El sistema comprobará los importes al confirmar.</small>
+                    </div>
+                    <div id="nc_refund_wrap" class="mt-3" hidden>
+                        <label for="nc_refund_box">Canal de devolución</label>
+                        <select id="nc_refund_box" class="form-control"><option value="">Seleccione una caja</option></select>
+                        <small>Se muestran cajas de la moneda de la venta con una sesión propia abierta en este local. Puede elegir un canal distinto al del cobro.</small>
+                        <div id="nc_refund_subtype_wrap" class="mt-2" hidden>
+                            <label for="nc_refund_subtype">Subtipo bancario</label>
+                            <select id="nc_refund_subtype" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div id="nc_no_refund" class="text-muted mt-2">No corresponde devolver dinero por esta selección.</div>
+
                 </div>
 
                 <div class="modal-footer">
@@ -363,3 +388,14 @@
             </div>
         </div>
     </div>
+
+<div class="modal fade next-aux-modal" id="modalAnularVenta" tabindex="-1" role="dialog" aria-labelledby="ann_title" aria-hidden="true">
+ <div class="modal-dialog modal-dialog-scrollable" role="document"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="ann_title">Anulación de venta</h5><button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button></div>
+  <div class="modal-body next-aux-modal-form">
+   <p><strong>Venta:</strong> <span id="ann_sale"></span></p><p id="ann_policy" class="small text-muted"></p>
+   <div class="row"><div class="col-sm-6"><strong>Deuda que se cancela</strong><div id="ann_debt"></div></div><div class="col-sm-6"><strong>Dinero a devolver</strong><div id="ann_refund"></div></div></div>
+   <div id="ann_refund_wrap" class="mt-3" hidden><label for="ann_box">Canal de devolución</label><select id="ann_box" class="form-control"></select><div id="ann_subtype_wrap" class="mt-2" hidden><label for="ann_subtype">Subtipo</label><select id="ann_subtype" class="form-control"></select></div><small class="text-muted">Se registra un egreso en tu sesión abierta. No se modifica el turno original.</small></div>
+  </div><div class="modal-footer"><button type="button" class="btn btn-primary" id="btnConfirmAnnulment">Confirmar operación</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button></div>
+ </div></div>
+</div>

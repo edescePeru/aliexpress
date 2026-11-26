@@ -12,16 +12,18 @@ use Illuminate\Validation\ValidationException;
 class SaleEmissionRecoveryService
 {
     /** Recuperación LOCAL: no HTTP, no credenciales ni nueva emisión. */
-    public function recover(int $saleId, int $attemptId): array
+    public function recover(int $saleId, int $attemptId, bool $allowExistingSale = false): array
     {
         $tenantId = TenantContext::tenantId();
         $companyId = TenantContext::companyId();
 
-        return DB::transaction(function () use ($saleId, $attemptId, $tenantId, $companyId) {
+        return DB::transaction(function () use ($saleId, $attemptId, $tenantId, $companyId, $allowExistingSale) {
             // Mismo orden de bloqueo que SaleEmissionService: Sale, intento.
             $sale = Sale::query()->where('tenant_id', $tenantId)
                 ->where('company_id', $companyId)->where('id', $saleId)
-                ->whereNotNull('quote_id')->lockForUpdate()->firstOrFail();
+                ->when(!$allowExistingSale, function ($q) { $q->whereNotNull('quote_id'); })
+                ->when($allowExistingSale, function ($q) { $q->where('branch_id', TenantContext::branchId())->where(function ($q) { $q->whereNull('free_sale')->orWhere('free_sale', false); }); })
+                ->lockForUpdate()->firstOrFail();
 
             $attempt = SaleEmissionAttempt::query()->where('tenant_id', $tenantId)
                 ->where('company_id', $companyId)->where('sale_id', $sale->id)

@@ -27,13 +27,22 @@ class SaleListGuard
             abort_unless($movement && DB::table('cash_registers')->where('id', $movement->cash_register_id)->where('tenant_id', TenantContext::tenantId())->where('company_id', TenantContext::companyId())->where('branch_id', TenantContext::branchId())->exists(), 404);
         }
         $sale = $source !== '' ? $access->sale($id) : null;
+        if ($sale && $sale->internal_reversal_status === 'reversed' && !$request->isMethod('GET')
+            && (in_array($operation,['payments','dispatch'],true) || $request->route()->getActionMethod() === 'generarNotaCreditoParcial'
+                || ($request->route()->getActionMethod() === 'consultarNotaCredito' && optional($sale->creditNotes()->latest('id')->first())->credit_note_type === 'partial'))) {
+            throw ValidationException::withMessages(['sale_id'=>'La venta ya fue revertida; no admite nuevos cobros, cambios de despacho ni devoluciones parciales.']);
+        }
         if ($sale && ($operation === 'annul' || ($operation === 'payments' && $request->isMethod('DELETE')))) {
             $method = $request->route()->getActionMethod();
             $supportsFullRefund = $operation === 'annul' && in_array($method, [
                     'anularOrder', 'consultarAnulacion', 'generarNotaCreditoTotal',
                     'consultarNotaCredito', 'annul', 'consultAnnulment',
                 ], true);
-            if ($supportsFullRefund) {
+            if (in_array($method, ['anularOrder', 'consultarAnulacion', 'annulmentPreview', 'generarNotaCreditoTotal', 'totalCreditPreview'], true)) {
+                // The new annulment service validates its own financial plan and destination under lock.
+            } elseif ($method === 'consultarNotaCredito' && optional($sale->creditNotes()->latest('id')->first())->credit_note_type === 'total') {
+                // The total-note service validates its own destination and financial proof.
+            } elseif ($supportsFullRefund) {
                 app(\App\Services\Sales\DeferredSaleRefund::class)->plan($sale);
             } else {
                 app(\App\Services\CashRegularizationGuard::class)->sale($sale);
@@ -48,7 +57,7 @@ class SaleListGuard
         if ($sale && in_array($operation, ['emit', 'annul', 'documents'], true) && !$request->isMethod('GET') && $sale->requiresEmissionReview()) {
             // Reconciliation/file recovery must remain available to authorized operators.
             $method = $request->route()->getActionMethod();
-            if (!in_array($method, ['recuperarArchivosNubefact', 'consultarAnulacion', 'consultarNotaCredito', 'consultAnnulment'], true)) {
+            if (!in_array($method, ['recuperarArchivosNubefact', 'consultarAnulacion', 'consultarNotaCredito', 'consultAnnulment', 'recoverInvoiceEmission'], true)) {
                 throw ValidationException::withMessages(['sale_id' => 'La emisión requiere conciliación antes de modificar, emitir, anular o descartar.']);
             }
         }

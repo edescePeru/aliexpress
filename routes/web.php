@@ -3240,6 +3240,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
             ->name('puntoVenta.list')->middleware(\App\Http\Middleware\SaleListGuard::class.':read');
         Route::get('/get/data/sales/{page}', 'PuntoVentaController@getSalesAdmin')->middleware(\App\Http\Middleware\SaleListGuard::class.':read');
         Route::get('/sales/{orderId}/details', 'PuntoVentaController@getOrderDetails')->middleware(\App\Http\Middleware\SaleListGuard::class.':read,route,orderId');
+        Route::get('/sale/{id}/total-credit-note-preview', 'PuntoVentaController@totalCreditPreview')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
+        Route::get('/sale/{id}/annulment-preview', 'PuntoVentaController@annulmentPreview')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');
         Route::post('/anular/order/{order}', 'PuntoVentaController@anularOrder')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,order');
 
         Route::post('/sales/update-invoice-data', 'PuntoVentaController@updateInvoiceData')->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,input,order_id');
@@ -3768,6 +3770,8 @@ Route::middleware(['auth', 'check.user.enabled', 'password.changed', 'tenant.con
         Route::post('/sale/partial-payment/store', 'SalePartialPaymentController@store')->middleware(\App\Http\Middleware\SaleListGuard::class.':payments,input,sale_id');
         Route::delete('/sale/partial-payment/{id}', 'SalePartialPaymentController@destroy')->middleware(\App\Http\Middleware\SaleListGuard::class.':payments,payment,id');
         Route::post('/sale/generate-invoice', 'SalePartialPaymentController@generateInvoiceFromSale')->middleware(\App\Http\Middleware\SaleListGuard::class.':emit,input,sale_id');
+        Route::get('/sale/{sale}/emission-status', 'SalePartialPaymentController@invoiceEmissionStatus')->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,route,sale');
+        Route::post('/sale/{sale}/recover-emission', 'SalePartialPaymentController@recoverInvoiceEmission')->middleware(\App\Http\Middleware\SaleListGuard::class.':documents,route,sale');
         Route::post('/sale/update-dispatch-status', 'SalePartialPaymentController@updateDispatchStatus')->middleware(\App\Http\Middleware\SaleListGuard::class.':dispatch,input,sale_id');
 
         Route::post('/consultar/anulacion/{id}', 'PuntoVentaController@consultarAnulacion')->middleware(\App\Http\Middleware\SaleListGuard::class.':annul,route,id');

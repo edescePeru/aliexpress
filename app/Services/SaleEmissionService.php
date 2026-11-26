@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 class SaleEmissionService
 {
     /** El builder solo construye datos: no HTTP ni escrituras externas. */
-    public function emit(Sale $original, callable $builder): array
+    public function emit(Sale $original, callable $builder, ?callable $prepare = null): array
     {
         $tenantId = TenantContext::tenantId();
         $companyId = TenantContext::companyId();
@@ -23,9 +23,9 @@ class SaleEmissionService
         }
 
         $connection = null;
-        $claim = DB::transaction(function () use ($original, $builder, &$connection, $tenantId, $companyId) {
+        $claim = DB::transaction(function () use ($original, $builder, $prepare, &$connection, $tenantId, $companyId) {
             $sale = $this->saleQuery($original->id, $tenantId, $companyId)->lockForUpdate()->firstOrFail();
-            if ((int) $sale->state_annulled === 1 || !in_array($sale->type_document, ['01', '03'], true)) {
+            if ((int) $sale->state_annulled === 1 || ($prepare === null && !in_array($sale->type_document, ['01', '03'], true))) {
                 throw new \RuntimeException('La venta no admite emisión electrónica.');
             }
             if (!$sale->branch_id || !DB::table('branches')->where('id', $sale->branch_id)
@@ -44,6 +44,11 @@ class SaleEmissionService
             if ($this->attemptQuery($sale->id, $tenantId, $companyId)
                 ->whereIn('status', ['processing', 'unknown', 'persistence_pending', 'confirmed'])->exists()) {
                 return ['blocked' => true, 'status' => $status];
+            }
+
+            if ($prepare !== null) {
+                $prepare($sale);
+                if (!in_array($sale->type_document, ['01', '03'], true)) { throw new \RuntimeException('Tipo de comprobante no válido.'); }
             }
 
             if (!$sale->emission_key) {
@@ -90,7 +95,11 @@ class SaleEmissionService
                     'finished_at' => now(),
                 ]);
                 $sale->update(['emission_status' => 'failed']);
-                return ['blocked' => true, 'status' => 'failed'];
+                $warning = 'Falló la preparación local del comprobante; no se realizó ningún envío.';
+                if ($prepare !== null && $e instanceof \Illuminate\Validation\ValidationException) {
+                    $warning .= ' ' . collect($e->errors())->flatten()->implode(' ');
+                }
+                return ['blocked' => true, 'status' => 'failed', 'warning' => $warning];
             }
 
             return ['blocked' => false, 'attempt_id' => $attempt->id,

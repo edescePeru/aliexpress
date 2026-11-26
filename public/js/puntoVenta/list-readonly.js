@@ -44,6 +44,7 @@
     }
     // Display backend payment states; never recompute amounts or percentages.
     function payment(row) {
+        if(row.internal_reversal_status==='reversed') return badge('Revertida','secondary');
         const states = {rojo: ['Menos del 50%', 'danger'], naranja: ['50% a 99.99%', 'warning'], verde: ['100% o más', 'success']};
         const state = states[row.estado_pago_parcial];
         return state ? badge(state[0], state[1]) : badge(row.pagos_parciales_venta === 'n' ? 'Pago completo' : 'No registrado', 'secondary');
@@ -55,7 +56,10 @@
         else if (row.annulment_status === 'pending' || row.has_pending_credit_note) color = 'info';
         else if (row.annulment_status === 'accepted') color = 'dark';
         else if (row.type_document === '01' || row.type_document === '03') color = 'success';
-        return badge(row.estado_comprobante || 'SIN COMPROBANTE', color);
+        const original=badge(row.estado_comprobante || 'SIN COMPROBANTE', color), n=row.total_credit_note_info || {};
+        if(!n.id)return original;
+        const names={accepted:'ACEPTADA',pending:'PENDIENTE',unknown:'POR CONFIRMAR',processing:'PROCESANDO',rejected:'RECHAZADA'};
+        return original+'<br>'+badge('NC TOTAL · '+(names[n.status] || 'REVISAR'),n.status==='accepted'?'success':n.status==='rejected'?'danger':'warning');
     }
     function safeDocument(url, id) {
         if (!url) return null;

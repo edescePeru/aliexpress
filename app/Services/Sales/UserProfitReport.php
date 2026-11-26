@@ -36,7 +36,7 @@ class UserProfitReport
 
     public function salesInContext(int $tenantId, int $companyId, int $branchId)
     {
-        return Sale::query()->withoutGlobalScope(\App\Scopes\TenantScope::class)
+        return Sale::query()->with('details.creditNoteDetails.creditNote')->withoutGlobalScope(\App\Scopes\TenantScope::class)
             ->where('tenant_id', $tenantId)
             ->where('company_id', $companyId)
             ->where('branch_id', $branchId)
@@ -66,6 +66,28 @@ class UserProfitReport
         if ($cost === null && $detail->unit_cost !== null && $quantity > 0) {
             $cost = (float) $detail->unit_cost * $quantity;
         }
+        $detail->loadMissing('creditNoteDetails.creditNote');
+        $returns = $detail->creditNoteDetails->filter(function ($return) use ($detail) {
+            $note = $return->creditNote;
+            return $note && (int) $note->sale_id === (int) $detail->sale_id && $note->credit_note_type === 'partial'
+                && $note->internal_reversal_status === 'reversed';
+        });
+        $returnedQuantity = (float) $returns->sum('quantity');
+        $returnedAmount = (float) $returns->sum('total');
+        if ($returns->isNotEmpty() && $cost !== null) {
+            $verified = $returns->every(function ($return) { return (int) $return->creditNote->stock_return_version === 1; });
+            $ledger = \Illuminate\Support\Facades\DB::table('credit_note_stock_returns')
+                ->where('tenant_id', $detail->tenant_id)->where('company_id', $detail->company_id)
+                ->where('sale_id', $detail->sale_id)->whereIn('credit_note_detail_id', $returns->pluck('id')->all())->get();
+            if (!$verified || abs((float) $ledger->sum('quantity') - $returnedQuantity) > 0.000001) { $cost = null; }
+            else {
+                $cost -= (float) $ledger->sum('total_cost');
+                if ($returnedQuantity >= $quantity - 0.000001) { $cost = 0.0; }
+                elseif ($cost < -0.000001) { $cost = null; }
+            }
+        }
+        $quantity = max(0, $quantity - $returnedQuantity);
+        $sold -= $returnedAmount;
         return [$quantity, $sold, $cost, $cost === null ? null : $sold - $cost];
     }
 

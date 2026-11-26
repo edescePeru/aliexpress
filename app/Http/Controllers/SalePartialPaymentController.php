@@ -28,7 +28,8 @@ class SalePartialPaymentController extends Controller
             }
 
             $pagos = SalePartialPayment::where('sale_id', $sale->id)
-                ->where('state', 1)
+                ->where('tenant_id',$sale->tenant_id)->where('company_id',$sale->company_id)->where('branch_id',$sale->branch_id)
+                ->when($sale->internal_reversal_status !== 'reversed', function($q){$q->where('state',1);})
                 ->with([
                     'cashMovement.cashRegister.cashBox',
                     'cashMovement.cashBoxSubtype'
@@ -37,21 +38,32 @@ class SalePartialPaymentController extends Controller
                 ->orderBy('id', 'asc')
                 ->get();
 
-            $totalVenta = (float) $sale->importe_total;
-            $totalAbonado = (float) $pagos->sum('amount');
+            $balance = app(\App\Services\Sales\PartialCreditSettlement::class)->snapshot($sale);
+            if (!empty($balance['reconciliation_required'])) { throw new \DomainException('La devolución histórica requiere conciliación.'); }
+            $totalVenta = $balance['net_cents'] / 100;
+            $totalAbonado = $balance['retained_cents'] / 100;
 
-            $pagosResponse = $pagos->map(function ($pago) {
+            $pagosResponse = $pagos->map(function ($pago) use ($sale) {
                 $cashBoxLabel = '-';
 
                 if (
                     $pago->cashMovement &&
+                    (int)$pago->cashMovement->tenant_id === (int)$sale->tenant_id &&
+                    (int)$pago->cashMovement->company_id === (int)$sale->company_id &&
+                    (int)$pago->cashMovement->branch_id === (int)$sale->branch_id &&
+                    (int)$pago->cashMovement->sale_id === (int)$sale->id &&
                     $pago->cashMovement->cashRegister &&
-                    $pago->cashMovement->cashRegister->cashBox
+                    (int)$pago->cashMovement->cashRegister->tenant_id === (int)$sale->tenant_id &&
+                    (int)$pago->cashMovement->cashRegister->company_id === (int)$sale->company_id &&
+                    (int)$pago->cashMovement->cashRegister->branch_id === (int)$sale->branch_id &&
+                    $pago->cashMovement->cashRegister->cashBox &&
+                    (int)$pago->cashMovement->cashRegister->cashBox->tenant_id === (int)$sale->tenant_id &&
+                    (int)$pago->cashMovement->cashRegister->cashBox->company_id === (int)$sale->company_id
                 ) {
                     $cashBox = $pago->cashMovement->cashRegister->cashBox;
                     $cashBoxLabel = $cashBox->name;
 
-                    if ($pago->cashMovement->cashBoxSubtype) {
+                    if ($pago->cashMovement->cashBoxSubtype && (int)$pago->cashMovement->cashBoxSubtype->tenant_id === (int)$sale->tenant_id && (int)$pago->cashMovement->cashBoxSubtype->company_id === (int)$sale->company_id) {
                         $cashBoxLabel .= ' - ' . $pago->cashMovement->cashBoxSubtype->name;
                     }
                 }
@@ -60,7 +72,8 @@ class SalePartialPaymentController extends Controller
                     'id' => $pago->id,
                     'payment_date' => optional($pago->payment_date)->format('d/m/Y'),
                     'amount' => number_format($pago->amount, 2, '.', ''),
-                    'cash_box_label' => $cashBoxLabel,
+                    'cash_box_label' => $cashBoxLabel . ((int)$pago->state===0?' · revertido':''),
+                    'active' => (int)$pago->state===1,
                 ];
             });
 
@@ -69,6 +82,10 @@ class SalePartialPaymentController extends Controller
                 'total_abonado' => number_format($totalAbonado, 2, '.', ''),
                 'saldo_pendiente' => number_format($totalVenta - $totalAbonado, 2, '.', ''),
                 'pagos' => $pagosResponse,
+                'operation_reversed' => !empty($balance['operation_reversed']),
+                'debt_cancelled' => number_format(($balance['debt_cancelled_cents']??0)/100,2,'.',''),
+                'refunded' => number_format($balance['refunded_cents']/100,2,'.',''),
+                'pending_cancelled' => number_format(($balance['pending_cancelled_cents']??0)/100,2,'.',''),
             ]);
 
         } catch (\Throwable $e) {
@@ -91,7 +108,14 @@ class SalePartialPaymentController extends Controller
                 'cash_box_subtype_id' => 'nullable|exists:cash_box_subtypes,id',
             ]);
 
-            $sale = Sale::findOrFail($request->sale_id);
+            app(\App\Services\Sales\SaleListAccess::class)->sale($request->sale_id);
+            $sale = Sale::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())
+                ->where('branch_id', \App\Support\TenantContext::branchId())->lockForUpdate()->findOrFail($request->sale_id);
+            $settlement = app(\App\Services\Sales\PartialCreditSettlement::class);
+            if ($settlement->pending($sale)->exists()) { throw new \DomainException('Resuelva primero la nota de crédito pendiente.'); }
+            $balance = $settlement->snapshot($sale);
+            if (!empty($balance['reconciliation_required'])) { throw new \DomainException('La devolución histórica requiere conciliación.'); }
+            if ($settlement::cents($request->amount) > $balance['debt_cents']) { throw new \DomainException('El abono supera la deuda pendiente después de las devoluciones.'); }
 
             if ($sale->pagos_parciales_venta !== 's') {
                 throw new \Exception('Esta venta no está marcada como venta con pagos parciales.');
@@ -205,6 +229,9 @@ class SalePartialPaymentController extends Controller
                 ->where('company_id', $sale->company_id)->where('branch_id', $sale->branch_id)
                 ->lockForUpdate()->findOrFail($id);
 
+            if ($sale->creditNotes()->where(function ($q) {
+                $q->whereIn('status', ['pending', 'accepted'])->orWhere('internal_reversal_status', 'reversed');
+            })->exists()) { throw new \DomainException('No se puede eliminar un cobro de una venta con notas de crédito aplicadas o pendientes. Requiere conciliación para conservar la deuda y las devoluciones.'); }
             $movement = CashMovement::where('company_id', $sale->company_id)->where('branch_id', $sale->branch_id)
                 ->lockForUpdate()->find($payment->cash_movement_id);
 
@@ -282,131 +309,73 @@ class SalePartialPaymentController extends Controller
 
     public function generateInvoiceFromSale(Request $request)
     {
+        $data = $request->validate([
+            'sale_id' => 'required|integer|min:1', 'tipo_comprobante' => 'required|in:boleta,factura',
+            'dni' => 'nullable|required_if:tipo_comprobante,boleta|regex:/^\d{8}$/D',
+            'name' => 'nullable|required_if:tipo_comprobante,boleta|string|max:250',
+            'email_boleta' => 'nullable|email|max:250',
+            'ruc' => 'nullable|required_if:tipo_comprobante,factura|regex:/^\d{11}$/D',
+            'razon_social' => 'nullable|required_if:tipo_comprobante,factura|string|max:250',
+            'direccion_fiscal' => 'nullable|required_if:tipo_comprobante,factura|string|max:500',
+            'email_factura' => 'nullable|email|max:250',
+        ]);
+        $access = app(\App\Services\Sales\SaleListAccess::class);
+        $sale = $access->sale($data['sale_id']);
+        $access->permission('manageDocuments_puntoVenta');
+        $access->permission($data['tipo_comprobante'] === 'factura' ? 'generarFactura_puntoVenta' : 'generarBoleta_puntoVenta');
         try {
-            $sale = Sale::with(['details.material', 'details.stockItem'])
-                ->findOrFail($request->sale_id);
-
-            if ($sale->requiresEmissionReview()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'sale_id' =>
-                        'La emisión requiere conciliación antes de emitir, '
-                        . 'anular o descartar el comprobante.',
-                ]);
-            }
-
-            /*if ($sale->pagos_parciales_venta !== 's') {
-                return response()->json([
-                    'message' => 'Esta opción solo aplica para ventas con pagos parciales.'
-                ], 422);
-            }*/
-
-            if (in_array($sale->type_document, ['01', '03']) && $sale->sunat_status !== 'Error') {
-                return response()->json([
-                    'message' => 'Esta venta ya tiene un comprobante generado.'
-                ], 422);
-            }
-
-            $tipoComprobante = $request->tipo_comprobante;
-
-            if (!in_array($tipoComprobante, ['boleta', 'factura'])) {
-                return response()->json([
-                    'message' => 'Tipo de comprobante inválido.'
-                ], 422);
-            }
-
-            if ($tipoComprobante === 'boleta') {
-                $numeroDocumento = preg_replace('/\D/', '', $request->dni ?? '');
-
-                if (!preg_match('/^\d{8}$/', $numeroDocumento)) {
-                    return response()->json(['message' => 'Ingrese un DNI válido de 8 dígitos.'], 422);
-                }
-
-                if (!$request->name) {
-                    return response()->json(['message' => 'Ingrese el nombre del cliente.'], 422);
-                }
-
-                $sale->update([
-                    'type_document' => '03',
-                    'tipo_documento_cliente' => '1',
-                    'numero_documento_cliente' => $numeroDocumento,
-                    'nombre_cliente' => $request->name,
-                    'direccion_cliente' => null,
-                    'email_cliente' => $request->email_boleta,
-                    'sunat_status' => null,
-                    'sunat_message' => null,
-                ]);
-            }
-
-            if ($tipoComprobante === 'factura') {
-                $numeroDocumento = preg_replace('/\D/', '', $request->ruc ?? '');
-
-                if (!preg_match('/^\d{11}$/', $numeroDocumento)) {
-                    return response()->json(['message' => 'Ingrese un RUC válido de 11 dígitos.'], 422);
-                }
-
-                if (!$request->razon_social || !$request->direccion_fiscal) {
-                    return response()->json([
-                        'message' => 'Ingrese razón social y dirección fiscal.'
-                    ], 422);
-                }
-
-                $sale->update([
-                    'type_document' => '01',
-                    'tipo_documento_cliente' => '6',
-                    'numero_documento_cliente' => $numeroDocumento,
-                    'nombre_cliente' => $request->razon_social,
-                    'direccion_cliente' => $request->direccion_fiscal,
-                    'email_cliente' => $request->email_factura,
-                    'sunat_status' => null,
-                    'sunat_message' => null,
-                ]);
-            }
-
+            $invoice = app(\App\Services\Sales\ExistingSaleInvoice::class);
+            $outcome = app(\App\Services\SaleEmissionService::class)->emit($sale,
+                function ($locked, $connection) use ($invoice) { return $invoice->payload($locked, $connection); },
+                function ($locked) use ($invoice, $data) { $invoice->prepare($locked, $data); });
             $sale->refresh();
-            $sale->loadMissing(['details.material', 'details.stockItem']);
-
-            try {
-                $nubefactResult = $this->generarComprobanteNubefactParaVenta($sale);
-                $this->persistNubefactFilesAndUpdateSale($sale, $nubefactResult);
-            } catch (\Throwable $e) {
-                $sale->update([
-                    'sunat_status' => 'Error',
-                    'sunat_message' => $e->getMessage(),
-                ]);
-
-                return response()->json([
-                    'message' => 'Nubefact rechazó el comprobante: ' . $e->getMessage(),
-                ], 422);
+            $state = $outcome['emission_status'];
+            if ($state !== 'confirmed') {
+                return response()->json(['message' => implode(' ', $outcome['warnings']), 'sale_id' => $sale->id,
+                    'emission_status' => $state, 'requires_review' => in_array($state, ['processing', 'unknown'], true)],
+                    $state === 'failed' ? 422 : 202);
             }
-
-            $sale->refresh();
-
-            $urlPrint = route('puntoVenta.print', $sale->id);
-            $printType = 'ticket';
-
-            if (!empty($sale->pdf_path)) {
-                $localPath = public_path('comprobantes/pdfs/' . $sale->pdf_path);
-
-                if (file_exists($localPath)) {
-                    $urlPrint = route('sales.list.document', ['id' => $sale->id, 'kind' => 'invoice_pdf']);
-                    $printType = 'sunat_pdf';
+            $warning = '';
+            if (is_array($outcome['result'])) {
+                try {
+                    $files = $this->persistNubefactFilesAndUpdateSale($sale, $outcome['result']);
+                    if (!empty($files['errores'])) { $warning = ' Algunos archivos están pendientes de recuperación.'; }
+                } catch (\Throwable $e) {
+                    $warning = ' El comprobante está registrado, pero falta recuperar sus archivos.';
+                    \Illuminate\Support\Facades\Log::warning('Existing sale invoice files pending', ['sale_id' => $sale->id, 'exception' => get_class($e)]);
                 }
             }
-
-            return response()->json([
-                'message' => 'Comprobante generado correctamente.',
-                'sale_id' => $sale->id,
-                'url_print' => $urlPrint,
-                'print_type' => $printType,
-                'sunat_status' => $sale->sunat_status,
-                'sunat_message' => $sale->sunat_message,
-            ]);
-
-        } catch (\Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            $sale->refresh();
+            return response()->json(['message' => (is_array($outcome['result']) ? 'Comprobante registrado en Nubefact. Estado SUNAT: ' . $sale->sunat_status . '.' : 'La venta ya tiene un comprobante registrado; no se realizó otro envío.') . $warning,
+                'sale_id' => $sale->id, 'emission_status' => 'confirmed', 'sunat_status' => $sale->sunat_status], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) { throw $e; }
+        catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Existing sale invoice requires review', ['sale_id' => $sale->id, 'exception' => get_class($e)]);
+            return response()->json(['message' => 'No se completó la emisión. Revise el estado de la venta antes de intentar otro envío.'], 422);
         }
+    }
+
+    public function invoiceEmissionStatus($sale)
+    {
+        $record = app(\App\Services\Sales\SaleListAccess::class)->sale($sale);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('manageDocuments_puntoVenta');
+        $attempt = $record->emissionAttempts()->where('tenant_id', $record->tenant_id)->where('company_id', $record->company_id)
+            ->where('branch_id', $record->branch_id)->latest('id')->first();
+        $recoverable = $attempt && $attempt->status === 'persistence_pending'
+            && in_array($record->emission_status, ['processing', 'unknown'], true);
+        return response()->json(['sale_id' => $record->id, 'emission_status' => $record->emission_status,
+            'attempt_id' => $attempt ? $attempt->id : null, 'can_recover_locally' => (bool) $recoverable,
+            'reference' => $record->emission_key,
+            'message' => $recoverable ? 'Hay una respuesta guardada. Se pueden recuperar sus datos sin volver a emitir.'
+                : 'La emisión requiere revisar la evidencia y contrastarla con Nubefact. No reenvíe ni cambie la referencia para crear otro comprobante.']);
+    }
+
+    public function recoverInvoiceEmission(Request $request, $sale)
+    {
+        $data = $request->validate(['attempt_id' => 'required|integer|min:1']);
+        $record = app(\App\Services\Sales\SaleListAccess::class)->sale($sale);
+        app(\App\Services\Sales\SaleListAccess::class)->permission('manageDocuments_puntoVenta');
+        return response()->json(app(\App\Services\SaleEmissionRecoveryService::class)->recover($record->id, $data['attempt_id'], true));
     }
 
     public function updateDispatchStatus(Request $request)
@@ -417,18 +386,22 @@ class SalePartialPaymentController extends Controller
                 'dispatch_status' => 'required|in:pendiente,despachado',
             ]);
 
-            $sale = Sale::findOrFail($request->sale_id);
-
+            app(\App\Services\Sales\SaleListAccess::class)->sale($request->sale_id);
+            DB::beginTransaction();
+            $sale = Sale::where('tenant_id', \App\Support\TenantContext::tenantId())->where('company_id', \App\Support\TenantContext::companyId())
+                ->where('branch_id', \App\Support\TenantContext::branchId())->lockForUpdate()->findOrFail($request->sale_id);
             $sale->update([
                 'dispatch_status' => $request->dispatch_status,
             ]);
 
+            DB::commit();
             return response()->json([
                 'message' => 'Estado de despacho actualizado correctamente.',
                 'dispatch_status' => $sale->dispatch_status,
             ]);
 
         } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) { DB::rollBack(); }
             return response()->json([
                 'message' => $e->getMessage(),
             ], 422);
